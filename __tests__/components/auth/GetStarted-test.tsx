@@ -35,11 +35,10 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 jest.mock('react-native-reanimated', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const Reanimated = {
-    View: React.forwardRef(({ children, style, ...props }: any, ref: any) =>
-      React.createElement(View, { ...props, style, ref }, children),
-    ),
-  };
+  const AnimatedView = React.forwardRef(function AnimatedView({ children, style, ...props }: any, ref: any) {
+    return React.createElement(View, { ...props, style, ref }, children);
+  });
+  const Reanimated = { View: AnimatedView };
   return {
     __esModule: true,
     default: Reanimated,
@@ -48,24 +47,24 @@ jest.mock('react-native-reanimated', () => {
     withRepeat: jest.fn(),
     withTiming: jest.fn(),
     Easing: { linear: 'linear' },
-    createAnimatedComponent: (Component: any) =>
-      React.forwardRef((props: any, ref: any) =>
-        React.createElement(Component, { ...props, ref }),
-      ),
+    createAnimatedComponent: (Component: any) => {
+      return React.forwardRef(function Animated(props: any, ref: any) {
+        return React.createElement(Component, {...props, ref});
+      });
+    },
   };
 });
 
 // Also mock Animated from react-native-reanimated so Animated.View resolves
 jest.mock('react-native/Libraries/Animated/Animated', () => {
-  const actual = jest.requireActual('react-native/Libraries/Animated/Animated');
-  return actual;
+  return jest.requireActual('react-native/Libraries/Animated/Animated');
 });
 
 jest.mock('@gorhom/bottom-sheet', () => {
   const React = require('react');
   const { View } = require('react-native');
 
-  const BottomSheet = React.forwardRef(({ children }: any, ref: any) => {
+  const BottomSheet = React.forwardRef(function BottomSheet({ children }: any, ref: any) {
     React.useImperativeHandle(ref, () => ({
       expand: jest.fn(),
       close: jest.fn(),
@@ -73,14 +72,16 @@ jest.mock('@gorhom/bottom-sheet', () => {
     return React.createElement(View, { testID: 'bottom-sheet' }, children);
   });
 
+  const BottomSheetTextInput = React.forwardRef(function BottomSheetTextInput(props: any, ref: any) {
+    return React.createElement('TextInput', { ...props, ref });
+  });
+
   return {
     __esModule: true,
     default: BottomSheet,
-    BottomSheetBackdrop: (props: any) => React.createElement(View, props),
-    BottomSheetTextInput: React.forwardRef((props: any, ref: any) =>
-      React.createElement('TextInput', { ...props, ref }),
-    ),
-    BottomSheetView: ({ children, ...props }: any) => React.createElement(View, props, children),
+    BottomSheetBackdrop: function BottomSheetBackdrop(props: any) { return React.createElement(View, props); },
+    BottomSheetTextInput,
+    BottomSheetView: function BottomSheetView({ children, ...props }: any) { return React.createElement(View, props, children); },
   };
 });
 
@@ -88,7 +89,7 @@ jest.mock('@/components/auth/ConnectSheet', () => {
   const React = require('react');
   const { View } = require('react-native');
   return {
-    ConnectSheet: React.forwardRef((_: any, ref: any) => {
+    ConnectSheet: React.forwardRef(function ConnectSheet(_: any, ref: any) {
       React.useImperativeHandle(ref, () => ({
         expand: jest.fn(),
         close: jest.fn(),
@@ -106,12 +107,12 @@ jest.mock('@/components/AurralLogo', () => {
   const React = require('react');
   const { View } = require('react-native');
   return {
-    AurralLogo: (props: any) => React.createElement(View, { testID: 'aurral-logo', ...props }),
+    AurralLogo: function AurralLogo(props: any) { return React.createElement(View, { testID: 'aurral-logo', ...props }); },
   };
 });
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import {fireEvent, render, waitFor} from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 
 import GetStartedScreen from '@/app/(auth)/get-started';

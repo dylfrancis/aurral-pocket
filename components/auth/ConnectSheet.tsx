@@ -1,5 +1,6 @@
 import React, { forwardRef, useCallback, useRef, useState } from 'react';
-import { Keyboard, StyleSheet } from 'react-native';
+import { Keyboard, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetTextInput, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -86,6 +87,15 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
         <Text variant="subtitle" style={styles.subtitle}>
           Enter the URL of your Aurral server
         </Text>
+        <Pressable
+          onPress={() => Linking.openURL('https://github.com/lklynet/aurral#readme')}
+          style={styles.link}
+        >
+          <Text variant="caption" style={{ color: colors.brand }}>
+            How can I get my own Aurral server?
+          </Text>
+          <Ionicons name="open-outline" size={13} color={colors.brand} />
+        </Pressable>
 
         <BottomSheetTextInput
           style={[inputBaseStyle, inputThemedStyle(colorScheme), styles.input]}
@@ -128,7 +138,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subtitle: {
-    marginBottom: 20,
+    marginBottom: 4,
+  },
+  link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 16,
   },
   input: {
     marginBottom: 12,

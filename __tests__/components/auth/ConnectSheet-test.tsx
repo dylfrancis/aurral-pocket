@@ -54,7 +54,7 @@ jest.mock('@gorhom/bottom-sheet', () => {
 });
 
 import React from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, Linking } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { ConnectSheet } from '@/components/auth/ConnectSheet';
 import { useServerConnect } from '@/hooks/use-server-connect';
@@ -77,6 +77,16 @@ describe('ConnectSheet', () => {
     const { getByText } = render(<ConnectSheet />);
     expect(getByText('Connect to Server')).toBeTruthy();
     expect(getByText('Enter the URL of your Aurral server')).toBeTruthy();
+  });
+
+  it('renders GitHub link and opens URL on press', () => {
+    const openURLSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const { getByText } = render(<ConnectSheet />);
+    const link = getByText('How can I get my own Aurral server?');
+    expect(link).toBeTruthy();
+    fireEvent.press(link);
+    expect(openURLSpy).toHaveBeenCalledWith('https://github.com/lklynet/aurral#readme');
+    openURLSpy.mockRestore();
   });
 
   it('renders input field with correct placeholder', () => {
