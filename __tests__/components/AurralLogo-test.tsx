@@ -38,6 +38,7 @@ describe('AurralLogo', () => {
     const { root } = render(<AurralLogo />);
     const svg = root.findByProps({ height: 56 });
     expect(svg.props.xml).toContain('fill="#707e61"');
+    expect(svg.props.xml).not.toContain('fill="currentColor"');
   });
 
   it('uses light color in light mode', () => {
@@ -45,12 +46,14 @@ describe('AurralLogo', () => {
     const { root } = render(<AurralLogo />);
     const svg = root.findByProps({ height: 56 });
     expect(svg.props.xml).toContain('fill="#4a5840"');
+    expect(svg.props.xml).not.toContain('fill="currentColor"');
   });
 
   it('uses custom color when provided', () => {
     const { root } = render(<AurralLogo color="#ff0000" />);
     const svg = root.findByProps({ height: 56 });
     expect(svg.props.xml).toContain('fill="#ff0000"');
+    expect(svg.props.xml).not.toContain('fill="currentColor"');
   });
 
   it('maintains correct aspect ratio', () => {

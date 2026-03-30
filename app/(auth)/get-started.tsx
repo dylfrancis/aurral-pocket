@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 
-import { Dimensions, Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet from '@gorhom/bottom-sheet';
@@ -18,53 +18,32 @@ import { ConnectSheet } from '@/components/auth/ConnectSheet';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CARD_SIZE = (SCREEN_WIDTH - 48) / 3;
 const CARD_GAP = 8;
-const CARD_TOTAL = CARD_SIZE + CARD_GAP;
 
-const COVERS: ImageSourcePropType[] = [
-  require('@/assets/images/covers/01.jpg'),
-  require('@/assets/images/covers/02.jpg'),
-  require('@/assets/images/covers/03.jpg'),
-  require('@/assets/images/covers/04.jpg'),
-  require('@/assets/images/covers/05.jpg'),
-  require('@/assets/images/covers/06.jpg'),
-  require('@/assets/images/covers/07.jpg'),
-  require('@/assets/images/covers/08.jpg'),
-  require('@/assets/images/covers/09.jpg'),
-  require('@/assets/images/covers/10.jpg'),
-  require('@/assets/images/covers/11.jpg'),
-  require('@/assets/images/covers/12.jpg'),
-  require('@/assets/images/covers/13.jpg'),
-  require('@/assets/images/covers/14.jpg'),
-  require('@/assets/images/covers/15.jpg'),
-  require('@/assets/images/covers/16.jpg'),
-  require('@/assets/images/covers/17.jpg'),
-  require('@/assets/images/covers/18.jpg'),
-  require('@/assets/images/covers/19.jpg'),
-  require('@/assets/images/covers/20.jpg'),
-  require('@/assets/images/covers/21.jpg'),
-  require('@/assets/images/covers/22.jpg'),
-  require('@/assets/images/covers/23.jpg'),
-  require('@/assets/images/covers/24.jpg'),
-  require('@/assets/images/covers/25.jpg'),
-  require('@/assets/images/covers/26.jpg'),
-  require('@/assets/images/covers/27.jpg'),
-  require('@/assets/images/covers/28.jpg'),
-  require('@/assets/images/covers/29.jpg'),
-  require('@/assets/images/covers/30.jpg'),
-  require('@/assets/images/covers/31.jpg'),
-  require('@/assets/images/covers/32.jpg'),
-  require('@/assets/images/covers/33.jpg'),
-  require('@/assets/images/covers/34.jpg'),
-  require('@/assets/images/covers/35.jpg'),
-  require('@/assets/images/covers/36.jpg'),
-  require('@/assets/images/covers/37.jpg'),
-  require('@/assets/images/covers/38.jpg'),
-  require('@/assets/images/covers/39.jpg'),
-  require('@/assets/images/covers/40.jpg'),
-];
+// Maps number to padded filename at build time — Metro resolves each require statically.
+const COVER_MAP: Record<number, ImageSourcePropType> = {
+  1: require('@/assets/images/covers/01.jpg'),  2: require('@/assets/images/covers/02.jpg'),
+  3: require('@/assets/images/covers/03.jpg'),  4: require('@/assets/images/covers/04.jpg'),
+  5: require('@/assets/images/covers/05.jpg'),  6: require('@/assets/images/covers/06.jpg'),
+  7: require('@/assets/images/covers/07.jpg'),  8: require('@/assets/images/covers/08.jpg'),
+  9: require('@/assets/images/covers/09.jpg'),  10: require('@/assets/images/covers/10.jpg'),
+  11: require('@/assets/images/covers/11.jpg'), 12: require('@/assets/images/covers/12.jpg'),
+  13: require('@/assets/images/covers/13.jpg'), 14: require('@/assets/images/covers/14.jpg'),
+  15: require('@/assets/images/covers/15.jpg'), 16: require('@/assets/images/covers/16.jpg'),
+  17: require('@/assets/images/covers/17.jpg'), 18: require('@/assets/images/covers/18.jpg'),
+  19: require('@/assets/images/covers/19.jpg'), 20: require('@/assets/images/covers/20.jpg'),
+  21: require('@/assets/images/covers/21.jpg'), 22: require('@/assets/images/covers/22.jpg'),
+  23: require('@/assets/images/covers/23.jpg'), 24: require('@/assets/images/covers/24.jpg'),
+  25: require('@/assets/images/covers/25.jpg'), 26: require('@/assets/images/covers/26.jpg'),
+  27: require('@/assets/images/covers/27.jpg'), 28: require('@/assets/images/covers/28.jpg'),
+  29: require('@/assets/images/covers/29.jpg'), 30: require('@/assets/images/covers/30.jpg'),
+  31: require('@/assets/images/covers/31.jpg'), 32: require('@/assets/images/covers/32.jpg'),
+  33: require('@/assets/images/covers/33.jpg'), 34: require('@/assets/images/covers/34.jpg'),
+  35: require('@/assets/images/covers/35.jpg'), 36: require('@/assets/images/covers/36.jpg'),
+  37: require('@/assets/images/covers/37.jpg'), 38: require('@/assets/images/covers/38.jpg'),
+  39: require('@/assets/images/covers/39.jpg'), 40: require('@/assets/images/covers/40.jpg'),
+};
+const COVERS: ImageSourcePropType[] = Object.values(COVER_MAP);
 
 /**
  * Returns a new array containing the elements of the input array shuffled in a pseudo-random order,
@@ -100,26 +79,20 @@ function generateColumns(seed: number): ImageSourcePropType[][] {
   });
 }
 
-/**
- * Renders a vertically scrolling column of images with animation.
- *
- * @param {Object} props - The properties object.
- * @param {ImageSourcePropType[]} props.images - An array of image sources to display in the scrolling column.
- * @param {number} props.speed - The speed of the scrolling animation in milliseconds.
- * @param {number} props.offset - An additional offset to apply to the initial vertical position.
- * @return The animated scrolling column component.
- */
 function ScrollingColumn({
   images,
   speed,
   offset,
+  cardSize,
 }: {
   images: ImageSourcePropType[];
   speed: number;
   offset: number;
+  cardSize: number;
 }) {
   const translateY = useSharedValue(0);
-  const setHeight = images.length * CARD_TOTAL;
+  const cardTotal = cardSize + CARD_GAP;
+  const setHeight = images.length * cardTotal;
 
   useEffect(() => {
     translateY.value = 0;
@@ -138,13 +111,13 @@ function ScrollingColumn({
   }));
 
   return (
-    <Animated.View style={[styles.column, animatedStyle]}>
+    <Animated.View style={[{ width: cardSize, gap: CARD_GAP }, animatedStyle]}>
       {[0, 1].map((set) =>
         images.map((source, i) => (
           <Image
             key={`${set}-${i}`}
             source={source}
-            style={styles.card}
+            style={{ width: cardSize, height: cardSize, borderRadius: 12 }}
           />
         )),
       )}
@@ -156,7 +129,11 @@ export default function GetStartedScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const bottomSheetRef = useRef<BottomSheet>(null);
+
+  const cardSize = (screenWidth - 48) / 3;
+  const cardTotal = cardSize + CARD_GAP;
 
   const [col1, col2, col3] = useMemo(() => generateColumns(42), []);
 
@@ -168,10 +145,10 @@ export default function GetStartedScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Scrolling album art */}
-      <View style={styles.cardsContainer}>
-        <ScrollingColumn images={col1} speed={120000} offset={0} />
-        <ScrollingColumn images={col2} speed={90000} offset={-CARD_TOTAL / 2} />
-        <ScrollingColumn images={col3} speed={110000} offset={-CARD_TOTAL / 3} />
+      <View style={[styles.cardsContainer, { height: screenHeight * 0.65 }]}>
+        <ScrollingColumn images={col1} speed={120000} offset={0} cardSize={cardSize} />
+        <ScrollingColumn images={col2} speed={90000} offset={-cardTotal / 2} cardSize={cardSize} />
+        <ScrollingColumn images={col3} speed={110000} offset={-cardTotal / 3} cardSize={cardSize} />
       </View>
 
       {/* Gradient overlay */}
@@ -182,7 +159,7 @@ export default function GetStartedScreen() {
           colors.background,
         ]}
         locations={[0, 0.3, 0.55]}
-        style={styles.gradient}
+        style={[styles.gradient, { top: screenHeight * 0.3, height: screenHeight * 0.45 }]}
       />
 
       {/* Content */}
@@ -219,28 +196,16 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: SCREEN_HEIGHT * 0.65,
     flexDirection: 'row',
     justifyContent: 'center',
     gap: CARD_GAP,
     paddingHorizontal: 16,
     overflow: 'hidden',
   },
-  column: {
-    width: CARD_SIZE,
-    gap: CARD_GAP,
-  },
-  card: {
-    width: CARD_SIZE,
-    height: CARD_SIZE,
-    borderRadius: 12,
-  },
   gradient: {
     position: 'absolute',
-    top: SCREEN_HEIGHT * 0.3,
     left: 0,
     right: 0,
-    height: SCREEN_HEIGHT * 0.45,
   },
   content: {
     position: 'absolute',

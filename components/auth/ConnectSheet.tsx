@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useState } from 'react';
+import React, { forwardRef, useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -29,6 +29,8 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
   const insets = useSafeAreaInsets();
   const [url, setUrl] = useState('');
   const connectMutation = useServerConnect();
+  const resetRef = useRef(connectMutation.reset);
+  resetRef.current = connectMutation.reset;
 
   const handleConnect = async () => {
     const trimmed = url.trim();
@@ -42,9 +44,9 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
 
   const handleSheetChange = useCallback((index: number) => {
     if (index === -1) {
-      connectMutation.reset();
+      resetRef.current();
     }
-  }, [connectMutation]);
+  }, []);
 
   const renderBackdrop = useCallback(
     (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
@@ -59,8 +61,9 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
     [],
   );
 
+  const trimmedUrl = url.trim();
   const errorMessage =
-    url.trim() && !url.trim().startsWith('http://') && !url.trim().startsWith('https://')
+    trimmedUrl && !trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')
       ? 'URL must start with http:// or https://'
       : getErrorMessage(connectMutation.error);
 

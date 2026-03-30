@@ -32,7 +32,7 @@ function getErrorMessage(error: Error | null): string | null {
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const colorScheme = useColorScheme() ?? 'light';
+  const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const { serverUrl, clearAll } = useAuth();
   const loginMutation = useLogin();

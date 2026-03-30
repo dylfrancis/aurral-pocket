@@ -27,6 +27,11 @@ jest.mock('react-native-svg', () => {
   };
 });
 
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => ({ width: 390, height: 844, scale: 2, fontScale: 1 }),
+}));
+
 jest.mock('react-native-reanimated', () => {
   const React = require('react');
   const { View } = require('react-native');
