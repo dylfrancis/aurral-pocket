@@ -7,13 +7,12 @@ import { useSession } from '@/hooks/use-session';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 
-export default function HomeScreen() {
+export default function SettingsScreen() {
   const { user, serverUrl } = useAuth();
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const logoutMutation = useLogout();
 
-  // Validates the session on mount / when stale
   useSession();
 
   return (
