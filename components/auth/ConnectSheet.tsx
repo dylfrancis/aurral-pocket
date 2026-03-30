@@ -75,7 +75,6 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
       enablePanDownToClose
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
       onChange={handleSheetChange}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.card }}
