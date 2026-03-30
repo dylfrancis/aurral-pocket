@@ -32,11 +32,14 @@ jest.mock('@/lib/api/client', () => ({
   },
 }));
 
+let capturedOnChange: ((index: number) => void) | undefined;
+
 jest.mock('@gorhom/bottom-sheet', () => {
   const React = require('react');
   const { View, TextInput } = require('react-native');
 
   const BottomSheet = React.forwardRef(({ children, onChange }: any, ref: any) => {
+    capturedOnChange = onChange;
     React.useImperativeHandle(ref, () => ({ expand: jest.fn(), close: jest.fn() }));
     return React.createElement(View, { testID: 'bottom-sheet' }, children);
   });
@@ -51,7 +54,8 @@ jest.mock('@gorhom/bottom-sheet', () => {
 });
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Keyboard } from 'react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { ConnectSheet } from '@/components/auth/ConnectSheet';
 import { useServerConnect } from '@/hooks/use-server-connect';
 import * as Haptics from 'expo-haptics';
@@ -163,6 +167,18 @@ describe('ConnectSheet', () => {
     const { getByPlaceholderText } = render(<ConnectSheet />);
     const input = getByPlaceholderText('https://your-server.example.com');
     expect(input.props.editable).toBe(false);
+  });
+
+  it('dismisses keyboard when sheet closes', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+    render(<ConnectSheet />);
+
+    act(() => {
+      capturedOnChange?.(-1);
+    });
+
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
   });
 
   it('triggers haptic feedback on connect', async () => {

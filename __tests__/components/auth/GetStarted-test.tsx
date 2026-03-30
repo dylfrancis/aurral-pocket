@@ -121,7 +121,7 @@ describe('GetStartedScreen', () => {
     const { getByText } = render(<GetStartedScreen />);
     expect(getByText(/A new way to/)).toBeTruthy();
     expect(getByText('discover')).toBeTruthy();
-    expect(getByText('Your personal music companion')).toBeTruthy();
+    expect(getByText('Powered by your library')).toBeTruthy();
   });
 
   it('renders the Get Started button', () => {
