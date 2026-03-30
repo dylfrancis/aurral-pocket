@@ -38,8 +38,6 @@ function RootLayoutNav() {
         <Stack.Protected guard={isAuthenticated}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
-
-        <Stack.Screen name="index" />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
