@@ -11,10 +11,11 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { AurralLogo } from '@/components/AurralLogo';
 import { useAuth } from '@/contexts/auth-context';
 import { useLogin } from '@/hooks/use-login';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { ApiError } from '@/lib/api/client';
 
 function getErrorMessage(error: Error | null): string | null {
@@ -63,9 +64,15 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={[styles.title, { color: colors.text }]}>Sign In</Text>
+          <AurralLogo size={48} />
+          <Text style={[styles.title, { color: colors.text, fontFamily: Fonts.bold }]}>
+            Sign In
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.subtle, fontFamily: Fonts.regular }]}>
+            Enter your credentials to access Aurral
+          </Text>
           <Text
-            style={[styles.subtitle, { color: colors.subtle }]}
+            style={[styles.serverUrl, { color: colors.subtle, fontFamily: Fonts.regular }]}
             numberOfLines={1}
           >
             {serverUrl}
@@ -78,6 +85,7 @@ export default function LoginScreen() {
                 backgroundColor: colors.inputBackground,
                 borderColor: colors.inputBorder,
                 color: colors.inputText,
+                fontFamily: Fonts.regular,
               },
             ]}
             placeholder="Username"
@@ -98,6 +106,7 @@ export default function LoginScreen() {
                 backgroundColor: colors.inputBackground,
                 borderColor: colors.inputBorder,
                 color: colors.inputText,
+                fontFamily: Fonts.regular,
               },
             ]}
             placeholder="Password"
@@ -112,7 +121,7 @@ export default function LoginScreen() {
           />
 
           {errorMessage && (
-            <Text style={[styles.error, { color: colors.error }]}>
+            <Text style={[styles.error, { color: colors.error, fontFamily: Fonts.regular }]}>
               {errorMessage}
             </Text>
           )}
@@ -130,7 +139,7 @@ export default function LoginScreen() {
               <ActivityIndicator color={colors.buttonPrimaryText} />
             ) : (
               <Text
-                style={[styles.buttonText, { color: colors.buttonPrimaryText }]}
+                style={[styles.buttonText, { color: colors.buttonPrimaryText, fontFamily: Fonts.semiBold }]}
               >
                 Sign In
               </Text>
@@ -138,7 +147,7 @@ export default function LoginScreen() {
           </Pressable>
 
           <Pressable style={styles.changeServer} onPress={handleChangeServer}>
-            <Text style={[styles.changeServerText, { color: colors.tint }]}>
+            <Text style={[styles.changeServerText, { color: colors.brand, fontFamily: Fonts.medium }]}>
               Change Server
             </Text>
           </Pressable>
@@ -162,12 +171,16 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    marginTop: 16,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    marginBottom: 32,
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  serverUrl: {
+    fontSize: 13,
+    marginBottom: 28,
   },
   input: {
     width: '100%',
@@ -196,7 +209,6 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 17,
-    fontWeight: '600',
   },
   changeServer: {
     marginTop: 24,

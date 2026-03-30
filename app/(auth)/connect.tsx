@@ -11,9 +11,10 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { AurralLogo } from '@/components/AurralLogo';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useServerConnect } from '@/hooks/use-server-connect';
-import { Colors } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { ApiError } from '@/lib/api/client';
 
 function getErrorMessage(error: Error | null): string | null {
@@ -56,10 +57,11 @@ export default function ConnectScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <AurralLogo size={48} />
+          <Text style={[styles.title, { color: colors.text, fontFamily: Fonts.bold }]}>
             Connect to Server
           </Text>
-          <Text style={[styles.subtitle, { color: colors.subtle }]}>
+          <Text style={[styles.subtitle, { color: colors.subtle, fontFamily: Fonts.regular }]}>
             Enter the URL of your Aurral server
           </Text>
 
@@ -70,6 +72,7 @@ export default function ConnectScreen() {
                 backgroundColor: colors.inputBackground,
                 borderColor: colors.inputBorder,
                 color: colors.inputText,
+                fontFamily: Fonts.regular,
               },
             ]}
             placeholder="https://your-server.example.com"
@@ -86,7 +89,7 @@ export default function ConnectScreen() {
           />
 
           {errorMessage && (
-            <Text style={[styles.error, { color: colors.error }]}>
+            <Text style={[styles.error, { color: colors.error, fontFamily: Fonts.regular }]}>
               {errorMessage}
             </Text>
           )}
@@ -103,7 +106,7 @@ export default function ConnectScreen() {
             {connectMutation.isPending ? (
               <ActivityIndicator color={colors.buttonPrimaryText} />
             ) : (
-              <Text style={[styles.buttonText, { color: colors.buttonPrimaryText }]}>
+              <Text style={[styles.buttonText, { color: colors.buttonPrimaryText, fontFamily: Fonts.semiBold }]}>
                 Connect
               </Text>
             )}
@@ -128,7 +131,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    marginTop: 16,
     marginBottom: 8,
   },
   subtitle: {
@@ -162,6 +165,5 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 17,
-    fontWeight: '600',
   },
 });
