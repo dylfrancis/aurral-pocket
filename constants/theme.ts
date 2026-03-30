@@ -1,60 +1,49 @@
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
+    text: '#1a1a1e',
+    background: '#f5f4f1',
+    surfaceElevated: '#ffffff',
+    card: '#ffffff',
+    brand: '#707e61',
+    tint: '#707e61',
     icon: '#687076',
     tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    tabIconSelected: '#707e61',
     error: '#dc2626',
-    inputBackground: '#f4f4f5',
+    subtle: '#6b6b6f',
+    separator: '#e5e5e5',
+    inputBackground: '#ffffff',
     inputBorder: '#d4d4d8',
-    inputText: '#11181C',
+    inputText: '#1a1a1e',
     placeholder: '#a1a1aa',
-    buttonPrimary: '#0a7ea4',
+    buttonPrimary: '#707e61',
     buttonPrimaryText: '#ffffff',
-    subtle: '#6b7280',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
+    text: '#ffffff',
+    background: '#050505',
+    surfaceElevated: '#18181c',
+    card: '#211f27',
+    brand: '#707e61',
+    tint: '#707e61',
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-    error: '#ef4444',
-    inputBackground: '#27272a',
+    tabIconSelected: '#707e61',
+    error: '#ff6b6b',
+    subtle: '#c1c1c3',
+    separator: '#2a2a30',
+    inputBackground: '#211f27',
     inputBorder: '#3f3f46',
-    inputText: '#ECEDEE',
+    inputText: '#ffffff',
     placeholder: '#71717a',
-    buttonPrimary: '#0a7ea4',
+    buttonPrimary: '#707e61',
     buttonPrimaryText: '#ffffff',
-    subtle: '#9ca3af',
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    sans: 'system-ui',
-    serif: 'ui-serif',
-    rounded: 'ui-rounded',
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+export const Fonts = {
+  regular: 'DMSans_400Regular',
+  medium: 'DMSans_500Medium',
+  semiBold: 'DMSans_600SemiBold',
+  bold: 'DMSans_700Bold',
+};
