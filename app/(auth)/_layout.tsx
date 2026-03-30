@@ -17,7 +17,12 @@ export default function AuthLayout() {
       >
         {/* Get Started — visible when no server configured */}
         <Stack.Protected guard={!hasServer}>
-          <Stack.Screen name="get-started" />
+          <Stack.Screen
+            name="get-started"
+            options={{
+              animation: 'slide_from_left',
+            }}
+          />
         </Stack.Protected>
 
         {/* Login screen — visible when server is set but needs auth */}

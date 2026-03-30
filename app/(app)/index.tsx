@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
+import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/auth-context';
 import { useLogout } from '@/hooks/use-logout';
 import { useSession } from '@/hooks/use-session';
@@ -16,25 +18,22 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.welcome, { color: colors.text }]}>
+      <Text variant="title" style={styles.welcome}>
         Welcome, {user?.username}
       </Text>
-      <Text style={[styles.info, { color: colors.subtle }]}>
+      <Text variant="caption" style={styles.info}>
         {serverUrl}
       </Text>
-      <Text style={[styles.info, { color: colors.subtle }]}>
+      <Text variant="caption" style={styles.info}>
         Role: {user?.role}
       </Text>
 
-      <Pressable
-        style={[styles.button, { backgroundColor: colors.buttonPrimary }]}
+      <Button
+        title="Sign Out"
         onPress={() => logoutMutation.mutate()}
-        disabled={logoutMutation.isPending}
-      >
-        <Text style={[styles.buttonText, { color: colors.buttonPrimaryText }]}>
-          Sign Out
-        </Text>
-      </Pressable>
+        loading={logoutMutation.isPending}
+        style={styles.button}
+      />
     </View>
   );
 }
@@ -47,22 +46,14 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   welcome: {
-    fontSize: 24,
-    fontWeight: '700',
     marginBottom: 12,
   },
   info: {
-    fontSize: 14,
     marginBottom: 4,
   },
   button: {
     marginTop: 32,
+    width: 'auto',
     paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  buttonText: {
-    fontSize: 17,
-    fontWeight: '600',
   },
 });

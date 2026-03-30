@@ -7,4 +7,11 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    files: ['__tests__/**/*'],
+    rules: {
+      'import/first': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
 ]);

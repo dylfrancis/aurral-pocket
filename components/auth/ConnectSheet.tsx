@@ -1,17 +1,16 @@
 import React, { forwardRef, useCallback, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  StyleSheet,
-} from 'react-native';
+import { Keyboard, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetTextInput, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
+import { Text } from '@/components/ui/Text';
+import { Button } from '@/components/ui/Button';
+import { inputBaseStyle, inputThemedStyle } from '@/components/ui/Input';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useServerConnect } from '@/hooks/use-server-connect';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { ApiError } from '@/lib/api/client';
 
 function getErrorMessage(error: Error | null): string | null {
@@ -44,6 +43,7 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
 
   const handleSheetChange = useCallback((index: number) => {
     if (index === -1) {
+      Keyboard.dismiss();
       resetRef.current();
     }
   }, []);
@@ -81,23 +81,24 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + 16 }]}>
-        <Text style={[styles.title, { color: colors.text, fontFamily: Fonts.bold }]}>
+        <Text variant="title" style={styles.title}>
           Connect to Server
         </Text>
-        <Text style={[styles.subtitle, { color: colors.subtle, fontFamily: Fonts.regular }]}>
+        <Text variant="subtitle" style={styles.subtitle}>
           Enter the URL of your Aurral server
         </Text>
+        <Pressable
+          onPress={() => Linking.openURL('https://github.com/lklynet/aurral#readme')}
+          style={styles.link}
+        >
+          <Text variant="caption" style={{ color: colors.brand }}>
+            How can I get my own Aurral server?
+          </Text>
+          <Ionicons name="open-outline" size={13} color={colors.brand} />
+        </Pressable>
 
         <BottomSheetTextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.inputBackground,
-              borderColor: colors.inputBorder,
-              color: colors.inputText,
-              fontFamily: Fonts.regular,
-            },
-          ]}
+          style={[inputBaseStyle, inputThemedStyle(colorScheme), styles.input]}
           placeholder="https://your-server.example.com"
           placeholderTextColor={colors.placeholder}
           value={url}
@@ -112,28 +113,16 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
         />
 
         {errorMessage && (
-          <Text style={[styles.error, { color: colors.error, fontFamily: Fonts.regular }]}>
+          <Text variant="error" style={styles.error}>
             {errorMessage}
           </Text>
         )}
 
-        <Pressable
-          style={[
-            styles.button,
-            { backgroundColor: colors.buttonPrimary },
-            connectMutation.isPending && styles.buttonDisabled,
-          ]}
+        <Button
+          title="Connect"
           onPress={handleConnect}
-          disabled={connectMutation.isPending}
-        >
-          {connectMutation.isPending ? (
-            <ActivityIndicator color={colors.buttonPrimaryText} />
-          ) : (
-            <Text style={[styles.buttonText, { color: colors.buttonPrimaryText, fontFamily: Fonts.semiBold }]}>
-              Connect
-            </Text>
-          )}
-        </Pressable>
+          loading={connectMutation.isPending}
+        />
       </BottomSheetView>
     </BottomSheet>
   );
@@ -149,34 +138,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 15,
-    marginBottom: 20,
+    marginBottom: 4,
+  },
+  link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 16,
   },
   input: {
-    width: '100%',
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    fontSize: 16,
     marginBottom: 12,
   },
   error: {
-    fontSize: 14,
     marginBottom: 12,
-    textAlign: 'center',
-  },
-  button: {
-    width: '100%',
-    height: 50,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    fontSize: 17,
   },
 });

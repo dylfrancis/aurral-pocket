@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 
-import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Image, ImageSourcePropType, StyleSheet, Text as RNText, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet from '@gorhom/bottom-sheet';
@@ -14,9 +14,11 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 
 import { AurralLogo } from '@/components/AurralLogo';
+import { Text } from '@/components/ui/Text';
+import { Button } from '@/components/ui/Button';
 import { ConnectSheet } from '@/components/auth/ConnectSheet';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 
 const CARD_GAP = 8;
 
@@ -45,14 +47,6 @@ const COVER_MAP: Record<number, ImageSourcePropType> = {
 };
 const COVERS: ImageSourcePropType[] = Object.values(COVER_MAP);
 
-/**
- * Returns a new array containing the elements of the input array shuffled in a pseudo-random order,
- * determined by the provided seed value.
- *
- * @param arr The input array to be shuffled.
- * @param seed A number used as the seed for the pseudo-random number generator, ensuring deterministic shuffling.
- * @return A new array with the elements shuffled in a pseudo-random order.
- */
 function shuffled<T>(arr: T[], seed: number): T[] {
   const a = [...arr];
   let s = seed;
@@ -64,13 +58,6 @@ function shuffled<T>(arr: T[], seed: number): T[] {
   return a;
 }
 
-/**
- * Generates a two-dimensional array of image sources divided into columns.
- * The images are shuffled based on the provided seed value.
- *
- * @param {number} seed - The seed value used to shuffle the array of image sources.
- * @return {ImageSourcePropType[][]} A two-dimensional array where each sub-array represents a column of image sources.
- */
 function generateColumns(seed: number): ImageSourcePropType[][] {
   const all = shuffled(COVERS, seed);
   const cols: ImageSourcePropType[][] = [[], [], []];
@@ -164,21 +151,18 @@ export default function GetStartedScreen() {
       {/* Content */}
       <View style={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <AurralLogo size={56} />
-        <Text style={[styles.headline, { color: colors.text, fontFamily: Fonts.bold }]}>
+        <Text variant="title" style={styles.headline}>
           A new way to{'\n'}
-          <Text style={{ color: colors.brand }}>discover</Text> music
+          <RNText style={{ color: colors.brand }}>discover</RNText> music
         </Text>
-        <Text style={[styles.subtext, { color: colors.subtle, fontFamily: Fonts.regular }]}>
-          Your personal music companion
+        <Text variant="subtitle" style={styles.subtext}>
+          Powered by your library
         </Text>
-        <Pressable
-          style={[styles.button, { backgroundColor: colors.buttonPrimary }]}
+        <Button
+          title="Get Started"
           onPress={handleGetStarted}
-        >
-          <Text style={[styles.buttonText, { color: colors.buttonPrimaryText, fontFamily: Fonts.semiBold }]}>
-            Get Started
-          </Text>
-        </Pressable>
+          style={styles.button}
+        />
       </View>
 
       <ConnectSheet ref={bottomSheetRef} />
@@ -221,19 +205,11 @@ const styles = StyleSheet.create({
     lineHeight: 40,
   },
   subtext: {
-    fontSize: 17,
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 32,
   },
   button: {
-    width: '100%',
     height: 54,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    fontSize: 17,
   },
 });
