@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+
 import { Dimensions, Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +14,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 
 import { AurralLogo } from '@/components/AurralLogo';
-import { ConnectSheet } from './components/ConnectSheet';
+import { ConnectSheet } from '@/components/auth/ConnectSheet';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
 
@@ -188,7 +189,8 @@ export default function GetStartedScreen() {
       <View style={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <AurralLogo size={56} />
         <Text style={[styles.headline, { color: colors.text, fontFamily: Fonts.bold }]}>
-          A new way to{'\n'}discover music
+          A new way to{'\n'}
+          <Text style={{ color: colors.brand }}>discover</Text> music
         </Text>
         <Text style={[styles.subtext, { color: colors.subtle, fontFamily: Fonts.regular }]}>
           Your personal music companion

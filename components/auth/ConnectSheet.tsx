@@ -3,10 +3,9 @@ import {
   ActivityIndicator,
   Pressable,
   Text,
-  TextInput,
   StyleSheet,
 } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetBackdrop, BottomSheetTextInput, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
@@ -71,6 +70,9 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
       index={-1}
       enableDynamicSizing
       enablePanDownToClose
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
       onChange={handleSheetChange}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.card }}
@@ -84,7 +86,7 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
           Enter the URL of your Aurral server
         </Text>
 
-        <TextInput
+        <BottomSheetTextInput
           style={[
             styles.input,
             {
