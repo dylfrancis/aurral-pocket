@@ -11,6 +11,7 @@ type SearchBarProps = {
   onChangeText: (text: string) => void;
   sortMode: SortMode;
   onSortChange: (mode: SortMode) => void;
+  showSort?: boolean;
 };
 
 const sortOptions: { key: SortMode; label: string }[] = [
@@ -24,6 +25,7 @@ export function SearchBar({
   onChangeText,
   sortMode,
   onSortChange,
+  showSort = true,
 }: SearchBarProps) {
   const colors = Colors[useColorScheme()];
 
@@ -47,7 +49,7 @@ export function SearchBar({
           </Pressable>
         )}
       </View>
-      <View style={styles.sortRow}>
+      {showSort && <View style={styles.sortRow}>
         {sortOptions.map((option) => {
           const active = sortMode === option.key;
           return (
@@ -74,7 +76,7 @@ export function SearchBar({
             </Pressable>
           );
         })}
-      </View>
+      </View>}
     </View>
   );
 }

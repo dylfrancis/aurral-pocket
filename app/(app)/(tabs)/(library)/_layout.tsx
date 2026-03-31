@@ -18,14 +18,18 @@ export default function LibraryLayout() {
         options={{
           title: 'Library',
           headerLargeTitle: true,
+
           ...(Platform.OS === 'ios'
-            ? { headerTransparent: true, headerBlurEffect: 'systemMaterial' }
+            ? {
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+              }
             : {}),
         }}
       />
       <Stack.Screen
         name="artist/[mbid]"
-        options={{ headerTransparent: true, headerTitle: '' }}
+        options={{ headerTransparent: true, headerStyle: { backgroundColor: 'transparent' }, headerTitle: '', }}
       />
     </Stack>
   );

@@ -1,12 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useRouter } from 'expo-router';
+import { Stack, useNavigation, useRouter } from 'expo-router';
 import { ArtistCard } from '@/components/library/ArtistCard';
 import { SearchBar, type SortMode } from '@/components/library/SearchBar';
 import { EmptyState } from '@/components/library/EmptyState';
@@ -18,14 +19,37 @@ import type { Artist } from '@/lib/types/library';
 const EDGE_PADDING = 12;
 const CARD_GAP = 16;
 const NUM_COLUMNS = 2;
+const IS_IOS = Platform.OS === 'ios';
+
+const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
+  { key: 'alpha', label: 'Alphabetical', icon: 'textformat.abc' },
+  { key: 'recent', label: 'Recently Added', icon: 'clock' },
+  { key: 'albums', label: 'Album Count', icon: 'square.stack' },
+];
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const colors = Colors[useColorScheme()];
   const { data: artists, isLoading, refetch, isRefetching } = useLibraryArtists();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('alpha');
+
+  useEffect(() => {
+    if (IS_IOS) {
+      navigation.setOptions({
+        headerSearchBarOptions: {
+          placeholder: 'Search artists...',
+          hideWhenScrolling: false,
+          autoCapitalize: 'none',
+          onChangeText: (e: { nativeEvent: { text: string } }) => {
+            setSearchQuery(e.nativeEvent.text);
+          },
+        },
+      });
+    }
+  }, [navigation]);
 
   const filtered = useMemo(() => {
     if (!artists) return [];
@@ -77,25 +101,46 @@ export default function LibraryScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <>
+      {IS_IOS && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu icon="arrow.up.arrow.down" title="Sort By">
+            {SORT_OPTIONS.map((option) => (
+              <Stack.Toolbar.MenuAction
+                key={option.key}
+                icon={option.icon as any}
+                isOn={sortMode === option.key}
+                onPress={() => setSortMode(option.key)}
+              >
+                {option.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      )}
       <FlashList
         data={sorted}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         numColumns={NUM_COLUMNS}
         ListHeaderComponent={
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            sortMode={sortMode}
-            onSortChange={setSortMode}
-          />
+          IS_IOS ? undefined : (
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              sortMode={sortMode}
+              onSortChange={setSortMode}
+            />
+          )
         }
         ListEmptyComponent={
           <EmptyState message="Your library is empty" />
         }
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={{
+          ...styles.listContent,
+          backgroundColor: colors.background,
+        }}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
@@ -104,14 +149,11 @@ export default function LibraryScreen() {
           />
         }
       />
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
