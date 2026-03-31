@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { LoginRequest, LoginResponse, MeResponse } from '@/lib/types';
+import type { LoginRequest, LoginResponse, MeResponse } from '@/lib/types/auth';
 
 export function login(creds: LoginRequest) {
   return api.post<LoginResponse>('/auth/login', creds).then((r) => r.data);

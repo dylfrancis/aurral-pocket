@@ -26,7 +26,7 @@ import { useMutation } from '@tanstack/react-query';
 import { setBaseUrl } from '@/lib/api/client';
 import { checkServerLive, getServerHealth } from '@/lib/api/health';
 import { useAuth } from '@/contexts/auth-context';
-import { useServerConnect } from '@/hooks/use-server-connect';
+import { useServerConnect } from '@/hooks/auth/use-server-connect';
 
 const mockSetBaseUrl = setBaseUrl as jest.Mock;
 const mockCheckServerLive = checkServerLive as jest.Mock;

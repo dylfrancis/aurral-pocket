@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/auth-context';
 import { login } from '@/lib/api/auth';
 import { authKeys } from '@/lib/query-keys';
-import type { LoginRequest } from '@/lib/types';
+import type { LoginRequest } from '@/lib/types/auth';
 
 export function useLogin() {
   const { serverUrl, setAuth } = useAuth();

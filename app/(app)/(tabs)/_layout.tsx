@@ -1,5 +1,5 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useHasPermission } from '@/hooks/use-has-permission';
+import { useHasPermission } from '@/hooks/auth/use-has-permission';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
 

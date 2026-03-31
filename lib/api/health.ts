@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { HealthLiveResponse, HealthResponse } from '@/lib/types';
+import type { HealthLiveResponse, HealthResponse } from '@/lib/types/auth';
 
 export function checkServerLive() {
   return api

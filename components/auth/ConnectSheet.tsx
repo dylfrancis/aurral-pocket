@@ -9,7 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { inputBaseStyle, inputThemedStyle } from '@/components/ui/Input';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useServerConnect } from '@/hooks/use-server-connect';
+import { useServerConnect } from '@/hooks/auth/use-server-connect';
 import { Colors } from '@/constants/theme';
 import { ApiError } from '@/lib/api/client';
 
