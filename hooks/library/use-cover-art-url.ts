@@ -20,7 +20,8 @@ export function useCoverArtUrl({ type, mbid }: CoverArtOptions) {
   });
 
   const images = query.data?.images;
-  const url = images?.find((img) => img.front)?.image ?? images?.[0]?.image ?? null;
+  const raw = images?.find((img) => img.front)?.image ?? images?.[0]?.image ?? null;
+  const url = raw?.replace(/^http:\/\//, 'https://') ?? null;
 
   return { url, isLoading: query.isLoading };
 }

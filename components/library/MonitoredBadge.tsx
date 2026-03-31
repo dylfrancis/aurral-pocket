@@ -15,7 +15,7 @@ export function MonitoredBadge({ monitored }: MonitoredBadgeProps) {
       style={[
         styles.badge,
         {
-          backgroundColor: monitored ? `${colors.brand}20` : colors.separator,
+          backgroundColor: monitored ? colors.brandMuted : colors.separator,
         },
       ]}
     >
@@ -23,7 +23,7 @@ export function MonitoredBadge({ monitored }: MonitoredBadgeProps) {
         variant="caption"
         style={[
           styles.label,
-          { color: monitored ? colors.brand : colors.subtle },
+          { color: monitored ? colors.brandStrong : colors.subtle },
         ]}
       >
         {monitored ? 'Monitored' : 'Unmonitored'}

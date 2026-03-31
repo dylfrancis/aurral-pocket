@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +19,16 @@ export default function ArtistDetailScreen() {
   const colors = Colors[useColorScheme()];
   const { data: artist, isLoading: artistLoading } = useLibraryArtist(mbid);
   const insets = useSafeAreaInsets();
-  const { data: albums, isLoading: albumsLoading } = useLibraryAlbums(artist?.id);
+  const { data: rawAlbums, isLoading: albumsLoading } = useLibraryAlbums(artist?.id);
+  const albums = useMemo(
+    () =>
+      rawAlbums?.slice().sort((a, b) => {
+        if (!a.releaseDate) return 1;
+        if (!b.releaseDate) return -1;
+        return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+      }),
+    [rawAlbums],
+  );
 
   const sheetRef = useRef<BottomSheet>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
@@ -52,7 +61,7 @@ export default function ArtistDetailScreen() {
 
         <View style={styles.albumsSection}>
           <Text variant="subtitle" style={[styles.sectionTitle, { color: colors.text }]}>
-            Albums{albums ? ` (${albums.length})` : ''}
+            Albums{albums && albums.length > 0 ? ` (${albums.length})` : ''}
           </Text>
 
           {albumsLoading ? (
