@@ -1,46 +1,15 @@
-import { StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
+import { Chip } from '@/components/ui/Chip';
 
 type MonitoredBadgeProps = {
   monitored: boolean;
 };
 
 export function MonitoredBadge({ monitored }: MonitoredBadgeProps) {
-  const colors = Colors[useColorScheme()];
-
   return (
-    <View
-      style={[
-        styles.badge,
-        {
-          backgroundColor: monitored ? colors.brandMuted : colors.separator,
-        },
-      ]}
-    >
-      <Text
-        variant="caption"
-        style={[
-          styles.label,
-          { color: monitored ? colors.brandStrong : colors.subtle },
-        ]}
-      >
-        {monitored ? 'Monitored' : 'Unmonitored'}
-      </Text>
-    </View>
+    <Chip
+      label={monitored ? 'Monitored' : 'Unmonitored'}
+      icon={monitored ? 'eye' : 'eye-off-outline'}
+      variant={monitored ? 'brand' : 'subtle'}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  label: {
-    fontSize: 11,
-    lineHeight: 16,
-    fontFamily: Fonts.medium,
-  },
-});

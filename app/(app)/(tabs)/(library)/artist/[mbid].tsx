@@ -17,9 +17,9 @@ import type { Album } from '@/lib/types/library';
 export default function ArtistDetailScreen() {
   const { mbid } = useLocalSearchParams<{ mbid: string }>();
   const colors = Colors[useColorScheme()];
-  const { data: artist, isLoading: artistLoading } = useLibraryArtist(mbid);
+  const { data: artist, isLoading: artistLoading, error: artistError, refetch: refetchArtist } = useLibraryArtist(mbid);
   const insets = useSafeAreaInsets();
-  const { data: rawAlbums, isLoading: albumsLoading } = useLibraryAlbums(artist?.id);
+  const { data: rawAlbums, isLoading: albumsLoading, error: albumsError, refetch: refetchAlbums } = useLibraryAlbums(artist?.id);
   const albums = useMemo(
     () =>
       rawAlbums?.slice().sort((a, b) => {
@@ -46,6 +46,19 @@ export default function ArtistDetailScreen() {
     );
   }
 
+  if (artistError) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <EmptyState
+          icon="cloud-offline-outline"
+          message="Failed to load artist"
+          actionLabel="Try Again"
+          onAction={() => refetchArtist()}
+        />
+      </View>
+    );
+  }
+
   if (!artist) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
@@ -66,6 +79,13 @@ export default function ArtistDetailScreen() {
 
           {albumsLoading ? (
             <ActivityIndicator style={styles.loader} color={colors.brand} />
+          ) : albumsError ? (
+            <EmptyState
+              icon="cloud-offline-outline"
+              message="Failed to load albums"
+              actionLabel="Try Again"
+              onAction={() => refetchAlbums()}
+            />
           ) : albums && albums.length > 0 ? (
             albums.map((album) => (
               <AlbumRow key={album.id} album={album} onPress={() => openAlbum(album)} />
@@ -76,7 +96,12 @@ export default function ArtistDetailScreen() {
         </View>
       </ScrollView>
 
-      <AlbumSheet album={selectedAlbum} sheetRef={sheetRef} />
+      <AlbumSheet
+        album={selectedAlbum}
+        artistName={artist.artistName}
+        sheetRef={sheetRef}
+        onDeleted={() => setSelectedAlbum(null)}
+      />
     </View>
   );
 }

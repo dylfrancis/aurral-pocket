@@ -31,7 +31,7 @@ export default function LibraryScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const colors = Colors[useColorScheme()];
-  const { data: artists, isLoading, refetch, isRefetching } = useLibraryArtists();
+  const { data: artists, isLoading, error, refetch, isRefetching } = useLibraryArtists();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('alpha');
@@ -96,6 +96,19 @@ export default function LibraryScreen() {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.brand} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <EmptyState
+          icon="cloud-offline-outline"
+          message="Failed to load library"
+          actionLabel="Try Again"
+          onAction={() => refetch()}
+        />
       </View>
     );
   }
