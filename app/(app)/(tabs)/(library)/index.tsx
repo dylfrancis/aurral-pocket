@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
   RefreshControl,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import { Stack, useNavigation, useRouter } from 'expo-router';
 import { ArtistCard } from '@/components/library/ArtistCard';
+import { ScreenCenter } from '@/components/ui/ScreenCenter';
 import { SearchBar, type SortMode } from '@/components/library/SearchBar';
 import { EmptyState } from '@/components/library/EmptyState';
 import { useLibraryArtists } from '@/hooks/library/use-library-artists';
@@ -93,23 +93,19 @@ export default function LibraryScreen() {
   );
 
   if (isLoading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.brand} />
-      </View>
-    );
+    return <ScreenCenter loading />;
   }
 
   if (error) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+      <ScreenCenter>
         <EmptyState
           icon="cloud-offline-outline"
           message="Failed to load library"
           actionLabel="Try Again"
           onAction={() => refetch()}
         />
-      </View>
+      </ScreenCenter>
     );
   }
 
@@ -167,11 +163,6 @@ export default function LibraryScreen() {
 }
 
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   listContent: {
     paddingHorizontal: EDGE_PADDING,
     paddingTop: EDGE_PADDING,

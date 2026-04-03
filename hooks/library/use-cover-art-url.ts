@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { getArtistCover, getAlbumCover } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
+import type { CoverArtType } from '@/lib/types/library';
 
 type CoverArtOptions = {
-  type: 'artist' | 'album';
+  type: CoverArtType;
   mbid: string | undefined;
 };
 

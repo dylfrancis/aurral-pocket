@@ -6,6 +6,7 @@ import type {
   AlbumStatistics,
   CoverArtImage,
   CoverArtResponse,
+  CoverArtType,
 } from '@/lib/types/library';
 
 describe('Library types', () => {
@@ -68,6 +69,13 @@ describe('Library types', () => {
       quality: null,
     };
     expect(track.quality).toBeNull();
+  });
+
+  it('CoverArtType accepts artist and album', () => {
+    const artist: CoverArtType = 'artist';
+    const album: CoverArtType = 'album';
+    expect(artist).toBe('artist');
+    expect(album).toBe('album');
   });
 
   it('CoverArtResponse has images array', () => {

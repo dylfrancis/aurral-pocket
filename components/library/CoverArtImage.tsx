@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCoverArtUrl } from '@/hooks/library/use-cover-art-url';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
+import type { CoverArtType } from '@/lib/types/library';
 
 type CoverArtImageProps = {
-  type: 'artist' | 'album';
+  type: CoverArtType;
   mbid: string;
   size: number | 'fill';
   style?: ImageStyle;

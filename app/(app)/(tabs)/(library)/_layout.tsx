@@ -3,6 +3,12 @@ import { Stack } from 'expo-router';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 
+const IS_IOS = Platform.OS === 'ios';
+
+const transparentHeader = IS_IOS
+  ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }
+  : {};
+
 export default function LibraryLayout() {
   const colors = Colors[useColorScheme()];
 
@@ -11,6 +17,7 @@ export default function LibraryLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
+        ...transparentHeader,
       }}
     >
       <Stack.Screen
@@ -18,18 +25,11 @@ export default function LibraryLayout() {
         options={{
           title: 'Library',
           headerLargeTitle: true,
-
-          ...(Platform.OS === 'ios'
-            ? {
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-              }
-            : {}),
         }}
       />
       <Stack.Screen
         name="artist/[mbid]"
-        options={{ headerTransparent: true, headerStyle: { backgroundColor: 'transparent' }, headerTitle: '', }}
+        options={{ headerTitle: '' }}
       />
     </Stack>
   );
