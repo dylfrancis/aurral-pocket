@@ -12,7 +12,7 @@ export function ScreenCenter({ children, loading }: ScreenCenterProps) {
   const colors = Colors[useColorScheme()];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View testID="screen-center" style={[styles.container, { backgroundColor: colors.background }]}>
       {loading ? <ActivityIndicator size="large" color={colors.brand} /> : children}
     </View>
   );
