@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, StyleSheet, View } from 'react-native';
+import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -39,8 +40,18 @@ export default function ArtistDetailScreen() {
     sheetRef.current?.snapToIndex(0);
   }, []);
 
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
     await Promise.all([refetchArtist(), refetchAlbums()]);
+    setRefreshing(false);
   }, [refetchArtist, refetchAlbums]);
 
   if (artistLoading) {
@@ -70,17 +81,19 @@ export default function ArtistDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
+      <Animated.ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 16 }]}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
-            refreshing={artistRefetching || albumsRefetching}
+            refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.brand}
+            tintColor="transparent"
           />
         }
       >
-        <ArtistHero artist={artist} />
+        <ArtistHero artist={artist} scrollY={scrollY} refreshing={refreshing} />
 
         <View style={styles.albumsSection}>
           <Text variant="subtitle" style={[styles.sectionTitle, { color: colors.text }]}>
@@ -104,7 +117,7 @@ export default function ArtistDetailScreen() {
             <EmptyState icon="disc-outline" message="No albums in library" />
           )}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <AlbumSheet
         album={selectedAlbum}
