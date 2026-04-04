@@ -5,6 +5,11 @@ const KEYS = {
   SERVER_URL: 'server_url',
   AUTH_TOKEN: 'auth_token',
   USER: 'user_json',
+  SAVED_USERNAME: 'saved_username',
+  SAVED_PASSWORD: 'saved_password',
+  REMEMBER_CREDENTIALS: 'remember_credentials',
+  USE_BIOMETRICS: 'use_biometrics',
+  EXPIRES_AT: 'token_expires_at',
 } as const;
 
 export const SecureStorage = {
@@ -45,6 +50,98 @@ export const SecureStorage = {
   async deleteUser(): Promise<void> {
     try {
       await SecureStore.deleteItemAsync(KEYS.USER);
+    } catch {}
+  },
+
+  async getExpiresAt(): Promise<number | null> {
+    try {
+      const val = await SecureStore.getItemAsync(KEYS.EXPIRES_AT);
+      return val ? Number(val) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async setExpiresAt(ms: number): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(KEYS.EXPIRES_AT, String(ms));
+    } catch {}
+  },
+
+  async deleteExpiresAt(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(KEYS.EXPIRES_AT);
+    } catch {}
+  },
+
+  async getCredentials(): Promise<{ username: string; password: string } | null> {
+    try {
+      const [username, password] = await Promise.all([
+        SecureStore.getItemAsync(KEYS.SAVED_USERNAME),
+        SecureStore.getItemAsync(KEYS.SAVED_PASSWORD),
+      ]);
+      if (username && password) return { username, password };
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  async setCredentials(username: string, password: string): Promise<void> {
+    try {
+      await Promise.all([
+        SecureStore.setItemAsync(KEYS.SAVED_USERNAME, username),
+        SecureStore.setItemAsync(KEYS.SAVED_PASSWORD, password),
+      ]);
+    } catch {}
+  },
+
+  async deleteCredentials(): Promise<void> {
+    try {
+      await Promise.all([
+        SecureStore.deleteItemAsync(KEYS.SAVED_USERNAME),
+        SecureStore.deleteItemAsync(KEYS.SAVED_PASSWORD),
+      ]);
+    } catch {}
+  },
+
+  async getRememberCredentials(): Promise<boolean> {
+    try {
+      return (await SecureStore.getItemAsync(KEYS.REMEMBER_CREDENTIALS)) === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  async setRememberCredentials(value: boolean): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(KEYS.REMEMBER_CREDENTIALS, String(value));
+    } catch {}
+  },
+
+  async deleteRememberCredentials(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(KEYS.REMEMBER_CREDENTIALS);
+    } catch {}
+  },
+
+  async getUseBiometrics(): Promise<boolean> {
+    try {
+      return (await SecureStore.getItemAsync(KEYS.USE_BIOMETRICS)) === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  async setUseBiometrics(value: boolean): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(KEYS.USE_BIOMETRICS, String(value));
+    } catch {}
+  },
+
+  async deleteUseBiometrics(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(KEYS.USE_BIOMETRICS);
     } catch {}
   },
 };

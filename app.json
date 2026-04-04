@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.aurral.aurralpocket",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "7538KXR6QZ"
     },
     "android": {
       "adaptiveIcon": {

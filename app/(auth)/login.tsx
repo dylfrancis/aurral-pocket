@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -13,6 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/contexts/auth-context';
 import { useLogin } from '@/hooks/auth/use-login';
+import { useBiometricAvailability } from '@/hooks/auth/use-biometric-availability';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import { ApiError } from '@/lib/api/client';
@@ -28,20 +32,79 @@ function getErrorMessage(error: Error | null): string | null {
   return error.message;
 }
 
+function showRememberWarning(onConfirm: () => void) {
+  Alert.alert(
+    'Store Credentials',
+    'Your password will be saved in encrypted storage on this device so you can be automatically signed back in when your session expires.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Enable', onPress: onConfirm },
+    ],
+  );
+}
+
+function showBiometricWarning(onConfirm: () => void, label: string) {
+  Alert.alert(
+    'Store Credentials',
+    `Your password will be saved in encrypted storage on this device so you can use ${label} to sign back in when your session expires.`,
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Enable', onPress: onConfirm },
+    ],
+  );
+}
+
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
-  const { serverUrl, clearAll } = useAuth();
+  const {
+    serverUrl,
+    clearAll,
+    rememberCredentials,
+    useBiometrics,
+    setRememberCredentials,
+    setUseBiometrics,
+    saveCredentials,
+  } = useAuth();
   const loginMutation = useLogin();
+  const biometricLabel = useBiometricAvailability();
 
   const handleLogin = () => {
     if (!username.trim() || !password) {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    loginMutation.mutate({ username: username.trim(), password });
+    loginMutation.mutate(
+      { username: username.trim(), password },
+      {
+        onSuccess: () => {
+          if (rememberCredentials || useBiometrics) {
+            saveCredentials(username.trim(), password);
+          }
+        },
+      },
+    );
+  };
+
+  const handleToggleRemember = (value: boolean) => {
+    if (value) {
+      showRememberWarning(() => setRememberCredentials(true));
+    } else {
+      setRememberCredentials(false);
+    }
+  };
+
+  const handleToggleBiometrics = (value: boolean) => {
+    if (value) {
+      showBiometricWarning(
+        () => setUseBiometrics(true),
+        biometricLabel ?? 'biometrics',
+      );
+    } else {
+      setUseBiometrics(false);
+    }
   };
 
   const errorMessage =
@@ -92,6 +155,42 @@ export default function LoginScreen() {
             style={styles.input}
           />
 
+          <View style={styles.toggleGroup}>
+            <Pressable
+              style={styles.toggleRow}
+              onPress={() => handleToggleRemember(!rememberCredentials)}
+            >
+              <Switch
+                value={rememberCredentials}
+                onValueChange={handleToggleRemember}
+                trackColor={{ false: colors.separator, true: colors.brand }}
+                thumbColor="#ffffff"
+                style={styles.switch}
+              />
+              <Text variant="body" style={{ flex: 1 }}>
+                Remember me
+              </Text>
+            </Pressable>
+
+            {biometricLabel && (
+              <Pressable
+                style={styles.toggleRow}
+                onPress={() => handleToggleBiometrics(!useBiometrics)}
+              >
+                <Switch
+                  value={useBiometrics}
+                  onValueChange={handleToggleBiometrics}
+                  trackColor={{ false: colors.separator, true: colors.brand }}
+                  thumbColor="#ffffff"
+                  style={styles.switch}
+                />
+                <Text variant="body" style={{ flex: 1 }}>
+                  Use {biometricLabel}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
           {errorMessage && (
             <Text variant="error" style={styles.error}>
               {errorMessage}
@@ -141,6 +240,20 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 12,
+  },
+  toggleGroup: {
+    alignSelf: 'stretch',
+    gap: 4,
+    marginBottom: 16,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  switch: {
+    transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }],
   },
   error: {
     marginBottom: 12,
