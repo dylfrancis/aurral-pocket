@@ -24,7 +24,7 @@ export default function TabsLayout() {
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="(library)">
-        <NativeTabs.Trigger.Icon sf="music.note.list" md="library_music" />
+        <NativeTabs.Trigger.Icon sf={{ default: 'books.vertical', selected: 'books.vertical.fill' }} md="library_books" />
         <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
@@ -34,7 +34,7 @@ export default function TabsLayout() {
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="(requests)">
-        <NativeTabs.Trigger.Icon sf="list.bullet" md="history" />
+        <NativeTabs.Trigger.Icon sf={{ default: 'clock.arrow.circlepath', selected: 'clock.arrow.circlepath' }} md="update" />
         <NativeTabs.Trigger.Label>Requests</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
