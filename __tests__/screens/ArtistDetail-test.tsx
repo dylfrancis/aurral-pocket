@@ -27,6 +27,7 @@ jest.mock('@/hooks/library/use-cover-art-url', () => ({
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(() => ({ mbid: 'abc-123' })),
+  useRouter: jest.fn(() => ({ back: jest.fn() })),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -46,6 +47,14 @@ jest.mock('@/components/library/AlbumSheet', () => {
   const { View } = require('react-native');
   return {
     AlbumSheet: function MockAlbumSheet() { return React.createElement(View, { testID: 'album-sheet' }); },
+  };
+});
+
+jest.mock('@/components/library/ArtistActionSheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    ArtistActionSheet: function MockArtistActionSheet() { return React.createElement(View, { testID: 'artist-action-sheet' }); },
   };
 });
 

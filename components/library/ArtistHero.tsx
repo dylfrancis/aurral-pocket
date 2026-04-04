@@ -3,7 +3,7 @@ import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reani
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui/Text';
 import { CoverArtImage } from './CoverArtImage';
-import { MonitoredBadge } from './MonitoredBadge';
+import { LibraryBadge } from './LibraryBadge';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import type { Artist } from '@/lib/types/library';
@@ -14,9 +14,10 @@ type ArtistHeroProps = {
   artist: Artist;
   scrollY?: SharedValue<number>;
   refreshing?: boolean;
+  onBadgePress?: () => void;
 };
 
-export function ArtistHero({ artist, scrollY, refreshing }: ArtistHeroProps) {
+export function ArtistHero({ artist, scrollY, refreshing, onBadgePress }: ArtistHeroProps) {
   const colors = Colors[useColorScheme()];
 
   const backgroundStyle = useAnimatedStyle(() => {
@@ -58,7 +59,7 @@ export function ArtistHero({ artist, scrollY, refreshing }: ArtistHeroProps) {
         <Text variant="title" style={styles.name}>
           {artist.artistName}
         </Text>
-        <MonitoredBadge monitored={artist.monitored} />
+        {onBadgePress && <LibraryBadge onPress={onBadgePress} />}
       </View>
     </View>
   );

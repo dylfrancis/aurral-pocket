@@ -3,11 +3,12 @@ import { ActivityIndicator, RefreshControl, StyleSheet, View } from 'react-nativ
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenCenter } from '@/components/ui/ScreenCenter';
 import { ArtistHero } from '@/components/library/ArtistHero';
 import { AlbumRow } from '@/components/library/AlbumRow';
 import { AlbumSheet } from '@/components/library/AlbumSheet';
+import { ArtistActionSheet } from '@/components/library/ArtistActionSheet';
 import { EmptyState } from '@/components/library/EmptyState';
 import { CollapsibleSection } from '@/components/library/CollapsibleSection';
 import { SecondaryTypeFilter } from '@/components/library/SecondaryTypeFilter';
@@ -76,12 +77,18 @@ export default function ArtistDetailScreen() {
     return map;
   }, [filtered]);
 
-  const sheetRef = useRef<BottomSheet>(null);
+  const router = useRouter();
+  const albumSheetRef = useRef<BottomSheet>(null);
+  const artistSheetRef = useRef<BottomSheet>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
 
   const openAlbum = useCallback((album: Album) => {
     setSelectedAlbum(album);
-    sheetRef.current?.snapToIndex(0);
+    albumSheetRef.current?.snapToIndex(0);
+  }, []);
+
+  const openArtistActions = useCallback(() => {
+    artistSheetRef.current?.snapToIndex(0);
   }, []);
 
   const scrollY = useSharedValue(0);
@@ -141,7 +148,12 @@ export default function ArtistDetailScreen() {
           />
         }
       >
-        <ArtistHero artist={artist} scrollY={scrollY} refreshing={refreshing} />
+        <ArtistHero
+          artist={artist}
+          scrollY={scrollY}
+          refreshing={refreshing}
+          onBadgePress={openArtistActions}
+        />
 
         {hasSecondaryTypes && (
           <SecondaryTypeFilter
@@ -185,8 +197,14 @@ export default function ArtistDetailScreen() {
       <AlbumSheet
         album={selectedAlbum}
         artistName={artist.artistName}
-        sheetRef={sheetRef}
+        sheetRef={albumSheetRef}
         onDeleted={() => setSelectedAlbum(null)}
+      />
+
+      <ArtistActionSheet
+        artist={artist}
+        sheetRef={artistSheetRef}
+        onDeleted={() => router.back()}
       />
     </View>
   );

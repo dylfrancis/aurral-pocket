@@ -63,6 +63,12 @@ export function triggerAlbumSearch(albumId: string) {
   return api.post('/library/downloads/album/search', { albumId }).then((r) => r.data);
 }
 
+export function deleteLibraryArtist(mbid: string, deleteFiles = false) {
+  return api
+    .delete(`/library/artists/${mbid}`, { params: { deleteFiles } })
+    .then((r) => r.data);
+}
+
 export function deleteAlbum(albumId: string, deleteFiles = false) {
   return api.delete(`/library/albums/${albumId}`, { params: { deleteFiles } }).then((r) => r.data);
 }
