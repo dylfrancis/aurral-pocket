@@ -1,12 +1,14 @@
-import {
+import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { setAuthToken, setBaseUrl } from '@/lib/api/client';
+import { setAuthToken, setBaseUrl, setOnSessionExpired, setOnAuthRefreshed } from '@/lib/api/client';
+import { login } from '@/lib/api/auth';
 import { AppStorage, SecureStorage } from '@/lib/storage';
 import type { HealthResponse, User } from '@/lib/types/auth';
 
@@ -18,10 +20,20 @@ type AuthContextValue = {
   user: User | null;
   isRestoring: boolean;
   serverHealth: ServerHealth | null;
+  rememberCredentials: boolean;
+  useBiometrics: boolean;
+  hasCredentials: boolean;
+  sessionExpired: boolean;
   setServer: (url: string, health: HealthResponse) => Promise<void>;
-  setAuth: (token: string, user: User) => Promise<void>;
+  setAuth: (token: string, user: User, expiresAt?: number) => Promise<void>;
   clearAuth: () => Promise<void>;
   clearAll: () => Promise<void>;
+  setRememberCredentials: (value: boolean) => Promise<void>;
+  setUseBiometrics: (value: boolean) => Promise<void>;
+  saveCredentials: (username: string, password: string) => Promise<void>;
+  updateExpiresAt: (expiresAt: number) => Promise<void>;
+  dismissSessionExpired: () => void;
+  setSessionExpired: (value: boolean) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -32,16 +44,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [serverHealth, setServerHealth] = useState<ServerHealth | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
+  const [rememberCreds, setRememberCreds] = useState(false);
+  const [biometrics, setBiometrics] = useState(false);
+  const [hasCredentials, setHasCredentials] = useState(false);
+  const [sessionExpired, setSessionExpiredState] = useState(false);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Restore persisted state on mount
   useEffect(() => {
     (async () => {
       try {
-        const [storedUrl, storedToken, storedUserJson] = await Promise.all([
-          AppStorage.getServerUrl(),
-          SecureStorage.getToken(),
-          SecureStorage.getUser(),
-        ]);
+        const [storedUrl, storedToken, storedUserJson, remember, bio, creds, storedExpiry, lastActive] =
+          await Promise.all([
+            AppStorage.getServerUrl(),
+            SecureStorage.getToken(),
+            SecureStorage.getUser(),
+            SecureStorage.getRememberCredentials(),
+            SecureStorage.getUseBiometrics(),
+            SecureStorage.getCredentials(),
+            SecureStorage.getExpiresAt(),
+            SecureStorage.getLastActiveAt(),
+          ]);
+
+        // Hard expire after 30 days of inactivity with full reset to login screen
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+        if (lastActive && Date.now() - lastActive > THIRTY_DAYS_MS) {
+          await Promise.all([
+            AppStorage.deleteServerUrl(),
+            SecureStorage.deleteToken(),
+            SecureStorage.deleteUser(),
+            SecureStorage.deleteCredentials(),
+            SecureStorage.deleteRememberCredentials(),
+            SecureStorage.deleteUseBiometrics(),
+            SecureStorage.deleteExpiresAt(),
+            SecureStorage.deleteLastActiveAt(),
+          ]);
+          return;
+        }
 
         if (storedUrl) {
           setServerUrl(storedUrl);
@@ -58,11 +98,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(JSON.parse(storedUserJson));
           } catch {}
         }
+
+        setRememberCreds(remember);
+        setBiometrics(bio);
+        setHasCredentials(!!creds);
+        if (storedExpiry) setExpiresAt(storedExpiry);
       } finally {
         setIsRestoring(false);
       }
     })();
   }, []);
+
+  // Wire up interceptor callbacks
+  useEffect(() => {
+    setOnSessionExpired(() => setSessionExpiredState(true));
+    setOnAuthRefreshed((newToken, userJson, newExpiresAt) => {
+      setToken(newToken);
+      setAuthToken(newToken);
+      setExpiresAt(newExpiresAt);
+      try {
+        setUser(JSON.parse(userJson));
+      } catch {}
+    });
+    return () => {
+      setOnSessionExpired(null);
+      setOnAuthRefreshed(null);
+    };
+  }, []);
+
+  // Proactive session renewal — fires ~60s before token expires
+  useEffect(() => {
+    if (expiryTimer.current) clearTimeout(expiryTimer.current);
+    if (!expiresAt || !token) return;
+
+    const msUntilExpiry = expiresAt - Date.now();
+    // Fire 60s before expiry, or immediately if already past
+    const delay = Math.max(0, msUntilExpiry - 60_000);
+
+    expiryTimer.current = setTimeout(async () => {
+      // Try silent re-auth if remember is on
+      const remember = await SecureStorage.getRememberCredentials();
+      if (remember) {
+        const creds = await SecureStorage.getCredentials();
+        if (creds) {
+          try {
+            const data = await login(creds);
+            setToken(data.token);
+            setUser(data.user);
+            setAuthToken(data.token);
+            setExpiresAt(data.expiresAt);
+            await Promise.all([
+              SecureStorage.setToken(data.token),
+              SecureStorage.setUser(JSON.stringify(data.user)),
+              SecureStorage.setExpiresAt(data.expiresAt),
+            ]);
+            return;
+          } catch {}
+        }
+      }
+      // Silent re-auth unavailable or failed
+      setSessionExpiredState(true);
+    }, delay);
+
+    return () => {
+      if (expiryTimer.current) clearTimeout(expiryTimer.current);
+    };
+  }, [expiresAt, token]);
 
   const setServer = useCallback(
     async (url: string, health: HealthResponse) => {
@@ -77,21 +178,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const setAuth = useCallback(async (newToken: string, newUser: User) => {
+  const setAuth = useCallback(async (newToken: string, newUser: User, newExpiresAt?: number) => {
     setToken(newToken);
     setUser(newUser);
     setAuthToken(newToken);
-    await Promise.all([
+    if (newExpiresAt) setExpiresAt(newExpiresAt);
+    const saves: Promise<void>[] = [
       SecureStorage.setToken(newToken),
       SecureStorage.setUser(JSON.stringify(newUser)),
-    ]);
+      SecureStorage.setLastActiveAt(Date.now()),
+    ];
+    if (newExpiresAt) saves.push(SecureStorage.setExpiresAt(newExpiresAt));
+    await Promise.all(saves);
   }, []);
 
   const clearAuth = useCallback(async () => {
     setToken(null);
     setUser(null);
+    setExpiresAt(null);
     setAuthToken(null);
-    await Promise.all([SecureStorage.deleteToken(), SecureStorage.deleteUser()]);
+    await Promise.all([SecureStorage.deleteToken(), SecureStorage.deleteUser(), SecureStorage.deleteExpiresAt()]);
   }, []);
 
   const clearAll = useCallback(async () => {
@@ -101,11 +207,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setServerHealth(null);
     setBaseUrl('');
     setAuthToken(null);
+    setRememberCreds(false);
+    setBiometrics(false);
+    setHasCredentials(false);
     await Promise.all([
       AppStorage.deleteServerUrl(),
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),
+      SecureStorage.deleteCredentials(),
+      SecureStorage.deleteRememberCredentials(),
+      SecureStorage.deleteUseBiometrics(),
+      SecureStorage.deleteExpiresAt(),
+      SecureStorage.deleteLastActiveAt(),
     ]);
+  }, []);
+
+  const setRememberCredentials = useCallback(
+    async (value: boolean) => {
+      setRememberCreds(value);
+      await SecureStorage.setRememberCredentials(value);
+      // If both remember and biometrics are off, clear stored credentials
+      if (!value && !biometrics) {
+        setHasCredentials(false);
+        await SecureStorage.deleteCredentials();
+      }
+    },
+    [biometrics],
+  );
+
+  const setUseBiometricsValue = useCallback(
+    async (value: boolean) => {
+      setBiometrics(value);
+      await SecureStorage.setUseBiometrics(value);
+      // If both remember and biometrics are off, clear stored credentials
+      if (!value && !rememberCreds) {
+        setHasCredentials(false);
+        await SecureStorage.deleteCredentials();
+      }
+    },
+    [rememberCreds],
+  );
+
+  const saveCredentials = useCallback(
+    async (username: string, password: string) => {
+      // Save if either remember or biometrics is enabled
+      if (!rememberCreds && !biometrics) return;
+      setHasCredentials(true);
+      await SecureStorage.setCredentials(username, password);
+    },
+    [rememberCreds, biometrics],
+  );
+
+  const updateExpiresAt = useCallback(async (newExpiresAt: number) => {
+    setExpiresAt(newExpiresAt);
+    await SecureStorage.setExpiresAt(newExpiresAt);
+  }, []);
+
+  const dismissSessionExpired = useCallback(() => {
+    setSessionExpiredState(false);
+  }, []);
+
+  const setSessionExpired = useCallback((value: boolean) => {
+    setSessionExpiredState(value);
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -115,10 +278,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       isRestoring,
       serverHealth,
+      rememberCredentials: rememberCreds,
+      useBiometrics: biometrics,
+      hasCredentials,
+      sessionExpired,
       setServer,
       setAuth,
       clearAuth,
       clearAll,
+      setRememberCredentials,
+      setUseBiometrics: setUseBiometricsValue,
+      saveCredentials,
+      updateExpiresAt,
+      dismissSessionExpired,
+      setSessionExpired,
     }),
     [
       serverUrl,
@@ -126,10 +299,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       isRestoring,
       serverHealth,
+      rememberCreds,
+      biometrics,
+      hasCredentials,
+      sessionExpired,
       setServer,
       setAuth,
       clearAuth,
       clearAll,
+      setRememberCredentials,
+      setUseBiometricsValue,
+      saveCredentials,
+      updateExpiresAt,
+      dismissSessionExpired,
+      setSessionExpired,
     ],
   );
 

@@ -22,6 +22,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { ReAuthModal } from '@/components/auth/ReAuthModal';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import { queryClient } from '@/lib/query-client';
@@ -110,6 +111,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <RootLayoutNav />
+            <ReAuthModal />
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

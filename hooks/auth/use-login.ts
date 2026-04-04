@@ -10,8 +10,8 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (creds: LoginRequest) => login(creds),
-    onSuccess: (data) => {
-      setAuth(data.token, data.user);
+    onSuccess: async (data) => {
+      await setAuth(data.token, data.user, data.expiresAt);
       queryClient.setQueryData(authKeys.me(serverUrl!), {
         user: data.user,
         expiresAt: data.expiresAt,
