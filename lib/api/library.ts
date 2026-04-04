@@ -1,5 +1,6 @@
+import axios from 'axios';
 import { api } from './client';
-import type { Artist, Album, Track, CoverArtResponse } from '@/lib/types/library';
+import type { Artist, Album, Track, CoverArtResponse, ReleaseGroup } from '@/lib/types/library';
 
 export function getLibraryArtists() {
   return api.get<Artist[]>('/library/artists').then((r) => r.data);
@@ -15,6 +16,37 @@ export function getLibraryAlbums(artistId: string) {
 
 export function getLibraryTracks(albumId: string) {
   return api.get<Track[]>('/library/tracks', { params: { albumId } }).then((r) => r.data);
+}
+
+export async function getArtistReleaseGroups(mbid: string): Promise<ReleaseGroup[]> {
+  const allGroups: ReleaseGroup[] = [];
+  let offset = 0;
+  const limit = 100;
+
+  // MusicBrainz paginates — fetch all release groups for this artist
+  while (true) {
+    const { data } = await axios.get<{ 'release-groups': ReleaseGroup[] }>(
+      `https://musicbrainz.org/ws/2/release-group`,
+      {
+        params: {
+          artist: mbid,
+          'type': 'album|ep|single',
+          fmt: 'json',
+          limit,
+          offset,
+        },
+        headers: { 'User-Agent': 'AurralPocket/1.0 (https://github.com/lklynet/aurral)' },
+        timeout: 10_000,
+      },
+    );
+
+    const groups = data['release-groups'];
+    allGroups.push(...groups);
+    if (groups.length < limit) break;
+    offset += limit;
+  }
+
+  return allGroups;
 }
 
 export function getArtistCover(mbid: string) {

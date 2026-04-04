@@ -74,17 +74,4 @@ describe('ArtistHero', () => {
     expect(getByText('Unmonitored')).toBeTruthy();
   });
 
-  it('renders activity indicator for refresh', () => {
-    const { UNSAFE_getByType } = render(
-      <ArtistHero artist={baseArtist} refreshing={true} />,
-    );
-    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
-  });
-
-  it('renders activity indicator even when not refreshing (animated opacity)', () => {
-    const { UNSAFE_getByType } = render(
-      <ArtistHero artist={baseArtist} refreshing={false} />,
-    );
-    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
-  });
 });

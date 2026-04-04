@@ -57,6 +57,31 @@ jest.mock('@/hooks/library/use-library-albums', () => ({
   useLibraryAlbums: jest.fn(),
 }));
 
+jest.mock('@/hooks/library/use-albums-with-types', () => ({
+  useAlbumsWithTypes: jest.fn((_mbid: string, albums: any[]) => ({
+    albums: albums?.map((a: any) => ({ ...a, albumType: 'Album', secondaryTypes: [] })),
+    isLoadingTypes: false,
+  })),
+}));
+
+jest.mock('@/hooks/library/use-release-type-filter', () => {
+  const PRIMARY_TYPES = ['Album', 'EP', 'Single'];
+  const SECONDARY_TYPES = ['Live', 'Remix', 'Compilation', 'Demo', 'Broadcast', 'Soundtrack', 'Spokenword', 'Other'];
+  const ALL = [...PRIMARY_TYPES, ...SECONDARY_TYPES];
+  return {
+    useReleaseTypeFilter: jest.fn(() => ({
+      selected: new Set(ALL),
+      toggleSecondary: jest.fn(),
+      selectAll: jest.fn(),
+      clearSecondary: jest.fn(),
+      activeSecondaryCount: 0,
+    })),
+    matchesFilter: jest.fn(() => true),
+    PRIMARY_TYPES,
+    SECONDARY_TYPES,
+  };
+});
+
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import ArtistDetailScreen from '@/app/(app)/(tabs)/(library)/artist/[mbid]';
@@ -158,7 +183,10 @@ describe('ArtistDetailScreen', () => {
       expect(getByText('Test Artist')).toBeTruthy();
     });
 
-    it('shows albums header', () => {
+    it('shows albums section header', () => {
+      mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook, data: baseArtist });
+      const albums = [makeAlbum({ id: '1' })];
+      mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
       const { getByText } = render(<ArtistDetailScreen />);
       expect(getByText('Albums')).toBeTruthy();
     });
@@ -173,7 +201,9 @@ describe('ArtistDetailScreen', () => {
       const albums = [makeAlbum({ id: '1' }), makeAlbum({ id: '2' })];
       mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
       const { getByText } = render(<ArtistDetailScreen />);
-      expect(getByText('Albums (2)')).toBeTruthy();
+      // Albums are now in collapsible sections — count shown as separate text
+      expect(getByText('Albums')).toBeTruthy();
+      expect(getByText('2')).toBeTruthy();
     });
 
     it('renders album rows', () => {

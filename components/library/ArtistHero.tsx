@@ -1,5 +1,5 @@
 import { ActivityIndicator, Dimensions, StyleSheet, View } from 'react-native';
-import Animated, { interpolate, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui/Text';
 import { CoverArtImage } from './CoverArtImage';
@@ -28,15 +28,6 @@ export function ArtistHero({ artist, scrollY, refreshing }: ArtistHeroProps) {
     };
   });
 
-  const refreshStyle = useAnimatedStyle(() => {
-    const offset = scrollY?.value ?? 0;
-    return {
-      opacity: refreshing
-        ? 1
-        : interpolate(offset, [0, -60], [0, 1], 'clamp'),
-    };
-  });
-
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.background, backgroundStyle]}>
@@ -48,9 +39,11 @@ export function ArtistHero({ artist, scrollY, refreshing }: ArtistHeroProps) {
           blurRadius={25}
         />
       </Animated.View>
-      <Animated.View style={[styles.refreshIndicator, refreshStyle]}>
-        <ActivityIndicator size="small" color="#fff" />
-      </Animated.View>
+      {refreshing && (
+        <View style={styles.refreshIndicator}>
+          <ActivityIndicator size="small" color="#fff" />
+        </View>
+      )}
       <LinearGradient
         colors={['transparent', colors.background]}
         style={styles.gradient}
@@ -82,14 +75,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
   },
-  refreshIndicator: {
-    position: 'absolute',
-    top: 48,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 1,
-  },
   gradient: {
     position: 'absolute',
     top: 0,
@@ -103,6 +88,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 24,
     gap: 8,
+  },
+  refreshIndicator: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 1,
   },
   name: {
     textAlign: 'center',

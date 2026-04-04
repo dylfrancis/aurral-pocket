@@ -38,22 +38,12 @@ export const AlbumRow = React.memo(function AlbumRow({ album, onPress }: AlbumRo
         <Text variant="caption">
           {year && `${year} \u00B7 `}
           {trackCount} {trackCount === 1 ? 'track' : 'tracks'}
+          {' \u00B7 '}
+          <Text variant="caption" style={{ color: percent === 100 ? colors.brandStrong : colors.subtle }}>
+            {percent}%
+          </Text>
         </Text>
-        <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${percent}%`,
-                backgroundColor: percent === 100 ? colors.brand : colors.subtle,
-              },
-            ]}
-          />
-        </View>
       </View>
-      <Text variant="caption" style={{ color: percent === 100 ? colors.brandStrong : colors.subtle }}>
-        {percent}%
-      </Text>
       <Ionicons name="chevron-forward" size={18} color={colors.subtle} />
     </Pressable>
   );
@@ -71,15 +61,6 @@ const styles = StyleSheet.create({
   meta: {
     flex: 1,
     gap: 3,
-  },
-  progressBar: {
-    height: 3,
-    borderRadius: 1.5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 1.5,
   },
   albumName: {
     fontFamily: Fonts.medium,

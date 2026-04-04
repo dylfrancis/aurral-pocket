@@ -9,4 +9,5 @@ export const libraryKeys = {
   tracks: (albumId: string) => ['library', 'tracks', albumId] as const,
   artistCover: (mbid: string) => ['cover', 'artist', mbid] as const,
   albumCover: (mbid: string) => ['cover', 'album', mbid] as const,
+  releaseGroups: (mbid: string) => ['library', 'releaseGroups', mbid] as const,
 };

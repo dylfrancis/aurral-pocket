@@ -4,33 +4,77 @@ import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
-import { Text } from '@/components/ui/Text';
 import { ScreenCenter } from '@/components/ui/ScreenCenter';
 import { ArtistHero } from '@/components/library/ArtistHero';
 import { AlbumRow } from '@/components/library/AlbumRow';
 import { AlbumSheet } from '@/components/library/AlbumSheet';
 import { EmptyState } from '@/components/library/EmptyState';
+import { CollapsibleSection } from '@/components/library/CollapsibleSection';
+import { SecondaryTypeFilter } from '@/components/library/SecondaryTypeFilter';
 import { useLibraryArtist } from '@/hooks/library/use-library-artist';
 import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
+import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
+import { useReleaseTypeFilter, matchesFilter } from '@/hooks/library/use-release-type-filter';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { Album } from '@/lib/types/library';
+import { Colors } from '@/constants/theme';
+import type { Album, PrimaryReleaseType } from '@/lib/types/library';
+
+function sortByDate(albums: Album[]): Album[] {
+  return albums.slice().sort((a, b) => {
+    if (!a.releaseDate) return 1;
+    if (!b.releaseDate) return -1;
+    return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+  });
+}
+
+const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
+  { type: 'Album', label: 'Albums' },
+  { type: 'EP', label: 'EPs' },
+  { type: 'Single', label: 'Singles' },
+];
 
 export default function ArtistDetailScreen() {
   const { mbid } = useLocalSearchParams<{ mbid: string }>();
   const colors = Colors[useColorScheme()];
-  const { data: artist, isLoading: artistLoading, error: artistError, refetch: refetchArtist, isRefetching: artistRefetching } = useLibraryArtist(mbid);
   const insets = useSafeAreaInsets();
-  const { data: rawAlbums, isLoading: albumsLoading, error: albumsError, refetch: refetchAlbums, isRefetching: albumsRefetching } = useLibraryAlbums(artist?.id);
-  const albums = useMemo(
-    () =>
-      rawAlbums?.slice().sort((a, b) => {
-        if (!a.releaseDate) return 1;
-        if (!b.releaseDate) return -1;
-        return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
-      }),
-    [rawAlbums],
+
+  const {
+    data: artist,
+    isLoading: artistLoading,
+    error: artistError,
+    refetch: refetchArtist,
+  } = useLibraryArtist(mbid);
+
+  const {
+    data: rawAlbums,
+    isLoading: albumsLoading,
+    error: albumsError,
+    refetch: refetchAlbums,
+  } = useLibraryAlbums(artist?.id);
+
+  const { albums: typedAlbums, isLoadingTypes } = useAlbumsWithTypes(artist?.mbid, rawAlbums);
+  const filter = useReleaseTypeFilter();
+
+  const filtered = useMemo(
+    () => typedAlbums?.filter((a) => matchesFilter(a, filter.selected)),
+    [typedAlbums, filter.selected],
   );
+
+  const grouped = useMemo(() => {
+    if (!filtered) return null;
+    const map = new Map<PrimaryReleaseType, Album[]>();
+    for (const album of filtered) {
+      const type = album.albumType ?? 'Album';
+      const list = map.get(type) ?? [];
+      list.push(album);
+      map.set(type, list);
+    }
+    // Sort within each group
+    for (const [key, list] of map) {
+      map.set(key, sortByDate(list));
+    }
+    return map;
+  }, [filtered]);
 
   const sheetRef = useRef<BottomSheet>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
@@ -79,6 +123,10 @@ export default function ArtistDetailScreen() {
     );
   }
 
+  const hasSecondaryTypes = typedAlbums?.some(
+    (a) => a.secondaryTypes && a.secondaryTypes.length > 0,
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Animated.ScrollView
@@ -95,12 +143,15 @@ export default function ArtistDetailScreen() {
       >
         <ArtistHero artist={artist} scrollY={scrollY} refreshing={refreshing} />
 
-        <View style={styles.albumsSection}>
-          <Text variant="subtitle" style={[styles.sectionTitle, { color: colors.text }]}>
-            Albums{albums && albums.length > 0 ? ` (${albums.length})` : ''}
-          </Text>
+        {hasSecondaryTypes && (
+          <SecondaryTypeFilter
+            selected={filter.selected}
+            onToggle={filter.toggleSecondary}
+          />
+        )}
 
-          {albumsLoading ? (
+        <View style={styles.albumsSection}>
+          {albumsLoading || isLoadingTypes ? (
             <ActivityIndicator style={styles.loader} color={colors.brand} />
           ) : albumsError ? (
             <EmptyState
@@ -109,10 +160,22 @@ export default function ArtistDetailScreen() {
               actionLabel="Try Again"
               onAction={() => refetchAlbums()}
             />
-          ) : albums && albums.length > 0 ? (
-            albums.map((album) => (
-              <AlbumRow key={album.id} album={album} onPress={() => openAlbum(album)} />
-            ))
+          ) : grouped && grouped.size > 0 ? (
+            CATEGORIES.map(({ type, label }) => {
+              const list = grouped.get(type);
+              if (!list || list.length === 0) return null;
+              return (
+                <CollapsibleSection key={type} title={label} count={list.length}>
+                  {list.map((album) => (
+                    <AlbumRow
+                      key={album.id}
+                      album={album}
+                      onPress={() => openAlbum(album)}
+                    />
+                  ))}
+                </CollapsibleSection>
+              );
+            })
           ) : (
             <EmptyState icon="disc-outline" message="No albums in library" />
           )}
@@ -133,11 +196,7 @@ const styles = StyleSheet.create({
   content: {},
   albumsSection: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  sectionTitle: {
-    fontFamily: Fonts.semiBold,
-    marginBottom: 12,
+    paddingTop: 8,
   },
   loader: {
     paddingVertical: 32,
