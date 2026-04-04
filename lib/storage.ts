@@ -10,6 +10,7 @@ const KEYS = {
   REMEMBER_CREDENTIALS: 'remember_credentials',
   USE_BIOMETRICS: 'use_biometrics',
   EXPIRES_AT: 'token_expires_at',
+  LAST_ACTIVE_AT: 'last_active_at',
 } as const;
 
 export const SecureStorage = {
@@ -71,6 +72,27 @@ export const SecureStorage = {
   async deleteExpiresAt(): Promise<void> {
     try {
       await SecureStore.deleteItemAsync(KEYS.EXPIRES_AT);
+    } catch {}
+  },
+
+  async getLastActiveAt(): Promise<number | null> {
+    try {
+      const val = await SecureStore.getItemAsync(KEYS.LAST_ACTIVE_AT);
+      return val ? Number(val) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async setLastActiveAt(ms: number): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(KEYS.LAST_ACTIVE_AT, String(ms));
+    } catch {}
+  },
+
+  async deleteLastActiveAt(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(KEYS.LAST_ACTIVE_AT);
     } catch {}
   },
 

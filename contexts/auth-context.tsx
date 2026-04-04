@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { setAuthToken, setBaseUrl, setOnSessionExpired, setOnAuthRefreshed } from '@/lib/api/client';
+import { login } from '@/lib/api/auth';
 import { AppStorage, SecureStorage } from '@/lib/storage';
 import type { HealthResponse, User } from '@/lib/types/auth';
 
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const [storedUrl, storedToken, storedUserJson, remember, bio, creds, storedExpiry] =
+        const [storedUrl, storedToken, storedUserJson, remember, bio, creds, storedExpiry, lastActive] =
           await Promise.all([
             AppStorage.getServerUrl(),
             SecureStorage.getToken(),
@@ -63,7 +64,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             SecureStorage.getUseBiometrics(),
             SecureStorage.getCredentials(),
             SecureStorage.getExpiresAt(),
+            SecureStorage.getLastActiveAt(),
           ]);
+
+        // Hard expire after 30 days of inactivity with full reset to login screen
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+        if (lastActive && Date.now() - lastActive > THIRTY_DAYS_MS) {
+          await Promise.all([
+            AppStorage.deleteServerUrl(),
+            SecureStorage.deleteToken(),
+            SecureStorage.deleteUser(),
+            SecureStorage.deleteCredentials(),
+            SecureStorage.deleteRememberCredentials(),
+            SecureStorage.deleteUseBiometrics(),
+            SecureStorage.deleteExpiresAt(),
+            SecureStorage.deleteLastActiveAt(),
+          ]);
+          return;
+        }
 
         if (storedUrl) {
           setServerUrl(storedUrl);
@@ -124,7 +142,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const creds = await SecureStorage.getCredentials();
         if (creds) {
           try {
-            const { login } = await import('@/lib/api/auth');
             const data = await login(creds);
             setToken(data.token);
             setUser(data.user);
@@ -169,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const saves: Promise<void>[] = [
       SecureStorage.setToken(newToken),
       SecureStorage.setUser(JSON.stringify(newUser)),
+      SecureStorage.setLastActiveAt(Date.now()),
     ];
     if (newExpiresAt) saves.push(SecureStorage.setExpiresAt(newExpiresAt));
     await Promise.all(saves);
@@ -200,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       SecureStorage.deleteRememberCredentials(),
       SecureStorage.deleteUseBiometrics(),
       SecureStorage.deleteExpiresAt(),
+      SecureStorage.deleteLastActiveAt(),
     ]);
   }, []);
 

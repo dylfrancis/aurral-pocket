@@ -136,3 +136,33 @@ describe('SecureStorage.expiresAt', () => {
     expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith('token_expires_at');
   });
 });
+
+describe('SecureStorage.lastActiveAt', () => {
+  it('gets last active timestamp', async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue('1700000000000');
+    expect(await SecureStorage.getLastActiveAt()).toBe(1700000000000);
+  });
+
+  it('returns null when not stored', async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    expect(await SecureStorage.getLastActiveAt()).toBeNull();
+  });
+
+  it('returns null on error', async () => {
+    mockSecureStore.getItemAsync.mockRejectedValue(new Error('fail'));
+    expect(await SecureStorage.getLastActiveAt()).toBeNull();
+  });
+
+  it('sets last active timestamp', async () => {
+    await SecureStorage.setLastActiveAt(1700000000000);
+    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+      'last_active_at',
+      '1700000000000',
+    );
+  });
+
+  it('deletes last active timestamp', async () => {
+    await SecureStorage.deleteLastActiveAt();
+    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith('last_active_at');
+  });
+});
