@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { api } from './client';
-import type { Artist, Album, Track, CoverArtResponse, ReleaseGroup, ArtistTag } from '@/lib/types/library';
+import type { Artist, Album, Track, CoverArtResponse, ReleaseGroup, ArtistTag, PreviewTrack } from '@/lib/types/library';
 
 type ArtistDetailsResponse = {
   tags?: ArtistTag[];
@@ -72,6 +72,14 @@ export function getAlbumCover(releaseGroupMbid: string) {
 
 export function triggerAlbumSearch(albumId: string) {
   return api.post('/library/downloads/album/search', { albumId }).then((r) => r.data);
+}
+
+export function getArtistPreviewTracks(mbid: string, artistName?: string) {
+  return api
+    .get<{ tracks: PreviewTrack[] }>(`/artists/${mbid}/preview`, {
+      params: artistName ? { artistName } : undefined,
+    })
+    .then((r) => r.data.tracks);
 }
 
 export function refreshLibraryArtist(mbid: string) {

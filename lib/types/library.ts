@@ -73,6 +73,14 @@ export type Track = {
   quality: string | null;
 };
 
+export type PreviewTrack = {
+  id: string;
+  title: string;
+  album: string | null;
+  preview_url: string;
+  duration_ms: number;
+};
+
 export type CoverArtImage = {
   image: string;
   front: boolean;

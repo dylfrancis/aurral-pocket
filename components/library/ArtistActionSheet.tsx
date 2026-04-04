@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
+import { PreviewTrackRow } from './PreviewTrackRow';
 import { deleteLibraryArtist, refreshLibraryArtist } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
 import { useArtistDetails } from '@/hooks/library/use-artist-details';
+import { usePreviewPlayer } from '@/hooks/library/use-preview-player';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
 import type { Artist } from '@/lib/types/library';
@@ -23,6 +25,7 @@ export function ArtistActionSheet({ artist, sheetRef, onDeleted }: ArtistActionS
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { data: details } = useArtistDetails(artist.mbid);
+  const preview = usePreviewPlayer(artist.mbid, artist.artistName);
   const [bioExpanded, setBioExpanded] = useState(false);
 
   const refreshMutation = useMutation({
@@ -57,6 +60,16 @@ export function ArtistActionSheet({ artist, sheetRef, onDeleted }: ArtistActionS
     );
   };
 
+  const handleSheetChange = useCallback(
+    (index: number) => {
+      if (index === -1) {
+        preview.stop();
+        setBioExpanded(false);
+      }
+    },
+    [preview],
+  );
+
   const renderBackdrop = useCallback(
     (props: any) => (
       <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
@@ -70,6 +83,7 @@ export function ArtistActionSheet({ artist, sheetRef, onDeleted }: ArtistActionS
       index={-1}
       enableDynamicSizing
       enablePanDownToClose
+      onChange={handleSheetChange}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
@@ -112,6 +126,23 @@ export function ArtistActionSheet({ artist, sheetRef, onDeleted }: ArtistActionS
             </>
           )}
         </View>
+
+        {preview.tracks && preview.tracks.length > 0 && (
+          <View style={[styles.previewSection, { borderColor: colors.separator }]}>
+            <Text variant="caption" style={styles.previewHeader}>
+              Top Tracks
+            </Text>
+            {preview.tracks.map((track) => (
+              <PreviewTrackRow
+                key={track.id}
+                track={track}
+                isPlaying={preview.playingId === track.id}
+                progress={preview.playingId === track.id ? preview.progress : 0}
+                onToggle={() => preview.toggle(track)}
+              />
+            ))}
+          </View>
+        )}
 
         <View style={[styles.actions, { borderColor: colors.separator }]}>
           <Pressable
@@ -181,6 +212,17 @@ const styles = StyleSheet.create({
   },
   bio: {
     lineHeight: 18,
+  },
+  previewSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  previewHeader: {
+    fontFamily: Fonts.semiBold,
+    paddingVertical: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   actions: {
     paddingHorizontal: 16,
