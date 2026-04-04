@@ -9,6 +9,7 @@ import { ArtistHero } from '@/components/library/ArtistHero';
 import { AlbumRow } from '@/components/library/AlbumRow';
 import { AlbumSheet } from '@/components/library/AlbumSheet';
 import { ArtistActionSheet } from '@/components/library/ArtistActionSheet';
+import { ArtistTags } from '@/components/library/ArtistTags';
 import { EmptyState } from '@/components/library/EmptyState';
 import { CollapsibleSection } from '@/components/library/CollapsibleSection';
 import { SecondaryTypeFilter } from '@/components/library/SecondaryTypeFilter';
@@ -154,6 +155,8 @@ export default function ArtistDetailScreen() {
           refreshing={refreshing}
           onBadgePress={openArtistActions}
         />
+
+        <ArtistTags mbid={artist.mbid} />
 
         {hasSecondaryTypes && (
           <SecondaryTypeFilter

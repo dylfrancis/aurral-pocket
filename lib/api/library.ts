@@ -1,6 +1,11 @@
 import axios from 'axios';
 import { api } from './client';
-import type { Artist, Album, Track, CoverArtResponse, ReleaseGroup } from '@/lib/types/library';
+import type { Artist, Album, Track, CoverArtResponse, ReleaseGroup, ArtistTag } from '@/lib/types/library';
+
+type ArtistDetailsResponse = {
+  tags?: ArtistTag[];
+  bio?: string;
+};
 
 export function getLibraryArtists() {
   return api.get<Artist[]>('/library/artists').then((r) => r.data);
@@ -49,6 +54,12 @@ export async function getArtistReleaseGroups(mbid: string): Promise<ReleaseGroup
   return allGroups;
 }
 
+export function getArtistDetails(mbid: string) {
+  return api
+    .get<ArtistDetailsResponse>(`/artists/${mbid}`)
+    .then((r) => ({ tags: r.data.tags ?? [], bio: r.data.bio ?? null }));
+}
+
 export function getArtistCover(mbid: string) {
   return api.get<CoverArtResponse>(`/artists/${mbid}/cover`).then((r) => r.data);
 }
@@ -61,6 +72,10 @@ export function getAlbumCover(releaseGroupMbid: string) {
 
 export function triggerAlbumSearch(albumId: string) {
   return api.post('/library/downloads/album/search', { albumId }).then((r) => r.data);
+}
+
+export function refreshLibraryArtist(mbid: string) {
+  return api.post(`/library/artists/${mbid}/refresh`).then((r) => r.data);
 }
 
 export function deleteLibraryArtist(mbid: string, deleteFiles = false) {
