@@ -12,7 +12,8 @@
     "test": "jest"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "setupFiles": ["./jest-setup.ts"]
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",

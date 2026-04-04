@@ -12,7 +12,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/contexts/auth-context';
-import { useLogin } from '@/hooks/use-login';
+import { useLogin } from '@/hooks/auth/use-login';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import { ApiError } from '@/lib/api/client';

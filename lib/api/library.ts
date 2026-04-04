@@ -26,3 +26,11 @@ export function getAlbumCover(releaseGroupMbid: string) {
     .get<CoverArtResponse>(`/artists/release-group/${releaseGroupMbid}/cover`)
     .then((r) => r.data);
 }
+
+export function triggerAlbumSearch(albumId: string) {
+  return api.post('/library/downloads/album/search', { albumId }).then((r) => r.data);
+}
+
+export function deleteAlbum(albumId: string, deleteFiles = false) {
+  return api.delete(`/library/albums/${albumId}`, { params: { deleteFiles } }).then((r) => r.data);
+}

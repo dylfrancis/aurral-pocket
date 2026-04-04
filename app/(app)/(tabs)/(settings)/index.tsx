@@ -2,8 +2,8 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/auth-context';
-import { useLogout } from '@/hooks/use-logout';
-import { useSession } from '@/hooks/use-session';
+import { useLogout } from '@/hooks/auth/use-logout';
+import { useSession } from '@/hooks/auth/use-session';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 

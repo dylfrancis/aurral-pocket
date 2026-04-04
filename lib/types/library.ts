@@ -1,3 +1,5 @@
+export type CoverArtType = 'artist' | 'album';
+
 export type ArtistStatistics = {
   albumCount: number;
   trackCount: number;

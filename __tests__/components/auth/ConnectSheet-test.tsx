@@ -11,7 +11,7 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light' },
 }));
 
-jest.mock('@/hooks/use-server-connect', () => ({
+jest.mock('@/hooks/auth/use-server-connect', () => ({
   useServerConnect: jest.fn(() => ({
     mutate: jest.fn(),
     reset: jest.fn(),
@@ -57,7 +57,7 @@ import React from 'react';
 import { Keyboard, Linking } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { ConnectSheet } from '@/components/auth/ConnectSheet';
-import { useServerConnect } from '@/hooks/use-server-connect';
+import { useServerConnect } from '@/hooks/auth/use-server-connect';
 import * as Haptics from 'expo-haptics';
 
 const mockUseServerConnect = useServerConnect as jest.Mock;

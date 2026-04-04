@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { setAuthToken, setBaseUrl } from '@/lib/api/client';
 import { AppStorage, SecureStorage } from '@/lib/storage';
-import type { HealthResponse, User } from '@/lib/types';
+import type { HealthResponse, User } from '@/lib/types/auth';
 
 type ServerHealth = Pick<HealthResponse, 'authRequired' | 'onboardingRequired'>;
 
