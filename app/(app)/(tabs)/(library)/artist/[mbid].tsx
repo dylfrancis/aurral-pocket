@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, StyleSheet, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,9 @@ import { useLibraryArtist } from '@/hooks/library/use-library-artist';
 import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
 import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
 import { useReleaseTypeFilter, matchesFilter } from '@/hooks/library/use-release-type-filter';
+import { deleteLibraryArtist } from '@/lib/api/library';
+import { libraryKeys } from '@/lib/query-keys';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import type { Album, PrimaryReleaseType } from '@/lib/types/library';
@@ -79,6 +82,7 @@ export default function ArtistDetailScreen() {
   }, [filtered]);
 
   const router = useRouter();
+  const queryClient = useQueryClient();
   const albumSheetRef = useRef<BottomSheet>(null);
   const artistSheetRef = useRef<BottomSheet>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
@@ -88,9 +92,33 @@ export default function ArtistDetailScreen() {
     albumSheetRef.current?.snapToIndex(0);
   }, []);
 
-  const openArtistActions = useCallback(() => {
+  const openArtistInfo = useCallback(() => {
     artistSheetRef.current?.snapToIndex(0);
   }, []);
+
+  const deleteMutation = useMutation({
+    mutationFn: (mbid: string) => deleteLibraryArtist(mbid),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
+      router.back();
+    },
+  });
+
+  const handleBadgePress = useCallback(() => {
+    if (!artist) return;
+    Alert.alert(
+      'Remove from Library',
+      `Remove "${artist.artistName}" and all their albums from your library?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => deleteMutation.mutate(artist.mbid),
+        },
+      ],
+    );
+  }, [artist, deleteMutation]);
 
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
@@ -153,7 +181,8 @@ export default function ArtistDetailScreen() {
           artist={artist}
           scrollY={scrollY}
           refreshing={refreshing}
-          onBadgePress={openArtistActions}
+          onBadgePress={handleBadgePress}
+          onInfoPress={openArtistInfo}
         />
 
         <ArtistTags mbid={artist.mbid} />
@@ -207,7 +236,6 @@ export default function ArtistDetailScreen() {
       <ArtistActionSheet
         artist={artist}
         sheetRef={artistSheetRef}
-        onDeleted={() => router.back()}
       />
     </View>
   );

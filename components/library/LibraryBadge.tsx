@@ -19,11 +19,10 @@ export function LibraryBadge({ onPress }: LibraryBadgeProps) {
         { backgroundColor: colors.brandMuted, opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      <Ionicons name="checkmark-circle" size={16} color={colors.brandStrong} />
-      <Text variant="caption" style={[styles.label, { color: colors.brandStrong }]}>
+      <Ionicons name="checkmark-circle" size={20} color={colors.brandStrong} />
+      <Text variant="body" style={[styles.label, { color: colors.brandStrong }]}>
         In Your Library
       </Text>
-      <Ionicons name="chevron-down" size={14} color={colors.brandStrong} />
     </Pressable>
   );
 }
@@ -32,13 +31,13 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
     gap: 5,
   },
   label: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: Fonts.semiBold,
   },
 });

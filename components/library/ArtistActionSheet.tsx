@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { PreviewTrackRow } from './PreviewTrackRow';
-import { deleteLibraryArtist, refreshLibraryArtist } from '@/lib/api/library';
+import { refreshLibraryArtist } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
 import { useArtistDetails } from '@/hooks/library/use-artist-details';
 import { usePreviewPlayer } from '@/hooks/library/use-preview-player';
@@ -17,10 +17,9 @@ import type { Artist } from '@/lib/types/library';
 type ArtistActionSheetProps = {
   artist: Artist;
   sheetRef: React.RefObject<BottomSheet | null>;
-  onDeleted?: () => void;
 };
 
-export function ArtistActionSheet({ artist, sheetRef, onDeleted }: ArtistActionSheetProps) {
+export function ArtistActionSheet({ artist, sheetRef }: ArtistActionSheetProps) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -35,30 +34,6 @@ export function ArtistActionSheet({ artist, sheetRef, onDeleted }: ArtistActionS
       queryClient.invalidateQueries({ queryKey: libraryKeys.albums(artist.id) });
     },
   });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteLibraryArtist(artist.mbid),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
-      sheetRef.current?.close();
-      onDeleted?.();
-    },
-  });
-
-  const handleDelete = () => {
-    Alert.alert(
-      'Remove from Library',
-      `Remove "${artist.artistName}" and all their albums from your library?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => deleteMutation.mutate(),
-        },
-      ],
-    );
-  };
 
   const handleSheetChange = useCallback(
     (index: number) => {
@@ -167,20 +142,6 @@ export function ArtistActionSheet({ artist, sheetRef, onDeleted }: ArtistActionS
             <Text variant="body">View on MusicBrainz</Text>
           </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.6 : 1 }]}
-            onPress={handleDelete}
-            disabled={deleteMutation.isPending}
-          >
-            {deleteMutation.isPending ? (
-              <ActivityIndicator size={20} color={colors.error} />
-            ) : (
-              <Ionicons name="trash-outline" size={20} color={colors.error} />
-            )}
-            <Text variant="body" style={{ color: colors.error }}>
-              Remove from Library
-            </Text>
-          </Pressable>
         </View>
       </BottomSheetScrollView>
     </BottomSheet>
