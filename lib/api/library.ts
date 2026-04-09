@@ -29,7 +29,8 @@ export async function getArtistReleaseGroups(mbid: string): Promise<ReleaseGroup
   const limit = 100;
 
   // MusicBrainz paginates — fetch all release groups for this artist
-  while (true) {
+  const MAX_PAGES = 50;
+  while (offset / limit < MAX_PAGES) {
     const { data } = await axios.get<{ 'release-groups': ReleaseGroup[] }>(
       `https://musicbrainz.org/ws/2/release-group`,
       {
@@ -121,9 +122,12 @@ export async function searchDeezerAlbum(artistName: string, albumTitle: string):
       'https://api.deezer.com/search/album',
       { params: { q: `${artistName} ${albumTitle}`, limit: 5 }, timeout: 3000 },
     );
+    const lowerTitle = albumTitle.toLowerCase();
     const match = data.data?.find(
-      (a) => a.title.toLowerCase() === albumTitle.toLowerCase(),
-    ) ?? data.data?.[0];
+      (a) => a.title.toLowerCase() === lowerTitle,
+    ) ?? data.data?.find(
+      (a) => a.title.toLowerCase().includes(lowerTitle) || lowerTitle.includes(a.title.toLowerCase()),
+    );
     return match ? `dz-${match.id}` : null;
   } catch {
     return null;

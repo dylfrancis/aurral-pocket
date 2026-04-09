@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
+import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getArtistPreviewTracks } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
+import { useAudioPreview } from './use-audio-preview';
 import type { PreviewTrack } from '@/lib/types/library';
 
 export function usePreviewPlayer(mbid: string | undefined, artistName?: string) {
@@ -13,46 +13,11 @@ export function usePreviewPlayer(mbid: string | undefined, artistName?: string) 
     staleTime: 30 * 60 * 1000,
   });
 
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const player = useAudioPlayer(null);
-  const status = useAudioPlayerStatus(player);
-  const audioModeSet = useRef(false);
-
-  const progress =
-    status.duration > 0 ? status.currentTime / status.duration : 0;
-
-  // Stop when track finishes
-  useEffect(() => {
-    if (status.didJustFinish) {
-      setPlayingId(null);
-    }
-  }, [status.didJustFinish]);
-
-  const stop = useCallback(() => {
-    player.pause();
-    setPlayingId(null);
-  }, [player]);
+  const { playingId, progress, toggle: toggleAudio, stop } = useAudioPreview();
 
   const toggle = useCallback(
-    async (track: PreviewTrack) => {
-      if (!audioModeSet.current) {
-        await setAudioModeAsync({ playsInSilentMode: true });
-        audioModeSet.current = true;
-      }
-
-      // Tapping currently playing track — pause it
-      if (playingId === track.id) {
-        player.pause();
-        setPlayingId(null);
-        return;
-      }
-
-      // Play new track
-      player.replace({ uri: track.preview_url });
-      player.play();
-      setPlayingId(track.id);
-    },
-    [playingId, player],
+    (track: PreviewTrack) => toggleAudio(track.id, track.preview_url),
+    [toggleAudio],
   );
 
   return {

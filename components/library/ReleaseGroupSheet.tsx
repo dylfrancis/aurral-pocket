@@ -1,14 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { CoverArtImage } from './CoverArtImage';
 import { getReleaseGroupTracks, addLibraryAlbum, searchDeezerAlbum, type ReleaseGroupTrack } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
+import { useAudioPreview } from '@/hooks/library/use-audio-preview';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
 import type { ReleaseGroup } from '@/lib/types/library';
@@ -53,50 +53,20 @@ export function ReleaseGroupSheet({ releaseGroup, artistId, artistName, sheetRef
   });
 
   // Preview player
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const [audioModeSet, setAudioModeSet] = useState(false);
-  const player = useAudioPlayer(null);
-  const status = useAudioPlayerStatus(player);
-  const progress = status.duration > 0 ? status.currentTime / status.duration : 0;
-
-  useEffect(() => {
-    if (status.didJustFinish) {
-      setPlayingId(null);
-    }
-  }, [status.didJustFinish]);
+  const { playingId, progress, toggle: toggleAudio, stop: stopPreview } = useAudioPreview();
 
   // Stop audio when switching to a different release group
   useEffect(() => {
-    player.pause();
-    setPlayingId(null);
-  }, [releaseGroup?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const stopPreview = useCallback(() => {
-    player.pause();
-    setPlayingId(null);
-  }, [player]);
+    stopPreview();
+  }, [releaseGroup?.id, stopPreview]);
 
   const togglePreview = useCallback(
-    async (track: ReleaseGroupTrack) => {
+    (track: ReleaseGroupTrack) => {
       const trackId = track.id ?? track.mbid ?? `${track.number}`;
       if (!track.preview_url) return;
-
-      if (!audioModeSet) {
-        await setAudioModeAsync({ playsInSilentMode: true });
-        setAudioModeSet(true);
-      }
-
-      if (playingId === trackId) {
-        player.pause();
-        setPlayingId(null);
-        return;
-      }
-
-      player.replace({ uri: track.preview_url });
-      player.play();
-      setPlayingId(trackId);
+      toggleAudio(trackId, track.preview_url);
     },
-    [playingId, player, audioModeSet],
+    [toggleAudio],
   );
 
   const handleSheetChange = useCallback(

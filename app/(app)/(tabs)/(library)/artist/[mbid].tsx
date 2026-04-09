@@ -74,7 +74,7 @@ export default function ArtistDetailScreen() {
 
   const { albums: typedAlbums, otherReleases, isLoadingTypes } = useAlbumsWithTypes(artist?.mbid, rawAlbums);
   const filter = useReleaseTypeFilter();
-  const preview = usePreviewPlayer(artist?.mbid, artist?.artistName);
+  const { stop: stopPreview, ...preview } = usePreviewPlayer(artist?.mbid, artist?.artistName);
 
   const filtered = useMemo(
     () => typedAlbums?.filter((a) => matchesFilter(a, filter.selected)),
@@ -125,10 +125,10 @@ export default function ArtistDetailScreen() {
   }, []);
 
   const openReleaseGroup = useCallback((rg: ReleaseGroup) => {
-    preview.stop();
+    stopPreview();
     setSelectedReleaseGroup(rg);
     releaseGroupSheetRef.current?.snapToIndex(0);
-  }, [preview]);
+  }, [stopPreview]);
 
   const deleteMutation = useMutation({
     mutationFn: (mbid: string) => deleteLibraryArtist(mbid),
@@ -167,6 +167,23 @@ export default function ArtistDetailScreen() {
     await Promise.all([refetchArtist(), refetchAlbums()]);
     setRefreshing(false);
   }, [refetchArtist, refetchAlbums]);
+
+  const navigateToAlbums = useCallback(
+    (type: PrimaryReleaseType, label: string) => {
+      if (!artist) return;
+      router.push({
+        pathname: '/artist/albums',
+        params: {
+          artistId: artist.id,
+          artistMbid: artist.mbid,
+          albumType: type,
+          title: label,
+          artistName: artist.artistName,
+        },
+      });
+    },
+    [router, artist],
+  );
 
   if (artistLoading) {
     return <ScreenCenter loading />;
@@ -269,18 +286,7 @@ export default function ArtistDetailScreen() {
                 return (
                   <View key={type} style={styles.categorySection}>
                     <Pressable
-                      onPress={() =>
-                        router.push({
-                          pathname: '/artist/albums',
-                          params: {
-                            artistId: artist.id,
-                            artistMbid: artist.mbid,
-                            albumType: type,
-                            title: label,
-                            artistName: artist.artistName,
-                          },
-                        })
-                      }
+                      onPress={() => navigateToAlbums(type, label)}
                       style={({ pressed }) => [
                         styles.categoryHeader,
                         { opacity: pressed ? 0.6 : 1 },
@@ -305,18 +311,7 @@ export default function ArtistDetailScreen() {
                         hasMore
                           ? () => (
                               <Pressable
-                                onPress={() =>
-                                  router.push({
-                                    pathname: '/artist/albums',
-                                    params: {
-                                      artistId: artist.id,
-                                      artistMbid: artist.mbid,
-                                      albumType: type,
-                                      title: label,
-                                      artistName: artist.artistName,
-                                    },
-                                  })
-                                }
+                                onPress={() => navigateToAlbums(type, label)}
                                 style={({ pressed }) => [
                                   styles.viewAllCard,
                                   { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
