@@ -1,9 +1,12 @@
-import React, { forwardRef, useCallback, useRef, useState } from 'react';
-import { Keyboard, Linking, Pressable, StyleSheet, View } from 'react-native';
+import React, { forwardRef, useCallback, useRef } from 'react';
+import { Keyboard, Linking, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetTextInput, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +15,18 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useServerConnect } from '@/hooks/auth/use-server-connect';
 import { Colors } from '@/constants/theme';
 import { ApiError } from '@/lib/api/client';
+
+const connectSchema = z.object({
+  url: z
+    .string()
+    .trim()
+    .min(1)
+    .refine((v) => v.startsWith('http://') || v.startsWith('https://'), {
+      message: 'URL must start with http:// or https://',
+    }),
+});
+
+type ConnectForm = z.infer<typeof connectSchema>;
 
 function getErrorMessage(error: Error | null): string | null {
   if (!error) return null;
@@ -26,27 +41,27 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const insets = useSafeAreaInsets();
-  const [url, setUrl] = useState('');
   const connectMutation = useServerConnect();
   const resetRef = useRef(connectMutation.reset);
   resetRef.current = connectMutation.reset;
 
-  const handleConnect = async () => {
-    const trimmed = url.trim();
-    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-      connectMutation.reset();
-      return;
-    }
+  const { control, handleSubmit, formState: { errors }, reset } = useForm<ConnectForm>({
+    resolver: zodResolver(connectSchema),
+    defaultValues: { url: '' },
+  });
+
+  const onSubmit = async (data: ConnectForm) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    connectMutation.mutate(trimmed);
+    connectMutation.mutate(data.url.trim());
   };
 
   const handleSheetChange = useCallback((index: number) => {
     if (index === -1) {
       Keyboard.dismiss();
       resetRef.current();
+      reset();
     }
-  }, []);
+  }, [reset]);
 
   const renderBackdrop = useCallback(
     (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
@@ -61,11 +76,7 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
     [],
   );
 
-  const trimmedUrl = url.trim();
-  const errorMessage =
-    trimmedUrl && !trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')
-      ? 'URL must start with http:// or https://'
-      : getErrorMessage(connectMutation.error);
+  const errorMessage = errors.url?.message ?? getErrorMessage(connectMutation.error);
 
   return (
     <BottomSheet
@@ -97,19 +108,26 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
           <Ionicons name="open-outline" size={13} color={colors.brand} />
         </Pressable>
 
-        <BottomSheetTextInput
-          style={[inputBaseStyle, inputThemedStyle(colorScheme), styles.input]}
-          placeholder="https://your-server.example.com"
-          placeholderTextColor={colors.placeholder}
-          value={url}
-          onChangeText={setUrl}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          textContentType="URL"
-          returnKeyType="go"
-          onSubmitEditing={handleConnect}
-          editable={!connectMutation.isPending}
+        <Controller
+          control={control}
+          name="url"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <BottomSheetTextInput
+              style={[inputBaseStyle, inputThemedStyle(colorScheme), styles.input]}
+              placeholder="https://your-server.example.com"
+              placeholderTextColor={colors.placeholder}
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              textContentType="URL"
+              returnKeyType="go"
+              onSubmitEditing={handleSubmit(onSubmit)}
+              editable={!connectMutation.isPending}
+            />
+          )}
         />
 
         {errorMessage && (
@@ -120,7 +138,7 @@ export const ConnectSheet = forwardRef<BottomSheet>(function ConnectSheet(_, ref
 
         <Button
           title="Connect"
-          onPress={handleConnect}
+          onPress={handleSubmit(onSubmit)}
           loading={connectMutation.isPending}
         />
       </BottomSheetView>

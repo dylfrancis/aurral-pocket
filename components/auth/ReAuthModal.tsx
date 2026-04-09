@@ -9,6 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
@@ -22,6 +25,12 @@ import { ApiError } from '@/lib/api/client';
 import { SecureStorage } from '@/lib/storage';
 import { authKeys } from '@/lib/query-keys';
 import { useQueryClient } from '@tanstack/react-query';
+
+const reAuthSchema = z.object({
+  password: z.string().min(1, 'Password is required'),
+});
+
+type ReAuthForm = z.infer<typeof reAuthSchema>;
 
 function getErrorMessage(error: unknown): string | null {
   if (!error) return null;
@@ -50,12 +59,16 @@ export function ReAuthModal() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const biometricLabel = useBiometricAvailability();
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<ReAuthForm>({
+    resolver: zodResolver(reAuthSchema),
+    defaultValues: { password: '' },
+  });
+
   const handleReAuth = async (pw?: string) => {
-    const pass = pw ?? password;
+    const pass = pw;
     if (!pass || !user) return;
     setLoading(true);
     setError(null);
@@ -64,13 +77,15 @@ export function ReAuthModal() {
       await setAuth(data.token, data.user, data.expiresAt);
       await queryClient.invalidateQueries({queryKey: authKeys.me(serverUrl ?? '')});
       dismissSessionExpired();
-      setPassword('');
+      reset();
     } catch (e) {
       setError(e);
     } finally {
       setLoading(false);
     }
   };
+
+  const onSubmit = (data: ReAuthForm) => handleReAuth(data.password);
 
   const handleBiometric = async () => {
     const success = await authenticateWithBiometrics();
@@ -124,30 +139,37 @@ export function ReAuthModal() {
             </Text>
           </Text>
 
-          <Input
-            placeholder="Password"
-            value={password}
-            onChangeText={(t) => {
-              setPassword(t);
-              setError(null);
-            }}
-            secureTextEntry
-            textContentType="password"
-            returnKeyType="go"
-            onSubmitEditing={() => handleReAuth()}
-            editable={!loading}
-            style={styles.input}
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                placeholder="Password"
+                value={value}
+                onChangeText={(t) => {
+                  onChange(t);
+                  setError(null);
+                }}
+                onBlur={onBlur}
+                secureTextEntry
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={handleSubmit(onSubmit)}
+                editable={!loading}
+                style={styles.input}
+              />
+            )}
           />
 
-          {error != null && (
+          {(errors.password?.message || error != null) && (
             <Text variant="error" style={styles.error}>
-              {getErrorMessage(error) ?? ''}
+              {errors.password?.message ?? getErrorMessage(error) ?? ''}
             </Text>
           )}
 
           <Button
             title="Continue"
-            onPress={() => handleReAuth()}
+            onPress={handleSubmit(onSubmit)}
             loading={loading}
             style={styles.button}
           />
