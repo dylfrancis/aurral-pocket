@@ -15,14 +15,12 @@ import { ArtistTags } from '@/components/library/ArtistTags';
 import { ArtistInfoSection } from '@/components/library/ArtistInfoSection';
 import { PreviewTrackRow } from '@/components/library/PreviewTrackRow';
 import { EmptyState } from '@/components/library/EmptyState';
-import { SecondaryTypeFilter } from '@/components/library/SecondaryTypeFilter';
 import { Text } from '@/components/ui/Text';
 import { useLibraryArtist } from '@/hooks/library/use-library-artist';
 import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
 import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
-import { useReleaseTypeFilter, matchesFilter } from '@/hooks/library/use-release-type-filter';
 import { usePreviewPlayer } from '@/hooks/library/use-preview-player';
-import { deleteLibraryArtist } from '@/lib/api/library';
+import { deleteLibraryArtist, addLibraryAlbum } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -73,18 +71,12 @@ export default function ArtistDetailScreen() {
   } = useLibraryAlbums(artist?.id);
 
   const { albums: typedAlbums, otherReleases, isLoadingTypes } = useAlbumsWithTypes(artist?.mbid, rawAlbums);
-  const filter = useReleaseTypeFilter();
   const { stop: stopPreview, ...preview } = usePreviewPlayer(artist?.mbid, artist?.artistName);
 
-  const filtered = useMemo(
-    () => typedAlbums?.filter((a) => matchesFilter(a, filter.selected)),
-    [typedAlbums, filter.selected],
-  );
-
   const grouped = useMemo(() => {
-    if (!filtered) return null;
+    if (!typedAlbums) return null;
     const map = new Map<PrimaryReleaseType, Album[]>();
-    for (const album of filtered) {
+    for (const album of typedAlbums) {
       const type = album.albumType ?? 'Album';
       const list = map.get(type) ?? [];
       list.push(album);
@@ -94,7 +86,7 @@ export default function ArtistDetailScreen() {
       map.set(key, sortByDate(list));
     }
     return map;
-  }, [filtered]);
+  }, [typedAlbums]);
 
   const groupedReleases = useMemo(() => {
     if (!otherReleases) return null;
@@ -168,6 +160,28 @@ export default function ArtistDetailScreen() {
     setRefreshing(false);
   }, [refetchArtist, refetchAlbums]);
 
+  const allReleaseGroups = useMemo(() => {
+    if (!otherReleases) return [];
+    return otherReleases.filter((rg) => {
+      const type = rg['primary-type'] as PrimaryReleaseType;
+      return CATEGORIES.some((c) => c.type === type);
+    });
+  }, [otherReleases]);
+
+  const addAllMutation = useMutation({
+    mutationFn: async () => {
+      if (!artist) return;
+      await Promise.all(
+        allReleaseGroups.map((rg) => addLibraryAlbum(artist.id, rg.id, rg.title)),
+      );
+    },
+    onSuccess: () => {
+      if (artist) {
+        queryClient.invalidateQueries({ queryKey: libraryKeys.albums(artist.id) });
+      }
+    },
+  });
+
   const navigateToAlbums = useCallback(
     (type: PrimaryReleaseType, label: string) => {
       if (!artist) return;
@@ -210,10 +224,6 @@ export default function ArtistDetailScreen() {
     );
   }
 
-  const hasSecondaryTypes = typedAlbums?.some(
-    (a) => a.secondaryTypes && a.secondaryTypes.length > 0,
-  );
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Animated.ScrollView
@@ -253,13 +263,6 @@ export default function ArtistDetailScreen() {
               />
             ))}
           </View>
-        )}
-
-        {hasSecondaryTypes && (
-          <SecondaryTypeFilter
-            selected={filter.selected}
-            onToggle={filter.toggleSecondary}
-          />
         )}
 
         {/* In Your Library */}
@@ -340,9 +343,35 @@ export default function ArtistDetailScreen() {
         {/* Albums & Releases (not in library) */}
         {groupedReleases && groupedReleases.size > 0 && (
           <View style={styles.albumsSection}>
-            <Text variant="caption" style={[styles.sectionLabel, styles.sectionLabelPadded, { color: colors.subtle }]}>
-              Albums & Releases
-            </Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text variant="caption" style={[styles.sectionLabel, { color: colors.subtle }]}>
+                Albums & Releases
+              </Text>
+              <Pressable
+                onPress={() => addAllMutation.mutate()}
+                disabled={addAllMutation.isPending || addAllMutation.isSuccess}
+                style={({ pressed }) => [
+                  styles.addAllButton,
+                  { backgroundColor: colors.brand, opacity: pressed ? 0.8 : 1 },
+                  addAllMutation.isSuccess && { backgroundColor: colors.subtle },
+                ]}
+              >
+                {addAllMutation.isPending ? (
+                  <ActivityIndicator size={14} color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={addAllMutation.isSuccess ? 'checkmark' : 'add'}
+                      size={14}
+                      color="#fff"
+                    />
+                    <Text variant="caption" style={styles.addAllText}>
+                      {addAllMutation.isSuccess ? 'Added' : 'Add All'}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
             {CATEGORIES.map(({ type, label }) => {
               const list = groupedReleases.get(type);
               if (!list || list.length === 0) return null;
@@ -437,6 +466,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginRight: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  addAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  addAllText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: Fonts.semiBold,
   },
   loader: {
     paddingVertical: 32,
