@@ -127,23 +127,10 @@ jest.mock('@/hooks/library/use-albums-with-types', () => ({
   })),
 }));
 
-jest.mock('@/hooks/library/use-release-type-filter', () => {
-  const PRIMARY_TYPES = ['Album', 'EP', 'Single'];
-  const SECONDARY_TYPES = ['Live', 'Remix', 'Compilation', 'Demo', 'Broadcast', 'Soundtrack', 'Spokenword', 'Other'];
-  const ALL = [...PRIMARY_TYPES, ...SECONDARY_TYPES];
-  return {
-    useReleaseTypeFilter: jest.fn(() => ({
-      selected: new Set(ALL),
-      toggleSecondary: jest.fn(),
-      selectAll: jest.fn(),
-      clearSecondary: jest.fn(),
-      activeSecondaryCount: 0,
-    })),
-    matchesFilter: jest.fn(() => true),
-    PRIMARY_TYPES,
-    SECONDARY_TYPES,
-  };
-});
+jest.mock('@/hooks/library/use-download-statuses', () => ({
+  useDownloadStatuses: jest.fn(() => ({ data: undefined })),
+}));
+
 
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';

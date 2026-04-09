@@ -380,14 +380,21 @@ export default function ArtistDetailScreen() {
               const visible = list.slice(0, MAX_VISIBLE);
               return (
                 <View key={`release-${type}`} style={styles.categorySection}>
-                  <View style={styles.categoryHeader}>
+                  <Pressable
+                    onPress={() => navigateToAlbums(type, label)}
+                    style={({ pressed }) => [
+                      styles.categoryHeader,
+                      { opacity: pressed ? 0.6 : 1 },
+                    ]}
+                  >
                     <Text variant="subtitle" style={[styles.categoryTitle, { color: colors.text }]}>
                       {label}
                       <Text variant="caption" style={{ color: colors.subtle }}>
                         {'  '}{list.length}
                       </Text>
                     </Text>
-                  </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.subtle} style={{ marginLeft: 4 }} />
+                  </Pressable>
                   <FlatList
                     horizontal
                     data={visible}
