@@ -125,9 +125,10 @@ export default function ArtistDetailScreen() {
   }, []);
 
   const openReleaseGroup = useCallback((rg: ReleaseGroup) => {
+    preview.stop();
     setSelectedReleaseGroup(rg);
     releaseGroupSheetRef.current?.snapToIndex(0);
-  }, []);
+  }, [preview]);
 
   const deleteMutation = useMutation({
     mutationFn: (mbid: string) => deleteLibraryArtist(mbid),
@@ -270,9 +271,11 @@ export default function ArtistDetailScreen() {
                     <Pressable
                       onPress={() =>
                         router.push({
-                          pathname: '/albums',
+                          pathname: '/artist/albums',
                           params: {
-                            albums: JSON.stringify(list),
+                            artistId: artist.id,
+                            artistMbid: artist.mbid,
+                            albumType: type,
                             title: label,
                             artistName: artist.artistName,
                           },
@@ -304,9 +307,11 @@ export default function ArtistDetailScreen() {
                               <Pressable
                                 onPress={() =>
                                   router.push({
-                                    pathname: '/albums',
+                                    pathname: '/artist/albums',
                                     params: {
-                                      albums: JSON.stringify(list),
+                                      artistId: artist.id,
+                                      artistMbid: artist.mbid,
+                                      albumType: type,
                                       title: label,
                                       artistName: artist.artistName,
                                     },

@@ -319,7 +319,7 @@ describe('ArtistDetailScreen', () => {
       const { getByText } = renderScreen();
       fireEvent.press(getByText('Albums', { exact: false }));
       expect(mockPush).toHaveBeenCalledWith(
-        expect.objectContaining({ pathname: '/albums' }),
+        expect.objectContaining({ pathname: '/artist/albums' }),
       );
     });
 

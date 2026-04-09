@@ -1,27 +1,44 @@
-import { useCallback, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, RefreshControl, StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useLocalSearchParams } from 'expo-router';
 import { AlbumCard } from '@/components/library/AlbumCard';
 import { AlbumSheet } from '@/components/library/AlbumSheet';
+import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
+import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
-import type { Album } from '@/lib/types/library';
+import type { Album, PrimaryReleaseType } from '@/lib/types/library';
 
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
 const NUM_COLUMNS = 2;
 
 export default function AlbumsGridScreen() {
-  const { albums: serialized, artistName } = useLocalSearchParams<{
-    albums: string;
+  const { artistId, artistMbid, albumType, artistName } = useLocalSearchParams<{
+    artistId: string;
+    artistMbid: string;
+    albumType: string;
     title: string;
     artistName: string;
   }>();
   const colors = Colors[useColorScheme()];
 
-  const albums: Album[] = serialized ? JSON.parse(serialized) : [];
+  const { data: rawAlbums, isLoading, refetch } = useLibraryAlbums(artistId);
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+  const { albums: typedAlbums } = useAlbumsWithTypes(artistMbid, rawAlbums);
+
+  const albums = useMemo(
+    () =>
+      typedAlbums?.filter((a) => a.albumType === (albumType as PrimaryReleaseType)) ?? [],
+    [typedAlbums, albumType],
+  );
 
   const albumSheetRef = useRef<BottomSheet>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
@@ -50,6 +67,14 @@ export default function AlbumsGridScreen() {
     [openAlbum],
   );
 
+  if (isLoading) {
+    return (
+      <View style={[styles.listContent, { flex: 1, justifyContent: 'center', backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  }
+
   return (
     <>
       <FlashList
@@ -58,6 +83,9 @@ export default function AlbumsGridScreen() {
         keyExtractor={(item) => item.id}
         numColumns={NUM_COLUMNS}
         contentInsetAdjustmentBehavior="automatic"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
         contentContainerStyle={{
           ...styles.listContent,
           backgroundColor: colors.background,

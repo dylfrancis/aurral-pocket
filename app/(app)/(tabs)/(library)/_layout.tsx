@@ -32,7 +32,7 @@ export default function LibraryLayout() {
         options={{ headerTitle: '', headerBackButtonDisplayMode: 'minimal' }}
       />
       <Stack.Screen
-        name="albums"
+        name="artist/albums"
         options={({ route }: any) => ({
           title: route.params?.title ?? 'Albums',
           headerLargeTitle: true,

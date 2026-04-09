@@ -65,6 +65,12 @@ export function ReleaseGroupSheet({ releaseGroup, artistId, artistName, sheetRef
     }
   }, [status.didJustFinish]);
 
+  // Stop audio when switching to a different release group
+  useEffect(() => {
+    player.pause();
+    setPlayingId(null);
+  }, [releaseGroup?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const stopPreview = useCallback(() => {
     player.pause();
     setPlayingId(null);
