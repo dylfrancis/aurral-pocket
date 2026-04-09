@@ -13,16 +13,18 @@ import { triggerAlbumSearch, deleteAlbum } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
-import type { Album } from '@/lib/types/library';
+import * as Haptics from 'expo-haptics';
+import type { Album, DownloadStatusValue } from '@/lib/types/library';
 
 type AlbumSheetProps = {
   album: Album | null;
   artistName?: string;
   sheetRef: React.RefObject<BottomSheet | null>;
   onDeleted?: () => void;
+  downloadStatus?: DownloadStatusValue;
 };
 
-export function AlbumSheet({ album, artistName, sheetRef, onDeleted }: AlbumSheetProps) {
+export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadStatus }: AlbumSheetProps) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -38,6 +40,16 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted }: AlbumShee
 
   const searchMutation = useMutation({
     mutationFn: () => triggerAlbumSearch(album!.id),
+    onMutate: () => {
+      // Optimistically set status to searching
+      queryClient.setQueriesData<Record<string, { status: string }>>(
+        { queryKey: ['library', 'downloadStatuses'] },
+        (old) => old ? { ...old, [album!.id]: { status: 'searching' } } : { [album!.id]: { status: 'searching' } },
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['library', 'downloadStatuses'] });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -50,6 +62,7 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted }: AlbumShee
   });
 
   const handleResearch = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     searchMutation.mutate();
   };
 
@@ -60,6 +73,7 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted }: AlbumShee
   };
 
   const handleDelete = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       'Delete Album',
       `Remove "${album?.albumName}" from your library?`,
@@ -104,12 +118,12 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted }: AlbumShee
                 <Text variant="caption">
                   {[year, `${album.statistics.trackCount} tracks`].filter(Boolean).join(' \u00B7 ')}
                 </Text>
-                <AlbumStatusBadge album={album} />
+                <AlbumStatusBadge album={album} downloadStatus={downloadStatus} />
               </View>
             </View>
 
             <View style={[styles.actions, { borderColor: colors.separator }]}>
-              {!isComplete && (
+              {!isComplete && (!downloadStatus || downloadStatus === 'failed') && (
                 <Pressable
                   style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.6 : 1 }]}
                   onPress={handleResearch}
@@ -121,7 +135,7 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted }: AlbumShee
                     <Ionicons name="refresh" size={18} color={colors.brand} />
                   )}
                   <Text variant="body" style={{ color: colors.brand }}>
-                    {searchMutation.isSuccess ? 'Search Triggered' : 'Re-search'}
+                    Re-search
                   </Text>
                 </Pressable>
               )}

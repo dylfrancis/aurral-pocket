@@ -39,6 +39,14 @@ export default function LibraryLayout() {
           headerBackButtonDisplayMode: 'minimal',
         })}
       />
+      <Stack.Screen
+        name="artist/releases"
+        options={({ route }: any) => ({
+          title: route.params?.title ?? 'Releases',
+          headerLargeTitle: true,
+          headerBackButtonDisplayMode: 'minimal',
+        })}
+      />
     </Stack>
   );
 }

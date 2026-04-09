@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   RefreshControl,
@@ -14,10 +14,11 @@ import { EmptyState } from '@/components/library/EmptyState';
 import { useLibraryArtists } from '@/hooks/library/use-library-artists';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
+import { stripArticle } from '@/lib/strings';
 import type { Artist } from '@/lib/types/library';
 
 const EDGE_PADDING = 12;
-const CARD_GAP = 16;
+const CARD_GAP = 12;
 const NUM_COLUMNS = 2;
 const IS_IOS = Platform.OS === 'ios';
 
@@ -62,7 +63,7 @@ export default function LibraryScreen() {
     const list = [...filtered];
     switch (sortMode) {
       case 'alpha':
-        return list.sort((a, b) => a.artistName.localeCompare(b.artistName));
+        return list.sort((a, b) => stripArticle(a.artistName).localeCompare(stripArticle(b.artistName)));
       case 'recent':
         return list.sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime());
       case 'albums':
@@ -71,17 +72,9 @@ export default function LibraryScreen() {
   }, [filtered, sortMode]);
 
   const renderItem = useCallback(
-    ({ item, index }: { item: Artist; index: number }) => {
-      const isLeft = index % NUM_COLUMNS === 0;
+    ({ item }: { item: Artist }) => {
       return (
-        <View
-          style={{
-            flex: 1,
-            paddingLeft: isLeft ? 0 : CARD_GAP / 2,
-            paddingRight: isLeft ? CARD_GAP / 2 : 0,
-            paddingBottom: CARD_GAP,
-          }}
-        >
+        <View style={styles.gridItem}>
           <ArtistCard
             artist={item}
             onPress={() => router.push(`/artist/${item.mbid}`)}
@@ -111,35 +104,36 @@ export default function LibraryScreen() {
 
   return (
     <>
-      {IS_IOS && (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu icon="arrow.up.arrow.down" title="Sort By">
-            {SORT_OPTIONS.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.key}
-                icon={option.icon as any}
-                isOn={sortMode === option.key}
-                onPress={() => setSortMode(option.key)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
-      )}
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu icon="arrow.up.arrow.down" title="Sort By">
+          {SORT_OPTIONS.map((option) => (
+            <Stack.Toolbar.MenuAction
+              key={option.key}
+              icon={option.icon as any}
+              isOn={sortMode === option.key}
+              onPress={() => setSortMode(option.key)}
+            >
+              {option.label}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       <FlashList
+        key={sortMode}
         data={sorted}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         numColumns={NUM_COLUMNS}
         ListHeaderComponent={
           IS_IOS ? undefined : (
-            <SearchBar
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              sortMode={sortMode}
-              onSortChange={setSortMode}
-            />
+            <View style={{ paddingHorizontal: CARD_GAP / 2 }}>
+              <SearchBar
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                sortMode={sortMode}
+                onSortChange={setSortMode}
+              />
+            </View>
           )
         }
         ListEmptyComponent={
@@ -166,5 +160,10 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: EDGE_PADDING,
     paddingTop: EDGE_PADDING,
+  },
+  gridItem: {
+    flex: 1,
+    paddingHorizontal: CARD_GAP / 2,
+    paddingBottom: CARD_GAP,
   },
 });

@@ -11,11 +11,13 @@ const CARD_WIDTH = 150;
 type ReleaseGroupCardProps = {
   releaseGroup: ReleaseGroup;
   onPress?: () => void;
+  fill?: boolean;
 };
 
 export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
   releaseGroup,
   onPress,
+  fill,
 }: ReleaseGroupCardProps) {
   const colors = Colors[useColorScheme()];
 
@@ -32,9 +34,9 @@ export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.container, { opacity: pressed ? 0.8 : 1 }]}
+      style={({ pressed }) => [fill ? styles.containerFill : styles.container, { opacity: pressed ? 0.8 : 1 }]}
     >
-      <CoverArtImage type="album" mbid={releaseGroup.id} size={CARD_WIDTH} borderRadius={10} />
+      <CoverArtImage type="album" mbid={releaseGroup.id} size={fill ? 'fill' : CARD_WIDTH} borderRadius={10} />
       <View style={styles.meta}>
         <Text variant="body" numberOfLines={2} style={styles.title}>
           {releaseGroup.title}
@@ -51,6 +53,9 @@ const styles = StyleSheet.create({
   container: {
     width: CARD_WIDTH,
     marginRight: 12,
+  },
+  containerFill: {
+    flex: 1,
   },
   meta: {
     paddingTop: 6,

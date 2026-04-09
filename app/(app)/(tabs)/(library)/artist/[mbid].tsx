@@ -15,18 +15,18 @@ import { ArtistTags } from '@/components/library/ArtistTags';
 import { ArtistInfoSection } from '@/components/library/ArtistInfoSection';
 import { PreviewTrackRow } from '@/components/library/PreviewTrackRow';
 import { EmptyState } from '@/components/library/EmptyState';
-import { SecondaryTypeFilter } from '@/components/library/SecondaryTypeFilter';
 import { Text } from '@/components/ui/Text';
 import { useLibraryArtist } from '@/hooks/library/use-library-artist';
 import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
 import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
-import { useReleaseTypeFilter, matchesFilter } from '@/hooks/library/use-release-type-filter';
 import { usePreviewPlayer } from '@/hooks/library/use-preview-player';
-import { deleteLibraryArtist } from '@/lib/api/library';
+import { useDownloadStatuses } from '@/hooks/library/use-download-statuses';
+import { deleteLibraryArtist, addLibraryAlbum } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
 import type { Album, PrimaryReleaseType, ReleaseGroup } from '@/lib/types/library';
 
 function sortByDate(albums: Album[]): Album[] {
@@ -73,18 +73,13 @@ export default function ArtistDetailScreen() {
   } = useLibraryAlbums(artist?.id);
 
   const { albums: typedAlbums, otherReleases, isLoadingTypes } = useAlbumsWithTypes(artist?.mbid, rawAlbums);
-  const filter = useReleaseTypeFilter();
+  const { data: downloadStatuses } = useDownloadStatuses(rawAlbums);
   const { stop: stopPreview, ...preview } = usePreviewPlayer(artist?.mbid, artist?.artistName);
 
-  const filtered = useMemo(
-    () => typedAlbums?.filter((a) => matchesFilter(a, filter.selected)),
-    [typedAlbums, filter.selected],
-  );
-
   const grouped = useMemo(() => {
-    if (!filtered) return null;
+    if (!typedAlbums) return null;
     const map = new Map<PrimaryReleaseType, Album[]>();
-    for (const album of filtered) {
+    for (const album of typedAlbums) {
       const type = album.albumType ?? 'Album';
       const list = map.get(type) ?? [];
       list.push(album);
@@ -94,7 +89,7 @@ export default function ArtistDetailScreen() {
       map.set(key, sortByDate(list));
     }
     return map;
-  }, [filtered]);
+  }, [typedAlbums]);
 
   const groupedReleases = useMemo(() => {
     if (!otherReleases) return null;
@@ -140,6 +135,7 @@ export default function ArtistDetailScreen() {
 
   const handleBadgePress = useCallback(() => {
     if (!artist) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       'Remove from Library',
       `Remove "${artist.artistName}" and all their albums from your library?`,
@@ -168,11 +164,50 @@ export default function ArtistDetailScreen() {
     setRefreshing(false);
   }, [refetchArtist, refetchAlbums]);
 
+  const allReleaseGroups = useMemo(() => {
+    if (!otherReleases) return [];
+    return otherReleases.filter((rg) => {
+      const type = rg['primary-type'] as PrimaryReleaseType;
+      return CATEGORIES.some((c) => c.type === type);
+    });
+  }, [otherReleases]);
+
+  const addAllMutation = useMutation({
+    mutationFn: async () => {
+      if (!artist) return;
+      await Promise.all(
+        allReleaseGroups.map((rg) => addLibraryAlbum(artist.id, rg.id, rg.title)),
+      );
+    },
+    onSuccess: () => {
+      if (artist) {
+        queryClient.invalidateQueries({ queryKey: libraryKeys.albums(artist.id) });
+      }
+    },
+  });
+
   const navigateToAlbums = useCallback(
     (type: PrimaryReleaseType, label: string) => {
       if (!artist) return;
       router.push({
         pathname: '/artist/albums',
+        params: {
+          artistId: artist.id,
+          artistMbid: artist.mbid,
+          albumType: type,
+          title: label,
+          artistName: artist.artistName,
+        },
+      });
+    },
+    [router, artist],
+  );
+
+  const navigateToReleases = useCallback(
+    (type: PrimaryReleaseType, label: string) => {
+      if (!artist) return;
+      router.push({
+        pathname: '/artist/releases',
         params: {
           artistId: artist.id,
           artistMbid: artist.mbid,
@@ -210,10 +245,6 @@ export default function ArtistDetailScreen() {
     );
   }
 
-  const hasSecondaryTypes = typedAlbums?.some(
-    (a) => a.secondaryTypes && a.secondaryTypes.length > 0,
-  );
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Animated.ScrollView
@@ -249,17 +280,10 @@ export default function ArtistDetailScreen() {
                 track={track}
                 isPlaying={preview.playingId === track.id}
                 progress={preview.playingId === track.id ? preview.progress : 0}
-                onToggle={() => preview.toggle(track)}
+                onToggle={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); preview.toggle(track); }}
               />
             ))}
           </View>
-        )}
-
-        {hasSecondaryTypes && (
-          <SecondaryTypeFilter
-            selected={filter.selected}
-            onToggle={filter.toggleSecondary}
-          />
         )}
 
         {/* In Your Library */}
@@ -305,7 +329,7 @@ export default function ArtistDetailScreen() {
                       data={visible}
                       keyExtractor={(album) => album.id}
                       renderItem={({ item }) => (
-                        <AlbumCard album={item} onPress={() => openAlbum(item)} />
+                        <AlbumCard album={item} onPress={() => openAlbum(item)} downloadStatus={downloadStatuses?.[item.id]?.status} />
                       )}
                       ListFooterComponent={
                         hasMore
@@ -340,23 +364,55 @@ export default function ArtistDetailScreen() {
         {/* Albums & Releases (not in library) */}
         {groupedReleases && groupedReleases.size > 0 && (
           <View style={styles.albumsSection}>
-            <Text variant="caption" style={[styles.sectionLabel, styles.sectionLabelPadded, { color: colors.subtle }]}>
-              Albums & Releases
-            </Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text variant="caption" style={[styles.sectionLabel, { color: colors.subtle }]}>
+                Albums & Releases
+              </Text>
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); addAllMutation.mutate(); }}
+                disabled={addAllMutation.isPending || addAllMutation.isSuccess}
+                style={({ pressed }) => [
+                  styles.addAllButton,
+                  { backgroundColor: colors.brand, opacity: pressed ? 0.8 : 1 },
+                  addAllMutation.isSuccess && { backgroundColor: colors.subtle },
+                ]}
+              >
+                {addAllMutation.isPending ? (
+                  <ActivityIndicator size={14} color="#fff" />
+                ) : (
+                  <Ionicons
+                    name={addAllMutation.isSuccess ? 'checkmark' : 'add'}
+                    size={14}
+                    color="#fff"
+                  />
+                )}
+                <Text variant="caption" style={styles.addAllText}>
+                  {addAllMutation.isSuccess ? 'Added' : 'Add All'}
+                </Text>
+              </Pressable>
+            </View>
             {CATEGORIES.map(({ type, label }) => {
               const list = groupedReleases.get(type);
               if (!list || list.length === 0) return null;
               const visible = list.slice(0, MAX_VISIBLE);
+              const hasMore = list.length > MAX_VISIBLE;
               return (
                 <View key={`release-${type}`} style={styles.categorySection}>
-                  <View style={styles.categoryHeader}>
+                  <Pressable
+                    onPress={() => navigateToReleases(type, label)}
+                    style={({ pressed }) => [
+                      styles.categoryHeader,
+                      { opacity: pressed ? 0.6 : 1 },
+                    ]}
+                  >
                     <Text variant="subtitle" style={[styles.categoryTitle, { color: colors.text }]}>
                       {label}
                       <Text variant="caption" style={{ color: colors.subtle }}>
                         {'  '}{list.length}
                       </Text>
                     </Text>
-                  </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.subtle} style={{ marginLeft: 4 }} />
+                  </Pressable>
                   <FlatList
                     horizontal
                     data={visible}
@@ -364,6 +420,24 @@ export default function ArtistDetailScreen() {
                     renderItem={({ item }) => (
                       <ReleaseGroupCard releaseGroup={item} onPress={() => openReleaseGroup(item)} />
                     )}
+                    ListFooterComponent={
+                      hasMore
+                        ? () => (
+                            <Pressable
+                              onPress={() => navigateToReleases(type, label)}
+                              style={({ pressed }) => [
+                                styles.viewAllCard,
+                                { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+                              ]}
+                            >
+                              <Ionicons name="grid-outline" size={24} color={colors.brand} />
+                              <Text variant="caption" style={{ color: colors.brand }}>
+                                View All
+                              </Text>
+                            </Pressable>
+                          )
+                        : undefined
+                    }
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.albumList}
                   />
@@ -382,6 +456,7 @@ export default function ArtistDetailScreen() {
         artistName={artist.artistName}
         sheetRef={albumSheetRef}
         onDeleted={() => setSelectedAlbum(null)}
+        downloadStatus={selectedAlbum ? downloadStatuses?.[selectedAlbum.id]?.status : undefined}
       />
 
       <ReleaseGroupSheet
@@ -405,6 +480,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    fontSize: 14,
     paddingVertical: 8,
   },
   sectionLabelPadded: {
@@ -425,6 +501,7 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     fontFamily: Fonts.semiBold,
+    fontSize: 18,
   },
   albumList: {
     paddingHorizontal: 16,
@@ -437,6 +514,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginRight: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  addAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  addAllText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: Fonts.semiBold,
   },
   loader: {
     paddingVertical: 32,

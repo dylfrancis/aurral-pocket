@@ -18,6 +18,8 @@ export function useCoverArtUrl({ type, mbid }: CoverArtOptions) {
       type === 'artist' ? getArtistCover(mbid!) : getAlbumCover(mbid!),
     enabled: !!mbid,
     staleTime: Infinity,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
   });
 
   const images = query.data?.images;

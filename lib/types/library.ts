@@ -81,6 +81,22 @@ export type PreviewTrack = {
   duration_ms: number;
 };
 
+export type DownloadStatusValue =
+  | 'adding'
+  | 'searching'
+  | 'downloading'
+  | 'moving'
+  | 'processing'
+  | 'failed'
+  | 'added'
+  | 'available';
+
+export type DownloadStatusEntry = {
+  status: DownloadStatusValue;
+};
+
+export type DownloadStatusMap = Record<string, DownloadStatusEntry>;
+
 export type CoverArtImage = {
   image: string;
   front: boolean;

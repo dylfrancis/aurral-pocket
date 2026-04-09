@@ -1,26 +1,30 @@
 import axios from 'axios';
 import { api } from './client';
-import type { Artist, Album, Track, CoverArtResponse, ReleaseGroup, ArtistTag, PreviewTrack } from '@/lib/types/library';
+import type { Artist, Album, Track, CoverArtResponse, ReleaseGroup, ArtistTag, PreviewTrack, DownloadStatusMap } from '@/lib/types/library';
 
 type ArtistDetailsResponse = {
   tags?: ArtistTag[];
   bio?: string;
 };
 
-export function getLibraryArtists() {
-  return api.get<Artist[]>('/library/artists').then((r) => r.data);
+export async function getLibraryArtists() {
+  const r = await api.get<Artist[]>('/library/artists');
+  return r.data;
 }
 
-export function getLibraryArtist(mbid: string) {
-  return api.get<Artist>(`/library/artists/${mbid}`).then((r) => r.data);
+export async function getLibraryArtist(mbid: string) {
+  const r = await api.get<Artist>(`/library/artists/${mbid}`);
+  return r.data;
 }
 
-export function getLibraryAlbums(artistId: string) {
-  return api.get<Album[]>('/library/albums', { params: { artistId } }).then((r) => r.data);
+export async function getLibraryAlbums(artistId: string) {
+  const r = await api.get<Album[]>('/library/albums', {params: {artistId}});
+  return r.data;
 }
 
-export function getLibraryTracks(albumId: string) {
-  return api.get<Track[]>('/library/tracks', { params: { albumId } }).then((r) => r.data);
+export async function getLibraryTracks(albumId: string) {
+  const r = await api.get<Track[]>('/library/tracks', {params: {albumId}});
+  return r.data;
 }
 
 export async function getArtistReleaseGroups(mbid: string): Promise<ReleaseGroup[]> {
@@ -55,46 +59,58 @@ export async function getArtistReleaseGroups(mbid: string): Promise<ReleaseGroup
   return allGroups;
 }
 
-export function getArtistDetails(mbid: string) {
-  return api
-    .get<ArtistDetailsResponse>(`/artists/${mbid}`)
-    .then((r) => ({ tags: r.data.tags ?? [], bio: r.data.bio ?? null }));
+export async function getArtistDetails(mbid: string) {
+  const r = await api
+      .get<ArtistDetailsResponse>(`/artists/${mbid}`);
+  return ({tags: r.data.tags ?? [], bio: r.data.bio ?? null});
 }
 
-export function getArtistCover(mbid: string) {
-  return api.get<CoverArtResponse>(`/artists/${mbid}/cover`).then((r) => r.data);
+export async function getArtistCover(mbid: string) {
+  const r = await api.get<CoverArtResponse>(`/artists/${mbid}/cover`);
+  return r.data;
 }
 
-export function getAlbumCover(releaseGroupMbid: string) {
-  return api
-    .get<CoverArtResponse>(`/artists/release-group/${releaseGroupMbid}/cover`)
-    .then((r) => r.data);
+export async function getAlbumCover(releaseGroupMbid: string) {
+  const r = await api
+      .get<CoverArtResponse>(`/artists/release-group/${releaseGroupMbid}/cover`);
+  return r.data;
 }
 
-export function triggerAlbumSearch(albumId: string) {
-  return api.post('/library/downloads/album/search', { albumId }).then((r) => r.data);
+export async function getDownloadStatuses(albumIds: string[]) {
+  let r = await api
+      .get<DownloadStatusMap>('/library/downloads/status', {
+        params: {albumIds: albumIds.join(',')},
+      });
+  return r.data;
 }
 
-export function getArtistPreviewTracks(mbid: string, artistName?: string) {
-  return api
-    .get<{ tracks: PreviewTrack[] }>(`/artists/${mbid}/preview`, {
-      params: artistName ? { artistName } : undefined,
-    })
-    .then((r) => r.data.tracks);
+export async function triggerAlbumSearch(albumId: string) {
+  const r = await api.post('/library/downloads/album/search', {albumId});
+  return r.data;
 }
 
-export function refreshLibraryArtist(mbid: string) {
-  return api.post(`/library/artists/${mbid}/refresh`).then((r) => r.data);
+export async function getArtistPreviewTracks(mbid: string, artistName?: string) {
+  const r = await api
+      .get<{ tracks: PreviewTrack[]; }>(`/artists/${mbid}/preview`, {
+        params: artistName ? {artistName} : undefined,
+      });
+  return r.data.tracks;
 }
 
-export function deleteLibraryArtist(mbid: string, deleteFiles = false) {
-  return api
-    .delete(`/library/artists/${mbid}`, { params: { deleteFiles } })
-    .then((r) => r.data);
+export async function refreshLibraryArtist(mbid: string) {
+  const r = await api.post(`/library/artists/${mbid}/refresh`);
+  return r.data;
 }
 
-export function deleteAlbum(albumId: string, deleteFiles = false) {
-  return api.delete(`/library/albums/${albumId}`, { params: { deleteFiles } }).then((r) => r.data);
+export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {
+  const r = await api
+      .delete(`/library/artists/${mbid}`, {params: {deleteFiles}});
+  return r.data;
+}
+
+export async function deleteAlbum(albumId: string, deleteFiles = false) {
+  const r = await api.delete(`/library/albums/${albumId}`, {params: {deleteFiles}});
+  return r.data;
 }
 
 export type ReleaseGroupTrack = {
@@ -108,19 +124,19 @@ export type ReleaseGroupTrack = {
   preview_url?: string;
 };
 
-export function getReleaseGroupTracks(mbid: string, deezerAlbumId?: string) {
-  return api
-    .get<ReleaseGroupTrack[]>(`/artists/release-group/${mbid}/tracks`, {
-      params: deezerAlbumId ? { deezerAlbumId } : undefined,
-    })
-    .then((r) => r.data);
+export async function getReleaseGroupTracks(mbid: string, deezerAlbumId?: string) {
+  const r = await api
+      .get<ReleaseGroupTrack[]>(`/artists/release-group/${mbid}/tracks`, {
+        params: deezerAlbumId ? {deezerAlbumId} : undefined,
+      });
+  return r.data;
 }
 
 export async function searchDeezerAlbum(artistName: string, albumTitle: string): Promise<string | null> {
   try {
     const { data } = await axios.get<{ data?: { id: number; title: string }[] }>(
       'https://api.deezer.com/search/album',
-      { params: { q: `${artistName} ${albumTitle}`, limit: 5 }, timeout: 3000 },
+      { params: { q: `${artistName} ${albumTitle}`, limit: 5 }, timeout: 5000 },
     );
     const lowerTitle = albumTitle.toLowerCase();
     const match = data.data?.find(
@@ -134,8 +150,8 @@ export async function searchDeezerAlbum(artistName: string, albumTitle: string):
   }
 }
 
-export function addLibraryAlbum(artistId: string, releaseGroupMbid: string, albumName: string) {
-  return api
-    .post<Album>('/library/albums', { artistId, releaseGroupMbid, albumName })
-    .then((r) => r.data);
+export async function addLibraryAlbum(artistId: string, releaseGroupMbid: string, albumName: string) {
+  const r = await api
+      .post<Album>('/library/albums', {artistId, releaseGroupMbid, albumName});
+  return r.data;
 }

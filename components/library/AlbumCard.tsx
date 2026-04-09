@@ -4,17 +4,27 @@ import { Text } from '@/components/ui/Text';
 import { CoverArtImage } from './CoverArtImage';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
-import type { Album } from '@/lib/types/library';
+import type { Album, DownloadStatusValue } from '@/lib/types/library';
 
 const CARD_WIDTH = 150;
+
+const STATUS_LABELS: Record<string, string> = {
+  adding: 'Adding...',
+  searching: 'Searching...',
+  downloading: 'Downloading...',
+  moving: 'Moving...',
+  processing: 'Processing...',
+  failed: 'Failed',
+};
 
 type AlbumCardProps = {
   album: Album;
   onPress: () => void;
   fill?: boolean;
+  downloadStatus?: DownloadStatusValue;
 };
 
-export const AlbumCard = React.memo(function AlbumCard({ album, onPress, fill }: AlbumCardProps) {
+export const AlbumCard = React.memo(function AlbumCard({ album, onPress, fill, downloadStatus }: AlbumCardProps) {
   const colors = Colors[useColorScheme()];
 
   const year = album.releaseDate
@@ -48,11 +58,14 @@ export const AlbumCard = React.memo(function AlbumCard({ album, onPress, fill }:
           {' · '}
           <Text
             variant="caption"
-            style={{ color: percent === 100 ? colors.brandStrong : colors.subtle }}
+            style={{ color: percent === 100 ? colors.brandStrong : downloadStatus === 'failed' ? colors.error : colors.subtle }}
           >
-            {percent}%
+            {downloadStatus && percent < 100
+              ? STATUS_LABELS[downloadStatus] ?? `${percent}%`
+              : `${percent}%`}
           </Text>
         </Text>
+
       </View>
     </Pressable>
   );
