@@ -8,7 +8,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenCenter } from '@/components/ui/ScreenCenter';
 import { ArtistHero } from '@/components/library/ArtistHero';
 import { AlbumCard } from '@/components/library/AlbumCard';
+import { ReleaseGroupCard } from '@/components/library/ReleaseGroupCard';
 import { AlbumSheet } from '@/components/library/AlbumSheet';
+import { ReleaseGroupSheet } from '@/components/library/ReleaseGroupSheet';
 import { ArtistTags } from '@/components/library/ArtistTags';
 import { ArtistInfoSection } from '@/components/library/ArtistInfoSection';
 import { PreviewTrackRow } from '@/components/library/PreviewTrackRow';
@@ -25,13 +27,21 @@ import { libraryKeys } from '@/lib/query-keys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
-import type { Album, PrimaryReleaseType } from '@/lib/types/library';
+import type { Album, PrimaryReleaseType, ReleaseGroup } from '@/lib/types/library';
 
 function sortByDate(albums: Album[]): Album[] {
   return albums.slice().sort((a, b) => {
     if (!a.releaseDate) return 1;
     if (!b.releaseDate) return -1;
     return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+  });
+}
+
+function sortReleaseGroupsByDate(rgs: ReleaseGroup[]): ReleaseGroup[] {
+  return rgs.slice().sort((a, b) => {
+    if (!a['first-release-date']) return 1;
+    if (!b['first-release-date']) return -1;
+    return new Date(b['first-release-date']).getTime() - new Date(a['first-release-date']).getTime();
   });
 }
 
@@ -62,7 +72,7 @@ export default function ArtistDetailScreen() {
     refetch: refetchAlbums,
   } = useLibraryAlbums(artist?.id);
 
-  const { albums: typedAlbums, isLoadingTypes } = useAlbumsWithTypes(artist?.mbid, rawAlbums);
+  const { albums: typedAlbums, otherReleases, isLoadingTypes } = useAlbumsWithTypes(artist?.mbid, rawAlbums);
   const filter = useReleaseTypeFilter();
   const preview = usePreviewPlayer(artist?.mbid, artist?.artistName);
 
@@ -86,14 +96,37 @@ export default function ArtistDetailScreen() {
     return map;
   }, [filtered]);
 
+  const groupedReleases = useMemo(() => {
+    if (!otherReleases) return null;
+    const map = new Map<PrimaryReleaseType, ReleaseGroup[]>();
+    for (const rg of otherReleases) {
+      const type = (rg['primary-type'] ?? 'Album') as PrimaryReleaseType;
+      if (!CATEGORIES.some((c) => c.type === type)) continue;
+      const list = map.get(type) ?? [];
+      list.push(rg);
+      map.set(type, list);
+    }
+    for (const [key, list] of map) {
+      map.set(key, sortReleaseGroupsByDate(list));
+    }
+    return map;
+  }, [otherReleases]);
+
   const router = useRouter();
   const queryClient = useQueryClient();
   const albumSheetRef = useRef<BottomSheet>(null);
+  const releaseGroupSheetRef = useRef<BottomSheet>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
+  const [selectedReleaseGroup, setSelectedReleaseGroup] = useState<ReleaseGroup | null>(null);
 
   const openAlbum = useCallback((album: Album) => {
     setSelectedAlbum(album);
     albumSheetRef.current?.snapToIndex(0);
+  }, []);
+
+  const openReleaseGroup = useCallback((rg: ReleaseGroup) => {
+    setSelectedReleaseGroup(rg);
+    releaseGroupSheetRef.current?.snapToIndex(0);
   }, []);
 
   const deleteMutation = useMutation({
@@ -211,7 +244,7 @@ export default function ArtistDetailScreen() {
           />
         )}
 
-        {/* Album Sections */}
+        {/* In Your Library */}
         <View style={styles.albumsSection}>
           {albumsLoading || isLoadingTypes ? (
             <ActivityIndicator style={styles.loader} color={colors.brand} />
@@ -223,81 +256,122 @@ export default function ArtistDetailScreen() {
               onAction={() => refetchAlbums()}
             />
           ) : grouped && grouped.size > 0 ? (
-            CATEGORIES.map(({ type, label }) => {
-              const list = grouped.get(type);
+            <>
+              <Text variant="caption" style={[styles.sectionLabel, styles.sectionLabelPadded, { color: colors.subtle }]}>
+                In Your Library
+              </Text>
+              {CATEGORIES.map(({ type, label }) => {
+                const list = grouped.get(type);
+                if (!list || list.length === 0) return null;
+                const visible = list.slice(0, MAX_VISIBLE);
+                const hasMore = list.length > MAX_VISIBLE;
+                return (
+                  <View key={type} style={styles.categorySection}>
+                    <Pressable
+                      onPress={() =>
+                        router.push({
+                          pathname: '/albums',
+                          params: {
+                            albums: JSON.stringify(list),
+                            title: label,
+                            artistName: artist.artistName,
+                          },
+                        })
+                      }
+                      style={({ pressed }) => [
+                        styles.categoryHeader,
+                        { opacity: pressed ? 0.6 : 1 },
+                      ]}
+                    >
+                      <Text variant="subtitle" style={[styles.categoryTitle, { color: colors.text }]}>
+                        {label}
+                        <Text variant="caption" style={{ color: colors.subtle }}>
+                          {'  '}{list.length}
+                        </Text>
+                      </Text>
+                      <Ionicons name="chevron-forward" size={16} color={colors.subtle} style={{ marginLeft: 4 }} />
+                    </Pressable>
+                    <FlatList
+                      horizontal
+                      data={visible}
+                      keyExtractor={(album) => album.id}
+                      renderItem={({ item }) => (
+                        <AlbumCard album={item} onPress={() => openAlbum(item)} />
+                      )}
+                      ListFooterComponent={
+                        hasMore
+                          ? () => (
+                              <Pressable
+                                onPress={() =>
+                                  router.push({
+                                    pathname: '/albums',
+                                    params: {
+                                      albums: JSON.stringify(list),
+                                      title: label,
+                                      artistName: artist.artistName,
+                                    },
+                                  })
+                                }
+                                style={({ pressed }) => [
+                                  styles.viewAllCard,
+                                  { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+                                ]}
+                              >
+                                <Ionicons name="grid-outline" size={24} color={colors.brand} />
+                                <Text variant="caption" style={{ color: colors.brand }}>
+                                  View All
+                                </Text>
+                              </Pressable>
+                            )
+                          : undefined
+                      }
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.albumList}
+                    />
+                  </View>
+                );
+              })}
+            </>
+          ) : (
+            <EmptyState icon="disc-outline" message="No albums in library" />
+          )}
+        </View>
+
+        {/* Albums & Releases (not in library) */}
+        {groupedReleases && groupedReleases.size > 0 && (
+          <View style={styles.albumsSection}>
+            <Text variant="caption" style={[styles.sectionLabel, styles.sectionLabelPadded, { color: colors.subtle }]}>
+              Albums & Releases
+            </Text>
+            {CATEGORIES.map(({ type, label }) => {
+              const list = groupedReleases.get(type);
               if (!list || list.length === 0) return null;
               const visible = list.slice(0, MAX_VISIBLE);
-              const hasMore = list.length > MAX_VISIBLE;
               return (
-                <View key={type} style={styles.categorySection}>
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: '/albums',
-                        params: {
-                          albums: JSON.stringify(list),
-                          title: label,
-                          artistName: artist.artistName,
-                        },
-                      })
-                    }
-                    style={({ pressed }) => [
-                      styles.categoryHeader,
-                      { opacity: pressed ? 0.6 : 1 },
-                    ]}
-                  >
+                <View key={`release-${type}`} style={styles.categorySection}>
+                  <View style={styles.categoryHeader}>
                     <Text variant="subtitle" style={[styles.categoryTitle, { color: colors.text }]}>
                       {label}
                       <Text variant="caption" style={{ color: colors.subtle }}>
                         {'  '}{list.length}
                       </Text>
                     </Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.subtle} style={{ marginLeft: 4 }} />
-                  </Pressable>
+                  </View>
                   <FlatList
                     horizontal
                     data={visible}
-                    keyExtractor={(album) => album.id}
+                    keyExtractor={(rg) => rg.id}
                     renderItem={({ item }) => (
-                      <AlbumCard album={item} onPress={() => openAlbum(item)} />
+                      <ReleaseGroupCard releaseGroup={item} onPress={() => openReleaseGroup(item)} />
                     )}
-                    ListFooterComponent={
-                      hasMore
-                        ? () => (
-                            <Pressable
-                              onPress={() =>
-                                router.push({
-                                  pathname: '/albums',
-                                  params: {
-                                    albums: JSON.stringify(list),
-                                    title: label,
-                                    artistName: artist.artistName,
-                                  },
-                                })
-                              }
-                              style={({ pressed }) => [
-                                styles.viewAllCard,
-                                { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-                              ]}
-                            >
-                              <Ionicons name="grid-outline" size={24} color={colors.brand} />
-                              <Text variant="caption" style={{ color: colors.brand }}>
-                                View All
-                              </Text>
-                            </Pressable>
-                          )
-                        : undefined
-                    }
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.albumList}
                   />
                 </View>
               );
-            })
-          ) : (
-            <EmptyState icon="disc-outline" message="No albums in library" />
-          )}
-        </View>
+            })}
+          </View>
+        )}
 
         {/* Bio & Actions */}
         <ArtistInfoSection artist={artist} />
@@ -308,6 +382,13 @@ export default function ArtistDetailScreen() {
         artistName={artist.artistName}
         sheetRef={albumSheetRef}
         onDeleted={() => setSelectedAlbum(null)}
+      />
+
+      <ReleaseGroupSheet
+        releaseGroup={selectedReleaseGroup}
+        artistId={artist.id}
+        artistName={artist.artistName}
+        sheetRef={releaseGroupSheetRef}
       />
     </View>
   );
@@ -325,6 +406,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     paddingVertical: 8,
+  },
+  sectionLabelPadded: {
+    paddingHorizontal: 16,
+    marginBottom: 4,
   },
   albumsSection: {
     paddingTop: 8,

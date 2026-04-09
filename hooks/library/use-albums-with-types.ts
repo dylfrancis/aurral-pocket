@@ -45,8 +45,22 @@ export function useAlbumsWithTypes(
     });
   }, [albums, rgQuery.data]);
 
+  // Release groups NOT in the user's library
+  const otherReleases = useMemo(() => {
+    if (!rgQuery.data) return undefined;
+    const libraryMbids = new Set<string>();
+    if (albums) {
+      for (const a of albums) {
+        libraryMbids.add(a.mbid);
+        libraryMbids.add(a.foreignAlbumId);
+      }
+    }
+    return rgQuery.data.filter((rg) => !libraryMbids.has(rg.id));
+  }, [rgQuery.data, albums]);
+
   return {
     albums: enriched,
+    otherReleases,
     isLoadingTypes: rgQuery.isLoading,
   };
 }

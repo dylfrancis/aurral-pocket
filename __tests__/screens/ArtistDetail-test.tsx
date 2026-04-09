@@ -76,6 +76,14 @@ jest.mock('@/components/library/AlbumSheet', () => {
   };
 });
 
+jest.mock('@/components/library/ReleaseGroupSheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    ReleaseGroupSheet: function MockReleaseGroupSheet() { return React.createElement(View, { testID: 'release-group-sheet' }); },
+  };
+});
+
 jest.mock('@/components/library/ArtistInfoSection', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -114,6 +122,7 @@ jest.mock('@/hooks/library/use-library-albums', () => ({
 jest.mock('@/hooks/library/use-albums-with-types', () => ({
   useAlbumsWithTypes: jest.fn((_mbid: string, albums: any[]) => ({
     albums: albums?.map((a: any) => ({ ...a, albumType: 'Album', secondaryTypes: [] })),
+    otherReleases: [],
     isLoadingTypes: false,
   })),
 }));
@@ -142,9 +151,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ArtistDetailScreen from '@/app/(app)/(tabs)/(library)/artist/[mbid]';
 import { useLibraryArtist } from '@/hooks/library/use-library-artist';
 import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
+import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
 import { usePreviewPlayer } from '@/hooks/library/use-preview-player';
 import type { Artist, Album } from '@/lib/types/library';
 
+const mockUseAlbumsWithTypes = useAlbumsWithTypes as jest.Mock;
 const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
 
 function renderScreen() {
@@ -362,6 +373,33 @@ describe('ArtistDetailScreen', () => {
     it('renders artist info section', () => {
       const { getByTestId } = renderScreen();
       expect(getByTestId('artist-info-section')).toBeTruthy();
+    });
+
+    it('shows In Your Library label when albums exist', () => {
+      const albums = [makeAlbum({ id: '1' })];
+      mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
+      const { getAllByText } = renderScreen();
+      // One from LibraryBadge in hero, one from section label
+      expect(getAllByText('In Your Library').length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('shows Albums & Releases section when other releases exist', () => {
+      mockUseAlbumsWithTypes.mockReturnValue({
+        albums: [],
+        otherReleases: [
+          {
+            id: 'rg-1',
+            title: 'Unreleased EP',
+            'first-release-date': '2023-06-01',
+            'primary-type': 'EP',
+            'secondary-types': [],
+          },
+        ],
+        isLoadingTypes: false,
+      });
+      const { getByText } = renderScreen();
+      expect(getByText('Albums & Releases')).toBeTruthy();
+      expect(getByText('Unreleased EP')).toBeTruthy();
     });
   });
 });

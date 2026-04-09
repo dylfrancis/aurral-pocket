@@ -95,3 +95,43 @@ export function deleteLibraryArtist(mbid: string, deleteFiles = false) {
 export function deleteAlbum(albumId: string, deleteFiles = false) {
   return api.delete(`/library/albums/${albumId}`, { params: { deleteFiles } }).then((r) => r.data);
 }
+
+export type ReleaseGroupTrack = {
+  id?: string;
+  mbid?: string;
+  number: number;
+  trackNumber?: number;
+  position?: number;
+  title: string;
+  length: number | null;
+  preview_url?: string;
+};
+
+export function getReleaseGroupTracks(mbid: string, deezerAlbumId?: string) {
+  return api
+    .get<ReleaseGroupTrack[]>(`/artists/release-group/${mbid}/tracks`, {
+      params: deezerAlbumId ? { deezerAlbumId } : undefined,
+    })
+    .then((r) => r.data);
+}
+
+export async function searchDeezerAlbum(artistName: string, albumTitle: string): Promise<string | null> {
+  try {
+    const { data } = await axios.get<{ data?: { id: number; title: string }[] }>(
+      'https://api.deezer.com/search/album',
+      { params: { q: `${artistName} ${albumTitle}`, limit: 5 }, timeout: 3000 },
+    );
+    const match = data.data?.find(
+      (a) => a.title.toLowerCase() === albumTitle.toLowerCase(),
+    ) ?? data.data?.[0];
+    return match ? `dz-${match.id}` : null;
+  } catch {
+    return null;
+  }
+}
+
+export function addLibraryAlbum(artistId: string, releaseGroupMbid: string, albumName: string) {
+  return api
+    .post<Album>('/library/albums', { artistId, releaseGroupMbid, albumName })
+    .then((r) => r.data);
+}
