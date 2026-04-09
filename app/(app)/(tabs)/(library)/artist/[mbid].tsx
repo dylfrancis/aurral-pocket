@@ -480,6 +480,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    fontSize: 14,
     paddingVertical: 8,
   },
   sectionLabelPadded: {
@@ -500,6 +501,7 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     fontFamily: Fonts.semiBold,
+    fontSize: 18,
   },
   albumList: {
     paddingHorizontal: 16,
