@@ -14,16 +14,17 @@ import { libraryKeys } from '@/lib/query-keys';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
 import * as Haptics from 'expo-haptics';
-import type { Album } from '@/lib/types/library';
+import type { Album, DownloadStatusValue } from '@/lib/types/library';
 
 type AlbumSheetProps = {
   album: Album | null;
   artistName?: string;
   sheetRef: React.RefObject<BottomSheet | null>;
   onDeleted?: () => void;
+  downloadStatus?: DownloadStatusValue;
 };
 
-export function AlbumSheet({ album, artistName, sheetRef, onDeleted }: AlbumSheetProps) {
+export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadStatus }: AlbumSheetProps) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -106,12 +107,12 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted }: AlbumShee
                 <Text variant="caption">
                   {[year, `${album.statistics.trackCount} tracks`].filter(Boolean).join(' \u00B7 ')}
                 </Text>
-                <AlbumStatusBadge album={album} />
+                <AlbumStatusBadge album={album} downloadStatus={downloadStatus} />
               </View>
             </View>
 
             <View style={[styles.actions, { borderColor: colors.separator }]}>
-              {!isComplete && (
+              {!isComplete && !downloadStatus && (
                 <Pressable
                   style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.6 : 1 }]}
                   onPress={handleResearch}

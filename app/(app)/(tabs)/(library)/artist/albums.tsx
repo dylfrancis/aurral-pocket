@@ -7,6 +7,7 @@ import { AlbumCard } from '@/components/library/AlbumCard';
 import { AlbumSheet } from '@/components/library/AlbumSheet';
 import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
 import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
+import { useDownloadStatuses } from '@/hooks/library/use-download-statuses';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import type { Album, PrimaryReleaseType } from '@/lib/types/library';
@@ -33,6 +34,7 @@ export default function AlbumsGridScreen() {
     setRefreshing(false);
   }, [refetch]);
   const { albums: typedAlbums } = useAlbumsWithTypes(artistMbid, rawAlbums);
+  const { data: downloadStatuses } = useDownloadStatuses(rawAlbums);
 
   const albums = useMemo(
     () =>
@@ -60,7 +62,7 @@ export default function AlbumsGridScreen() {
             paddingBottom: CARD_GAP,
           }}
         >
-          <AlbumCard album={item} onPress={() => openAlbum(item)} fill />
+          <AlbumCard album={item} onPress={() => openAlbum(item)} fill downloadStatus={downloadStatuses?.[item.id]?.status} />
         </View>
       );
     },
@@ -97,6 +99,7 @@ export default function AlbumsGridScreen() {
         artistName={artistName ?? ''}
         sheetRef={albumSheetRef}
         onDeleted={() => setSelectedAlbum(null)}
+        downloadStatus={selectedAlbum ? downloadStatuses?.[selectedAlbum.id]?.status : undefined}
       />
     </>
   );

@@ -20,6 +20,7 @@ import { useLibraryArtist } from '@/hooks/library/use-library-artist';
 import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
 import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
 import { usePreviewPlayer } from '@/hooks/library/use-preview-player';
+import { useDownloadStatuses } from '@/hooks/library/use-download-statuses';
 import { deleteLibraryArtist, addLibraryAlbum } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -72,6 +73,7 @@ export default function ArtistDetailScreen() {
   } = useLibraryAlbums(artist?.id);
 
   const { albums: typedAlbums, otherReleases, isLoadingTypes } = useAlbumsWithTypes(artist?.mbid, rawAlbums);
+  const { data: downloadStatuses } = useDownloadStatuses(rawAlbums);
   const { stop: stopPreview, ...preview } = usePreviewPlayer(artist?.mbid, artist?.artistName);
 
   const grouped = useMemo(() => {
@@ -310,7 +312,7 @@ export default function ArtistDetailScreen() {
                       data={visible}
                       keyExtractor={(album) => album.id}
                       renderItem={({ item }) => (
-                        <AlbumCard album={item} onPress={() => openAlbum(item)} />
+                        <AlbumCard album={item} onPress={() => openAlbum(item)} downloadStatus={downloadStatuses?.[item.id]?.status} />
                       )}
                       ListFooterComponent={
                         hasMore
@@ -413,6 +415,7 @@ export default function ArtistDetailScreen() {
         artistName={artist.artistName}
         sheetRef={albumSheetRef}
         onDeleted={() => setSelectedAlbum(null)}
+        downloadStatus={selectedAlbum ? downloadStatuses?.[selectedAlbum.id]?.status : undefined}
       />
 
       <ReleaseGroupSheet
