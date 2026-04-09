@@ -363,17 +363,15 @@ export default function ArtistDetailScreen() {
                 {addAllMutation.isPending ? (
                   <ActivityIndicator size={14} color="#fff" />
                 ) : (
-                  <>
-                    <Ionicons
-                      name={addAllMutation.isSuccess ? 'checkmark' : 'add'}
-                      size={14}
-                      color="#fff"
-                    />
-                    <Text variant="caption" style={styles.addAllText}>
-                      {addAllMutation.isSuccess ? 'Added' : 'Add All'}
-                    </Text>
-                  </>
+                  <Ionicons
+                    name={addAllMutation.isSuccess ? 'checkmark' : 'add'}
+                    size={14}
+                    color="#fff"
+                  />
                 )}
+                <Text variant="caption" style={styles.addAllText}>
+                  {addAllMutation.isSuccess ? 'Added' : 'Add All'}
+                </Text>
               </Pressable>
             </View>
             {CATEGORIES.map(({ type, label }) => {

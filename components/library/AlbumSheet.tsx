@@ -40,6 +40,16 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
 
   const searchMutation = useMutation({
     mutationFn: () => triggerAlbumSearch(album!.id),
+    onMutate: () => {
+      // Optimistically set status to searching
+      queryClient.setQueriesData<Record<string, { status: string }>>(
+        { queryKey: ['library', 'downloadStatuses'] },
+        (old) => old ? { ...old, [album!.id]: { status: 'searching' } } : { [album!.id]: { status: 'searching' } },
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['library', 'downloadStatuses'] });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -52,6 +62,7 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
   });
 
   const handleResearch = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     searchMutation.mutate();
   };
 
@@ -112,7 +123,7 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
             </View>
 
             <View style={[styles.actions, { borderColor: colors.separator }]}>
-              {!isComplete && !downloadStatus && (
+              {!isComplete && (!downloadStatus || downloadStatus === 'failed') && (
                 <Pressable
                   style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.6 : 1 }]}
                   onPress={handleResearch}
@@ -124,7 +135,7 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
                     <Ionicons name="refresh" size={18} color={colors.brand} />
                   )}
                   <Text variant="body" style={{ color: colors.brand }}>
-                    {searchMutation.isSuccess ? 'Search Triggered' : 'Re-search'}
+                    Re-search
                   </Text>
                 </Pressable>
               )}

@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import { Image, type ImageStyle } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useCoverArtUrl } from '@/hooks/library/use-cover-art-url';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
@@ -31,7 +32,15 @@ export function CoverArtImage({
       ? { width: '100%' as const, aspectRatio: 1 }
       : { width: size, height: size };
 
-  if (!url && !isLoading) {
+  if (isLoading) {
+    return size === 'fill' ? (
+      <Skeleton width="100%" height={0} borderRadius={borderRadius} style={{ aspectRatio: 1 }} />
+    ) : (
+      <Skeleton width={size} height={size} borderRadius={borderRadius} />
+    );
+  }
+
+  if (!url) {
     return (
       <View
         style={[
