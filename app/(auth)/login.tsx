@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -10,6 +9,9 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { AurralLogo } from '@/components/AurralLogo';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +22,13 @@ import { useBiometricAvailability } from '@/hooks/auth/use-biometric-availabilit
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import { ApiError } from '@/lib/api/client';
+
+const loginSchema = z.object({
+  username: z.string().trim().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+type LoginForm = z.infer<typeof loginSchema>;
 
 function getErrorMessage(error: Error | null): string | null {
   if (!error) return null;
@@ -55,8 +64,6 @@ function showBiometricWarning(onConfirm: () => void, label: string) {
 }
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const {
@@ -71,17 +78,20 @@ export default function LoginScreen() {
   const loginMutation = useLogin();
   const biometricLabel = useBiometricAvailability();
 
-  const handleLogin = () => {
-    if (!username.trim() || !password) {
-      return;
-    }
+  const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { username: '', password: '' },
+  });
+
+  const onSubmit = (data: LoginForm) => {
+    const trimmedUsername = data.username.trim();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     loginMutation.mutate(
-      { username: username.trim(), password },
+      { username: trimmedUsername, password: data.password },
       {
         onSuccess: () => {
           if (rememberCredentials || useBiometrics) {
-            saveCredentials(username.trim(), password);
+            saveCredentials(trimmedUsername, data.password);
           }
         },
       },
@@ -107,10 +117,9 @@ export default function LoginScreen() {
     }
   };
 
-  const errorMessage =
-    !username.trim() && !password
-      ? null
-      : getErrorMessage(loginMutation.error);
+  const errorMessage = errors.username?.message
+    ?? errors.password?.message
+    ?? getErrorMessage(loginMutation.error);
 
   return (
     <KeyboardAvoidingView
@@ -133,26 +142,40 @@ export default function LoginScreen() {
             {serverUrl}
           </Text>
 
-          <Input
-            placeholder="Username"
-            value={username}
-            onChangeText={setUsername}
-            textContentType="username"
-            returnKeyType="next"
-            editable={!loginMutation.isPending}
-            style={styles.input}
+          <Controller
+            control={control}
+            name="username"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                placeholder="Username"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                textContentType="username"
+                returnKeyType="next"
+                editable={!loginMutation.isPending}
+                style={styles.input}
+              />
+            )}
           />
 
-          <Input
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="password"
-            returnKeyType="go"
-            onSubmitEditing={handleLogin}
-            editable={!loginMutation.isPending}
-            style={styles.input}
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                placeholder="Password"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                secureTextEntry
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={handleSubmit(onSubmit)}
+                editable={!loginMutation.isPending}
+                style={styles.input}
+              />
+            )}
           />
 
           <View style={styles.toggleGroup}>
@@ -199,7 +222,7 @@ export default function LoginScreen() {
 
           <Button
             title="Sign In"
-            onPress={handleLogin}
+            onPress={handleSubmit(onSubmit)}
             loading={loginMutation.isPending}
             style={styles.button}
           />
