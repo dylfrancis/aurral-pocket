@@ -25,6 +25,7 @@ import { libraryKeys } from '@/lib/query-keys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
 import type { Album, PrimaryReleaseType, ReleaseGroup } from '@/lib/types/library';
 
 function sortByDate(albums: Album[]): Album[] {
@@ -132,6 +133,7 @@ export default function ArtistDetailScreen() {
 
   const handleBadgePress = useCallback(() => {
     if (!artist) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       'Remove from Library',
       `Remove "${artist.artistName}" and all their albums from your library?`,
@@ -259,7 +261,7 @@ export default function ArtistDetailScreen() {
                 track={track}
                 isPlaying={preview.playingId === track.id}
                 progress={preview.playingId === track.id ? preview.progress : 0}
-                onToggle={() => preview.toggle(track)}
+                onToggle={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); preview.toggle(track); }}
               />
             ))}
           </View>
@@ -348,7 +350,7 @@ export default function ArtistDetailScreen() {
                 Albums & Releases
               </Text>
               <Pressable
-                onPress={() => addAllMutation.mutate()}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); addAllMutation.mutate(); }}
                 disabled={addAllMutation.isPending || addAllMutation.isSuccess}
                 style={({ pressed }) => [
                   styles.addAllButton,

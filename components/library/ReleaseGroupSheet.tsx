@@ -11,6 +11,7 @@ import { libraryKeys } from '@/lib/query-keys';
 import { useAudioPreview } from '@/hooks/library/use-audio-preview';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
 import type { ReleaseGroup } from '@/lib/types/library';
 
 type ReleaseGroupSheetProps = {
@@ -127,7 +128,7 @@ export function ReleaseGroupSheet({ releaseGroup, artistId, artistName, sheetRef
             <View style={[styles.actions, { borderColor: colors.separator }]}>
               <Pressable
                 style={({ pressed }) => [styles.addButton, { backgroundColor: colors.brand, opacity: pressed ? 0.8 : 1 }]}
-                onPress={() => addMutation.mutate()}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); addMutation.mutate(); }}
                 disabled={addMutation.isPending}
               >
                 {addMutation.isPending ? (

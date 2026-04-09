@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "aurral-pocket",
+    "name": "Aurral",
     "slug": "aurral-pocket",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/images/aurral-logo.png",
+    "icon": "./assets/images/aurral-logo-dark.png",
     "scheme": "aurralpocket",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -36,7 +36,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#f5f4f1",
           "dark": {
-            "backgroundColor": "#050505"
+            "backgroundColor": "#211f27"
           }
         }
       ],

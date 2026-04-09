@@ -13,6 +13,7 @@ import { triggerAlbumSearch, deleteAlbum } from '@/lib/api/library';
 import { libraryKeys } from '@/lib/query-keys';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
 import type { Album } from '@/lib/types/library';
 
 type AlbumSheetProps = {
@@ -60,6 +61,7 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted }: AlbumShee
   };
 
   const handleDelete = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       'Delete Album',
       `Remove "${album?.albumName}" from your library?`,
