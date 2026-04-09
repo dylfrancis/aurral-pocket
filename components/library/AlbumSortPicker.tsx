@@ -9,7 +9,7 @@ import { Colors, Fonts } from '@/constants/theme';
 
 export type AlbumSortMode = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'missing';
 
-type SortOption = {
+export type SortOption = {
   key: AlbumSortMode;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -57,9 +57,10 @@ type AlbumSortSheetProps = {
   sheetRef: React.RefObject<BottomSheet | null>;
   selected: AlbumSortMode;
   onChange: (mode: AlbumSortMode) => void;
+  options?: typeof ALBUM_SORT_OPTIONS;
 };
 
-export function AlbumSortSheet({ sheetRef, selected, onChange }: AlbumSortSheetProps) {
+export function AlbumSortSheet({ sheetRef, selected, onChange, options = ALBUM_SORT_OPTIONS }: AlbumSortSheetProps) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
 
@@ -92,7 +93,7 @@ export function AlbumSortSheet({ sheetRef, selected, onChange }: AlbumSortSheetP
         <Text variant="subtitle" style={[styles.sheetTitle, { color: colors.text }]}>
           Sort By
         </Text>
-        {ALBUM_SORT_OPTIONS.map((option) => {
+        {options.map((option) => {
           const active = selected === option.key;
           return (
             <Pressable

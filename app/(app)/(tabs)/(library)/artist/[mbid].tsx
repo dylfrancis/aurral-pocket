@@ -203,6 +203,23 @@ export default function ArtistDetailScreen() {
     [router, artist],
   );
 
+  const navigateToReleases = useCallback(
+    (type: PrimaryReleaseType, label: string) => {
+      if (!artist) return;
+      router.push({
+        pathname: '/artist/releases',
+        params: {
+          artistId: artist.id,
+          artistMbid: artist.mbid,
+          albumType: type,
+          title: label,
+          artistName: artist.artistName,
+        },
+      });
+    },
+    [router, artist],
+  );
+
   if (artistLoading) {
     return <ScreenCenter loading />;
   }
@@ -378,10 +395,11 @@ export default function ArtistDetailScreen() {
               const list = groupedReleases.get(type);
               if (!list || list.length === 0) return null;
               const visible = list.slice(0, MAX_VISIBLE);
+              const hasMore = list.length > MAX_VISIBLE;
               return (
                 <View key={`release-${type}`} style={styles.categorySection}>
                   <Pressable
-                    onPress={() => navigateToAlbums(type, label)}
+                    onPress={() => navigateToReleases(type, label)}
                     style={({ pressed }) => [
                       styles.categoryHeader,
                       { opacity: pressed ? 0.6 : 1 },
@@ -402,6 +420,24 @@ export default function ArtistDetailScreen() {
                     renderItem={({ item }) => (
                       <ReleaseGroupCard releaseGroup={item} onPress={() => openReleaseGroup(item)} />
                     )}
+                    ListFooterComponent={
+                      hasMore
+                        ? () => (
+                            <Pressable
+                              onPress={() => navigateToReleases(type, label)}
+                              style={({ pressed }) => [
+                                styles.viewAllCard,
+                                { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+                              ]}
+                            >
+                              <Ionicons name="grid-outline" size={24} color={colors.brand} />
+                              <Text variant="caption" style={{ color: colors.brand }}>
+                                View All
+                              </Text>
+                            </Pressable>
+                          )
+                        : undefined
+                    }
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.albumList}
                   />
