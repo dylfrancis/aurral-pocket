@@ -1,18 +1,20 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { CoverArtImage } from './CoverArtImage';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
 import type { Album } from '@/lib/types/library';
 
-type AlbumRowProps = {
+const CARD_WIDTH = 150;
+
+type AlbumCardProps = {
   album: Album;
   onPress: () => void;
+  fill?: boolean;
 };
 
-export const AlbumRow = React.memo(function AlbumRow({ album, onPress }: AlbumRowProps) {
+export const AlbumCard = React.memo(function AlbumCard({ album, onPress, fill }: AlbumCardProps) {
   const colors = Colors[useColorScheme()];
 
   const year = album.releaseDate
@@ -26,43 +28,51 @@ export const AlbumRow = React.memo(function AlbumRow({ album, onPress }: AlbumRo
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.container,
-        { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
+        fill ? styles.containerFill : styles.container,
+        { opacity: pressed ? 0.8 : 1 },
       ]}
     >
-      <CoverArtImage type="album" mbid={album.mbid} size={56} borderRadius={6} />
+      <CoverArtImage
+        type="album"
+        mbid={album.mbid}
+        size={fill ? 'fill' : CARD_WIDTH}
+        borderRadius={10}
+      />
       <View style={styles.meta}>
-        <Text variant="body" numberOfLines={1} style={styles.albumName}>
+        <Text variant="body" numberOfLines={2} style={styles.albumName}>
           {album.albumName}
         </Text>
-        <Text variant="caption">
-          {year && `${year} \u00B7 `}
+        <Text variant="caption" numberOfLines={1}>
+          {year && `${year} · `}
           {trackCount} {trackCount === 1 ? 'track' : 'tracks'}
-          {' \u00B7 '}
-          <Text variant="caption" style={{ color: percent === 100 ? colors.brandStrong : colors.subtle }}>
+          {' · '}
+          <Text
+            variant="caption"
+            style={{ color: percent === 100 ? colors.brandStrong : colors.subtle }}
+          >
             {percent}%
           </Text>
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.subtle} />
     </Pressable>
   );
 });
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 8,
-    gap: 12,
+    width: CARD_WIDTH,
+    marginRight: 12,
+  },
+  containerFill: {
+    flex: 1,
   },
   meta: {
-    flex: 1,
-    gap: 3,
+    paddingTop: 6,
+    gap: 2,
   },
   albumName: {
     fontFamily: Fonts.medium,
+    fontSize: 13,
+    lineHeight: 17,
   },
 });

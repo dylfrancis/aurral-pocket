@@ -3,8 +3,6 @@ import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reani
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui/Text';
 import { CoverArtImage } from './CoverArtImage';
-import { Pressable } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { LibraryBadge } from './LibraryBadge';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
@@ -17,10 +15,9 @@ type ArtistHeroProps = {
   scrollY?: SharedValue<number>;
   refreshing?: boolean;
   onBadgePress?: () => void;
-  onInfoPress?: () => void;
 };
 
-export function ArtistHero({ artist, scrollY, refreshing, onBadgePress, onInfoPress }: ArtistHeroProps) {
+export function ArtistHero({ artist, scrollY, refreshing, onBadgePress }: ArtistHeroProps) {
   const colors = Colors[useColorScheme()];
 
   const backgroundStyle = useAnimatedStyle(() => {
@@ -62,20 +59,7 @@ export function ArtistHero({ artist, scrollY, refreshing, onBadgePress, onInfoPr
         <Text variant="title" style={styles.name}>
           {artist.artistName}
         </Text>
-        <View style={styles.badgeRow}>
-          {onBadgePress && <LibraryBadge onPress={onBadgePress} />}
-          {onInfoPress && (
-            <Pressable
-              onPress={onInfoPress}
-              style={({ pressed }) => [
-                styles.infoButton,
-                { backgroundColor: colors.separator, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Ionicons name="information-circle-outline" size={28} color={colors.text} />
-            </Pressable>
-          )}
-        </View>
+        {onBadgePress && <LibraryBadge onPress={onBadgePress} />}
       </View>
     </View>
   );
@@ -113,18 +97,6 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     zIndex: 1,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   name: {
     textAlign: 'center',
