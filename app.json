@@ -46,7 +46,8 @@
       "expo-font",
       "expo-image",
       "expo-web-browser",
-      "./plugins/ios/withFmtFix"
+      "./plugins/ios/withFmtFix",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -29,7 +29,15 @@ export default function LibraryLayout() {
       />
       <Stack.Screen
         name="artist/[mbid]"
-        options={{ headerTitle: '' }}
+        options={{ headerTitle: '', headerBackButtonDisplayMode: 'minimal' }}
+      />
+      <Stack.Screen
+        name="artist/albums"
+        options={({ route }: any) => ({
+          title: route.params?.title ?? 'Albums',
+          headerLargeTitle: true,
+          headerBackButtonDisplayMode: 'minimal',
+        })}
       />
     </Stack>
   );

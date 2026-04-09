@@ -37,8 +37,7 @@ jest.mock('expo-linear-gradient', () => {
 });
 
 import React from 'react';
-import { ActivityIndicator } from 'react-native';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import { ArtistHero } from '@/components/library/ArtistHero';
 import type { Artist } from '@/lib/types/library';
 
@@ -63,28 +62,25 @@ describe('ArtistHero', () => {
     expect(getByText('Test Artist')).toBeTruthy();
   });
 
-  it('renders monitored badge', () => {
-    const { getByText } = render(<ArtistHero artist={baseArtist} />);
-    expect(getByText('Monitored')).toBeTruthy();
-  });
-
-  it('renders unmonitored badge when not monitored', () => {
-    const artist = { ...baseArtist, monitored: false };
-    const { getByText } = render(<ArtistHero artist={artist} />);
-    expect(getByText('Unmonitored')).toBeTruthy();
-  });
-
-  it('renders activity indicator for refresh', () => {
-    const { UNSAFE_getByType } = render(
-      <ArtistHero artist={baseArtist} refreshing={true} />,
+  it('renders library badge when onBadgePress provided', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(
+      <ArtistHero artist={baseArtist} onBadgePress={onPress} />,
     );
-    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    expect(getByText('In Your Library')).toBeTruthy();
   });
 
-  it('renders activity indicator even when not refreshing (animated opacity)', () => {
-    const { UNSAFE_getByType } = render(
-      <ArtistHero artist={baseArtist} refreshing={false} />,
+  it('calls onBadgePress when badge is tapped', () => {
+    const onPress = jest.fn();
+    const { getByText } = render(
+      <ArtistHero artist={baseArtist} onBadgePress={onPress} />,
     );
-    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    fireEvent.press(getByText('In Your Library'));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render badge when onBadgePress not provided', () => {
+    const { queryByText } = render(<ArtistHero artist={baseArtist} />);
+    expect(queryByText('In Your Library')).toBeNull();
   });
 });

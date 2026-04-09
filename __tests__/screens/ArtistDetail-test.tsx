@@ -1,3 +1,28 @@
+jest.mock('@/lib/api/library', () => ({
+  deleteLibraryArtist: jest.fn(),
+  refreshLibraryArtist: jest.fn(),
+}));
+
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn(),
+    getAllKeys: jest.fn(),
+    multiGet: jest.fn(),
+    multiSet: jest.fn(),
+    multiRemove: jest.fn(),
+  },
+}));
+
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
+}));
+
 jest.mock('react-native-reanimated', () => {
   const React = require('react');
   const { View, ScrollView } = require('react-native');
@@ -25,8 +50,10 @@ jest.mock('@/hooks/library/use-cover-art-url', () => ({
   useCoverArtUrl: jest.fn(() => ({ url: 'https://example.com/art.jpg', isLoading: false })),
 }));
 
+const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(() => ({ mbid: 'abc-123' })),
+  useRouter: jest.fn(() => ({ back: jest.fn(), push: mockPush })),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -49,6 +76,41 @@ jest.mock('@/components/library/AlbumSheet', () => {
   };
 });
 
+jest.mock('@/components/library/ReleaseGroupSheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    ReleaseGroupSheet: function MockReleaseGroupSheet() { return React.createElement(View, { testID: 'release-group-sheet' }); },
+  };
+});
+
+jest.mock('@/components/library/ArtistInfoSection', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    ArtistInfoSection: function MockArtistInfoSection() { return React.createElement(View, { testID: 'artist-info-section' }); },
+  };
+});
+
+jest.mock('@/hooks/library/use-preview-player', () => ({
+  usePreviewPlayer: jest.fn(() => ({
+    tracks: [],
+    isLoading: false,
+    playingId: null,
+    progress: 0,
+    toggle: jest.fn(),
+    stop: jest.fn(),
+  })),
+}));
+
+jest.mock('@/components/library/ArtistTags', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    ArtistTags: function MockArtistTags() { return React.createElement(View, { testID: 'artist-tags' }); },
+  };
+});
+
 jest.mock('@/hooks/library/use-library-artist', () => ({
   useLibraryArtist: jest.fn(),
 }));
@@ -57,12 +119,55 @@ jest.mock('@/hooks/library/use-library-albums', () => ({
   useLibraryAlbums: jest.fn(),
 }));
 
+jest.mock('@/hooks/library/use-albums-with-types', () => ({
+  useAlbumsWithTypes: jest.fn((_mbid: string, albums: any[]) => ({
+    albums: albums?.map((a: any) => ({ ...a, albumType: 'Album', secondaryTypes: [] })),
+    otherReleases: [],
+    isLoadingTypes: false,
+  })),
+}));
+
+jest.mock('@/hooks/library/use-release-type-filter', () => {
+  const PRIMARY_TYPES = ['Album', 'EP', 'Single'];
+  const SECONDARY_TYPES = ['Live', 'Remix', 'Compilation', 'Demo', 'Broadcast', 'Soundtrack', 'Spokenword', 'Other'];
+  const ALL = [...PRIMARY_TYPES, ...SECONDARY_TYPES];
+  return {
+    useReleaseTypeFilter: jest.fn(() => ({
+      selected: new Set(ALL),
+      toggleSecondary: jest.fn(),
+      selectAll: jest.fn(),
+      clearSecondary: jest.fn(),
+      activeSecondaryCount: 0,
+    })),
+    matchesFilter: jest.fn(() => true),
+    PRIMARY_TYPES,
+    SECONDARY_TYPES,
+  };
+});
+
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ArtistDetailScreen from '@/app/(app)/(tabs)/(library)/artist/[mbid]';
 import { useLibraryArtist } from '@/hooks/library/use-library-artist';
 import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
+import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
+import { usePreviewPlayer } from '@/hooks/library/use-preview-player';
 import type { Artist, Album } from '@/lib/types/library';
+
+const mockUseAlbumsWithTypes = useAlbumsWithTypes as jest.Mock;
+const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
+
+function renderScreen() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ArtistDetailScreen />
+    </QueryClientProvider>,
+  );
+}
 
 const mockUseLibraryArtist = useLibraryArtist as jest.Mock;
 const mockUseLibraryAlbums = useLibraryAlbums as jest.Mock;
@@ -117,7 +222,7 @@ describe('ArtistDetailScreen', () => {
   describe('loading state', () => {
     it('shows loading indicator while artist is loading', () => {
       mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook, isLoading: true });
-      const { getByTestId, UNSAFE_getByType } = render(<ArtistDetailScreen />);
+      const { getByTestId, UNSAFE_getByType } = renderScreen();
       expect(getByTestId('screen-center')).toBeTruthy();
       const { ActivityIndicator } = require('react-native');
       expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
@@ -127,14 +232,14 @@ describe('ArtistDetailScreen', () => {
   describe('error state', () => {
     it('shows error message when artist fails to load', () => {
       mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook, error: new Error('fail') });
-      const { getByText } = render(<ArtistDetailScreen />);
+      const { getByText } = renderScreen();
       expect(getByText('Failed to load artist')).toBeTruthy();
     });
 
     it('shows retry button on artist error', () => {
       const refetch = jest.fn();
       mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook, error: new Error('fail'), refetch });
-      const { getByText } = render(<ArtistDetailScreen />);
+      const { getByText } = renderScreen();
       fireEvent.press(getByText('Try Again'));
       expect(refetch).toHaveBeenCalledTimes(1);
     });
@@ -143,7 +248,7 @@ describe('ArtistDetailScreen', () => {
   describe('not found state', () => {
     it('shows not found when artist is null', () => {
       mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook, data: null });
-      const { getByText } = render(<ArtistDetailScreen />);
+      const { getByText } = renderScreen();
       expect(getByText('Artist not found')).toBeTruthy();
     });
   });
@@ -154,33 +259,68 @@ describe('ArtistDetailScreen', () => {
     });
 
     it('renders artist name', () => {
-      const { getByText } = render(<ArtistDetailScreen />);
+      const { getByText } = renderScreen();
       expect(getByText('Test Artist')).toBeTruthy();
     });
 
-    it('shows albums header', () => {
-      const { getByText } = render(<ArtistDetailScreen />);
-      expect(getByText('Albums')).toBeTruthy();
+    it('shows albums section header', () => {
+      mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook, data: baseArtist });
+      const albums = [makeAlbum({ id: '1' })];
+      mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
+      const { getByText } = renderScreen();
+      expect(getByText('Albums', { exact: false })).toBeTruthy();
     });
 
     it('shows empty state when no albums', () => {
       mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: [] });
-      const { getByText } = render(<ArtistDetailScreen />);
+      const { getByText } = renderScreen();
       expect(getByText('No albums in library')).toBeTruthy();
     });
 
-    it('shows album count in header when albums exist', () => {
+    it('shows album count in category header', () => {
       const albums = [makeAlbum({ id: '1' }), makeAlbum({ id: '2' })];
       mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
-      const { getByText } = render(<ArtistDetailScreen />);
-      expect(getByText('Albums (2)')).toBeTruthy();
+      const { getByText } = renderScreen();
+      expect(getByText('Albums', { exact: false })).toBeTruthy();
+      expect(getByText('2')).toBeTruthy();
     });
 
-    it('renders album rows', () => {
+    it('renders album cards in horizontal scroll', () => {
       const albums = [makeAlbum({ id: '1', albumName: 'First Album' })];
       mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
-      const { getByText } = render(<ArtistDetailScreen />);
+      const { getByText } = renderScreen();
       expect(getByText('First Album')).toBeTruthy();
+    });
+
+    it('limits visible albums to 10 per category', () => {
+      const albums = Array.from({ length: 15 }, (_, i) =>
+        makeAlbum({ id: `${i}`, albumName: `Album ${i}` }),
+      );
+      mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
+      const { getByText, queryByText } = renderScreen();
+      expect(getByText('Album 0')).toBeTruthy();
+      expect(getByText('Album 9')).toBeTruthy();
+      expect(queryByText('Album 10')).toBeNull();
+      expect(getByText('View All')).toBeTruthy();
+    });
+
+    it('does not show View All when 10 or fewer albums', () => {
+      const albums = Array.from({ length: 10 }, (_, i) =>
+        makeAlbum({ id: `${i}`, albumName: `Album ${i}` }),
+      );
+      mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
+      const { queryByText } = renderScreen();
+      expect(queryByText('View All')).toBeNull();
+    });
+
+    it('navigates to albums grid when category header is pressed', () => {
+      const albums = [makeAlbum({ id: '1' })];
+      mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
+      const { getByText } = renderScreen();
+      fireEvent.press(getByText('Albums', { exact: false }));
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: '/artist/albums' }),
+      );
     });
 
     it('sorts albums by release date descending', () => {
@@ -189,7 +329,7 @@ describe('ArtistDetailScreen', () => {
         makeAlbum({ id: '2', albumName: 'Newer', releaseDate: '2024-06-01' }),
       ];
       mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
-      const { getAllByText } = render(<ArtistDetailScreen />);
+      const { getAllByText } = renderScreen();
       const albumTexts = getAllByText(/Older|Newer/);
       expect(albumTexts[0].props.children).toBe('Newer');
       expect(albumTexts[1].props.children).toBe('Older');
@@ -201,7 +341,7 @@ describe('ArtistDetailScreen', () => {
         makeAlbum({ id: '2', albumName: 'Has Date', releaseDate: '2024-01-01' }),
       ];
       mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
-      const { getAllByText } = render(<ArtistDetailScreen />);
+      const { getAllByText } = renderScreen();
       const albumTexts = getAllByText(/No Date|Has Date/);
       expect(albumTexts[0].props.children).toBe('Has Date');
       expect(albumTexts[1].props.children).toBe('No Date');
@@ -210,10 +350,56 @@ describe('ArtistDetailScreen', () => {
     it('shows album error with retry', () => {
       const refetch = jest.fn();
       mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, error: new Error('fail'), refetch });
-      const { getByText } = render(<ArtistDetailScreen />);
+      const { getByText } = renderScreen();
       expect(getByText('Failed to load albums')).toBeTruthy();
       fireEvent.press(getByText('Try Again'));
       expect(refetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders top tracks when available', () => {
+      mockUsePreviewPlayer.mockReturnValue({
+        tracks: [{ id: 't1', title: 'Hit Song', album: 'Best Of', preview_url: 'https://example.com/preview.mp3' }],
+        isLoading: false,
+        playingId: null,
+        progress: 0,
+        toggle: jest.fn(),
+        stop: jest.fn(),
+      });
+      const { getByText } = renderScreen();
+      expect(getByText('Top Tracks')).toBeTruthy();
+      expect(getByText('Hit Song')).toBeTruthy();
+    });
+
+    it('renders artist info section', () => {
+      const { getByTestId } = renderScreen();
+      expect(getByTestId('artist-info-section')).toBeTruthy();
+    });
+
+    it('shows In Your Library label when albums exist', () => {
+      const albums = [makeAlbum({ id: '1' })];
+      mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: albums });
+      const { getAllByText } = renderScreen();
+      // One from LibraryBadge in hero, one from section label
+      expect(getAllByText('In Your Library').length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('shows Albums & Releases section when other releases exist', () => {
+      mockUseAlbumsWithTypes.mockReturnValue({
+        albums: [],
+        otherReleases: [
+          {
+            id: 'rg-1',
+            title: 'Unreleased EP',
+            'first-release-date': '2023-06-01',
+            'primary-type': 'EP',
+            'secondary-types': [],
+          },
+        ],
+        isLoadingTypes: false,
+      });
+      const { getByText } = renderScreen();
+      expect(getByText('Albums & Releases')).toBeTruthy();
+      expect(getByText('Unreleased EP')).toBeTruthy();
     });
   });
 });

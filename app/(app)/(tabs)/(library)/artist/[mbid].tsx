@@ -1,44 +1,158 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import BottomSheet from '@gorhom/bottom-sheet';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
-import { Text } from '@/components/ui/Text';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenCenter } from '@/components/ui/ScreenCenter';
 import { ArtistHero } from '@/components/library/ArtistHero';
-import { AlbumRow } from '@/components/library/AlbumRow';
+import { AlbumCard } from '@/components/library/AlbumCard';
+import { ReleaseGroupCard } from '@/components/library/ReleaseGroupCard';
 import { AlbumSheet } from '@/components/library/AlbumSheet';
+import { ReleaseGroupSheet } from '@/components/library/ReleaseGroupSheet';
+import { ArtistTags } from '@/components/library/ArtistTags';
+import { ArtistInfoSection } from '@/components/library/ArtistInfoSection';
+import { PreviewTrackRow } from '@/components/library/PreviewTrackRow';
 import { EmptyState } from '@/components/library/EmptyState';
+import { SecondaryTypeFilter } from '@/components/library/SecondaryTypeFilter';
+import { Text } from '@/components/ui/Text';
 import { useLibraryArtist } from '@/hooks/library/use-library-artist';
 import { useLibraryAlbums } from '@/hooks/library/use-library-albums';
+import { useAlbumsWithTypes } from '@/hooks/library/use-albums-with-types';
+import { useReleaseTypeFilter, matchesFilter } from '@/hooks/library/use-release-type-filter';
+import { usePreviewPlayer } from '@/hooks/library/use-preview-player';
+import { deleteLibraryArtist } from '@/lib/api/library';
+import { libraryKeys } from '@/lib/query-keys';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
-import type { Album } from '@/lib/types/library';
+import type { Album, PrimaryReleaseType, ReleaseGroup } from '@/lib/types/library';
+
+function sortByDate(albums: Album[]): Album[] {
+  return albums.slice().sort((a, b) => {
+    if (!a.releaseDate) return 1;
+    if (!b.releaseDate) return -1;
+    return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+  });
+}
+
+function sortReleaseGroupsByDate(rgs: ReleaseGroup[]): ReleaseGroup[] {
+  return rgs.slice().sort((a, b) => {
+    if (!a['first-release-date']) return 1;
+    if (!b['first-release-date']) return -1;
+    return new Date(b['first-release-date']).getTime() - new Date(a['first-release-date']).getTime();
+  });
+}
+
+const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
+  { type: 'Album', label: 'Albums' },
+  { type: 'EP', label: 'EPs' },
+  { type: 'Single', label: 'Singles' },
+];
+
+const MAX_VISIBLE = 10;
 
 export default function ArtistDetailScreen() {
   const { mbid } = useLocalSearchParams<{ mbid: string }>();
   const colors = Colors[useColorScheme()];
-  const { data: artist, isLoading: artistLoading, error: artistError, refetch: refetchArtist, isRefetching: artistRefetching } = useLibraryArtist(mbid);
   const insets = useSafeAreaInsets();
-  const { data: rawAlbums, isLoading: albumsLoading, error: albumsError, refetch: refetchAlbums, isRefetching: albumsRefetching } = useLibraryAlbums(artist?.id);
-  const albums = useMemo(
-    () =>
-      rawAlbums?.slice().sort((a, b) => {
-        if (!a.releaseDate) return 1;
-        if (!b.releaseDate) return -1;
-        return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
-      }),
-    [rawAlbums],
+
+  const {
+    data: artist,
+    isLoading: artistLoading,
+    error: artistError,
+    refetch: refetchArtist,
+  } = useLibraryArtist(mbid);
+
+  const {
+    data: rawAlbums,
+    isLoading: albumsLoading,
+    error: albumsError,
+    refetch: refetchAlbums,
+  } = useLibraryAlbums(artist?.id);
+
+  const { albums: typedAlbums, otherReleases, isLoadingTypes } = useAlbumsWithTypes(artist?.mbid, rawAlbums);
+  const filter = useReleaseTypeFilter();
+  const { stop: stopPreview, ...preview } = usePreviewPlayer(artist?.mbid, artist?.artistName);
+
+  const filtered = useMemo(
+    () => typedAlbums?.filter((a) => matchesFilter(a, filter.selected)),
+    [typedAlbums, filter.selected],
   );
 
-  const sheetRef = useRef<BottomSheet>(null);
+  const grouped = useMemo(() => {
+    if (!filtered) return null;
+    const map = new Map<PrimaryReleaseType, Album[]>();
+    for (const album of filtered) {
+      const type = album.albumType ?? 'Album';
+      const list = map.get(type) ?? [];
+      list.push(album);
+      map.set(type, list);
+    }
+    for (const [key, list] of map) {
+      map.set(key, sortByDate(list));
+    }
+    return map;
+  }, [filtered]);
+
+  const groupedReleases = useMemo(() => {
+    if (!otherReleases) return null;
+    const map = new Map<PrimaryReleaseType, ReleaseGroup[]>();
+    for (const rg of otherReleases) {
+      const type = (rg['primary-type'] ?? 'Album') as PrimaryReleaseType;
+      if (!CATEGORIES.some((c) => c.type === type)) continue;
+      const list = map.get(type) ?? [];
+      list.push(rg);
+      map.set(type, list);
+    }
+    for (const [key, list] of map) {
+      map.set(key, sortReleaseGroupsByDate(list));
+    }
+    return map;
+  }, [otherReleases]);
+
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const albumSheetRef = useRef<BottomSheet>(null);
+  const releaseGroupSheetRef = useRef<BottomSheet>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
+  const [selectedReleaseGroup, setSelectedReleaseGroup] = useState<ReleaseGroup | null>(null);
 
   const openAlbum = useCallback((album: Album) => {
     setSelectedAlbum(album);
-    sheetRef.current?.snapToIndex(0);
+    albumSheetRef.current?.snapToIndex(0);
   }, []);
+
+  const openReleaseGroup = useCallback((rg: ReleaseGroup) => {
+    stopPreview();
+    setSelectedReleaseGroup(rg);
+    releaseGroupSheetRef.current?.snapToIndex(0);
+  }, [stopPreview]);
+
+  const deleteMutation = useMutation({
+    mutationFn: (mbid: string) => deleteLibraryArtist(mbid),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
+      router.back();
+    },
+  });
+
+  const handleBadgePress = useCallback(() => {
+    if (!artist) return;
+    Alert.alert(
+      'Remove from Library',
+      `Remove "${artist.artistName}" and all their albums from your library?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => deleteMutation.mutate(artist.mbid),
+        },
+      ],
+    );
+  }, [artist, deleteMutation]);
 
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
@@ -53,6 +167,23 @@ export default function ArtistDetailScreen() {
     await Promise.all([refetchArtist(), refetchAlbums()]);
     setRefreshing(false);
   }, [refetchArtist, refetchAlbums]);
+
+  const navigateToAlbums = useCallback(
+    (type: PrimaryReleaseType, label: string) => {
+      if (!artist) return;
+      router.push({
+        pathname: '/artist/albums',
+        params: {
+          artistId: artist.id,
+          artistMbid: artist.mbid,
+          albumType: type,
+          title: label,
+          artistName: artist.artistName,
+        },
+      });
+    },
+    [router, artist],
+  );
 
   if (artistLoading) {
     return <ScreenCenter loading />;
@@ -79,6 +210,10 @@ export default function ArtistDetailScreen() {
     );
   }
 
+  const hasSecondaryTypes = typedAlbums?.some(
+    (a) => a.secondaryTypes && a.secondaryTypes.length > 0,
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Animated.ScrollView
@@ -93,14 +228,43 @@ export default function ArtistDetailScreen() {
           />
         }
       >
-        <ArtistHero artist={artist} scrollY={scrollY} refreshing={refreshing} />
+        <ArtistHero
+          artist={artist}
+          scrollY={scrollY}
+          refreshing={refreshing}
+          onBadgePress={handleBadgePress}
+        />
 
+        <ArtistTags mbid={artist.mbid} />
+
+        {/* Top Tracks */}
+        {preview.tracks && preview.tracks.length > 0 && (
+          <View style={styles.topTracksSection}>
+            <Text variant="caption" style={[styles.sectionLabel, { color: colors.subtle }]}>
+              Top Tracks
+            </Text>
+            {preview.tracks.map((track) => (
+              <PreviewTrackRow
+                key={track.id}
+                track={track}
+                isPlaying={preview.playingId === track.id}
+                progress={preview.playingId === track.id ? preview.progress : 0}
+                onToggle={() => preview.toggle(track)}
+              />
+            ))}
+          </View>
+        )}
+
+        {hasSecondaryTypes && (
+          <SecondaryTypeFilter
+            selected={filter.selected}
+            onToggle={filter.toggleSecondary}
+          />
+        )}
+
+        {/* In Your Library */}
         <View style={styles.albumsSection}>
-          <Text variant="subtitle" style={[styles.sectionTitle, { color: colors.text }]}>
-            Albums{albums && albums.length > 0 ? ` (${albums.length})` : ''}
-          </Text>
-
-          {albumsLoading ? (
+          {albumsLoading || isLoadingTypes ? (
             <ActivityIndicator style={styles.loader} color={colors.brand} />
           ) : albumsError ? (
             <EmptyState
@@ -109,21 +273,122 @@ export default function ArtistDetailScreen() {
               actionLabel="Try Again"
               onAction={() => refetchAlbums()}
             />
-          ) : albums && albums.length > 0 ? (
-            albums.map((album) => (
-              <AlbumRow key={album.id} album={album} onPress={() => openAlbum(album)} />
-            ))
+          ) : grouped && grouped.size > 0 ? (
+            <>
+              <Text variant="caption" style={[styles.sectionLabel, styles.sectionLabelPadded, { color: colors.subtle }]}>
+                In Your Library
+              </Text>
+              {CATEGORIES.map(({ type, label }) => {
+                const list = grouped.get(type);
+                if (!list || list.length === 0) return null;
+                const visible = list.slice(0, MAX_VISIBLE);
+                const hasMore = list.length > MAX_VISIBLE;
+                return (
+                  <View key={type} style={styles.categorySection}>
+                    <Pressable
+                      onPress={() => navigateToAlbums(type, label)}
+                      style={({ pressed }) => [
+                        styles.categoryHeader,
+                        { opacity: pressed ? 0.6 : 1 },
+                      ]}
+                    >
+                      <Text variant="subtitle" style={[styles.categoryTitle, { color: colors.text }]}>
+                        {label}
+                        <Text variant="caption" style={{ color: colors.subtle }}>
+                          {'  '}{list.length}
+                        </Text>
+                      </Text>
+                      <Ionicons name="chevron-forward" size={16} color={colors.subtle} style={{ marginLeft: 4 }} />
+                    </Pressable>
+                    <FlatList
+                      horizontal
+                      data={visible}
+                      keyExtractor={(album) => album.id}
+                      renderItem={({ item }) => (
+                        <AlbumCard album={item} onPress={() => openAlbum(item)} />
+                      )}
+                      ListFooterComponent={
+                        hasMore
+                          ? () => (
+                              <Pressable
+                                onPress={() => navigateToAlbums(type, label)}
+                                style={({ pressed }) => [
+                                  styles.viewAllCard,
+                                  { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+                                ]}
+                              >
+                                <Ionicons name="grid-outline" size={24} color={colors.brand} />
+                                <Text variant="caption" style={{ color: colors.brand }}>
+                                  View All
+                                </Text>
+                              </Pressable>
+                            )
+                          : undefined
+                      }
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.albumList}
+                    />
+                  </View>
+                );
+              })}
+            </>
           ) : (
             <EmptyState icon="disc-outline" message="No albums in library" />
           )}
         </View>
+
+        {/* Albums & Releases (not in library) */}
+        {groupedReleases && groupedReleases.size > 0 && (
+          <View style={styles.albumsSection}>
+            <Text variant="caption" style={[styles.sectionLabel, styles.sectionLabelPadded, { color: colors.subtle }]}>
+              Albums & Releases
+            </Text>
+            {CATEGORIES.map(({ type, label }) => {
+              const list = groupedReleases.get(type);
+              if (!list || list.length === 0) return null;
+              const visible = list.slice(0, MAX_VISIBLE);
+              return (
+                <View key={`release-${type}`} style={styles.categorySection}>
+                  <View style={styles.categoryHeader}>
+                    <Text variant="subtitle" style={[styles.categoryTitle, { color: colors.text }]}>
+                      {label}
+                      <Text variant="caption" style={{ color: colors.subtle }}>
+                        {'  '}{list.length}
+                      </Text>
+                    </Text>
+                  </View>
+                  <FlatList
+                    horizontal
+                    data={visible}
+                    keyExtractor={(rg) => rg.id}
+                    renderItem={({ item }) => (
+                      <ReleaseGroupCard releaseGroup={item} onPress={() => openReleaseGroup(item)} />
+                    )}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.albumList}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Bio & Actions */}
+        <ArtistInfoSection artist={artist} />
       </Animated.ScrollView>
 
       <AlbumSheet
         album={selectedAlbum}
         artistName={artist.artistName}
-        sheetRef={sheetRef}
+        sheetRef={albumSheetRef}
         onDeleted={() => setSelectedAlbum(null)}
+      />
+
+      <ReleaseGroupSheet
+        releaseGroup={selectedReleaseGroup}
+        artistId={artist.id}
+        artistName={artist.artistName}
+        sheetRef={releaseGroupSheetRef}
       />
     </View>
   );
@@ -131,13 +396,47 @@ export default function ArtistDetailScreen() {
 
 const styles = StyleSheet.create({
   content: {},
-  albumsSection: {
+  topTracksSection: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
-  sectionTitle: {
+  sectionLabel: {
     fontFamily: Fonts.semiBold,
-    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingVertical: 8,
+  },
+  sectionLabelPadded: {
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  albumsSection: {
+    paddingTop: 8,
+  },
+  categorySection: {
+    marginBottom: 20,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  categoryTitle: {
+    fontFamily: Fonts.semiBold,
+  },
+  albumList: {
+    paddingHorizontal: 16,
+  },
+  viewAllCard: {
+    width: 150,
+    height: 150,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginRight: 12,
   },
   loader: {
     paddingVertical: 32,

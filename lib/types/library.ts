@@ -1,5 +1,10 @@
 export type CoverArtType = 'artist' | 'album';
 
+export type ArtistTag = {
+  name: string;
+  count: number;
+};
+
 export type ArtistStatistics = {
   albumCount: number;
   trackCount: number;
@@ -23,6 +28,25 @@ export type AlbumStatistics = {
   percentOfTracks: number;
 };
 
+export type PrimaryReleaseType = 'Album' | 'EP' | 'Single';
+export type SecondaryReleaseType =
+  | 'Live'
+  | 'Remix'
+  | 'Compilation'
+  | 'Demo'
+  | 'Broadcast'
+  | 'Soundtrack'
+  | 'Spokenword'
+  | 'Other';
+
+export type ReleaseGroup = {
+  id: string;
+  title: string;
+  'first-release-date': string | null;
+  'primary-type': PrimaryReleaseType;
+  'secondary-types': SecondaryReleaseType[];
+};
+
 export type Album = {
   id: string;
   artistId: string;
@@ -34,6 +58,8 @@ export type Album = {
   releaseDate: string | null;
   monitored: boolean;
   statistics: AlbumStatistics;
+  albumType?: PrimaryReleaseType;
+  secondaryTypes?: SecondaryReleaseType[];
 };
 
 export type Track = {
@@ -45,6 +71,14 @@ export type Track = {
   hasFile: boolean;
   size: number;
   quality: string | null;
+};
+
+export type PreviewTrack = {
+  id: string;
+  title: string;
+  album: string | null;
+  preview_url: string;
+  duration_ms: number;
 };
 
 export type CoverArtImage = {
