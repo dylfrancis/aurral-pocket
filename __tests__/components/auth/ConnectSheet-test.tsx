@@ -122,10 +122,9 @@ describe('ConnectSheet', () => {
 
   it('does not call mutate with invalid URL', async () => {
     const mutate = jest.fn();
-    const reset = jest.fn();
     mockUseServerConnect.mockReturnValue({
       mutate,
-      reset,
+      reset: jest.fn(),
       isPending: false,
       error: null,
     });
@@ -138,19 +137,22 @@ describe('ConnectSheet', () => {
     fireEvent.press(getByText('Connect'));
 
     await waitFor(() => {
-      expect(reset).toHaveBeenCalled();
+      expect(getByText('URL must start with http:// or https://')).toBeTruthy();
     });
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it('shows validation error for non-http URL', () => {
+  it('shows validation error for non-http URL', async () => {
     const { getByPlaceholderText, getByText } = render(<ConnectSheet />);
     fireEvent.changeText(
       getByPlaceholderText('https://your-server.example.com'),
       'ftp://bad-protocol.com',
     );
+    fireEvent.press(getByText('Connect'));
 
-    expect(getByText('URL must start with http:// or https://')).toBeTruthy();
+    await waitFor(() => {
+      expect(getByText('URL must start with http:// or https://')).toBeTruthy();
+    });
   });
 
   it('shows network error from mutation', () => {
