@@ -1,16 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Keyboard, Platform, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation, useRouter } from 'expo-router';
 import { SearchArtistRow } from '@/components/search/SearchArtistRow';
+import { TagArtistRow } from '@/components/search/TagArtistRow';
+import { TagSuggestions } from '@/components/search/TagSuggestions';
 import { SearchBar } from '@/components/library/SearchBar';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Text } from '@/components/ui/Text';
 import { useArtistSearch } from '@/hooks/search/use-artist-search';
+import { useTagSuggestions } from '@/hooks/search/use-tag-suggestions';
+import { useArtistsByTag } from '@/hooks/search/use-artists-by-tag';
 import { useLibraryLookup } from '@/hooks/search/use-library-lookup';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
-import type { SearchArtist } from '@/lib/types/search';
+import { Colors, Fonts } from '@/constants/theme';
+import type { SearchArtist, TagArtist, TagSearchScope } from '@/lib/types/search';
 
 const IS_IOS = Platform.OS === 'ios';
 
@@ -30,26 +35,88 @@ function SkeletonRows() {
   );
 }
 
+type ScopePillsProps = {
+  scope: TagSearchScope;
+  onChange: (scope: TagSearchScope) => void;
+};
+
+function ScopePills({ scope, onChange }: ScopePillsProps) {
+  const colors = Colors[useColorScheme()];
+  const options: { key: TagSearchScope; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'recommended', label: 'Recommended' },
+  ];
+
+  return (
+    <View style={styles.scopeRow}>
+      {options.map((option) => {
+        const active = scope === option.key;
+        return (
+          <Pressable
+            key={option.key}
+            onPress={() => onChange(option.key)}
+            style={[
+              styles.scopePill,
+              {
+                backgroundColor: active ? `${colors.brand}20` : colors.card,
+                borderColor: active ? colors.brand : colors.separator,
+              },
+            ]}
+          >
+            <Text
+              variant="caption"
+              style={[
+                styles.scopeLabel,
+                { color: active ? colors.brand : colors.subtle },
+              ]}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function SearchScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const colors = Colors[useColorScheme()];
 
   const [query, setQuery] = useState('');
-  const { data, isLoading, isFetching } = useArtistSearch(query);
+  const [tagScope, setTagScope] = useState<TagSearchScope>('all');
+
+  const isTagSearch = query.trimStart().startsWith('#');
+  const tagQuery = isTagSearch ? query.trimStart().slice(1).trim() : '';
+  const artistQuery = isTagSearch ? '' : query;
+
+  const { data: artistData, isLoading: artistLoading } = useArtistSearch(artistQuery);
+  const { data: tags } = useTagSuggestions(artistQuery);
+  const { data: tagData, isLoading: tagLoading } = useArtistsByTag(
+    tagQuery.length >= 2 ? tagQuery : null,
+    tagScope,
+  );
   const { isInLibrary } = useLibraryLookup();
 
   const hasQuery = query.trim().length >= 2;
-  const artists = data?.artists;
-  const showLoading = hasQuery && isLoading;
-  const showNoResults = hasQuery && !isLoading && artists !== undefined && artists.length === 0;
-  const showResults = artists !== undefined && artists.length > 0;
+  const isLoading = isTagSearch ? tagLoading : artistLoading;
+
+  const artists = artistData?.artists;
+  const tagArtists = tagData?.recommendations;
+
+  const showArtistResults = !isTagSearch && artists !== undefined && artists.length > 0;
+  const showTagResults = isTagSearch && tagArtists !== undefined && tagArtists.length > 0;
+  const showNoResults = hasQuery && !isLoading
+    && (isTagSearch
+      ? tagArtists !== undefined && tagArtists.length === 0
+      : artists !== undefined && artists.length === 0 && (!tags || tags.length === 0));
 
   useEffect(() => {
     if (IS_IOS) {
       navigation.setOptions({
         headerSearchBarOptions: {
-          placeholder: 'Artists, bands, musicians...',
+          placeholder: 'Artists, bands, #tags...',
           hideWhenScrolling: false,
           autoCapitalize: 'none',
           onChangeText: (e: { nativeEvent: { text: string } }) => {
@@ -61,8 +128,8 @@ export default function SearchScreen() {
     }
   }, [navigation]);
 
-  const handlePress = useCallback(
-    (artist: SearchArtist) => {
+  const handleArtistPress = useCallback(
+    (artist: SearchArtist | TagArtist) => {
       router.push({
         pathname: '/artist/[mbid]' as any,
         params: { mbid: artist.id, name: artist.name },
@@ -71,55 +138,120 @@ export default function SearchScreen() {
     [router],
   );
 
-  const renderItem = useCallback(
+  const handleTagSelect = useCallback((tag: string) => {
+    setQuery(`#${tag}`);
+    if (IS_IOS) {
+      // iOS native search bar — update via setOptions
+      navigation.setOptions({
+        headerSearchBarOptions: {
+          placeholder: 'Artists, bands, #tags...',
+          hideWhenScrolling: false,
+          autoCapitalize: 'none',
+          text: `#${tag}`,
+          onChangeText: (e: { nativeEvent: { text: string } }) => {
+            setQuery(e.nativeEvent.text);
+          },
+          onCancelButtonPress: () => setQuery(''),
+        },
+      });
+    }
+  }, [navigation]);
+
+  const renderArtistItem = useCallback(
     ({ item }: { item: SearchArtist }) => (
       <SearchArtistRow
         artist={item}
         isInLibrary={isInLibrary(item.id)}
-        onPress={() => handlePress(item)}
+        onPress={() => handleArtistPress(item)}
       />
     ),
-    [isInLibrary, handlePress],
+    [isInLibrary, handleArtistPress],
   );
+
+  const renderTagArtistItem = useCallback(
+    ({ item }: { item: TagArtist }) => (
+      <TagArtistRow
+        artist={item}
+        isInLibrary={isInLibrary(item.id)}
+        onPress={() => handleArtistPress(item)}
+      />
+    ),
+    [isInLibrary, handleArtistPress],
+  );
+
+  const listHeader = useMemo(() => (
+    <>
+      {!IS_IOS && (
+        <View style={styles.androidSearchBar}>
+          <SearchBar
+            value={query}
+            onChangeText={setQuery}
+            sortMode="alpha"
+            onSortChange={() => {}}
+            showSort={false}
+          />
+        </View>
+      )}
+      {isTagSearch && hasQuery && (
+        <ScopePills scope={tagScope} onChange={setTagScope} />
+      )}
+      {!isTagSearch && tags && tags.length > 0 && (
+        <TagSuggestions tags={tags} onSelect={handleTagSelect} />
+      )}
+    </>
+  ), [query, isTagSearch, hasQuery, tagScope, tags, handleTagSelect]);
+
+  const emptyComponent = useMemo(() => {
+    if (isLoading) return <SkeletonRows />;
+    if (showNoResults) {
+      return (
+        <EmptyState
+          icon="search-outline"
+          message={`No results found for "${query.trim()}"`}
+        />
+      );
+    }
+    if (!hasQuery) {
+      return (
+        <EmptyState
+          icon="search-outline"
+          message="Search for artists or #tags to discover music"
+        />
+      );
+    }
+    return null;
+  }, [isLoading, showNoResults, hasQuery, query]);
+
+  if (isTagSearch) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <FlashList
+          data={showTagResults ? tagArtists : []}
+          renderItem={renderTagArtistItem}
+          keyExtractor={(item) => item.id}
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={Keyboard.dismiss}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={emptyComponent}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlashList
-        data={showResults ? artists : []}
-        renderItem={renderItem}
+        data={showArtistResults ? artists : []}
+        renderItem={renderArtistItem}
         keyExtractor={(item) => item.id}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={Keyboard.dismiss}
-        ListHeaderComponent={
-          !IS_IOS ? (
-            <View style={styles.androidSearchBar}>
-              <SearchBar
-                value={query}
-                onChangeText={setQuery}
-                sortMode="alpha"
-                onSortChange={() => {}}
-                showSort={false}
-              />
-            </View>
-          ) : undefined
-        }
-        ListEmptyComponent={
-          showLoading ? (
-            <SkeletonRows />
-          ) : showNoResults ? (
-            <EmptyState
-              icon="search-outline"
-              message={`No artists found for "${query.trim()}"`}
-            />
-          ) : (
-            <EmptyState
-              icon="search-outline"
-              message="Search for artists to add to your library"
-            />
-          )
-        }
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={emptyComponent}
       />
     </View>
   );
@@ -132,6 +264,21 @@ const styles = StyleSheet.create({
   androidSearchBar: {
     paddingHorizontal: 16,
     paddingTop: 8,
+  },
+  scopeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  scopePill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  scopeLabel: {
+    fontFamily: Fonts.medium,
   },
   skeletonContainer: {
     paddingTop: 8,

@@ -6,7 +6,17 @@ jest.mock('@/hooks/search/use-artist-search', () => ({
   useArtistSearch: jest.fn(() => ({
     data: undefined,
     isLoading: false,
-    isFetching: false,
+  })),
+}));
+
+jest.mock('@/hooks/search/use-tag-suggestions', () => ({
+  useTagSuggestions: jest.fn(() => ({ data: undefined })),
+}));
+
+jest.mock('@/hooks/search/use-artists-by-tag', () => ({
+  useArtistsByTag: jest.fn(() => ({
+    data: undefined,
+    isLoading: false,
   })),
 }));
 
@@ -48,12 +58,16 @@ jest.mock('react-native-reanimated', () => {
 });
 
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import SearchScreen from '@/app/(app)/(tabs)/(search)/index';
 import { useArtistSearch } from '@/hooks/search/use-artist-search';
+import { useTagSuggestions } from '@/hooks/search/use-tag-suggestions';
+import { useArtistsByTag } from '@/hooks/search/use-artists-by-tag';
 import { useLibraryLookup } from '@/hooks/search/use-library-lookup';
 
 const mockUseArtistSearch = useArtistSearch as jest.Mock;
+const mockUseTagSuggestions = useTagSuggestions as jest.Mock;
+const mockUseArtistsByTag = useArtistsByTag as jest.Mock;
 const mockUseLibraryLookup = useLibraryLookup as jest.Mock;
 
 beforeEach(() => {
@@ -61,7 +75,11 @@ beforeEach(() => {
   mockUseArtistSearch.mockReturnValue({
     data: undefined,
     isLoading: false,
-    isFetching: false,
+  });
+  mockUseTagSuggestions.mockReturnValue({ data: undefined });
+  mockUseArtistsByTag.mockReturnValue({
+    data: undefined,
+    isLoading: false,
   });
   mockUseLibraryLookup.mockReturnValue({
     isInLibrary: jest.fn(() => false),
@@ -72,10 +90,10 @@ beforeEach(() => {
 describe('SearchScreen', () => {
   it('shows empty state by default', () => {
     const { getByText } = render(<SearchScreen />);
-    expect(getByText('Search for artists to add to your library')).toBeTruthy();
+    expect(getByText('Search for artists or #tags to discover music')).toBeTruthy();
   });
 
-  it('shows "In Library" chip for library artists in results', () => {
+  it('shows artist results with "In Library" chip', () => {
     const isInLibrary = jest.fn((mbid: string) => mbid === 'mbid-1');
     mockUseLibraryLookup.mockReturnValue({ isInLibrary, libraryArtists: [] });
     mockUseArtistSearch.mockReturnValue({
@@ -88,12 +106,19 @@ describe('SearchScreen', () => {
         offset: 0,
       },
       isLoading: false,
-      isFetching: false,
     });
 
     const { getByText, queryAllByText } = render(<SearchScreen />);
     expect(getByText('Artist A')).toBeTruthy();
     expect(getByText('Artist B')).toBeTruthy();
     expect(queryAllByText('In Library')).toHaveLength(1);
+  });
+
+  it('shows tag suggestions when available', () => {
+    mockUseTagSuggestions.mockReturnValue({ data: ['rock', 'indie'] });
+
+    const { getByText } = render(<SearchScreen />);
+    expect(getByText('rock')).toBeTruthy();
+    expect(getByText('indie')).toBeTruthy();
   });
 });
