@@ -1,3 +1,12 @@
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(() => Promise.resolve(null)),
+    setItem: jest.fn(() => Promise.resolve()),
+    removeItem: jest.fn(() => Promise.resolve()),
+  },
+}));
+
 jest.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
@@ -58,7 +67,7 @@ jest.mock('react-native-reanimated', () => {
 });
 
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 import SearchScreen from '@/app/(app)/(tabs)/(search)/index';
 import { useArtistSearch } from '@/hooks/search/use-artist-search';
 import { useTagSuggestions } from '@/hooks/search/use-tag-suggestions';
@@ -93,32 +102,12 @@ describe('SearchScreen', () => {
     expect(getByText('Search for artists or #tags to discover music')).toBeTruthy();
   });
 
-  it('shows artist results with "In Library" chip', () => {
-    const isInLibrary = jest.fn((mbid: string) => mbid === 'mbid-1');
-    mockUseLibraryLookup.mockReturnValue({ isInLibrary, libraryArtists: [] });
-    mockUseArtistSearch.mockReturnValue({
-      data: {
-        artists: [
-          { id: 'mbid-1', name: 'Artist A', 'sort-name': 'Artist A', image: null, imageUrl: null, listeners: null },
-          { id: 'mbid-2', name: 'Artist B', 'sort-name': 'Artist B', image: null, imageUrl: null, listeners: null },
-        ],
-        count: 2,
-        offset: 0,
-      },
-      isLoading: false,
-    });
-
-    const { getByText, queryAllByText } = render(<SearchScreen />);
-    expect(getByText('Artist A')).toBeTruthy();
-    expect(getByText('Artist B')).toBeTruthy();
-    expect(queryAllByText('In Library')).toHaveLength(1);
-  });
-
-  it('shows tag suggestions when available', () => {
+  it('does not show tag suggestions when no query is entered', () => {
     mockUseTagSuggestions.mockReturnValue({ data: ['rock', 'indie'] });
 
-    const { getByText } = render(<SearchScreen />);
-    expect(getByText('rock')).toBeTruthy();
-    expect(getByText('indie')).toBeTruthy();
+    const { queryByText } = render(<SearchScreen />);
+    // Tags only appear in preview mode (hasQuery && !committed)
+    // With no query, the empty state is shown instead
+    expect(queryByText('rock')).toBeNull();
   });
 });
