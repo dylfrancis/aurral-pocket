@@ -15,3 +15,8 @@ export const libraryKeys = {
   releaseGroupTracks: (mbid: string) => ['library', 'releaseGroupTracks', mbid] as const,
   downloadStatuses: (artistId: string) => ['library', 'downloadStatuses', artistId] as const,
 };
+
+export const searchKeys = {
+  artists: (query: string) => ['search', 'artists', query] as const,
+  similarArtists: (mbid: string) => ['search', 'similar', mbid] as const,
+};
