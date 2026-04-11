@@ -45,12 +45,12 @@
       "expo-image",
       "expo-web-browser",
       "./plugins/ios/withFmtFix",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true,
-      "hermesVersion": 1
+      "reactCompiler": true
     },
     "extra": {
       "router": {},
