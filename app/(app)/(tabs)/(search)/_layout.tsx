@@ -28,6 +28,13 @@ export default function SearchLayout() {
         }}
       />
       <Stack.Screen
+        name="results"
+        options={({ route }: any) => ({
+          title: route.params?.q ?? 'Results',
+          headerBackButtonDisplayMode: 'minimal',
+        })}
+      />
+      <Stack.Screen
         name="artist/[mbid]"
         options={{ headerTitle: '', headerBackButtonDisplayMode: 'minimal' }}
       />
