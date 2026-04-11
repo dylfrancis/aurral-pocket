@@ -1,27 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SearchArtistRow } from '@/components/search/SearchArtistRow';
-import { TagArtistRow } from '@/components/search/TagArtistRow';
 import { SearchBar } from '@/components/library/SearchBar';
 import { EmptyState } from '@/components/library/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Text } from '@/components/ui/Text';
 import { useArtistSearch } from '@/hooks/search/use-artist-search';
 import { useTagSuggestions } from '@/hooks/search/use-tag-suggestions';
-import { useArtistsByTag } from '@/hooks/search/use-artists-by-tag';
 import { useLibraryLookup } from '@/hooks/search/use-library-lookup';
 import { useRecentSearches } from '@/hooks/search/use-recent-searches';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Fonts } from '@/constants/theme';
-import type { SearchArtist, TagArtist, TagSearchScope } from '@/lib/types/search';
+import type { SearchArtist } from '@/lib/types/search';
 
 const IS_IOS = Platform.OS === 'ios';
 const PREVIEW_LIMIT = 5;
 
-/* ---------- Skeleton loading ---------- */
 
 function SkeletonRows() {
   return (
@@ -39,61 +35,13 @@ function SkeletonRows() {
   );
 }
 
-/* ---------- Scope pills (Android only) ---------- */
-
-type ScopePillsProps = {
-  scope: TagSearchScope;
-  onChange: (scope: TagSearchScope) => void;
-};
-
-const SCOPE_OPTIONS: { key: TagSearchScope; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'recommended', label: 'Recommended' },
-];
-
-function ScopePills({ scope, onChange }: ScopePillsProps) {
-  const colors = Colors[useColorScheme()];
-
-  return (
-    <View style={styles.scopeRow}>
-      {SCOPE_OPTIONS.map((option) => {
-        const active = scope === option.key;
-        return (
-          <Pressable
-            key={option.key}
-            onPress={() => onChange(option.key)}
-            style={[
-              styles.scopePill,
-              {
-                backgroundColor: active ? `${colors.brand}20` : colors.card,
-                borderColor: active ? colors.brand : colors.separator,
-              },
-            ]}
-          >
-            <Text
-              variant="caption"
-              style={[
-                styles.scopeLabel,
-                { color: active ? colors.brand : colors.subtle },
-              ]}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-/* ---------- Preview rows ---------- */
 
 function ArtistPreviewRow({
   artist,
   isInLibrary,
   onPress,
 }: {
-  artist: SearchArtist | TagArtist;
+  artist: SearchArtist;
   isInLibrary: boolean;
   onPress: () => void;
 }) {
@@ -145,7 +93,6 @@ function TagPreviewRow({
   );
 }
 
-/* ---------- Recent searches ---------- */
 
 function RecentSearchRow({
   query,
@@ -182,7 +129,6 @@ function RecentSearchRow({
   );
 }
 
-/* ---------- Main screen ---------- */
 
 export default function SearchScreen() {
   const navigation = useNavigation();
@@ -190,9 +136,7 @@ export default function SearchScreen() {
   const colors = Colors[useColorScheme()];
 
   const [query, setQuery] = useState('');
-  const [committed, setCommitted] = useState(false);
-  const [tagScope, setTagScope] = useState<TagSearchScope>('all');
-  const skipResetRef = useRef(false);
+  const recentSearches = useRecentSearches();
 
   const isTagSearch = query.trimStart().startsWith('#');
   const tagQuery = isTagSearch ? query.trimStart().slice(1).trim() : '';
@@ -201,50 +145,30 @@ export default function SearchScreen() {
 
   const { data: artistData, isLoading: artistLoading } = useArtistSearch(artistQuery);
   const { data: tags } = useTagSuggestions(isTagSearch ? tagQuery : artistQuery);
-  const { data: tagData, isLoading: tagLoading } = useArtistsByTag(
-    committed && tagQuery.length >= 2 ? tagQuery : null,
-    tagScope,
-  );
   const { isInLibrary } = useLibraryLookup();
-  const recentSearches = useRecentSearches();
 
   const artists = artistData?.artists;
-  const tagArtists = tagData?.recommendations;
 
-  // Reset committed when query changes (user is typing again)
-  useEffect(() => {
-    if (skipResetRef.current) {
-      skipResetRef.current = false;
-      return;
-    }
-    setCommitted(false);
-  }, [query]);
+  const pushResults = useCallback((q: string) => {
+    Keyboard.dismiss();
+    recentSearches.add(q);
+    router.push({
+      pathname: '/results' as any,
+      params: { q },
+    });
+  }, [router, recentSearches]);
 
   const handleSubmit = useCallback(() => {
-    Keyboard.dismiss();
-    setCommitted(true);
-    if (query.trim()) recentSearches.add(query.trim());
-  }, [query, recentSearches]);
+    if (query.trim()) pushResults(query.trim());
+  }, [query, pushResults]);
 
-  useEffect(() => {
-    if (IS_IOS) {
-      navigation.setOptions({
-        headerSearchBarOptions: {
-          placeholder: 'Artists, bands, #tags...',
-          hideWhenScrolling: false,
-          autoCapitalize: 'none',
-          onChangeText: (e: { nativeEvent: { text: string } }) => {
-            setQuery(e.nativeEvent.text);
-          },
-          onCancelButtonPress: () => { setQuery(''); setCommitted(false); },
-          onSearchButtonPress: handleSubmit,
-        },
-      });
-    }
-  }, [navigation, handleSubmit]);
+  const handleTagSelect = useCallback(
+    (tag: string) => pushResults(`#${tag}`),
+    [pushResults],
+  );
 
   const handleArtistPress = useCallback(
-    (artist: SearchArtist | TagArtist) => {
+    (artist: SearchArtist) => {
       router.push({
         pathname: '/artist/[mbid]' as any,
         params: { mbid: artist.id, name: artist.name },
@@ -253,84 +177,34 @@ export default function SearchScreen() {
     [router],
   );
 
-  const setQueryCommitted = useCallback((value: string) => {
-    skipResetRef.current = true;
-    setQuery(value);
-    setCommitted(true);
-    recentSearches.add(value);
+  const handleRecentPress = useCallback(
+    (recent: string) => pushResults(recent),
+    [pushResults],
+  );
+
+  useEffect(() => {
     if (IS_IOS) {
       navigation.setOptions({
         headerSearchBarOptions: {
           placeholder: 'Artists, bands, #tags...',
           hideWhenScrolling: false,
           autoCapitalize: 'none',
-          text: value,
           onChangeText: (e: { nativeEvent: { text: string } }) => {
             setQuery(e.nativeEvent.text);
           },
-          onCancelButtonPress: () => { setQuery(''); setCommitted(false); },
+          onCancelButtonPress: () => setQuery(''),
           onSearchButtonPress: handleSubmit,
         },
       });
     }
-  }, [navigation, handleSubmit, recentSearches]);
+  }, [navigation, handleSubmit]);
 
-  const handleTagSelect = useCallback(
-    (tag: string) => setQueryCommitted(`#${tag}`),
-    [setQueryCommitted],
-  );
+  const previewTags = hasQuery ? (tags ?? []).slice(0, isTagSearch ? PREVIEW_LIMIT : 3) : [];
+  const previewArtists = hasQuery && !isTagSearch ? (artists ?? []).slice(0, PREVIEW_LIMIT) : [];
+  const previewLoading = hasQuery && !isTagSearch && artistLoading;
+  const hasPreviewContent = previewTags.length > 0 || previewArtists.length > 0;
 
-  const handleRecentPress = useCallback(
-    (recent: string) => setQueryCommitted(recent),
-    [setQueryCommitted],
-  );
-
-  /* ---------- Derive display state ---------- */
-
-  const isPreview = hasQuery && !committed;
-  const isFullResults = hasQuery && committed;
-
-  // Preview data
-  const previewTags = isPreview ? (tags ?? []).slice(0, isTagSearch ? PREVIEW_LIMIT : 3) : [];
-  const previewArtists = isPreview && !isTagSearch ? (artists ?? []).slice(0, PREVIEW_LIMIT) : [];
-  const previewLoading = isPreview && !isTagSearch && artistLoading;
-
-  // Full results data
-  const fullData = isTagSearch ? tagArtists : artists;
-  const fullLoading = isFullResults && (isTagSearch ? tagLoading : artistLoading);
-  const showResults = isFullResults && fullData !== undefined && fullData.length > 0;
-  const showNoResults = isFullResults && !fullLoading && fullData !== undefined && fullData.length === 0;
-
-  // Show scope toolbar only for committed tag search
-  const showScopeToolbar = isFullResults && isTagSearch;
-
-  /* ---------- Render items for FlashList ---------- */
-
-  const renderArtistItem = useCallback(
-    ({ item }: { item: SearchArtist }) => (
-      <SearchArtistRow
-        artist={item}
-        isInLibrary={isInLibrary(item.id)}
-        onPress={() => handleArtistPress(item)}
-      />
-    ),
-    [isInLibrary, handleArtistPress],
-  );
-
-  const renderTagArtistItem = useCallback(
-    ({ item }: { item: TagArtist }) => (
-      <TagArtistRow
-        artist={item}
-        isInLibrary={isInLibrary(item.id)}
-        onPress={() => handleArtistPress(item)}
-      />
-    ),
-    [isInLibrary, handleArtistPress],
-  );
-
-  /* ---------- List header ---------- */
-
-  const listHeader = (
+  const listHeader = hasQuery ? (
     <>
       {!IS_IOS && (
         <View style={styles.androidSearchBar}>
@@ -340,71 +214,65 @@ export default function SearchScreen() {
             sortMode="alpha"
             onSortChange={() => {}}
             showSort={false}
+            onSubmit={handleSubmit}
           />
         </View>
       )}
 
-      {/* Scope pills for committed tag search */}
-      {showScopeToolbar && (
-        <ScopePills scope={tagScope} onChange={setTagScope} />
-      )}
-
-      {/* Preview content */}
-      {isPreview && (
-        previewLoading ? (
-          <SkeletonRows />
-        ) : (previewTags.length > 0 || previewArtists.length > 0) ? (
-          <View style={styles.previewSection}>
-            {previewTags.map((tag) => (
-              <TagPreviewRow
-                key={`tag-${tag}`}
-                tag={tag}
-                onPress={() => handleTagSelect(tag)}
-              />
-            ))}
-            {previewArtists.map((artist) => (
-              <ArtistPreviewRow
-                key={artist.id}
-                artist={artist}
-                isInLibrary={isInLibrary(artist.id)}
-                onPress={() => handleArtistPress(artist)}
-              />
-            ))}
-            {((isTagSearch ? tags : artists) ?? []).length > PREVIEW_LIMIT && (
-              <Pressable
-                onPress={handleSubmit}
-                style={({ pressed }) => [
-                  styles.seeAllRow,
-                  { opacity: pressed ? 0.6 : 1 },
-                ]}
-              >
-                <Text variant="body" style={[styles.seeAllText, { color: colors.brand }]}>
-                  See all results
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.brand} />
-              </Pressable>
-            )}
-          </View>
-        ) : hasQuery && !previewLoading ? (
-          <EmptyState
-            icon="search-outline"
-            message={`No results for "${query.trim()}"`}
-          />
-        ) : null
-      )}
+      {previewLoading ? (
+        <SkeletonRows />
+      ) : hasPreviewContent ? (
+        <View style={styles.previewSection}>
+          {previewTags.map((tag) => (
+            <TagPreviewRow
+              key={`tag-${tag}`}
+              tag={tag}
+              onPress={() => handleTagSelect(tag)}
+            />
+          ))}
+          {previewArtists.map((artist) => (
+            <ArtistPreviewRow
+              key={artist.id}
+              artist={artist}
+              isInLibrary={isInLibrary(artist.id)}
+              onPress={() => handleArtistPress(artist)}
+            />
+          ))}
+          {((isTagSearch ? tags : artists) ?? []).length > PREVIEW_LIMIT && (
+            <Pressable
+              onPress={handleSubmit}
+              style={({ pressed }) => [
+                styles.seeAllRow,
+                { opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <Text variant="body" style={[styles.seeAllText, { color: colors.brand }]}>
+                See all results
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.brand} />
+            </Pressable>
+          )}
+        </View>
+      ) : !previewLoading ? (
+        <EmptyState
+          icon="search-outline"
+          message={`No results for "${query.trim()}"`}
+        />
+      ) : null}
     </>
-  );
+  ) : !IS_IOS ? (
+    <View style={styles.androidSearchBar}>
+      <SearchBar
+        value={query}
+        onChangeText={setQuery}
+        sortMode="alpha"
+        onSortChange={() => {}}
+        showSort={false}
+      />
+    </View>
+  ) : null;
 
-  /* ---------- List empty (idle + full results empty) ---------- */
-
-  const emptyComponent = fullLoading ? (
-    <SkeletonRows />
-  ) : showNoResults ? (
-    <EmptyState
-      icon="search-outline"
-      message={`No results found for "${query.trim()}"`}
-    />
-  ) : !hasQuery ? (
+  const emptyComponent = !hasQuery ? (
     recentSearches.searches.length > 0 ? (
       <View style={styles.recentSection}>
         <View style={styles.recentHeader}>
@@ -432,22 +300,11 @@ export default function SearchScreen() {
     )
   ) : null;
 
-  /* ---------- Render ---------- */
-
-  const data = (isFullResults && isTagSearch)
-    ? (showResults ? (tagArtists as TagArtist[]) : [])
-    : (showResults ? (artists as SearchArtist[]) : []);
-
-  const renderItem = (isFullResults && isTagSearch)
-    ? renderTagArtistItem
-    : renderArtistItem;
-
   return (
     <>
       <FlashList
-        data={data as any[]}
-        renderItem={renderItem as any}
-        keyExtractor={(item: any) => item.id}
+        data={[]}
+        renderItem={() => null}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
@@ -463,21 +320,6 @@ const styles = StyleSheet.create({
   androidSearchBar: {
     paddingHorizontal: 16,
     paddingTop: 8,
-  },
-  scopeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  scopePill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  scopeLabel: {
-    fontFamily: Fonts.medium,
   },
   previewSection: {
     paddingTop: 4,
