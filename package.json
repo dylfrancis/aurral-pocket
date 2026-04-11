@@ -51,8 +51,8 @@
     "expo-symbols": "~55.0.7",
     "expo-system-ui": "~55.0.15",
     "expo-web-browser": "~55.0.14",
-    "react": "19.2.5",
-    "react-dom": "19.2.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
     "react-hook-form": "^7.72.1",
     "react-native": "0.83.4",
     "react-native-gesture-handler": "~2.30.0",
@@ -89,6 +89,10 @@
     "*.{json,md}": [
       "prettier --write"
     ]
+  },
+  "engines": {
+    "node": ">=22.14.0",
+    "npm": ">=11.10.0"
   },
   "private": true
 }
