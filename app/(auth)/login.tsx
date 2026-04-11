@@ -1,31 +1,31 @@
 import {
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   View,
-} from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { AurralLogo } from '@/components/AurralLogo';
-import { Text } from '@/components/ui/Text';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { useAuth } from '@/contexts/auth-context';
-import { useLogin } from '@/hooks/auth/use-login';
-import { useBiometricAvailability } from '@/hooks/auth/use-biometric-availability';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
-import { ApiError } from '@/lib/api/client';
+} from "react-native";
+import * as Haptics from "expo-haptics";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { AurralLogo } from "@/components/AurralLogo";
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { useAuth } from "@/contexts/auth-context";
+import { useLogin } from "@/hooks/auth/use-login";
+import { useBiometricAvailability } from "@/hooks/auth/use-biometric-availability";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/platform";
+import { ApiError } from "@/lib/api/client";
 
 const loginSchema = z.object({
-  username: z.string().trim().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
+  username: z.string().trim().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -33,9 +33,11 @@ type LoginForm = z.infer<typeof loginSchema>;
 function getErrorMessage(error: Error | null): string | null {
   if (!error) return null;
   if (error instanceof ApiError) {
-    if (error.status === 401) return 'Invalid username or password.';
-    if (error.status === 429) return 'Too many attempts. Please wait and try again.';
-    if (error.isNetworkError) return 'Unable to reach server. Check your connection.';
+    if (error.status === 401) return "Invalid username or password.";
+    if (error.status === 429)
+      return "Too many attempts. Please wait and try again.";
+    if (error.isNetworkError)
+      return "Unable to reach server. Check your connection.";
     return error.message;
   }
   return error.message;
@@ -43,22 +45,22 @@ function getErrorMessage(error: Error | null): string | null {
 
 function showRememberWarning(onConfirm: () => void) {
   Alert.alert(
-    'Store Credentials',
-    'Your password will be saved in encrypted storage on this device so you can be automatically signed back in when your session expires.',
+    "Store Credentials",
+    "Your password will be saved in encrypted storage on this device so you can be automatically signed back in when your session expires.",
     [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Enable', onPress: onConfirm },
+      { text: "Cancel", style: "cancel" },
+      { text: "Enable", onPress: onConfirm },
     ],
   );
 }
 
 function showBiometricWarning(onConfirm: () => void, label: string) {
   Alert.alert(
-    'Store Credentials',
+    "Store Credentials",
     `Your password will be saved in encrypted storage on this device so you can use ${label} to sign back in when your session expires.`,
     [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Enable', onPress: onConfirm },
+      { text: "Cancel", style: "cancel" },
+      { text: "Enable", onPress: onConfirm },
     ],
   );
 }
@@ -78,9 +80,13 @@ export default function LoginScreen() {
   const loginMutation = useLogin();
   const biometricLabel = useBiometricAvailability();
 
-  const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: '', password: '' },
+    defaultValues: { username: "", password: "" },
   });
 
   const onSubmit = (data: LoginForm) => {
@@ -110,21 +116,22 @@ export default function LoginScreen() {
     if (value) {
       showBiometricWarning(
         () => setUseBiometrics(true),
-        biometricLabel ?? 'biometrics',
+        biometricLabel ?? "biometrics",
       );
     } else {
       setUseBiometrics(false);
     }
   };
 
-  const errorMessage = errors.username?.message
-    ?? errors.password?.message
-    ?? getErrorMessage(loginMutation.error);
+  const errorMessage =
+    errors.username?.message ??
+    errors.password?.message ??
+    getErrorMessage(loginMutation.error);
 
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={KEYBOARD_AVOIDING_BEHAVIOR}
     >
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -245,11 +252,11 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   content: {
     paddingHorizontal: 32,
-    alignItems: 'center',
+    alignItems: "center",
   },
   title: {
     marginTop: 16,
@@ -265,13 +272,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   toggleGroup: {
-    alignSelf: 'stretch',
+    alignSelf: "stretch",
     gap: 4,
     marginBottom: 16,
   },
   toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     paddingVertical: 4,
   },
