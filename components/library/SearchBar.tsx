@@ -12,6 +12,7 @@ type SearchBarProps = {
   sortMode: SortMode;
   onSortChange: (mode: SortMode) => void;
   showSort?: boolean;
+  onSubmit?: () => void;
 };
 
 const sortOptions: { key: SortMode; label: string }[] = [
@@ -26,6 +27,7 @@ export function SearchBar({
   sortMode,
   onSortChange,
   showSort = true,
+  onSubmit,
 }: SearchBarProps) {
   const colors = Colors[useColorScheme()];
 
@@ -42,6 +44,7 @@ export function SearchBar({
           autoCorrect={false}
           autoCapitalize="none"
           returnKeyType="search"
+          onSubmitEditing={onSubmit}
         />
         {value.length > 0 && (
           <Pressable onPress={() => onChangeText('')} hitSlop={8}>
