@@ -110,7 +110,7 @@ export default function SearchResultsScreen() {
   const handleArtistPress = useCallback(
     (artist: SearchArtist | TagArtist) => {
       router.push({
-        pathname: "/(search)/artist/[mbid]",
+        pathname: "/artist/[mbid]",
         params: { mbid: artist.id, name: artist.name },
       });
     },

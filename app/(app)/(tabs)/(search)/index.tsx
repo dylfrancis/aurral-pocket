@@ -12,6 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { SearchBar } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
+import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
+import { RecentSearches } from "@/components/search/RecentSearches";
 import { Text } from "@/components/ui/Text";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
@@ -23,106 +25,6 @@ import type { SearchArtist } from "@/lib/types/search";
 
 const IS_IOS = Platform.OS === "ios";
 const PREVIEW_LIMIT = 5;
-
-function ArtistPreviewRow({
-  artist,
-  isInLibrary,
-  onPress,
-}: {
-  artist: SearchArtist;
-  isInLibrary: boolean;
-  onPress: () => void;
-}) {
-  const colors = Colors[useColorScheme()];
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.previewRow,
-        { opacity: pressed ? 0.6 : 1 },
-      ]}
-    >
-      <Ionicons name="person-outline" size={16} color={colors.subtle} />
-      <Text
-        variant="body"
-        numberOfLines={1}
-        style={[styles.previewText, { color: colors.text }]}
-      >
-        {artist.name}
-      </Text>
-      {isInLibrary && (
-        <Text variant="caption" style={{ color: colors.brandStrong }}>
-          In Library
-        </Text>
-      )}
-      <Ionicons name="arrow-forward-outline" size={16} color={colors.subtle} />
-    </Pressable>
-  );
-}
-
-function TagPreviewRow({ tag, onPress }: { tag: string; onPress: () => void }) {
-  const colors = Colors[useColorScheme()];
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.previewRow,
-        { opacity: pressed ? 0.6 : 1 },
-      ]}
-    >
-      <Ionicons name="pricetag-outline" size={16} color={colors.brandStrong} />
-      <Text
-        variant="body"
-        numberOfLines={1}
-        style={[styles.previewText, { color: colors.text }]}
-      >
-        #{tag}
-      </Text>
-      <Ionicons name="arrow-forward-outline" size={16} color={colors.subtle} />
-    </Pressable>
-  );
-}
-
-function RecentSearchRow({
-  query,
-  onPress,
-  onRemove,
-}: {
-  query: string;
-  onPress: () => void;
-  onRemove: () => void;
-}) {
-  const colors = Colors[useColorScheme()];
-  const isTag = query.startsWith("#");
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.previewRow,
-        { opacity: pressed ? 0.6 : 1 },
-      ]}
-    >
-      <Ionicons
-        name={isTag ? "pricetag-outline" : "time-outline"}
-        size={16}
-        color={isTag ? colors.brandStrong : colors.subtle}
-      />
-      <Text
-        variant="body"
-        numberOfLines={1}
-        style={[styles.previewText, { color: colors.text }]}
-      >
-        {query}
-      </Text>
-      <Pressable onPress={onRemove} hitSlop={8}>
-        <Ionicons name="close" size={16} color={colors.subtle} />
-      </Pressable>
-    </Pressable>
-  );
-}
 
 export default function SearchScreen() {
   const navigation = useNavigation();
@@ -152,7 +54,7 @@ export default function SearchScreen() {
       Keyboard.dismiss();
       recentSearches.add(q);
       router.push({
-        pathname: "/(search)/results",
+        pathname: "/results",
         params: { q },
       });
     },
@@ -171,16 +73,11 @@ export default function SearchScreen() {
   const handleArtistPress = useCallback(
     (artist: SearchArtist) => {
       router.push({
-        pathname: "/(search)/artist/[mbid]",
+        pathname: "/artist/[mbid]",
         params: { mbid: artist.id, name: artist.name },
       });
     },
     [router],
-  );
-
-  const handleRecentPress = useCallback(
-    (recent: string) => pushResults(recent),
-    [pushResults],
   );
 
   useEffect(() => {
@@ -216,18 +113,34 @@ export default function SearchScreen() {
     content = (
       <View style={styles.previewSection}>
         {previewTags.map((tag) => (
-          <TagPreviewRow
+          <SearchPreviewRow
             key={`tag-${tag}`}
-            tag={tag}
+            icon="pricetag-outline"
+            iconColor={colors.brandStrong}
+            label={`#${tag}`}
             onPress={() => handleTagSelect(tag)}
           />
         ))}
         {previewArtists.map((artist) => (
-          <ArtistPreviewRow
+          <SearchPreviewRow
             key={artist.id}
-            artist={artist}
-            isInLibrary={isInLibrary(artist.id)}
+            icon="person-outline"
+            label={artist.name}
             onPress={() => handleArtistPress(artist)}
+            trailing={
+              <>
+                {isInLibrary(artist.id) && (
+                  <Text variant="caption" style={{ color: colors.brandStrong }}>
+                    In Library
+                  </Text>
+                )}
+                <Ionicons
+                  name="arrow-forward-outline"
+                  size={16}
+                  color={colors.subtle}
+                />
+              </>
+            }
           />
         ))}
         {((isTagSearch ? tags : artists) ?? []).length > PREVIEW_LIMIT && (
@@ -258,29 +171,12 @@ export default function SearchScreen() {
     );
   } else if (recentSearches.searches.length > 0) {
     content = (
-      <View style={styles.recentSection}>
-        <View style={styles.recentHeader}>
-          <Text
-            variant="caption"
-            style={[styles.recentTitle, { color: colors.subtle }]}
-          >
-            Recent Searches
-          </Text>
-          <Pressable onPress={recentSearches.clear} hitSlop={8}>
-            <Text variant="caption" style={{ color: colors.brand }}>
-              Clear
-            </Text>
-          </Pressable>
-        </View>
-        {recentSearches.searches.map((recent) => (
-          <RecentSearchRow
-            key={recent}
-            query={recent}
-            onPress={() => handleRecentPress(recent)}
-            onRemove={() => recentSearches.remove(recent)}
-          />
-        ))}
-      </View>
+      <RecentSearches
+        searches={recentSearches.searches}
+        onSelect={pushResults}
+        onRemove={recentSearches.remove}
+        onClear={recentSearches.clear}
+      />
     );
   } else {
     content = (
@@ -323,17 +219,6 @@ const styles = StyleSheet.create({
   previewSection: {
     paddingTop: 4,
   },
-  previewRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  previewText: {
-    flex: 1,
-    fontFamily: Fonts.medium,
-  },
   seeAllRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -343,21 +228,5 @@ const styles = StyleSheet.create({
   },
   seeAllText: {
     fontFamily: Fonts.semiBold,
-  },
-  recentSection: {
-    paddingTop: 8,
-  },
-  recentHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 4,
-  },
-  recentTitle: {
-    fontFamily: Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 13,
   },
 });
