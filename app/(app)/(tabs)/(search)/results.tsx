@@ -1,43 +1,42 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
-import { Stack, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { SearchArtistRow } from '@/components/search/SearchArtistRow';
-import { TagArtistRow } from '@/components/search/TagArtistRow';
-import { EmptyState } from '@/components/library/EmptyState';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { Text } from '@/components/ui/Text';
-import { useArtistSearch } from '@/hooks/search/use-artist-search';
-import { useArtistsByTag } from '@/hooks/search/use-artists-by-tag';
-import { useLibraryLookup } from '@/hooks/search/use-library-lookup';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { SearchArtist, TagArtist, TagSearchScope } from '@/lib/types/search';
+import { useCallback, useEffect, useState } from "react";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import {
+  Stack,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
+import { SearchArtistRow } from "@/components/search/SearchArtistRow";
+import { TagArtistRow } from "@/components/search/TagArtistRow";
+import { EmptyState } from "@/components/library/EmptyState";
+import { SkeletonRows } from "@/components/search/SkeletonRows";
+import { Text } from "@/components/ui/Text";
+import { useArtistSearch } from "@/hooks/search/use-artist-search";
+import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
+import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type {
+  SearchArtist,
+  TagArtist,
+  TagSearchScope,
+} from "@/lib/types/search";
 
-const IS_IOS = Platform.OS === 'ios';
+const IS_IOS = Platform.OS === "ios";
 
 const SCOPE_OPTIONS: { key: TagSearchScope; label: string; icon: string }[] = [
-  { key: 'all', label: 'All Artists', icon: 'globe' },
-  { key: 'recommended', label: 'Recommended', icon: 'star' },
+  { key: "all", label: "All Artists", icon: "globe" },
+  { key: "recommended", label: "Recommended", icon: "star" },
 ];
 
-function SkeletonRows() {
-  return (
-    <View style={styles.skeletonContainer}>
-      {Array.from({ length: 8 }).map((_, i) => (
-        <View key={i} style={styles.skeletonRow}>
-          <Skeleton width={48} height={48} borderRadius={24} />
-          <View style={styles.skeletonMeta}>
-            <Skeleton width={180} height={16} borderRadius={4} />
-            <Skeleton width={100} height={12} borderRadius={4} />
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function ScopePills({ scope, onChange }: { scope: TagSearchScope; onChange: (s: TagSearchScope) => void }) {
+function ScopePills({
+  scope,
+  onChange,
+}: {
+  scope: TagSearchScope;
+  onChange: (s: TagSearchScope) => void;
+}) {
   const colors = Colors[useColorScheme()];
 
   return (
@@ -58,7 +57,10 @@ function ScopePills({ scope, onChange }: { scope: TagSearchScope; onChange: (s: 
           >
             <Text
               variant="caption"
-              style={[styles.scopeLabel, { color: active ? colors.brand : colors.subtle }]}
+              style={[
+                styles.scopeLabel,
+                { color: active ? colors.brand : colors.subtle },
+              ]}
             >
               {option.label}
             </Text>
@@ -74,13 +76,15 @@ export default function SearchResultsScreen() {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
 
-  const query = q ?? '';
-  const isTagSearch = query.startsWith('#');
-  const tagQuery = isTagSearch ? query.slice(1).trim() : '';
+  const query = q ?? "";
+  const isTagSearch = query.startsWith("#");
+  const tagQuery = isTagSearch ? query.slice(1).trim() : "";
 
-  const [tagScope, setTagScope] = useState<TagSearchScope>('recommended');
+  const [tagScope, setTagScope] = useState<TagSearchScope>("recommended");
 
-  const { data: artistData, isLoading: artistLoading } = useArtistSearch(isTagSearch ? '' : query);
+  const { data: artistData, isLoading: artistLoading } = useArtistSearch(
+    isTagSearch ? "" : query,
+  );
   const { data: tagData, isLoading: tagLoading } = useArtistsByTag(
     isTagSearch && tagQuery.length >= 2 ? tagQuery : null,
     tagScope,
@@ -93,19 +97,20 @@ export default function SearchResultsScreen() {
   const fullData = isTagSearch ? tagArtists : artists;
   const resultCount = fullData?.length ?? 0;
   const showResults = fullData !== undefined && resultCount > 0;
-  const showNoResults = !isLoading && fullData !== undefined && resultCount === 0;
+  const showNoResults =
+    !isLoading && fullData !== undefined && resultCount === 0;
 
   const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: isTagSearch ? 'Tag Results' : `Results for "${query}"`,
+      headerTitle: isTagSearch ? "Tag Results" : `Results for "${query}"`,
     });
   }, [navigation, isTagSearch, query]);
 
   const handleArtistPress = useCallback(
     (artist: SearchArtist | TagArtist) => {
       router.push({
-        pathname: '/artist/[mbid]' as any,
+        pathname: "/(search)/artist/[mbid]",
         params: { mbid: artist.id, name: artist.name },
       });
     },
@@ -134,22 +139,25 @@ export default function SearchResultsScreen() {
     [isInLibrary, handleArtistPress],
   );
 
-  const scopeLabel = tagScope === 'recommended' ? 'Recommended' : 'All';
+  const scopeLabel = tagScope === "recommended" ? "Recommended" : "All";
   const listHeader = isTagSearch ? (
     <View>
-      <Text variant="caption" style={[styles.subtitle, { color: colors.subtle }]}>
-        {scopeLabel} artists for tag "{tagQuery}"
+      <Text
+        variant="caption"
+        style={[styles.subtitle, { color: colors.subtle }]}
+      >
+        {scopeLabel} artists for tag {`\u201C${tagQuery}\u201D`}
       </Text>
       {!IS_IOS && <ScopePills scope={tagScope} onChange={setTagScope} />}
     </View>
   ) : null;
 
   const emptyComponent = isLoading ? (
-    <SkeletonRows />
+    <SkeletonRows count={8} />
   ) : showNoResults ? (
     <EmptyState
       icon="search-outline"
-      message={`No results found for "${query}"`}
+      message={`No results found for \u201C${query}\u201D`}
     />
   ) : null;
 
@@ -197,7 +205,7 @@ export default function SearchResultsScreen() {
 
 const styles = StyleSheet.create({
   scopeRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -210,19 +218,6 @@ const styles = StyleSheet.create({
   },
   scopeLabel: {
     fontFamily: Fonts.medium,
-  },
-  skeletonContainer: {
-    paddingTop: 8,
-  },
-  skeletonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  skeletonMeta: {
-    gap: 6,
   },
   subtitle: {
     paddingHorizontal: 16,
