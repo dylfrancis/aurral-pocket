@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import {
   Stack,
@@ -17,13 +17,12 @@ import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import type {
   SearchArtist,
   TagArtist,
   TagSearchScope,
 } from "@/lib/types/search";
-
-const IS_IOS = Platform.OS === "ios";
 
 const SCOPE_OPTIONS: { key: TagSearchScope; label: string; icon: string }[] = [
   { key: "all", label: "All Artists", icon: "globe" },
@@ -148,7 +147,7 @@ export default function SearchResultsScreen() {
       >
         {scopeLabel} artists for tag {`\u201C${tagQuery}\u201D`}
       </Text>
-      {!IS_IOS && <ScopePills scope={tagScope} onChange={setTagScope} />}
+      {IS_ANDROID && <ScopePills scope={tagScope} onChange={setTagScope} />}
     </View>
   ) : null;
 
