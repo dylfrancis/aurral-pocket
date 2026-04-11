@@ -1,12 +1,12 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { Chip } from '@/components/ui/Chip';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { TagArtist } from '@/lib/types/search';
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { Chip } from "@/components/ui/Chip";
+import { CoverArtImage } from "@/components/library/CoverArtImage";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type { TagArtist } from "@/lib/types/search";
 
 type TagArtistRowProps = {
   artist: TagArtist;
@@ -31,19 +31,12 @@ export const TagArtistRow = React.memo(function TagArtistRow({
         { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      {artist.image ? (
-        <Image
-          source={{ uri: artist.image }}
-          style={[styles.thumb, { backgroundColor: colors.card }]}
-          contentFit="cover"
-          transition={150}
-          recyclingKey={`tag-${artist.id}`}
-        />
-      ) : (
-        <View style={[styles.thumb, styles.placeholder, { backgroundColor: colors.card }]}>
-          <Ionicons name="person-outline" size={20} color={colors.subtle} />
-        </View>
-      )}
+      <CoverArtImage
+        type="artist"
+        mbid={artist.id}
+        size={THUMB_SIZE}
+        borderRadius={THUMB_SIZE / 2}
+      />
 
       <View style={styles.meta}>
         <Text
@@ -54,8 +47,12 @@ export const TagArtistRow = React.memo(function TagArtistRow({
           {artist.name}
         </Text>
         {artist.tags.length > 0 && (
-          <Text variant="caption" numberOfLines={1} style={{ color: colors.subtle }}>
-            {artist.tags.slice(0, 3).join(' · ')}
+          <Text
+            variant="caption"
+            numberOfLines={1}
+            style={{ color: colors.subtle }}
+          >
+            {artist.tags.slice(0, 3).join(" · ")}
           </Text>
         )}
       </View>
@@ -69,21 +66,12 @@ export const TagArtistRow = React.memo(function TagArtistRow({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
-  },
-  thumb: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: THUMB_SIZE / 2,
-  },
-  placeholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   meta: {
     flex: 1,
