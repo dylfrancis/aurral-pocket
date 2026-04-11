@@ -1,16 +1,26 @@
-import React, { useRef } from 'react';
-import { ActivityIndicator, Platform, RefreshControl, StyleSheet, View } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
-import BottomSheet from '@gorhom/bottom-sheet';
-import { Stack } from 'expo-router';
-import { AlbumSortTrigger, AlbumSortSheet, type AlbumSortMode, type SortOption } from '@/components/library/AlbumSortPicker';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import React, { useRef } from "react";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import BottomSheet from "@gorhom/bottom-sheet";
+import { Stack } from "expo-router";
+import {
+  AlbumSortTrigger,
+  AlbumSortSheet,
+  type AlbumSortMode,
+  type SortOption,
+} from "@/components/library/AlbumSortPicker";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
 const NUM_COLUMNS = 2;
-const IS_IOS = Platform.OS === 'ios';
 
 type ReleaseGridProps<T> = {
   items: T[];
@@ -42,7 +52,16 @@ export function ReleaseGrid<T>({
 
   if (isLoading) {
     return (
-      <View style={[styles.listContent, { flex: 1, justifyContent: 'center', backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.listContent,
+          {
+            flex: 1,
+            justifyContent: "center",
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
         <ActivityIndicator color={colors.brand} />
       </View>
     );
@@ -77,7 +96,10 @@ export function ReleaseGrid<T>({
         ListHeaderComponent={
           IS_IOS ? undefined : (
             <View style={styles.sortRow}>
-              <AlbumSortTrigger selected={sortMode} onPress={() => sortSheetRef.current?.snapToIndex(0)} />
+              <AlbumSortTrigger
+                selected={sortMode}
+                onPress={() => sortSheetRef.current?.snapToIndex(0)}
+              />
             </View>
           )
         }
@@ -91,7 +113,7 @@ export function ReleaseGrid<T>({
         }}
       />
 
-      {!IS_IOS && (
+      {IS_ANDROID && (
         <AlbumSortSheet
           sheetRef={sortSheetRef}
           selected={sortMode}
