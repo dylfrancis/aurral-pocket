@@ -9,7 +9,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest"
+    "test": "jest",
+    "prepare": "husky"
   },
   "jest": {
     "preset": "jest-expo",
@@ -64,6 +65,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "~29.5.14",
     "@types/react": "~19.2.10",
@@ -71,10 +74,21 @@
     "eslint-config-expo": "~55.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
+    "husky": "^9.1.7",
     "jest": "~29.7.0",
     "jest-expo": "~55.0.15",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.2",
     "typescript": "~5.9.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "private": true
 }
