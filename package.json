@@ -15,7 +15,10 @@
     "preset": "jest-expo",
     "setupFiles": [
       "./jest-setup.ts"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^expo-modules-core(|/.*)$": "<rootDir>/node_modules/expo/node_modules/expo-modules-core$1"
+    }
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
