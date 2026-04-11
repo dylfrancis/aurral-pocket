@@ -1,12 +1,10 @@
-import { Platform } from 'react-native';
-import { Stack } from 'expo-router';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
-
-const IS_IOS = Platform.OS === 'ios';
+import { Stack } from "expo-router";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 
 const transparentHeader = IS_IOS
-  ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }
+  ? { headerTransparent: true, headerStyle: { backgroundColor: "transparent" } }
   : {};
 
 export default function LibraryLayout() {
@@ -23,28 +21,28 @@ export default function LibraryLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Library',
+          title: "Library",
           headerLargeTitle: true,
         }}
       />
       <Stack.Screen
         name="artist/[mbid]"
-        options={{ headerTitle: '', headerBackButtonDisplayMode: 'minimal' }}
+        options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
       />
       <Stack.Screen
         name="artist/albums"
         options={({ route }: any) => ({
-          title: route.params?.title ?? 'Albums',
+          title: route.params?.title ?? "Albums",
           headerLargeTitle: true,
-          headerBackButtonDisplayMode: 'minimal',
+          headerBackButtonDisplayMode: "minimal",
         })}
       />
       <Stack.Screen
         name="artist/releases"
         options={({ route }: any) => ({
-          title: route.params?.title ?? 'Releases',
+          title: route.params?.title ?? "Releases",
           headerLargeTitle: true,
-          headerBackButtonDisplayMode: 'minimal',
+          headerBackButtonDisplayMode: "minimal",
         })}
       />
     </Stack>

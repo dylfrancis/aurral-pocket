@@ -24,6 +24,28 @@ export type SimilarArtistsResponse = {
   artists: SimilarArtist[];
 };
 
+export type TagSuggestionsResponse = {
+  tags: string[];
+};
+
+export type TagArtist = {
+  id: string;
+  name: string;
+  sortName: string;
+  type: string;
+  tags: string[];
+  image: string | null;
+};
+
+export type TagSearchScope = 'all' | 'recommended';
+
+export type TagArtistsResponse = {
+  recommendations: TagArtist[];
+  tag: string;
+  total: number;
+  offset: number;
+};
+
 export type MonitorOption =
   | 'none'
   | 'all'
