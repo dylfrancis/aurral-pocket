@@ -1,12 +1,12 @@
-import { Platform } from 'react-native';
-import { Stack } from 'expo-router';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import { Platform } from "react-native";
+import { Stack } from "expo-router";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
 
-const IS_IOS = Platform.OS === 'ios';
+const IS_IOS = Platform.OS === "ios";
 
 const transparentHeader = IS_IOS
-  ? { headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }
+  ? { headerTransparent: true, headerStyle: { backgroundColor: "transparent" } }
   : {};
 
 export default function SearchLayout() {
@@ -23,20 +23,20 @@ export default function SearchLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Search',
+          title: "Search",
           headerLargeTitle: true,
         }}
       />
       <Stack.Screen
         name="results"
-        options={({ route }: any) => ({
-          title: route.params?.q ?? 'Results',
-          headerBackButtonDisplayMode: 'minimal',
+        options={({ route }) => ({
+          title: (route.params as { q?: string })?.q ?? "Results",
+          headerBackButtonDisplayMode: "minimal",
         })}
       />
       <Stack.Screen
         name="artist/[mbid]"
-        options={{ headerTitle: '', headerBackButtonDisplayMode: 'minimal' }}
+        options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
       />
     </Stack>
   );
