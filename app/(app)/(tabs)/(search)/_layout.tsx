@@ -1,9 +1,7 @@
-import { Platform } from "react-native";
 import { Stack } from "expo-router";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
-
-const IS_IOS = Platform.OS === "ios";
+import { IS_IOS } from "@/constants/platform";
 
 const transparentHeader = IS_IOS
   ? { headerTransparent: true, headerStyle: { backgroundColor: "transparent" } }

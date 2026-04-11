@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Keyboard,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,9 +20,8 @@ import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import type { SearchArtist } from "@/lib/types/search";
-
-const IS_IOS = Platform.OS === "ios";
 const PREVIEW_LIMIT = 5;
 
 export default function SearchScreen() {
@@ -194,7 +192,7 @@ export default function SearchScreen() {
       keyboardShouldPersistTaps="handled"
       onScrollBeginDrag={Keyboard.dismiss}
     >
-      {!IS_IOS && (
+      {IS_ANDROID && (
         <View style={styles.androidSearchBar}>
           <SearchBar
             value={query}
