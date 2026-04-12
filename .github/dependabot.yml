@@ -1,0 +1,101 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+
+    groups:
+      # All Expo SDK packages - update together, then run `npx expo install --fix`
+      expo-sdk:
+        patterns:
+          - "expo"
+          - "expo-*"
+          - "jest-expo"
+          - "eslint-config-expo"
+
+      # React core - pinned exact, coupled to RN version
+      react-core:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-native"
+          - "react-native-web"
+          - "react-test-renderer"
+          - "@types/react"
+
+      # Navigation stack - must stay in sync
+      react-navigation:
+        patterns:
+          - "@react-navigation/*"
+          - "react-native-screens"
+          - "react-native-safe-area-context"
+          - "react-native-gesture-handler"
+
+      # Reanimated + Worklets are tightly coupled - never update one without the other
+      reanimated:
+        patterns:
+          - "react-native-reanimated"
+          - "react-native-worklets"
+
+      # Form handling
+      forms:
+        patterns:
+          - "react-hook-form"
+          - "@hookform/resolvers"
+          - "zod"
+
+      # Linting + formatting
+      linting:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "prettier"
+          - "eslint-plugin-*"
+
+      # Commit tooling
+      commitlint:
+        patterns:
+          - "@commitlint/*"
+          - "husky"
+          - "lint-staged"
+
+      # Jest / testing
+      testing:
+        patterns:
+          - "jest"
+          - "@types/jest"
+          - "@testing-library/*"
+
+    ignore:
+      # Expo SDK major bumps require manual `npx expo install --fix` + EAS testing
+      - dependency-name: "expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "expo-*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "jest-expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-expo"
+        update-types: ["version-update:semver-major"]
+      # RN major bumps are Expo SDK upgrades in disguise
+      - dependency-name: "react-native"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-native-reanimated"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-native-worklets"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:30"
+      timezone: "UTC"
+    groups:
+      github-actions:
+        patterns: ["*"]
