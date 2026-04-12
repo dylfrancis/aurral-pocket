@@ -37,7 +37,7 @@
     "expo-asset": "~55.0.14",
     "expo-audio": "~55.0.13",
     "expo-constants": "~55.0.9",
-    "expo-dev-client": "55.0.24",
+    "expo-dev-client": "~55.0.27",
     "expo-font": "~55.0.4",
     "expo-haptics": "~55.0.14",
     "expo-image": "~55.0.8",
