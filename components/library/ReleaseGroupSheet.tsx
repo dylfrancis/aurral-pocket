@@ -1,22 +1,30 @@
-import React, { useCallback, useEffect } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { CoverArtImage } from './CoverArtImage';
-import { getReleaseGroupTracks, addLibraryAlbum, searchDeezerAlbum, type ReleaseGroupTrack } from '@/lib/api/library';
-import { libraryKeys } from '@/lib/query-keys';
-import { useAudioPreview } from '@/hooks/library/use-audio-preview';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import * as Haptics from 'expo-haptics';
-import type { ReleaseGroup } from '@/lib/types/library';
+import React, { useCallback, useEffect } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetScrollView,
+} from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { CoverArtImage } from "./CoverArtImage";
+import {
+  getReleaseGroupTracks,
+  addLibraryAlbum,
+  searchDeezerAlbum,
+  type ReleaseGroupTrack,
+} from "@/lib/api/library";
+import { libraryKeys } from "@/lib/query-keys";
+import { useAudioPreview } from "@/hooks/library/use-audio-preview";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import * as Haptics from "expo-haptics";
+import type { ReleaseGroup } from "@/lib/types/library";
 
 type ReleaseGroupSheetProps = {
   releaseGroup: ReleaseGroup | null;
-  artistId: string;
+  artistId?: string;
   artistName: string;
   sheetRef: React.RefObject<BottomSheet | null>;
 };
@@ -26,16 +34,21 @@ function formatDuration(ms: number | null) {
   const totalSeconds = Math.round(ms / 1000);
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function ReleaseGroupSheet({ releaseGroup, artistId, artistName, sheetRef }: ReleaseGroupSheetProps) {
+export function ReleaseGroupSheet({
+  releaseGroup,
+  artistId,
+  artistName,
+  sheetRef,
+}: ReleaseGroupSheetProps) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
   const { data: tracks, isLoading } = useQuery({
-    queryKey: libraryKeys.releaseGroupTracks(releaseGroup?.id ?? ''),
+    queryKey: libraryKeys.releaseGroupTracks(releaseGroup?.id ?? ""),
     queryFn: async () => {
       const deezerId = await searchDeezerAlbum(artistName, releaseGroup!.title);
       return getReleaseGroupTracks(releaseGroup!.id, deezerId ?? undefined);
@@ -46,15 +59,24 @@ export function ReleaseGroupSheet({ releaseGroup, artistId, artistName, sheetRef
 
   const addMutation = useMutation({
     mutationFn: () =>
-      addLibraryAlbum(artistId, releaseGroup!.id, releaseGroup!.title),
+      addLibraryAlbum(artistId!, releaseGroup!.id, releaseGroup!.title),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: libraryKeys.albums(artistId) });
+      if (artistId) {
+        queryClient.invalidateQueries({
+          queryKey: libraryKeys.albums(artistId),
+        });
+      }
       sheetRef.current?.close();
     },
   });
 
   // Preview player
-  const { playingId, progress, toggle: toggleAudio, stop: stopPreview } = useAudioPreview();
+  const {
+    playingId,
+    progress,
+    toggle: toggleAudio,
+    stop: stopPreview,
+  } = useAudioPreview();
 
   // Stop audio when switching to a different release group
   useEffect(() => {
@@ -79,19 +101,24 @@ export function ReleaseGroupSheet({ releaseGroup, artistId, artistName, sheetRef
     [stopPreview],
   );
 
-  const year = releaseGroup?.['first-release-date']
-    ? new Date(releaseGroup['first-release-date']).getFullYear()
+  const year = releaseGroup?.["first-release-date"]
+    ? new Date(releaseGroup["first-release-date"]).getFullYear()
     : null;
 
-  const type = releaseGroup?.['primary-type'] ?? 'Album';
-  const secondary = releaseGroup?.['secondary-types'];
-  const typeLabel = secondary && secondary.length > 0
-    ? `${type} · ${secondary.join(', ')}`
-    : type;
+  const type = releaseGroup?.["primary-type"] ?? "Album";
+  const secondary = releaseGroup?.["secondary-types"];
+  const typeLabel =
+    secondary && secondary.length > 0
+      ? `${type} · ${secondary.join(", ")}`
+      : type;
 
   const renderBackdrop = useCallback(
     (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
     ),
     [],
   );
@@ -100,7 +127,7 @@ export function ReleaseGroupSheet({ releaseGroup, artistId, artistName, sheetRef
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      snapPoints={['60%', '90%']}
+      snapPoints={["60%", "90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
       onChange={handleSheetChange}
@@ -108,11 +135,18 @@ export function ReleaseGroupSheet({ releaseGroup, artistId, artistName, sheetRef
       backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
-      <BottomSheetScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
+      <BottomSheetScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+      >
         {releaseGroup && (
           <>
             <View style={styles.header}>
-              <CoverArtImage type="album" mbid={releaseGroup.id} size={120} borderRadius={10} />
+              <CoverArtImage
+                type="album"
+                mbid={releaseGroup.id}
+                size={120}
+                borderRadius={10}
+              />
               <View style={styles.headerMeta}>
                 <Text variant="title" style={styles.albumName}>
                   {releaseGroup.title}
@@ -120,32 +154,46 @@ export function ReleaseGroupSheet({ releaseGroup, artistId, artistName, sheetRef
                 <Text variant="caption">
                   {[year, typeLabel, tracks ? `${tracks.length} tracks` : null]
                     .filter(Boolean)
-                    .join(' · ')}
+                    .join(" · ")}
                 </Text>
               </View>
             </View>
 
-            <View style={[styles.actions, { borderColor: colors.separator }]}>
-              <Pressable
-                style={({ pressed }) => [styles.addButton, { backgroundColor: colors.brand, opacity: pressed ? 0.8 : 1 }]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); addMutation.mutate(); }}
-                disabled={addMutation.isPending}
-              >
-                {addMutation.isPending ? (
-                  <ActivityIndicator size={18} color="#fff" />
-                ) : addMutation.isSuccess ? (
-                  <Ionicons name="checkmark" size={18} color="#fff" />
-                ) : (
-                  <Ionicons name="add" size={18} color="#fff" />
-                )}
-                <Text variant="body" style={styles.addButtonText}>
-                  {addMutation.isSuccess ? 'Added' : 'Add to Library'}
-                </Text>
-              </Pressable>
-            </View>
+            {artistId && (
+              <View style={[styles.actions, { borderColor: colors.separator }]}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.addButton,
+                    {
+                      backgroundColor: colors.brand,
+                      opacity: pressed ? 0.8 : 1,
+                    },
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    addMutation.mutate();
+                  }}
+                  disabled={addMutation.isPending}
+                >
+                  {addMutation.isPending ? (
+                    <ActivityIndicator size={18} color="#fff" />
+                  ) : addMutation.isSuccess ? (
+                    <Ionicons name="checkmark" size={18} color="#fff" />
+                  ) : (
+                    <Ionicons name="add" size={18} color="#fff" />
+                  )}
+                  <Text variant="body" style={styles.addButtonText}>
+                    {addMutation.isSuccess ? "Added" : "Add to Library"}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
 
             <View style={styles.trackSection}>
-              <Text variant="subtitle" style={[styles.trackHeader, { color: colors.text }]}>
+              <Text
+                variant="subtitle"
+                style={[styles.trackHeader, { color: colors.text }]}
+              >
                 Tracks
               </Text>
               {isLoading ? (
@@ -205,13 +253,16 @@ const ReleaseGroupTrackRow = React.memo(function ReleaseGroupTrackRow({
           onPress={onToggle}
           style={({ pressed }) => [
             styles.playButton,
-            { backgroundColor: isPlaying ? colors.brand : colors.separator, opacity: pressed ? 0.7 : 1 },
+            {
+              backgroundColor: isPlaying ? colors.brand : colors.separator,
+              opacity: pressed ? 0.7 : 1,
+            },
           ]}
         >
           <Ionicons
-            name={isPlaying ? 'pause' : 'play'}
+            name={isPlaying ? "pause" : "play"}
             size={12}
-            color={isPlaying ? '#fff' : colors.text}
+            color={isPlaying ? "#fff" : colors.text}
             style={isPlaying ? undefined : styles.playIcon}
           />
         </Pressable>
@@ -225,7 +276,9 @@ const ReleaseGroupTrackRow = React.memo(function ReleaseGroupTrackRow({
           {track.title}
         </Text>
         {isPlaying && (
-          <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
+          <View
+            style={[styles.progressBar, { backgroundColor: colors.separator }]}
+          >
             <View
               style={[
                 styles.progressFill,
@@ -246,15 +299,15 @@ const ReleaseGroupTrackRow = React.memo(function ReleaseGroupTrackRow({
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 16,
     gap: 16,
   },
   headerMeta: {
     flex: 1,
     gap: 6,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
+    justifyContent: "center",
+    alignItems: "flex-start",
   },
   albumName: {
     fontSize: 20,
@@ -268,15 +321,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     paddingVertical: 12,
     borderRadius: 10,
   },
   addButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontFamily: Fonts.semiBold,
   },
   trackSection: {
@@ -289,8 +342,8 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -300,15 +353,15 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   playIcon: {
     marginLeft: 1,
   },
   number: {
     width: 26,
-    textAlign: 'center',
+    textAlign: "center",
     fontFamily: Fonts.medium,
   },
   trackMeta: {
@@ -322,17 +375,17 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 1,
     marginTop: 2,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   progressFill: {
-    height: '100%',
+    height: "100%",
     borderRadius: 1,
   },
   loader: {
     paddingVertical: 32,
   },
   emptyText: {
-    textAlign: 'center',
+    textAlign: "center",
     paddingVertical: 32,
   },
 });
