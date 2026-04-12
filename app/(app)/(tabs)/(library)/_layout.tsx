@@ -22,7 +22,7 @@ export default function LibraryLayout() {
         name="index"
         options={{
           title: "Library",
-          headerLargeTitle: true,
+          headerLargeTitleEnabled: true,
         }}
       />
       <Stack.Screen
@@ -33,7 +33,7 @@ export default function LibraryLayout() {
         name="artist/albums"
         options={({ route }: any) => ({
           title: route.params?.title ?? "Albums",
-          headerLargeTitle: true,
+          headerLargeTitleEnabled: true,
           headerBackButtonDisplayMode: "minimal",
         })}
       />
@@ -41,7 +41,7 @@ export default function LibraryLayout() {
         name="artist/releases"
         options={({ route }: any) => ({
           title: route.params?.title ?? "Releases",
-          headerLargeTitle: true,
+          headerLargeTitleEnabled: true,
           headerBackButtonDisplayMode: "minimal",
         })}
       />

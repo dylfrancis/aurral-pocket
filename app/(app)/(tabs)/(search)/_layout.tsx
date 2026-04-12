@@ -22,7 +22,7 @@ export default function SearchLayout() {
         name="index"
         options={{
           title: "Search",
-          headerLargeTitle: true,
+          headerLargeTitleEnabled: true,
         }}
       />
       <Stack.Screen
@@ -35,6 +35,13 @@ export default function SearchLayout() {
       <Stack.Screen
         name="artist/[mbid]"
         options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
+      />
+      <Stack.Screen
+        name="artist/releases"
+        options={({ route }) => ({
+          title: (route.params as { title?: string })?.title ?? "Releases",
+          headerBackButtonDisplayMode: "minimal",
+        })}
       />
     </Stack>
   );
