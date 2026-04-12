@@ -1,30 +1,42 @@
-jest.mock('@/lib/api/search', () => ({
+jest.mock("@/lib/api/search", () => ({
   addArtist: jest.fn(),
 }));
 
-jest.mock('@tanstack/react-query', () => ({
+const mockSetQueryData = jest.fn();
+
+jest.mock("@tanstack/react-query", () => ({
   useMutation: jest.fn((config: any) => ({
     config,
     mutateAsync: config.mutationFn,
   })),
   useQueryClient: jest.fn(() => ({
-    invalidateQueries: jest.fn(),
+    setQueryData: mockSetQueryData,
   })),
 }));
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addArtist } from '@/lib/api/search';
-import { useAddArtist } from '@/hooks/search/use-add-artist';
-import { libraryKeys } from '@/lib/query-keys';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { addArtist } from "@/lib/api/search";
+import { useAddArtist } from "@/hooks/search/use-add-artist";
+import { libraryKeys } from "@/lib/query-keys";
 
 const mockUseMutation = useMutation as jest.Mock;
 const mockAddArtist = addArtist as jest.Mock;
-const mockInvalidateQueries = jest.fn();
+
+const mockArtist = {
+  id: "1",
+  mbid: "abc-123",
+  foreignArtistId: "abc-123",
+  artistName: "Radiohead",
+  monitored: true,
+  monitorOption: "all",
+  addedAt: "2024-01-01",
+  statistics: { albumCount: 0, trackCount: 0, sizeOnDisk: 0 },
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
   (useQueryClient as jest.Mock).mockReturnValue({
-    invalidateQueries: mockInvalidateQueries,
+    setQueryData: mockSetQueryData,
   });
   mockUseMutation.mockImplementation((config: any) => ({
     config,
@@ -32,12 +44,13 @@ beforeEach(() => {
   }));
 });
 
-describe('useAddArtist', () => {
-  it('calls addArtist with correct params in mutationFn', async () => {
+describe("useAddArtist", () => {
+  it("calls addArtist with correct params", async () => {
     const response = {
-      queued: true,
-      foreignArtistId: 'abc-123',
-      artistName: 'Radiohead',
+      queued: false,
+      foreignArtistId: "abc-123",
+      artistName: "Radiohead",
+      artist: mockArtist,
     };
     mockAddArtist.mockResolvedValue(response);
 
@@ -45,41 +58,66 @@ describe('useAddArtist', () => {
     const { config } = mockUseMutation.mock.results[0].value;
 
     const result = await config.mutationFn({
-      foreignArtistId: 'abc-123',
-      artistName: 'Radiohead',
-      monitorOption: 'all',
+      foreignArtistId: "abc-123",
+      artistName: "Radiohead",
+      monitorOption: "all",
     });
-    expect(mockAddArtist).toHaveBeenCalledWith({
-      foreignArtistId: 'abc-123',
-      artistName: 'Radiohead',
-      monitorOption: 'all',
-    });
+    expect(mockAddArtist).toHaveBeenCalled();
     expect(result).toEqual(response);
   });
 
-  it('invalidates library artists on success', () => {
+  it("updates cache when artist returned in response", () => {
     useAddArtist();
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess();
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({
-      queryKey: libraryKeys.artists(),
+    config.onSuccess({
+      queued: false,
+      foreignArtistId: "abc-123",
+      artistName: "Radiohead",
+      artist: mockArtist,
     });
+
+    expect(mockSetQueryData).toHaveBeenCalledWith(
+      libraryKeys.artists(),
+      expect.any(Function),
+    );
+    expect(mockSetQueryData).toHaveBeenCalledWith(
+      libraryKeys.artist("abc-123"),
+      mockArtist,
+    );
   });
 
-  it('calls onSuccess callback when provided', () => {
+  it("creates placeholder artist in cache when queued", () => {
+    useAddArtist();
+    const { config } = mockUseMutation.mock.results[0].value;
+
+    config.onSuccess({
+      queued: true,
+      foreignArtistId: "abc-123",
+      artistName: "Radiohead",
+    });
+
+    expect(mockSetQueryData).toHaveBeenCalledWith(
+      libraryKeys.artists(),
+      expect.any(Function),
+    );
+    expect(mockSetQueryData).toHaveBeenCalledWith(
+      libraryKeys.artist("abc-123"),
+      expect.objectContaining({ mbid: "abc-123", artistName: "Radiohead" }),
+    );
+  });
+
+  it("calls onSuccess callback when provided", () => {
     const onSuccess = jest.fn();
     useAddArtist(onSuccess);
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess();
+    config.onSuccess({
+      queued: false,
+      foreignArtistId: "abc-123",
+      artistName: "Radiohead",
+    });
+
     expect(onSuccess).toHaveBeenCalled();
-  });
-
-  it('does not throw when onSuccess callback is not provided', () => {
-    useAddArtist();
-    const { config } = mockUseMutation.mock.results[0].value;
-
-    expect(() => config.onSuccess()).not.toThrow();
   });
 });

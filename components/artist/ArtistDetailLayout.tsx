@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -103,7 +103,7 @@ export function ArtistDetailLayout({
 
   const { isInLibrary } = useLibraryLookup();
   const inLibrary = isInLibrary(mbid);
-  const { data: libraryArtist } = useLibraryArtist(
+  const { data: libraryArtist, refetch: refetchArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,
   );
   const {
@@ -117,6 +117,33 @@ export function ArtistDetailLayout({
     rawAlbums,
   );
   const { data: downloadStatuses } = useDownloadStatuses(rawAlbums);
+
+  // Poll after adding artist — backend processes asynchronously
+  // First polls for the real artist (to get internal id), then for albums
+  const pollCount = useRef(0);
+  useEffect(() => {
+    if (!inLibrary) return;
+    const hasRealId = libraryArtist?.id && libraryArtist.id !== "";
+    const hasAlbums = rawAlbums && rawAlbums.length > 0;
+    if (hasRealId && hasAlbums) {
+      pollCount.current = 0;
+      return;
+    }
+    if (pollCount.current >= 12) return;
+    const interval = setInterval(() => {
+      pollCount.current += 1;
+      if (pollCount.current >= 12) {
+        clearInterval(interval);
+        return;
+      }
+      if (!hasRealId) {
+        void refetchArtist();
+      } else {
+        void refetchAlbums();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [inLibrary, libraryArtist?.id, rawAlbums, refetchArtist, refetchAlbums]);
 
   const { stop: stopPreview, ...preview } = usePreviewPlayer(mbid, artistName);
   const { data: details } = useArtistDetails(mbid);

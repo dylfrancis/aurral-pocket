@@ -69,6 +69,7 @@ export function ArtistHero({
         style={styles.gradient}
       />
       <View style={styles.foreground}>
+        <View style={styles.spacer} />
         <CoverArtImage
           type="artist"
           mbid={artist.mbid}
@@ -102,7 +103,7 @@ export function ArtistHero({
 const styles = StyleSheet.create({
   container: {
     width: SCREEN_WIDTH,
-    aspectRatio: 1,
+    minHeight: SCREEN_WIDTH,
     position: "relative",
   },
   background: {
@@ -115,14 +116,15 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
+    height: SCREEN_WIDTH,
   },
   foreground: {
-    flex: 1,
-    justifyContent: "flex-end",
     alignItems: "center",
     paddingBottom: 24,
     gap: 8,
+  },
+  spacer: {
+    height: SCREEN_WIDTH - 300,
   },
   refreshIndicator: {
     position: "absolute",
