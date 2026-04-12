@@ -66,14 +66,16 @@ beforeEach(() => {
 
 describe("ArtistHero", () => {
   it("renders artist name", () => {
-    const { getByText } = render(<ArtistHero artist={baseArtist} />);
+    const { getByText } = render(
+      <ArtistHero artist={baseArtist} inLibrary={false} />,
+    );
     expect(getByText("Test Artist")).toBeTruthy();
   });
 
-  it("renders library badge when onBadgePress provided", () => {
+  it("renders library badge when inLibrary", () => {
     const onPress = jest.fn();
     const { getByText } = render(
-      <ArtistHero artist={baseArtist} onBadgePress={onPress} />,
+      <ArtistHero artist={baseArtist} inLibrary onBadgePress={onPress} />,
     );
     expect(getByText("In Your Library")).toBeTruthy();
   });
@@ -81,20 +83,34 @@ describe("ArtistHero", () => {
   it("calls onBadgePress when badge is tapped", () => {
     const onPress = jest.fn();
     const { getByText } = render(
-      <ArtistHero artist={baseArtist} onBadgePress={onPress} />,
+      <ArtistHero artist={baseArtist} inLibrary onBadgePress={onPress} />,
     );
     fireEvent.press(getByText("In Your Library"));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it("does not render badge when onBadgePress not provided", () => {
-    const { queryByText } = render(<ArtistHero artist={baseArtist} />);
+  it("renders add button when not in library", () => {
+    const onAdd = jest.fn();
+    const { getByText } = render(
+      <ArtistHero artist={baseArtist} inLibrary={false} onAddPress={onAdd} />,
+    );
+    expect(getByText("Add to Library")).toBeTruthy();
+  });
+
+  it("does not render badge or add button without callbacks", () => {
+    const { queryByText } = render(
+      <ArtistHero artist={baseArtist} inLibrary={false} />,
+    );
     expect(queryByText("In Your Library")).toBeNull();
+    expect(queryByText("Add to Library")).toBeNull();
   });
 
   it("renders with minimal artist props (mbid + artistName only)", () => {
     const { getByText } = render(
-      <ArtistHero artist={{ mbid: "xyz-456", artistName: "Minimal Artist" }} />,
+      <ArtistHero
+        artist={{ mbid: "xyz-456", artistName: "Minimal Artist" }}
+        inLibrary={false}
+      />,
     );
     expect(getByText("Minimal Artist")).toBeTruthy();
   });

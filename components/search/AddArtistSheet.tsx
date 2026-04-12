@@ -82,7 +82,7 @@ export function AddArtistSheet({
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      snapPoints={["55%"]}
+      snapPoints={["85%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
       backdropComponent={renderBackdrop}
