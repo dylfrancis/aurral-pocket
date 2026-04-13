@@ -5,11 +5,18 @@ import { Text } from "@/components/ui/Text";
 import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import type { RecentSearch } from "@/hooks/search/use-recent-searches";
+
+const ICONS: Record<RecentSearch["type"], keyof typeof Ionicons.glyphMap> = {
+  query: "time-outline",
+  artist: "person-outline",
+  tag: "pricetag-outline",
+};
 
 type RecentSearchesProps = {
-  searches: string[];
-  onSelect: (query: string) => void;
-  onRemove: (query: string) => void;
+  searches: RecentSearch[];
+  onSelect: (entry: RecentSearch) => void;
+  onRemove: (entry: RecentSearch) => void;
   onClear: () => void;
 };
 
@@ -38,17 +45,19 @@ export function RecentSearches({
           </Text>
         </Pressable>
       </View>
-      {searches.map((query) => {
-        const isTag = query.startsWith("#");
+      {searches.map((entry, i) => {
+        const label = entry.type === "tag" ? `#${entry.text}` : entry.text;
         return (
           <SearchPreviewRow
-            key={query}
-            icon={isTag ? "pricetag-outline" : "time-outline"}
-            iconColor={isTag ? colors.brandStrong : colors.subtle}
-            label={query}
-            onPress={() => onSelect(query)}
+            key={`${entry.type}-${entry.type === "artist" ? entry.mbid : entry.text}-${i}`}
+            icon={ICONS[entry.type]}
+            iconColor={
+              entry.type === "query" ? colors.subtle : colors.brandStrong
+            }
+            label={label}
+            onPress={() => onSelect(entry)}
             trailing={
-              <Pressable onPress={() => onRemove(query)} hitSlop={8}>
+              <Pressable onPress={() => onRemove(entry)} hitSlop={8}>
                 <Ionicons name="close" size={16} color={colors.subtle} />
               </Pressable>
             }
