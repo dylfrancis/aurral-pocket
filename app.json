@@ -20,7 +20,8 @@
         "backgroundColor": "#050505",
         "foregroundImage": "./assets/images/aurral-logo.png"
       },
-      "package": "com.aurral.aurralpocket"
+      "package": "com.aurral.aurralpocket",
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "output": "static",

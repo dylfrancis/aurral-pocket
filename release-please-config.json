@@ -1,7 +1,14 @@
 {
   "packages": {
     ".": {
-      "release-type": "node"
+      "release-type": "node",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "app.json",
+          "jsonpath": "$.expo.version"
+        }
+      ]
     }
   }
 }
