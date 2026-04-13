@@ -1,5 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { PreviewTrackRow } from "@/components/library/PreviewTrackRow";
+import { TopTracksSkeleton } from "@/components/artist/TopTracksSkeleton";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -8,6 +9,7 @@ import type { PreviewTrack } from "@/lib/types/library";
 
 type TopTracksSectionProps = {
   tracks: PreviewTrack[];
+  isLoading?: boolean;
   playingId: string | null;
   progress: number;
   onToggle: (track: PreviewTrack) => void;
@@ -15,11 +17,26 @@ type TopTracksSectionProps = {
 
 export function TopTracksSection({
   tracks,
+  isLoading,
   playingId,
   progress,
   onToggle,
 }: TopTracksSectionProps) {
   const colors = Colors[useColorScheme()];
+
+  if (isLoading && tracks.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text
+          variant="caption"
+          style={[styles.label, { color: colors.subtle }]}
+        >
+          Top Tracks
+        </Text>
+        <TopTracksSkeleton />
+      </View>
+    );
+  }
 
   if (tracks.length === 0) return null;
 
