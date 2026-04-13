@@ -2,13 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
-  Linking,
-  Pressable,
   RefreshControl,
   StyleSheet,
-  type TextLayoutEvent,
   View,
+  Pressable,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -20,14 +17,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
-import { PreviewTrackRow } from "@/components/library/PreviewTrackRow";
-import { ReleaseGroupCard } from "@/components/library/ReleaseGroupCard";
 import { ReleaseGroupSheet } from "@/components/library/ReleaseGroupSheet";
-import { AlbumCard } from "@/components/library/AlbumCard";
 import { AlbumSheet } from "@/components/library/AlbumSheet";
-import { EmptyState } from "@/components/library/EmptyState";
-import { SimilarArtistCard } from "@/components/search/SimilarArtistCard";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
+import { TopTracksSection } from "@/components/artist/TopTracksSection";
+import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
+import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
+import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
+import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
 import { Text } from "@/components/ui/Text";
 import {
   getArtistReleaseGroups,
@@ -53,14 +50,6 @@ import type {
 } from "@/lib/types/library";
 import type { SimilarArtist } from "@/lib/types/search";
 
-const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
-  { type: "Album", label: "Albums" },
-  { type: "EP", label: "EPs" },
-  { type: "Single", label: "Singles" },
-];
-
-const MAX_VISIBLE = 10;
-
 function sortByDate(albums: Album[]): Album[] {
   return albums.slice().sort((a, b) => {
     if (!a.releaseDate) return 1;
@@ -81,6 +70,12 @@ function sortReleaseGroupsByDate(rgs: ReleaseGroup[]): ReleaseGroup[] {
     );
   });
 }
+
+const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
+  { type: "Album", label: "Albums" },
+  { type: "EP", label: "EPs" },
+  { type: "Single", label: "Singles" },
+];
 
 type ArtistDetailLayoutProps = {
   mbid: string;
@@ -118,8 +113,6 @@ export function ArtistDetailLayout({
   );
   const { data: downloadStatuses } = useDownloadStatuses(rawAlbums);
 
-  // Poll after adding artist — backend processes asynchronously
-  // First polls for the real artist (to get internal id), then for albums
   const pollCount = useRef(0);
   useEffect(() => {
     if (!inLibrary) return;
@@ -273,12 +266,6 @@ export function ArtistDetailLayout({
     [stopPreview, onSimilarArtistPress],
   );
 
-  const [bioExpanded, setBioExpanded] = useState(false);
-  const [bioTruncated, setBioTruncated] = useState(false);
-  const onBioTextLayout = useCallback((e: TextLayoutEvent) => {
-    setBioTruncated(e.nativeEvent.lines.length >= 4);
-  }, []);
-
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -316,331 +303,43 @@ export function ArtistDetailLayout({
 
         <ArtistTags mbid={mbid} />
 
-        {/* Top Tracks */}
-        {preview.tracks && preview.tracks.length > 0 && (
-          <View style={styles.section}>
-            <Text
-              variant="caption"
-              style={[styles.sectionLabel, { color: colors.subtle }]}
-            >
-              Top Tracks
-            </Text>
-            {preview.tracks.map((track) => (
-              <PreviewTrackRow
-                key={track.id}
-                track={track}
-                isPlaying={preview.playingId === track.id}
-                progress={preview.playingId === track.id ? preview.progress : 0}
-                onToggle={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  void preview.toggle(track);
-                }}
-              />
-            ))}
-          </View>
-        )}
+        <TopTracksSection
+          tracks={preview.tracks ?? []}
+          playingId={preview.playingId}
+          progress={preview.progress}
+          onToggle={preview.toggle}
+        />
 
-        {/* In Your Library (library artists only) */}
         {inLibrary && (
-          <View style={styles.albumsSection}>
-            {albumsLoading || isLoadingTypes ? (
-              <ActivityIndicator style={styles.loader} color={colors.brand} />
-            ) : albumsError ? (
-              <EmptyState
-                icon="cloud-offline-outline"
-                message="Failed to load albums"
-                actionLabel="Try Again"
-                onAction={() => refetchAlbums()}
-              />
-            ) : groupedLibraryAlbums && groupedLibraryAlbums.size > 0 ? (
-              <>
-                <Text
-                  variant="caption"
-                  style={[
-                    styles.sectionLabel,
-                    styles.sectionLabelPadded,
-                    { color: colors.subtle },
-                  ]}
-                >
-                  In Your Library
-                </Text>
-                {CATEGORIES.map(({ type, label }) => {
-                  const list = groupedLibraryAlbums.get(type);
-                  if (!list || list.length === 0) return null;
-                  const visible = list.slice(0, MAX_VISIBLE);
-                  const hasMore = list.length > MAX_VISIBLE;
-                  return (
-                    <View key={type} style={styles.categorySection}>
-                      <Pressable
-                        onPress={
-                          onNavigateToAlbums
-                            ? () => onNavigateToAlbums(type, label)
-                            : undefined
-                        }
-                        disabled={!onNavigateToAlbums}
-                        style={({ pressed }) => [
-                          styles.categoryHeader,
-                          { opacity: pressed ? 0.6 : 1 },
-                        ]}
-                      >
-                        <Text
-                          variant="subtitle"
-                          style={[styles.categoryTitle, { color: colors.text }]}
-                        >
-                          {label}
-                          <Text
-                            variant="caption"
-                            style={{ color: colors.subtle }}
-                          >
-                            {"  "}
-                            {list.length}
-                          </Text>
-                        </Text>
-                        {onNavigateToAlbums && (
-                          <Ionicons
-                            name="chevron-forward"
-                            size={16}
-                            color={colors.subtle}
-                            style={{ marginLeft: 4 }}
-                          />
-                        )}
-                      </Pressable>
-                      <FlatList
-                        horizontal
-                        data={visible}
-                        keyExtractor={(album) => album.id}
-                        renderItem={({ item }) => (
-                          <AlbumCard
-                            album={item}
-                            onPress={() => openAlbum(item)}
-                            downloadStatus={downloadStatuses?.[item.id]?.status}
-                          />
-                        )}
-                        ListFooterComponent={
-                          hasMore && onNavigateToAlbums
-                            ? () => (
-                                <Pressable
-                                  onPress={() =>
-                                    onNavigateToAlbums(type, label)
-                                  }
-                                  style={({ pressed }) => [
-                                    styles.viewAllCard,
-                                    {
-                                      backgroundColor: colors.card,
-                                      opacity: pressed ? 0.7 : 1,
-                                    },
-                                  ]}
-                                >
-                                  <Ionicons
-                                    name="grid-outline"
-                                    size={24}
-                                    color={colors.brand}
-                                  />
-                                  <Text
-                                    variant="caption"
-                                    style={{ color: colors.brand }}
-                                  >
-                                    View All
-                                  </Text>
-                                </Pressable>
-                              )
-                            : undefined
-                        }
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.albumList}
-                      />
-                    </View>
-                  );
-                })}
-              </>
-            ) : (
-              <EmptyState icon="disc-outline" message="No albums in library" />
-            )}
-          </View>
+          <LibraryAlbumsSection
+            grouped={groupedLibraryAlbums}
+            isLoading={albumsLoading || isLoadingTypes}
+            error={albumsError}
+            downloadStatuses={downloadStatuses}
+            onAlbumPress={openAlbum}
+            onNavigate={onNavigateToAlbums}
+            onRetry={() => refetchAlbums()}
+          />
         )}
 
-        {/* Albums & Releases */}
-        {groupedReleases && groupedReleases.size > 0 && (
-          <View style={styles.albumsSection}>
-            <Text
-              variant="caption"
-              style={[
-                styles.sectionLabel,
-                styles.sectionLabelPadded,
-                { color: colors.subtle },
-              ]}
-            >
-              Albums & Releases
-            </Text>
-            {CATEGORIES.map(({ type, label }) => {
-              const list = groupedReleases.get(type);
-              if (!list || list.length === 0) return null;
-              const visible = list.slice(0, MAX_VISIBLE);
-              const hasMore = list.length > MAX_VISIBLE;
-              return (
-                <View key={`rg-${type}`} style={styles.categorySection}>
-                  <Pressable
-                    onPress={() => onNavigateToReleases(type, label)}
-                    style={({ pressed }) => [
-                      styles.categoryHeader,
-                      { opacity: pressed ? 0.6 : 1 },
-                    ]}
-                  >
-                    <Text
-                      variant="subtitle"
-                      style={[styles.categoryTitle, { color: colors.text }]}
-                    >
-                      {label}
-                      <Text variant="caption" style={{ color: colors.subtle }}>
-                        {"  "}
-                        {list.length}
-                      </Text>
-                    </Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={16}
-                      color={colors.subtle}
-                      style={{ marginLeft: 4 }}
-                    />
-                  </Pressable>
-                  <FlatList
-                    horizontal
-                    data={visible}
-                    keyExtractor={(rg) => rg.id}
-                    renderItem={({ item }) => (
-                      <ReleaseGroupCard
-                        releaseGroup={item}
-                        onPress={() => openReleaseGroup(item)}
-                      />
-                    )}
-                    ListFooterComponent={
-                      hasMore
-                        ? () => (
-                            <Pressable
-                              onPress={() => onNavigateToReleases(type, label)}
-                              style={({ pressed }) => [
-                                styles.viewAllCard,
-                                {
-                                  backgroundColor: colors.card,
-                                  opacity: pressed ? 0.7 : 1,
-                                },
-                              ]}
-                            >
-                              <Ionicons
-                                name="grid-outline"
-                                size={24}
-                                color={colors.brand}
-                              />
-                              <Text
-                                variant="caption"
-                                style={{ color: colors.brand }}
-                              >
-                                View All
-                              </Text>
-                            </Pressable>
-                          )
-                        : undefined
-                    }
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.albumList}
-                  />
-                </View>
-              );
-            })}
-          </View>
-        )}
+        <ReleaseGroupsSection
+          grouped={groupedReleases}
+          onPress={openReleaseGroup}
+          onNavigate={onNavigateToReleases}
+        />
 
-        {/* Similar Artists */}
-        {similarArtists && similarArtists.length > 0 && (
-          <View style={styles.similarSection}>
-            <Text
-              variant="caption"
-              style={[
-                styles.sectionLabel,
-                { color: colors.subtle, paddingHorizontal: 16 },
-              ]}
-            >
-              Similar Artists
-            </Text>
-            <FlatList
-              horizontal
-              data={similarArtists}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <SimilarArtistCard
-                  artist={item}
-                  isInLibrary={isInLibrary(item.id)}
-                  onPress={() => handleSimilarPress(item)}
-                />
-              )}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.similarList}
-            />
-          </View>
-        )}
+        <SimilarArtistsSection
+          artists={similarArtists ?? []}
+          isInLibrary={isInLibrary}
+          onPress={handleSimilarPress}
+        />
 
-        {/* Bio */}
-        {details?.bio && (
-          <View style={styles.bioSection}>
-            <Text
-              variant="caption"
-              style={[styles.sectionLabel, { color: colors.subtle }]}
-            >
-              About
-            </Text>
-            <Text
-              variant="caption"
-              style={styles.bio}
-              numberOfLines={bioExpanded ? undefined : 4}
-              onTextLayout={onBioTextLayout}
-            >
-              {details.bio}
-            </Text>
-            {(bioTruncated || bioExpanded) && (
-              <Pressable onPress={() => setBioExpanded((prev) => !prev)}>
-                <Text variant="caption" style={{ color: colors.brand }}>
-                  {bioExpanded ? "Show less" : "Show more"}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
+        <ArtistBioSection
+          bio={details?.bio}
+          artistName={artistName}
+          mbid={mbid}
+        />
 
-        {/* External Links */}
-        <View style={styles.links}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.linkButton,
-              { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-            ]}
-            onPress={() =>
-              Linking.openURL(
-                `https://www.last.fm/music/${encodeURIComponent(artistName)}`,
-              )
-            }
-          >
-            <Ionicons name="open-outline" size={18} color={colors.brand} />
-            <Text variant="caption" style={{ color: colors.text }}>
-              Last.fm
-            </Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.linkButton,
-              { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-            ]}
-            onPress={() =>
-              Linking.openURL(`https://musicbrainz.org/artist/${mbid}`)
-            }
-          >
-            <Ionicons name="open-outline" size={18} color={colors.brand} />
-            <Text variant="caption" style={{ color: colors.text }}>
-              MusicBrainz
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Refresh (library only) */}
         {inLibrary && (
           <View style={styles.refreshRow}>
             <Pressable
@@ -664,7 +363,6 @@ export function ArtistDetailLayout({
         )}
       </Animated.ScrollView>
 
-      {/* Bottom Sheets */}
       <ReleaseGroupSheet
         releaseGroup={selectedReleaseGroup}
         artistId={libraryArtist?.id}
@@ -703,79 +401,6 @@ export function ArtistDetailLayout({
 }
 
 const styles = StyleSheet.create({
-  section: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-  },
-  sectionLabel: {
-    fontFamily: Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 14,
-    paddingVertical: 8,
-  },
-  sectionLabelPadded: {
-    paddingHorizontal: 16,
-    marginBottom: 4,
-  },
-  similarSection: {
-    paddingTop: 8,
-  },
-  similarList: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  albumsSection: {
-    paddingTop: 8,
-  },
-  categorySection: {
-    marginBottom: 20,
-  },
-  categoryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  categoryTitle: {
-    fontFamily: Fonts.semiBold,
-    fontSize: 18,
-  },
-  albumList: {
-    paddingHorizontal: 16,
-  },
-  viewAllCard: {
-    width: 150,
-    height: 150,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginRight: 12,
-  },
-  bioSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 6,
-  },
-  bio: {
-    lineHeight: 18,
-  },
-  links: {
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  linkButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-  },
   refreshRow: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -788,8 +413,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     alignSelf: "flex-start",
-  },
-  loader: {
-    paddingVertical: 32,
   },
 });
