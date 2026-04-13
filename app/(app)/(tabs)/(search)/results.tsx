@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import {
   Stack,
@@ -81,13 +81,30 @@ export default function SearchResultsScreen() {
 
   const [tagScope, setTagScope] = useState<TagSearchScope>("recommended");
 
-  const { data: artistData, isLoading: artistLoading } = useArtistSearch(
-    isTagSearch ? "" : query,
-  );
-  const { data: tagData, isLoading: tagLoading } = useArtistsByTag(
+  const {
+    data: artistData,
+    isLoading: artistLoading,
+    refetch: refetchArtists,
+  } = useArtistSearch(isTagSearch ? "" : query);
+  const {
+    data: tagData,
+    isLoading: tagLoading,
+    refetch: refetchTags,
+  } = useArtistsByTag(
     isTagSearch && tagQuery.length >= 2 ? tagQuery : null,
     tagScope,
   );
+
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (isTagSearch) {
+      await refetchTags();
+    } else {
+      await refetchArtists();
+    }
+    setRefreshing(false);
+  }, [isTagSearch, refetchTags, refetchArtists]);
   const { isInLibrary } = useLibraryLookup();
 
   const isLoading = isTagSearch ? tagLoading : artistLoading;
@@ -187,6 +204,9 @@ export default function SearchResultsScreen() {
           contentInsetAdjustmentBehavior="automatic"
           ListHeaderComponent={listHeader}
           ListEmptyComponent={emptyComponent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
         />
       ) : (
         <FlashList
@@ -196,6 +216,9 @@ export default function SearchResultsScreen() {
           contentInsetAdjustmentBehavior="automatic"
           ListHeaderComponent={listHeader}
           ListEmptyComponent={emptyComponent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
         />
       )}
     </>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
   Pressable,
@@ -21,6 +21,7 @@ import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
+import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import type { SearchArtist } from "@/lib/types/search";
 const PREVIEW_LIMIT = 5;
 
@@ -38,8 +39,22 @@ export default function SearchScreen() {
   const hasQuery =
     query.trim().length >= 2 || (isTagSearch && tagQuery.length >= 2);
 
-  const { data: artistData, isLoading: artistLoading } =
-    useArtistSearch(artistQuery);
+  const {
+    data: artistData,
+    isLoading: artistLoading,
+    isFetching: artistFetching,
+  } = useArtistSearch(artistQuery);
+
+  const [showSlowLoader, setShowSlowLoader] = useState(false);
+  const slowTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    if (artistFetching && hasQuery && !isTagSearch) {
+      slowTimer.current = setTimeout(() => setShowSlowLoader(true), 1000);
+    } else {
+      setShowSlowLoader(false);
+    }
+    return () => clearTimeout(slowTimer.current);
+  }, [artistFetching, hasQuery, isTagSearch]);
   const { data: tags } = useTagSuggestions(
     isTagSearch ? tagQuery : artistQuery,
   );
@@ -50,7 +65,11 @@ export default function SearchScreen() {
   const pushResults = useCallback(
     (q: string) => {
       Keyboard.dismiss();
-      recentSearches.add(q);
+      if (q.startsWith("#")) {
+        recentSearches.add({ type: "tag", text: q.slice(1) });
+      } else {
+        recentSearches.add({ type: "query", text: q });
+      }
       router.push({
         pathname: "/results",
         params: { q },
@@ -70,12 +89,17 @@ export default function SearchScreen() {
 
   const handleArtistPress = useCallback(
     (artist: SearchArtist) => {
+      recentSearches.add({
+        type: "artist",
+        text: artist.name,
+        mbid: artist.id,
+      });
       router.push({
         pathname: "/artist/[mbid]",
         params: { mbid: artist.id, name: artist.name },
       });
     },
-    [router],
+    [router, recentSearches],
   );
 
   useEffect(() => {
@@ -100,7 +124,8 @@ export default function SearchScreen() {
     : [];
   const previewArtists =
     hasQuery && !isTagSearch ? (artists ?? []).slice(0, PREVIEW_LIMIT) : [];
-  const previewLoading = hasQuery && !isTagSearch && artistLoading;
+  const previewLoading =
+    hasQuery && !isTagSearch && (artistLoading || showSlowLoader);
   const hasPreviewContent = previewTags.length > 0 || previewArtists.length > 0;
 
   let content;
@@ -171,7 +196,18 @@ export default function SearchScreen() {
     content = (
       <RecentSearches
         searches={recentSearches.searches}
-        onSelect={pushResults}
+        onSelect={(entry: RecentSearch) => {
+          if (entry.type === "artist") {
+            router.push({
+              pathname: "/artist/[mbid]",
+              params: { mbid: entry.mbid, name: entry.text },
+            });
+          } else if (entry.type === "tag") {
+            pushResults(`#${entry.text}`);
+          } else {
+            pushResults(entry.text);
+          }
+        }}
         onRemove={recentSearches.remove}
         onClear={recentSearches.clear}
       />
