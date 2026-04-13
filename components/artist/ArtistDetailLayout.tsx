@@ -12,7 +12,7 @@ import Animated, {
   useAnimatedScrollHandler,
 } from "react-native-reanimated";
 import BottomSheet from "@gorhom/bottom-sheet";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtistHero } from "@/components/library/ArtistHero";
@@ -26,11 +26,7 @@ import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
 import { Text } from "@/components/ui/Text";
-import {
-  getArtistReleaseGroups,
-  deleteLibraryArtist,
-  refreshLibraryArtist,
-} from "@/lib/api/library";
+import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useArtistDetails } from "@/hooks/library/use-artist-details";
@@ -142,11 +138,7 @@ export function ArtistDetailLayout({
   const { data: details } = useArtistDetails(mbid);
   const { data: similarArtists } = useSimilarArtists(mbid);
 
-  const { data: allReleaseGroups } = useQuery({
-    queryKey: libraryKeys.releaseGroups(mbid),
-    queryFn: () => getArtistReleaseGroups(mbid),
-    staleTime: 10 * 60 * 1000,
-  });
+  const allReleaseGroups = details?.releaseGroups;
 
   const libraryAlbumMbids = useMemo(() => {
     if (!rawAlbums) return new Set<string>();

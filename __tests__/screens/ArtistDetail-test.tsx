@@ -1,7 +1,6 @@
 jest.mock("@/lib/api/library", () => ({
   deleteLibraryArtist: jest.fn(),
   refreshLibraryArtist: jest.fn(),
-  getArtistReleaseGroups: jest.fn(() => Promise.resolve([])),
 }));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -174,7 +173,7 @@ jest.mock("@/hooks/search/use-library-lookup", () => ({
 
 jest.mock("@/hooks/library/use-artist-details", () => ({
   useArtistDetails: jest.fn(() => ({
-    data: { tags: [], bio: "A test biography." },
+    data: { tags: [], bio: "A test biography.", releaseGroups: [] },
     isLoading: false,
   })),
 }));
@@ -530,16 +529,25 @@ describe("ArtistDetailScreen", () => {
     });
 
     it("shows Albums & Releases section when release groups exist", async () => {
-      const { getArtistReleaseGroups } = require("@/lib/api/library");
-      (getArtistReleaseGroups as jest.Mock).mockResolvedValue([
-        {
-          id: "rg-1",
-          title: "Unreleased EP",
-          "first-release-date": "2023-06-01",
-          "primary-type": "EP",
-          "secondary-types": [],
+      const {
+        useArtistDetails,
+      } = require("@/hooks/library/use-artist-details");
+      (useArtistDetails as jest.Mock).mockReturnValue({
+        data: {
+          tags: [],
+          bio: "A test biography.",
+          releaseGroups: [
+            {
+              id: "rg-1",
+              title: "Unreleased EP",
+              "first-release-date": "2023-06-01",
+              "primary-type": "EP",
+              "secondary-types": [],
+            },
+          ],
         },
-      ]);
+        isLoading: false,
+      });
       const { findByText } = renderScreen();
       expect(await findByText("Albums & Releases")).toBeTruthy();
       expect(await findByText("Unreleased EP")).toBeTruthy();
