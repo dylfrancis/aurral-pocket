@@ -1,6 +1,7 @@
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { AlbumCategoryList } from "@/components/artist/AlbumCategoryList";
+import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
 import { EmptyState } from "@/components/library/EmptyState";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -41,7 +42,15 @@ export function LibraryAlbumsSection({
   return (
     <View style={styles.container}>
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} color={colors.brand} />
+        <>
+          <Text
+            variant="caption"
+            style={[styles.label, { color: colors.subtle }]}
+          >
+            In Your Library
+          </Text>
+          <AlbumCategorySkeleton />
+        </>
       ) : error ? (
         <EmptyState
           icon="cloud-offline-outline"
@@ -98,8 +107,5 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     marginBottom: 4,
-  },
-  loader: {
-    paddingVertical: 32,
   },
 });

@@ -135,7 +135,7 @@ export async function searchDeezerAlbum(
       data?: { id: number; title: string }[];
     }>("https://api.deezer.com/search/album", {
       params: { q: `${artistName} ${albumTitle}`, limit: 5 },
-      timeout: 5000,
+      timeout: 10_000,
     });
     const lowerTitle = albumTitle.toLowerCase();
     const match =

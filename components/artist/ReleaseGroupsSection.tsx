@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { ReleaseGroupCard } from "@/components/library/ReleaseGroupCard";
 import { AlbumCategoryList } from "@/components/artist/AlbumCategoryList";
+import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -14,16 +15,32 @@ const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
 
 type ReleaseGroupsSectionProps = {
   grouped: Map<PrimaryReleaseType, ReleaseGroup[]> | null;
+  isLoading?: boolean;
   onPress: (rg: ReleaseGroup) => void;
   onNavigate: (type: PrimaryReleaseType, label: string) => void;
 };
 
 export function ReleaseGroupsSection({
   grouped,
+  isLoading,
   onPress,
   onNavigate,
 }: ReleaseGroupsSectionProps) {
   const colors = Colors[useColorScheme()];
+
+  if (isLoading && !grouped) {
+    return (
+      <View style={styles.container}>
+        <Text
+          variant="caption"
+          style={[styles.label, { color: colors.subtle }]}
+        >
+          Albums & Releases
+        </Text>
+        <AlbumCategorySkeleton />
+      </View>
+    );
+  }
 
   if (!grouped || grouped.size === 0) return null;
 

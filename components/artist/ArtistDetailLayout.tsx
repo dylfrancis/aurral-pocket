@@ -135,7 +135,7 @@ export function ArtistDetailLayout({
   }, [inLibrary, libraryArtist?.id, rawAlbums, refetchArtist, refetchAlbums]);
 
   const { stop: stopPreview, ...preview } = usePreviewPlayer(mbid, artistName);
-  const { data: details } = useArtistDetails(mbid);
+  const { data: details, isLoading: detailsLoading } = useArtistDetails(mbid);
   const { data: similarArtists } = useSimilarArtists(mbid);
 
   const allReleaseGroups = details?.releaseGroups;
@@ -297,6 +297,7 @@ export function ArtistDetailLayout({
 
         <TopTracksSection
           tracks={preview.tracks ?? []}
+          isLoading={preview.isLoading}
           playingId={preview.playingId}
           progress={preview.progress}
           onToggle={preview.toggle}
@@ -316,6 +317,7 @@ export function ArtistDetailLayout({
 
         <ReleaseGroupsSection
           grouped={groupedReleases}
+          isLoading={detailsLoading}
           onPress={openReleaseGroup}
           onNavigate={onNavigateToReleases}
         />
