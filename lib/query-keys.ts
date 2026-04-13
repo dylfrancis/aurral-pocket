@@ -15,3 +15,10 @@ export const libraryKeys = {
   releaseGroupTracks: (mbid: string) => ['library', 'releaseGroupTracks', mbid] as const,
   downloadStatuses: (artistId: string) => ['library', 'downloadStatuses', artistId] as const,
 };
+
+export const searchKeys = {
+  artists: (query: string) => ['search', 'artists', query] as const,
+  tagSuggestions: (query: string) => ['search', 'tags', query] as const,
+  artistsByTag: (tag: string, scope: string) => ['search', 'byTag', tag, scope] as const,
+  similarArtists: (mbid: string) => ['search', 'similar', mbid] as const,
+};

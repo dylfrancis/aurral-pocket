@@ -1,23 +1,42 @@
-import { ActivityIndicator, Dimensions, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Text } from '@/components/ui/Text';
-import { CoverArtImage } from './CoverArtImage';
-import { LibraryBadge } from './LibraryBadge';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
-import type { Artist } from '@/lib/types/library';
+import {
+  ActivityIndicator,
+  Dimensions,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  type SharedValue,
+} from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { CoverArtImage } from "./CoverArtImage";
+import { LibraryBadge } from "./LibraryBadge";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type { Artist } from "@/lib/types/library";
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 type ArtistHeroProps = {
-  artist: Artist;
+  artist: Pick<Artist, "mbid" | "artistName">;
   scrollY?: SharedValue<number>;
   refreshing?: boolean;
+  inLibrary: boolean;
   onBadgePress?: () => void;
+  onAddPress?: () => void;
 };
 
-export function ArtistHero({ artist, scrollY, refreshing, onBadgePress }: ArtistHeroProps) {
+export function ArtistHero({
+  artist,
+  scrollY,
+  refreshing,
+  inLibrary,
+  onBadgePress,
+  onAddPress,
+}: ArtistHeroProps) {
   const colors = Colors[useColorScheme()];
 
   const backgroundStyle = useAnimatedStyle(() => {
@@ -46,10 +65,11 @@ export function ArtistHero({ artist, scrollY, refreshing, onBadgePress }: Artist
         </View>
       )}
       <LinearGradient
-        colors={['transparent', colors.background]}
+        colors={["transparent", colors.background]}
         style={styles.gradient}
       />
       <View style={styles.foreground}>
+        <View style={styles.spacer} />
         <CoverArtImage
           type="artist"
           mbid={artist.mbid}
@@ -59,7 +79,22 @@ export function ArtistHero({ artist, scrollY, refreshing, onBadgePress }: Artist
         <Text variant="title" style={styles.name}>
           {artist.artistName}
         </Text>
-        {onBadgePress && <LibraryBadge onPress={onBadgePress} />}
+        {inLibrary
+          ? onBadgePress && <LibraryBadge onPress={onBadgePress} />
+          : onAddPress && (
+              <Pressable
+                onPress={onAddPress}
+                style={({ pressed }) => [
+                  styles.addButton,
+                  { backgroundColor: colors.brand, opacity: pressed ? 0.8 : 1 },
+                ]}
+              >
+                <Ionicons name="add" size={18} color="#fff" />
+                <Text variant="body" style={styles.addButtonText}>
+                  Add to Library
+                </Text>
+              </Pressable>
+            )}
       </View>
     </View>
   );
@@ -68,38 +103,52 @@ export function ArtistHero({ artist, scrollY, refreshing, onBadgePress }: Artist
 const styles = StyleSheet.create({
   container: {
     width: SCREEN_WIDTH,
-    aspectRatio: 1,
-    position: 'relative',
+    minHeight: SCREEN_WIDTH,
+    position: "relative",
   },
   background: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
   },
   gradient: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
+    height: SCREEN_WIDTH,
   },
   foreground: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    alignItems: "center",
     paddingBottom: 24,
     gap: 8,
   },
+  spacer: {
+    height: SCREEN_WIDTH - 300,
+  },
   refreshIndicator: {
-    position: 'absolute',
+    position: "absolute",
     top: 48,
     left: 0,
     right: 0,
-    alignItems: 'center',
+    alignItems: "center",
     zIndex: 1,
   },
   name: {
-    textAlign: 'center',
+    textAlign: "center",
     paddingHorizontal: 24,
+  },
+  addButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+  },
+  addButtonText: {
+    color: "#fff",
+    fontFamily: Fonts.semiBold,
   },
 });

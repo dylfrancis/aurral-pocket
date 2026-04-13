@@ -1,33 +1,36 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
-import { Text } from '@/components/ui/Text';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { useAuth } from '@/contexts/auth-context';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useBiometricAvailability, authenticateWithBiometrics } from '@/hooks/auth/use-biometric-availability';
-import { Colors, Fonts } from '@/constants/theme';
-import { login } from '@/lib/api/auth';
-import { ApiError } from '@/lib/api/client';
-import { SecureStorage } from '@/lib/storage';
-import { authKeys } from '@/lib/query-keys';
-import { useQueryClient } from '@tanstack/react-query';
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { useAuth } from "@/contexts/auth-context";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import {
+  useBiometricAvailability,
+  authenticateWithBiometrics,
+} from "@/hooks/auth/use-biometric-availability";
+import { Colors, Fonts } from "@/constants/theme";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/platform";
+import { login } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
+import { SecureStorage } from "@/lib/storage";
+import { authKeys } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
 
 const reAuthSchema = z.object({
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().min(1, "Password is required"),
 });
 
 type ReAuthForm = z.infer<typeof reAuthSchema>;
@@ -35,13 +38,13 @@ type ReAuthForm = z.infer<typeof reAuthSchema>;
 function getErrorMessage(error: unknown): string | null {
   if (!error) return null;
   if (error instanceof ApiError) {
-    if (error.status === 401) return 'Invalid password.';
-    if (error.status === 429) return 'Too many attempts. Please wait.';
-    if (error.isNetworkError) return 'Unable to reach server.';
+    if (error.status === 401) return "Invalid password.";
+    if (error.status === 429) return "Too many attempts. Please wait.";
+    if (error.isNetworkError) return "Unable to reach server.";
     return error.message;
   }
   if (error instanceof Error) return error.message;
-  return 'Something went wrong.';
+  return "Something went wrong.";
 }
 
 export function ReAuthModal() {
@@ -62,9 +65,14 @@ export function ReAuthModal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<ReAuthForm>({
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ReAuthForm>({
     resolver: zodResolver(reAuthSchema),
-    defaultValues: { password: '' },
+    defaultValues: { password: "" },
   });
 
   const handleReAuth = async (pw?: string) => {
@@ -75,7 +83,9 @@ export function ReAuthModal() {
     try {
       const data = await login({ username: user.username, password: pass });
       await setAuth(data.token, data.user, data.expiresAt);
-      await queryClient.invalidateQueries({queryKey: authKeys.me(serverUrl ?? '')});
+      await queryClient.invalidateQueries({
+        queryKey: authKeys.me(serverUrl ?? ""),
+      });
       dismissSessionExpired();
       reset();
     } catch (e) {
@@ -116,7 +126,7 @@ export function ReAuthModal() {
     >
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
       >
         <Pressable style={styles.backdrop} onPress={() => {}} />
         <View style={[styles.card, { backgroundColor: colors.card }]}>
@@ -130,7 +140,7 @@ export function ReAuthModal() {
             Session Expired
           </Text>
           <Text variant="subtitle" style={styles.subtitle}>
-            Enter your password to continue as{' '}
+            Enter your password to continue as{" "}
             <Text
               variant="subtitle"
               style={{ fontFamily: Fonts.semiBold, color: colors.text }}
@@ -163,7 +173,7 @@ export function ReAuthModal() {
 
           {(errors.password?.message || error != null) && (
             <Text variant="error" style={styles.error}>
-              {errors.password?.message ?? getErrorMessage(error) ?? ''}
+              {errors.password?.message ?? getErrorMessage(error) ?? ""}
             </Text>
           )}
 
@@ -198,23 +208,23 @@ export function ReAuthModal() {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   backdrop: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
   card: {
-    width: '85%',
+    width: "85%",
     maxWidth: 360,
     borderRadius: 20,
     padding: 28,
-    alignItems: 'center',
+    alignItems: "center",
   },
   icon: {
     marginBottom: 12,
@@ -224,7 +234,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   subtitle: {
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 20,
   },
   input: {
