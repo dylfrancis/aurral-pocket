@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.2.0...v0.3.0) (2026-04-20)
+
+
+### Features
+
+* **artist:** add skeleton loading for improved ui ([#44](https://github.com/dylfrancis/aurral-pocket/issues/44)) ([d2771a3](https://github.com/dylfrancis/aurral-pocket/commit/d2771a35106e80b53585f2e366163d9c8f0da2bc))
+* **discover:** discover page ([#50](https://github.com/dylfrancis/aurral-pocket/issues/50)) ([bd9771c](https://github.com/dylfrancis/aurral-pocket/commit/bd9771c6f4f9a88555f937654a0973ef12163063))
+
+
+### Bug Fixes
+
+* **auth:** session expired popup on timeout of any request ([#40](https://github.com/dylfrancis/aurral-pocket/issues/40)) ([e7bf988](https://github.com/dylfrancis/aurral-pocket/commit/e7bf9888746b3adcbf39f70ce3de0ee72cf370a3))
+
 ## [0.2.0](https://github.com/dylfrancis/aurral-pocket/compare/aurral-pocket-v0.1.0...aurral-pocket-v0.2.0) (2026-04-13)
 
 
