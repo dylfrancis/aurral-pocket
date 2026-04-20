@@ -4,7 +4,7 @@ import { TagPill } from "@/components/ui/TagPill";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { useDiscovery } from "@/hooks/discover";
-import type { BasedOnArtist } from "@/lib/types/search";
+import { formatBasedOn, formatUpdatedAt } from "@/lib/discover/format";
 
 type Props = {
   onTagPress: (tag: string) => void;
@@ -72,28 +72,6 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
       ) : null}
     </View>
   );
-}
-
-function formatUpdatedAt(iso: string | null): string | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(undefined, {
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatBasedOn(artists: BasedOnArtist[]): string | null {
-  const names = artists.map((a) => a.name).filter(Boolean);
-  if (names.length === 0) return null;
-  if (names.length === 1) return `Based on ${names[0]}`;
-  if (names.length === 2) return `Based on ${names[0]} and ${names[1]}`;
-  const others = names.length - 2;
-  return `Based on ${names[0]}, ${names[1]} and ${others} other artist${
-    others === 1 ? "" : "s"
-  }`;
 }
 
 const styles = StyleSheet.create({

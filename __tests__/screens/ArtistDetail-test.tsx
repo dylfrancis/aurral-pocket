@@ -558,5 +558,34 @@ describe("ArtistDetailScreen", () => {
       expect(await findByText("Albums & Releases")).toBeTruthy();
       expect(await findByText("Unreleased EP")).toBeTruthy();
     });
+
+    it("does not show Albums & Releases skeleton for in-library artist while stream is still loading", () => {
+      const {
+        useArtistDetailsStream,
+      } = require("@/hooks/library/use-artist-details-stream");
+      (useArtistDetailsStream as jest.Mock).mockReturnValue({
+        data: {
+          tags: [],
+          bio: null,
+          releaseGroups: [],
+          isComplete: false,
+        },
+        isLoading: false,
+        error: null,
+      });
+      mockUseLibraryAlbums.mockReturnValue({
+        ...defaultAlbumHook,
+        data: [makeAlbum({ id: "1" })],
+      });
+
+      const { queryAllByText, queryByText } = renderScreen();
+
+      // Library albums render as usual (label appears in hero and section)
+      expect(queryAllByText("In Your Library").length).toBeGreaterThanOrEqual(
+        2,
+      );
+      // But the "Other Releases" skeleton/header is suppressed while streaming
+      expect(queryByText("Albums & Releases")).toBeNull();
+    });
   });
 });

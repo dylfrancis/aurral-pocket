@@ -79,6 +79,7 @@ export function useArtistDetailsStream(mbid: string | undefined) {
         }
       } finally {
         isComplete = true;
+        queryClient.setQueryData<ArtistDetailsPayload>(queryKey, toPayload());
       }
       return toPayload();
     },

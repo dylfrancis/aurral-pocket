@@ -4,6 +4,7 @@ import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { formatReleaseStatus } from "@/lib/discover/format";
 import type { RecentReleaseAlbum } from "@/lib/types/search";
 
 export type DiscoverReleaseCardProps = {
@@ -12,33 +13,6 @@ export type DiscoverReleaseCardProps = {
 };
 
 const CARD_WIDTH = 140;
-
-function parseCalendarDate(value?: string | null) {
-  if (!value) return null;
-  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) {
-    const [, y, m, d] = match;
-    return new Date(Number(y), Number(m) - 1, Number(d));
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
-}
-
-function formatReleaseStatus(releaseDate?: string | null) {
-  const date = parseCalendarDate(releaseDate);
-  if (!date) return null;
-  const today = new Date();
-  const start = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-  const formatted = date.toLocaleDateString();
-  if (date.getTime() === start.getTime()) return "Released today";
-  if (date < start) return `Released ${formatted}`;
-  return `Releasing ${formatted}`;
-}
 
 function DiscoverReleaseCardComponent({
   album,
