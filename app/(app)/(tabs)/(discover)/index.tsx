@@ -17,6 +17,7 @@ import {
   useRecentlyAdded,
   useRecentReleases,
   useNearbyShows,
+  useNearbyLocationPref,
 } from "@/hooks/discover";
 import {
   RecentlyAddedSection,
@@ -27,6 +28,7 @@ import {
   RecentReleasesSection,
   ShowsNearYouSection,
 } from "@/components/discover";
+import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
 import type {
   ConcertEvent,
   DiscoveryArtist,
@@ -41,9 +43,33 @@ export default function DiscoverScreen() {
   const { data: discovery, refetch: refetchDiscovery } = useDiscovery();
   const { refetch: refetchRecentlyAdded } = useRecentlyAdded();
   const { refetch: refetchRecentReleases } = useRecentReleases();
-  const { refetch: refetchNearbyShows } = useNearbyShows();
+  const { mode, appliedZip, setMode, setAppliedZip } = useNearbyLocationPref();
+  const zipQueryValue =
+    mode === "zip" && appliedZip.trim() ? appliedZip.trim() : undefined;
+  const { refetch: refetchNearbyShows } = useNearbyShows({
+    zipCode: zipQueryValue,
+    enabled: mode !== "zip" || !!appliedZip.trim(),
+  });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [zipEditorVisible, setZipEditorVisible] = useState(false);
+
+  const openZipEditor = useCallback(() => {
+    setZipEditorVisible(true);
+  }, []);
+
+  const closeZipEditor = useCallback(() => {
+    setZipEditorVisible(false);
+  }, []);
+
+  const handleZipSave = useCallback(
+    (zip: string) => {
+      setAppliedZip(zip);
+      setMode("zip");
+      setZipEditorVisible(false);
+    },
+    [setAppliedZip, setMode],
+  );
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -131,72 +157,84 @@ export default function DiscoverScreen() {
     (discovery.topGenres?.length ?? 0) === 0;
 
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardDismissMode="on-drag"
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={styles.contentContainer}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={handleRefresh}
-          tintColor={colors.subtle}
-        />
-      }
-    >
-      {notConfigured ? (
-        <View
-          style={[
-            styles.emptyCard,
-            { backgroundColor: colors.card, borderColor: colors.separator },
-          ]}
-        >
-          <Ionicons name="sparkles-outline" size={32} color={colors.subtle} />
-          <Text
-            variant="body"
+    <>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
+        style={{ backgroundColor: colors.background }}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.subtle}
+          />
+        }
+      >
+        {notConfigured ? (
+          <View
             style={[
-              styles.emptyTitle,
-              { color: colors.text, fontFamily: Fonts.semiBold },
+              styles.emptyCard,
+              { backgroundColor: colors.card, borderColor: colors.separator },
             ]}
           >
-            Discovery not configured
-          </Text>
-          <Text
-            variant="caption"
-            style={[styles.emptyBody, { color: colors.subtle }]}
-          >
-            Add artists to your library or configure Last.fm in Settings to see
-            personalized recommendations.
-          </Text>
-          <Pressable
-            onPress={handleOpenSettings}
-            style={[styles.emptyButton, { backgroundColor: colors.brand }]}
-          >
+            <Ionicons name="sparkles-outline" size={32} color={colors.subtle} />
+            <Text
+              variant="body"
+              style={[
+                styles.emptyTitle,
+                { color: colors.text, fontFamily: Fonts.semiBold },
+              ]}
+            >
+              Discovery not configured
+            </Text>
             <Text
               variant="caption"
-              style={{ color: colors.background, fontFamily: Fonts.semiBold }}
+              style={[styles.emptyBody, { color: colors.subtle }]}
             >
-              Open Settings
+              Add artists to your library or configure Last.fm in Settings to
+              see personalized recommendations.
             </Text>
-          </Pressable>
-        </View>
-      ) : (
-        <>
-          <RecentlyAddedSection onArtistPress={handleRecentlyAddedPress} />
-          <ShowsNearYouSection
-            onShowPress={handleShowPress}
-            onOpenSettings={handleOpenSettings}
-          />
-          <RecentReleasesSection onAlbumPress={handleAlbumPress} />
-          <RecommendedForYouSection
-            onArtistPress={handleDiscoveryArtistPress}
-          />
-          <GlobalTrendingSection onArtistPress={handleDiscoveryArtistPress} />
-          <GenreSectionsPanel onArtistPress={handleGenreArtistPress} />
-          <ExploreByTagSection onTagPress={handleTagPress} />
-        </>
-      )}
-    </ScrollView>
+            <Pressable
+              onPress={handleOpenSettings}
+              style={[styles.emptyButton, { backgroundColor: colors.brand }]}
+            >
+              <Text
+                variant="caption"
+                style={{ color: colors.background, fontFamily: Fonts.semiBold }}
+              >
+                Open Settings
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <RecentlyAddedSection onArtistPress={handleRecentlyAddedPress} />
+            <ShowsNearYouSection
+              onShowPress={handleShowPress}
+              onOpenSettings={handleOpenSettings}
+              mode={mode}
+              appliedZip={appliedZip}
+              onModeChange={setMode}
+              onEditZip={openZipEditor}
+            />
+            <RecentReleasesSection onAlbumPress={handleAlbumPress} />
+            <RecommendedForYouSection
+              onArtistPress={handleDiscoveryArtistPress}
+            />
+            <GlobalTrendingSection onArtistPress={handleDiscoveryArtistPress} />
+            <GenreSectionsPanel onArtistPress={handleGenreArtistPress} />
+            <ExploreByTagSection onTagPress={handleTagPress} />
+          </>
+        )}
+      </ScrollView>
+      <NearbyZipEditorSheet
+        visible={zipEditorVisible}
+        currentZip={appliedZip}
+        onSave={handleZipSave}
+        onClose={closeZipEditor}
+      />
+    </>
   );
 }
 
