@@ -8,10 +8,12 @@ type ArtistTagsProps = {
 };
 
 export function ArtistTags({ mbid }: ArtistTagsProps) {
-  const { data, isLoading } = useArtistDetailsStream(mbid);
+  const { data } = useArtistDetailsStream(mbid);
   const tags = data?.tags;
 
-  if (isLoading) return <ArtistTagsSkeleton />;
+  if (!data?.isComplete && (!tags || tags.length === 0)) {
+    return <ArtistTagsSkeleton />;
+  }
   if (!tags || tags.length === 0) return null;
 
   return (

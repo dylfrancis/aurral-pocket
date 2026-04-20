@@ -173,7 +173,12 @@ jest.mock("@/hooks/search/use-library-lookup", () => ({
 
 jest.mock("@/hooks/library/use-artist-details-stream", () => ({
   useArtistDetailsStream: jest.fn(() => ({
-    data: { tags: [], bio: "A test biography.", releaseGroups: [] },
+    data: {
+      tags: [],
+      bio: "A test biography.",
+      releaseGroups: [],
+      isComplete: true,
+    },
     isLoading: false,
     error: null,
   })),
@@ -544,6 +549,7 @@ describe("ArtistDetailScreen", () => {
               "secondary-types": [],
             },
           ],
+          isComplete: true,
         },
         isLoading: false,
         error: null,

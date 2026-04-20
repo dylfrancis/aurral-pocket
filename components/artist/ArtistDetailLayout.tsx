@@ -106,8 +106,7 @@ export function ArtistDetailLayout({
     refetch: refetchAlbums,
   } = useLibraryAlbums(libraryArtist?.id);
   const { stop: stopPreview, ...preview } = usePreviewPlayer(mbid, artistName);
-  const { data: details, isLoading: detailsLoading } =
-    useArtistDetailsStream(mbid);
+  const { data: details } = useArtistDetailsStream(mbid);
   const { data: similarArtists } = useSimilarArtists(mbid);
 
   const allReleaseGroups = details?.releaseGroups;
@@ -321,7 +320,11 @@ export function ArtistDetailLayout({
 
         <ReleaseGroupsSection
           grouped={groupedReleases}
-          isLoading={detailsLoading}
+          isLoading={
+            !inLibrary &&
+            !details?.isComplete &&
+            (!allReleaseGroups || allReleaseGroups.length === 0)
+          }
           onPress={openReleaseGroup}
           onNavigate={onNavigateToReleases}
         />

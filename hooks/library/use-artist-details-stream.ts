@@ -4,10 +4,19 @@ import { streamSSE } from "@/lib/sse";
 import { libraryKeys } from "@/lib/query-keys";
 import type { ArtistTag, ReleaseGroup } from "@/lib/types/library";
 
+/**
+ * The backend emits a placeholder `artist` event at stream open with empty
+ * arrays (`tags: []`, `release-groups: []`) before any upstream fetch has
+ * started. That means an empty array is *not* a reliable "no data" signal —
+ * consumers must combine it with `isComplete` (set when the backend sends its
+ * `complete` event, or the stream otherwise ends) to distinguish "still
+ * loading" from "final, nothing here."
+ */
 export type ArtistDetailsPayload = {
-  tags: ArtistTag[];
-  bio: string | null;
-  releaseGroups: ReleaseGroup[];
+  tags?: ArtistTag[];
+  bio?: string | null;
+  releaseGroups?: ReleaseGroup[];
+  isComplete: boolean;
 };
 
 /**
@@ -31,29 +40,45 @@ export function useArtistDetailsStream(mbid: string | undefined) {
     queryFn: async ({ signal, queryKey }) => {
       const url = `${serverUrl}/api/artists/${mbid}/stream`;
       const merged: Record<string, unknown> = {};
+      let isComplete = false;
       const toPayload = (): ArtistDetailsPayload => ({
-        tags: (merged.tags as ArtistTag[] | undefined) ?? [],
-        bio: (merged.bio as string | null | undefined) ?? null,
-        releaseGroups:
-          (merged["release-groups"] as ReleaseGroup[] | undefined) ?? [],
+        tags: merged.tags as ArtistTag[] | undefined,
+        bio: merged.bio as string | null | undefined,
+        releaseGroups: merged["release-groups"] as ReleaseGroup[] | undefined,
+        isComplete,
       });
 
       const authHeaders: Record<string, string> = token
         ? { Authorization: `Bearer ${token}` }
         : {};
-      for await (const evt of streamSSE(url, {
-        signal,
-        headers: authHeaders,
-      })) {
-        if (signal.aborted) break;
-        if (evt.event !== "artist") continue;
-        try {
-          const partial = JSON.parse(evt.data) as Record<string, unknown>;
-          Object.assign(merged, partial);
-          queryClient.setQueryData<ArtistDetailsPayload>(queryKey, toPayload());
-        } catch {
-          // ignore malformed chunks — server occasionally splits mid-UTF8
+      try {
+        for await (const evt of streamSSE(url, {
+          signal,
+          headers: authHeaders,
+        })) {
+          if (signal.aborted) break;
+          if (evt.event === "complete") {
+            isComplete = true;
+            queryClient.setQueryData<ArtistDetailsPayload>(
+              queryKey,
+              toPayload(),
+            );
+            continue;
+          }
+          if (evt.event !== "artist") continue;
+          try {
+            const partial = JSON.parse(evt.data) as Record<string, unknown>;
+            Object.assign(merged, partial);
+            queryClient.setQueryData<ArtistDetailsPayload>(
+              queryKey,
+              toPayload(),
+            );
+          } catch {
+            // ignore malformed chunks — server occasionally splits mid-UTF8
+          }
         }
+      } finally {
+        isComplete = true;
       }
       return toPayload();
     },
