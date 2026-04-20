@@ -10,84 +10,111 @@ updates:
     open-pull-requests-limit: 10
 
     groups:
-      # All Expo SDK packages - update together, then run `npx expo install --fix`
-      expo-sdk:
-        patterns:
-          - "expo"
-          - "expo-*"
-          - "jest-expo"
-          - "eslint-config-expo"
-
-      # React core - pinned exact, coupled to RN version
-      react-core:
-        patterns:
-          - "react"
-          - "react-dom"
-          - "react-native"
-          - "react-native-web"
-          - "react-test-renderer"
-          - "@types/react"
-
-      # Navigation stack - must stay in sync
-      react-navigation:
-        patterns:
-          - "@react-navigation/*"
-          - "react-native-screens"
-          - "react-native-safe-area-context"
-          - "react-native-gesture-handler"
-
-      # Reanimated + Worklets are tightly coupled - never update one without the other
-      reanimated:
-        patterns:
-          - "react-native-reanimated"
-          - "react-native-worklets"
-
-      # Form handling
+      # Free-to-update deps - Dependabot fully manages these
       forms:
         patterns:
           - "react-hook-form"
           - "@hookform/resolvers"
           - "zod"
 
-      # Linting + formatting
+      tanstack:
+        patterns:
+          - "@tanstack/*"
+
       linting:
         patterns:
-          - "eslint"
-          - "eslint-*"
           - "prettier"
-          - "eslint-plugin-*"
+          - "eslint-config-prettier"
+          - "eslint-plugin-prettier"
 
-      # Commit tooling
       commitlint:
         patterns:
           - "@commitlint/*"
           - "husky"
           - "lint-staged"
 
-      # Jest / testing
-      testing:
-        patterns:
-          - "jest"
-          - "@types/jest"
-          - "@testing-library/*"
-
     ignore:
-      # Expo SDK major bumps require manual `npx expo install --fix` + EAS testing
+      # expo itself is watched - a minor/major PR = signal to run `npx expo doctor` + `npx expo install --fix`
       - dependency-name: "expo"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-patch"]
+
+      # Expo SDK packages - managed by `npx expo install --fix`
       - dependency-name: "expo-*"
-        update-types: ["version-update:semver-major"]
+        versions: ["*"]
       - dependency-name: "jest-expo"
-        update-types: ["version-update:semver-major"]
+        versions: ["*"]
+
+      # ESLint - must be upgraded alongside eslint-config-expo via `npx expo install eslint eslint-config-expo`
+      - dependency-name: "eslint"
+        versions: ["*"]
       - dependency-name: "eslint-config-expo"
-        update-types: ["version-update:semver-major"]
-      # RN major bumps are Expo SDK upgrades in disguise
+        versions: ["*"]
+
+      # TypeScript - managed via `npx expo install typescript @types/react`
+      - dependency-name: "typescript"
+        versions: ["*"]
+      - dependency-name: "@types/react"
+        versions: ["*"]
+      - dependency-name: "@types/jest"
+        versions: ["*"]
+
+      # React core - managed by Expo
+      - dependency-name: "react"
+        versions: ["*"]
+      - dependency-name: "react-dom"
+        versions: ["*"]
+      - dependency-name: "react-test-renderer"
+        versions: ["*"]
+
+      # React Native core - managed by Expo
       - dependency-name: "react-native"
-        update-types: ["version-update:semver-major"]
+        versions: ["*"]
+      - dependency-name: "react-native-gesture-handler"
+        versions: ["*"]
+      - dependency-name: "react-native-keyboard-controller"
+        versions: ["*"]
+      - dependency-name: "react-native-maps"
+        versions: ["*"]
+      - dependency-name: "react-native-pager-view"
+        versions: ["*"]
       - dependency-name: "react-native-reanimated"
-        update-types: ["version-update:semver-major"]
+        versions: ["*"]
+      - dependency-name: "react-native-safe-area-context"
+        versions: ["*"]
+      - dependency-name: "react-native-screens"
+        versions: ["*"]
+      - dependency-name: "react-native-svg"
+        versions: ["*"]
+      - dependency-name: "react-native-view-shot"
+        versions: ["*"]
+      - dependency-name: "react-native-web"
+        versions: ["*"]
+      - dependency-name: "react-native-webview"
+        versions: ["*"]
       - dependency-name: "react-native-worklets"
-        update-types: ["version-update:semver-major"]
+        versions: ["*"]
+
+      # Expo-pinned third-party packages
+      - dependency-name: "@react-native-async-storage/async-storage"
+        versions: ["*"]
+      - dependency-name: "@react-native-community/datetimepicker"
+        versions: ["*"]
+      - dependency-name: "@react-native-community/netinfo"
+        versions: ["*"]
+      - dependency-name: "@react-native-community/slider"
+        versions: ["*"]
+      - dependency-name: "@react-native-masked-view/masked-view"
+        versions: ["*"]
+      - dependency-name: "@react-native-picker/picker"
+        versions: ["*"]
+      - dependency-name: "@react-native-segmented-control/segmented-control"
+        versions: ["*"]
+      - dependency-name: "@shopify/flash-list"
+        versions: ["*"]
+      - dependency-name: "@shopify/react-native-skia"
+        versions: ["*"]
+      - dependency-name: "@stripe/stripe-react-native"
+        versions: ["*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
