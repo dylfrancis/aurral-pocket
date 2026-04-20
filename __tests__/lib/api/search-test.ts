@@ -8,7 +8,15 @@ jest.mock("@/lib/api/client", () => ({
 }));
 
 import { api } from "@/lib/api/client";
-import { searchArtists, addArtist, getSimilarArtists } from "@/lib/api/search";
+import {
+  searchArtists,
+  addArtist,
+  getSimilarArtists,
+  getDiscovery,
+  getRecentlyAdded,
+  getRecentReleases,
+  getNearbyShows,
+} from "@/lib/api/search";
 
 const mockApi = api as unknown as {
   get: jest.Mock;
@@ -114,5 +122,158 @@ describe("getSimilarArtists", () => {
     expect(mockApi.get).toHaveBeenCalledWith("/artists/abc-123/similar", {
       params: { limit: 5 },
     });
+  });
+});
+
+describe("getDiscovery", () => {
+  const emptyResponse = {
+    recommendations: [],
+    globalTop: [],
+    basedOn: [],
+    topTags: [],
+    topGenres: [],
+    lastUpdated: null,
+    isUpdating: false,
+    configured: true,
+  };
+
+  it("calls GET /discover without params", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    const result = await getDiscovery();
+    expect(mockApi.get).toHaveBeenCalledWith("/discover");
+    expect(result).toEqual(emptyResponse);
+  });
+
+  it("propagates errors", async () => {
+    mockApi.get.mockRejectedValue(new Error("500"));
+    await expect(getDiscovery()).rejects.toThrow("500");
+  });
+});
+
+describe("getRecentlyAdded", () => {
+  it("calls GET /library/recent and returns the array", async () => {
+    const response = [
+      {
+        id: "1",
+        mbid: "mbid-1",
+        foreignArtistId: "mbid-1",
+        artistName: "Radiohead",
+        addedAt: "2026-04-01T00:00:00Z",
+      },
+    ];
+    mockApi.get.mockResolvedValue({ data: response });
+
+    const result = await getRecentlyAdded();
+    expect(mockApi.get).toHaveBeenCalledWith("/library/recent");
+    expect(result).toEqual(response);
+  });
+
+  it("propagates errors", async () => {
+    mockApi.get.mockRejectedValue(new Error("401"));
+    await expect(getRecentlyAdded()).rejects.toThrow("401");
+  });
+});
+
+describe("getRecentReleases", () => {
+  it("calls GET /library/recent-releases and returns the array", async () => {
+    const response = [
+      {
+        id: "1",
+        mbid: "album-mbid",
+        albumName: "In Rainbows",
+        artistName: "Radiohead",
+        releaseDate: "2007-10-10",
+      },
+    ];
+    mockApi.get.mockResolvedValue({ data: response });
+
+    const result = await getRecentReleases();
+    expect(mockApi.get).toHaveBeenCalledWith("/library/recent-releases");
+    expect(result).toEqual(response);
+  });
+
+  it("propagates errors", async () => {
+    mockApi.get.mockRejectedValue(new Error("timeout"));
+    await expect(getRecentReleases()).rejects.toThrow("timeout");
+  });
+});
+
+describe("getNearbyShows", () => {
+  const emptyResponse = {
+    configured: true,
+    location: null,
+    shows: [],
+  };
+
+  it("calls GET /discover/nearby-shows without params when nothing is provided", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await getNearbyShows();
+    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
+      params: undefined,
+    });
+  });
+
+  it("includes zip when provided", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await getNearbyShows("10001");
+    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
+      params: { zip: "10001" },
+    });
+  });
+
+  it("trims whitespace from zip", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await getNearbyShows("  94110  ");
+    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
+      params: { zip: "94110" },
+    });
+  });
+
+  it("omits zip when blank or whitespace-only", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await getNearbyShows("   ");
+    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
+      params: undefined,
+    });
+  });
+
+  it("includes limit when it is a positive finite number", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await getNearbyShows("10001", 15);
+    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
+      params: { zip: "10001", limit: 15 },
+    });
+  });
+
+  it("floors fractional limits", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await getNearbyShows(undefined, 12.7);
+    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
+      params: { limit: 12 },
+    });
+  });
+
+  it("omits limit when zero, negative, or non-finite", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await getNearbyShows("10001", 0);
+    await getNearbyShows("10001", -5);
+    await getNearbyShows("10001", Number.NaN);
+
+    for (const call of mockApi.get.mock.calls) {
+      expect(call[1].params).not.toHaveProperty("limit");
+    }
+  });
+
+  it("propagates errors", async () => {
+    mockApi.get.mockRejectedValue(new Error("503"));
+    await expect(getNearbyShows()).rejects.toThrow("503");
   });
 });

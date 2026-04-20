@@ -171,10 +171,16 @@ jest.mock("@/hooks/search/use-library-lookup", () => ({
   })),
 }));
 
-jest.mock("@/hooks/library/use-artist-details", () => ({
-  useArtistDetails: jest.fn(() => ({
-    data: { tags: [], bio: "A test biography.", releaseGroups: [] },
+jest.mock("@/hooks/library/use-artist-details-stream", () => ({
+  useArtistDetailsStream: jest.fn(() => ({
+    data: {
+      tags: [],
+      bio: "A test biography.",
+      releaseGroups: [],
+      isComplete: true,
+    },
     isLoading: false,
+    error: null,
   })),
 }));
 
@@ -229,11 +235,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ArtistDetailScreen from "@/app/(app)/(tabs)/(library)/artist/[mbid]";
 import { useLibraryArtist } from "@/hooks/library/use-library-artist";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
-import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import type { Artist, Album } from "@/lib/types/library";
 
-const mockUseAlbumsWithTypes = useAlbumsWithTypes as jest.Mock;
 const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
 
 function renderScreen() {
@@ -530,9 +534,9 @@ describe("ArtistDetailScreen", () => {
 
     it("shows Albums & Releases section when release groups exist", async () => {
       const {
-        useArtistDetails,
-      } = require("@/hooks/library/use-artist-details");
-      (useArtistDetails as jest.Mock).mockReturnValue({
+        useArtistDetailsStream,
+      } = require("@/hooks/library/use-artist-details-stream");
+      (useArtistDetailsStream as jest.Mock).mockReturnValue({
         data: {
           tags: [],
           bio: "A test biography.",
@@ -545,12 +549,43 @@ describe("ArtistDetailScreen", () => {
               "secondary-types": [],
             },
           ],
+          isComplete: true,
         },
         isLoading: false,
+        error: null,
       });
       const { findByText } = renderScreen();
       expect(await findByText("Albums & Releases")).toBeTruthy();
       expect(await findByText("Unreleased EP")).toBeTruthy();
+    });
+
+    it("does not show Albums & Releases skeleton for in-library artist while stream is still loading", () => {
+      const {
+        useArtistDetailsStream,
+      } = require("@/hooks/library/use-artist-details-stream");
+      (useArtistDetailsStream as jest.Mock).mockReturnValue({
+        data: {
+          tags: [],
+          bio: null,
+          releaseGroups: [],
+          isComplete: false,
+        },
+        isLoading: false,
+        error: null,
+      });
+      mockUseLibraryAlbums.mockReturnValue({
+        ...defaultAlbumHook,
+        data: [makeAlbum({ id: "1" })],
+      });
+
+      const { queryAllByText, queryByText } = renderScreen();
+
+      // Library albums render as usual (label appears in hero and section)
+      expect(queryAllByText("In Your Library").length).toBeGreaterThanOrEqual(
+        2,
+      );
+      // But the "Other Releases" skeleton/header is suppressed while streaming
+      expect(queryByText("Albums & Releases")).toBeNull();
     });
   });
 });

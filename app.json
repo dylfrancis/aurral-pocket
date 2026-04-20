@@ -21,13 +21,10 @@
         "foregroundImage": "./assets/images/aurral-logo.png"
       },
       "package": "com.aurral.aurralpocket",
-      "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "static"
     },
     "plugins": [
       "expo-router",

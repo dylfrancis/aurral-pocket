@@ -1,19 +1,19 @@
-import { ScrollView, StyleSheet, View } from "react-native";
-import { Text } from "@/components/ui/Text";
-import { useArtistDetails } from "@/hooks/library/use-artist-details";
+import { ScrollView, StyleSheet } from "react-native";
+import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
 import { ArtistTagsSkeleton } from "@/components/library/ArtistTagsSkeleton";
-import { getTagColor } from "@/lib/tag-colors";
-import { Fonts } from "@/constants/theme";
+import { TagPill } from "@/components/ui/TagPill";
 
 type ArtistTagsProps = {
   mbid: string;
 };
 
 export function ArtistTags({ mbid }: ArtistTagsProps) {
-  const { data, isLoading } = useArtistDetails(mbid);
+  const { data } = useArtistDetailsStream(mbid);
   const tags = data?.tags;
 
-  if (isLoading) return <ArtistTagsSkeleton />;
+  if (!data?.isComplete && (!tags || tags.length === 0)) {
+    return <ArtistTagsSkeleton />;
+  }
   if (!tags || tags.length === 0) return null;
 
   return (
@@ -23,14 +23,7 @@ export function ArtistTags({ mbid }: ArtistTagsProps) {
       contentContainerStyle={styles.container}
     >
       {tags.map((tag) => (
-        <View
-          key={tag.name}
-          style={[styles.tag, { backgroundColor: getTagColor(tag.name) }]}
-        >
-          <Text variant="caption" style={styles.label}>
-            #{tag.name}
-          </Text>
-        </View>
+        <TagPill key={tag.name} name={tag.name} />
       ))}
     </ScrollView>
   );
@@ -41,15 +34,5 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 8,
-  },
-  tag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  label: {
-    color: "#fff",
-    fontSize: 12,
-    fontFamily: Fonts.medium,
   },
 });

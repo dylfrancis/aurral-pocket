@@ -1,8 +1,3 @@
-jest.mock("axios", () => ({
-  __esModule: true,
-  default: { get: jest.fn(), post: jest.fn() },
-}));
-
 jest.mock("@/lib/api/client", () => ({
   api: {
     get: jest.fn(),

@@ -16,6 +16,8 @@ const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
   { type: "Album", label: "Albums" },
   { type: "EP", label: "EPs" },
   { type: "Single", label: "Singles" },
+  { type: "Broadcast", label: "Broadcasts" },
+  { type: "Other", label: "Other" },
 ];
 
 type LibraryAlbumsSectionProps = {

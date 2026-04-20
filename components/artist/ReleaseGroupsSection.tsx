@@ -11,6 +11,8 @@ const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
   { type: "Album", label: "Albums" },
   { type: "EP", label: "EPs" },
   { type: "Single", label: "Singles" },
+  { type: "Broadcast", label: "Broadcasts" },
+  { type: "Other", label: "Other" },
 ];
 
 type ReleaseGroupsSectionProps = {
@@ -28,21 +30,22 @@ export function ReleaseGroupsSection({
 }: ReleaseGroupsSectionProps) {
   const colors = Colors[useColorScheme()];
 
-  if (isLoading && !grouped) {
-    return (
-      <View style={styles.container}>
-        <Text
-          variant="caption"
-          style={[styles.label, { color: colors.subtle }]}
-        >
-          Albums & Releases
-        </Text>
-        <AlbumCategorySkeleton />
-      </View>
-    );
+  if (!grouped || grouped.size === 0) {
+    if (isLoading) {
+      return (
+        <View style={styles.container}>
+          <Text
+            variant="caption"
+            style={[styles.label, { color: colors.subtle }]}
+          >
+            Albums & Releases
+          </Text>
+          <AlbumCategorySkeleton />
+        </View>
+      );
+    }
+    return null;
   }
-
-  if (!grouped || grouped.size === 0) return null;
 
   return (
     <View style={styles.container}>

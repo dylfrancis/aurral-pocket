@@ -5,15 +5,15 @@ import {
   type StyleProp,
   StyleSheet,
   type ViewStyle,
-} from 'react-native';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
+} from "react-native";
+import { Text } from "@/components/ui/Text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
 
-interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
+interface ButtonProps extends Omit<PressableProps, "style" | "children"> {
   title: string;
   loading?: boolean;
-  variant?: 'primary' | 'inline';
+  variant?: "primary" | "inline";
   style?: StyleProp<ViewStyle>;
 }
 
@@ -21,16 +21,24 @@ export function Button({
   title,
   loading = false,
   disabled,
-  variant = 'primary',
+  variant = "primary",
   style,
   ...rest
 }: ButtonProps) {
   const colors = Colors[useColorScheme()];
   const isDisabled = disabled || loading;
 
-  if (variant === 'inline') {
+  if (variant === "inline") {
     return (
-      <Pressable style={[styles.inline, style]} disabled={isDisabled} {...rest}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.inline,
+          pressed && styles.pressed,
+          style,
+        ]}
+        disabled={isDisabled}
+        {...rest}
+      >
         <Text
           variant="body"
           style={{ color: colors.brand, fontFamily: Fonts.medium }}
@@ -43,10 +51,11 @@ export function Button({
 
   return (
     <Pressable
-      style={[
+      style={({ pressed }) => [
         styles.primary,
         { backgroundColor: colors.buttonPrimary },
         isDisabled && styles.disabled,
+        pressed && !isDisabled && styles.pressed,
         style,
       ]}
       disabled={isDisabled}
@@ -71,17 +80,20 @@ export function Button({
 
 const styles = StyleSheet.create({
   primary: {
-    width: '100%',
+    width: "100%",
     height: 50,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   primaryText: {
     fontSize: 17,
   },
   disabled: {
     opacity: 0.7,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   inline: {
     padding: 8,
