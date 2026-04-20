@@ -30,6 +30,7 @@ export const discoverKeys = {
   discovery: () => ["discover", "main"] as const,
   recentlyAdded: () => ["discover", "recentlyAdded"] as const,
   recentReleases: () => ["discover", "recentReleases"] as const,
+  nearbyShowsAll: () => ["discover", "nearbyShows"] as const,
   nearbyShows: (zipCode?: string, limit?: number) =>
     ["discover", "nearbyShows", zipCode ?? "", limit ?? null] as const,
 };

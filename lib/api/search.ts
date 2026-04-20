@@ -51,10 +51,8 @@ export async function getSimilarArtists(mbid: string, limit = 10) {
   return r.data.artists;
 }
 
-export async function getDiscovery(cacheBust = false) {
-  const r = await api.get<DiscoveryResponse>("/discover", {
-    params: cacheBust ? { _: Date.now() } : undefined,
-  });
+export async function getDiscovery() {
+  const r = await api.get<DiscoveryResponse>("/discover");
   return r.data;
 }
 
@@ -69,14 +67,14 @@ export async function getRecentReleases() {
 }
 
 export async function getNearbyShows(zipCode?: string, limit?: number) {
-  const params: Record<string, string | number> = { _: Date.now() };
+  const params: Record<string, string | number> = {};
   const trimmed = zipCode?.trim();
   if (trimmed) params.zip = trimmed;
   if (Number.isFinite(limit) && (limit as number) > 0) {
     params.limit = Math.floor(limit as number);
   }
   const r = await api.get<NearbyShowsResponse>("/discover/nearby-shows", {
-    params,
+    params: Object.keys(params).length > 0 ? params : undefined,
   });
   return r.data;
 }

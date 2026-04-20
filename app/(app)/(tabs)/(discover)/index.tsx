@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -16,9 +17,9 @@ import {
   useDiscovery,
   useRecentlyAdded,
   useRecentReleases,
-  useNearbyShows,
   useNearbyLocationPref,
 } from "@/hooks/discover";
+import { discoverKeys } from "@/lib/query-keys";
 import {
   DiscoverHeaderSection,
   RecentlyAddedSection,
@@ -40,17 +41,12 @@ import type {
 export default function DiscoverScreen() {
   const colors = Colors[useColorScheme()];
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const { data: discovery, refetch: refetchDiscovery } = useDiscovery();
   const { refetch: refetchRecentlyAdded } = useRecentlyAdded();
   const { refetch: refetchRecentReleases } = useRecentReleases();
   const { mode, appliedZip, setMode, setAppliedZip } = useNearbyLocationPref();
-  const zipQueryValue =
-    mode === "zip" && appliedZip.trim() ? appliedZip.trim() : undefined;
-  const { refetch: refetchNearbyShows } = useNearbyShows({
-    zipCode: zipQueryValue,
-    enabled: mode !== "zip" || !!appliedZip.trim(),
-  });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [zipEditorVisible, setZipEditorVisible] = useState(false);
@@ -79,16 +75,18 @@ export default function DiscoverScreen() {
         refetchDiscovery(),
         refetchRecentlyAdded(),
         refetchRecentReleases(),
-        refetchNearbyShows(),
+        queryClient.invalidateQueries({
+          queryKey: discoverKeys.nearbyShowsAll(),
+        }),
       ]);
     } finally {
       setIsRefreshing(false);
     }
   }, [
+    queryClient,
     refetchDiscovery,
     refetchRecentlyAdded,
     refetchRecentReleases,
-    refetchNearbyShows,
   ]);
 
   const pushArtist = useCallback(
