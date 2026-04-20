@@ -34,14 +34,12 @@ updates:
           - "lint-staged"
 
     ignore:
-      # expo itself is watched - a minor/major PR = signal to run `npx expo doctor` + `npx expo install --fix`
+      # expo itself is watched, signal to run `npx expo doctor` + `npx expo install --fix`
       - dependency-name: "expo"
-        update-types: ["version-update:semver-patch"]
+        versions: ["*"]
 
       # Expo SDK packages - managed by `npx expo install --fix`
       - dependency-name: "expo-*"
-        versions: ["*"]
-      - dependency-name: "jest-expo"
         versions: ["*"]
 
       # ESLint - must be upgraded alongside eslint-config-expo via `npx expo install eslint eslint-config-expo`
@@ -50,12 +48,22 @@ updates:
       - dependency-name: "eslint-config-expo"
         versions: ["*"]
 
+      # Babel - managed by Expo
+      - dependency-name: "babel-preset-expo"
+        versions: ["*"]
+
+      # Jest - version pinned by jest-expo, managed via `npx expo install jest jest-expo`
+      - dependency-name: "jest"
+        versions: ["*"]
+      - dependency-name: "jest-expo"
+        versions: ["*"]
+      - dependency-name: "@types/jest"
+        versions: ["*"]
+
       # TypeScript - managed via `npx expo install typescript @types/react`
       - dependency-name: "typescript"
         versions: ["*"]
       - dependency-name: "@types/react"
-        versions: ["*"]
-      - dependency-name: "@types/jest"
         versions: ["*"]
 
       # React core - managed by Expo
