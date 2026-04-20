@@ -1,3 +1,4 @@
+export { DiscoverHeaderSection } from "./DiscoverHeaderSection";
 export { RecentlyAddedSection } from "./RecentlyAddedSection";
 export { RecommendedForYouSection } from "./RecommendedForYouSection";
 export { GlobalTrendingSection } from "./GlobalTrendingSection";

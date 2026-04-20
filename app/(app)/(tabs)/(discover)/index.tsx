@@ -20,6 +20,7 @@ import {
   useNearbyLocationPref,
 } from "@/hooks/discover";
 import {
+  DiscoverHeaderSection,
   RecentlyAddedSection,
   RecommendedForYouSection,
   GlobalTrendingSection,
@@ -209,6 +210,7 @@ export default function DiscoverScreen() {
           </View>
         ) : (
           <>
+            <DiscoverHeaderSection onTagPress={handleTagPress} />
             <RecentlyAddedSection onArtistPress={handleRecentlyAddedPress} />
             <ShowsNearYouSection
               onShowPress={handleShowPress}
