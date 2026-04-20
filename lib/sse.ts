@@ -33,7 +33,7 @@ export async function* streamSSE(
       if (signal?.aborted) break;
       const { value, done } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n?/g, "\n");
 
       let boundary;
       while ((boundary = buffer.indexOf("\n\n")) !== -1) {
