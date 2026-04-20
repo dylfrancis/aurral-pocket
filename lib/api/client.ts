@@ -1,4 +1,4 @@
-import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { fetch } from "expo/fetch";
 import { SecureStorage } from "@/lib/storage";
 
 export class ApiError extends Error {
@@ -16,20 +16,27 @@ export class ApiError extends Error {
   }
 }
 
-const api = axios.create({
-  timeout: 60_000,
-  headers: { "Content-Type": "application/json" },
-});
+type RequestConfig = {
+  params?: Record<string, unknown>;
+  signal?: AbortSignal;
+  /** Per-request timeout in ms; defaults to `defaultTimeoutMs`. */
+  timeout?: number;
+  _retried?: boolean;
+};
 
+type ApiResponse<T> = { data: T; status: number };
+
+let baseURL = "";
 let authToken: string | null = null;
 let onSessionExpired: (() => void) | null = null;
 let onAuthRefreshed:
   | ((token: string, userJson: string, expiresAt: number) => void)
   | null = null;
 let reAuthPromise: Promise<boolean> | null = null;
+const defaultTimeoutMs = 60_000;
 
 export function setBaseUrl(url: string) {
-  api.defaults.baseURL = url ? `${url}/api` : "";
+  baseURL = url ? `${url}/api` : "";
 }
 
 export function setAuthToken(token: string | null) {
@@ -46,15 +53,19 @@ export function setOnAuthRefreshed(
   onAuthRefreshed = cb;
 }
 
-async function isTokenLikelyExpired(): Promise<boolean> {
-  // If we can't determine expiry (old install, fresh-restore edge cases),
-  // fall back to the safe assumption that the token *could* be expired so
-  // the iOS 401-swallow workaround still applies.
-  const expiresAt = await SecureStorage.getExpiresAt();
-  if (!expiresAt) return true;
-  // Use the same 60s buffer as the proactive renewal timer — outside this
-  // window the token is known-fresh and a timeout cannot be an iOS-swallowed 401.
-  return Date.now() >= expiresAt - 60_000;
+function buildUrl(path: string, params?: Record<string, unknown>): string {
+  const root = path.startsWith("http") ? path : `${baseURL}${path}`;
+  if (!params) return root;
+  const entries = Object.entries(params).filter(
+    ([, v]) => v !== undefined && v !== null,
+  );
+  if (entries.length === 0) return root;
+  const qs = entries
+    .map(
+      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`,
+    )
+    .join("&");
+  return `${root}${root.includes("?") ? "&" : "?"}${qs}`;
 }
 
 async function attemptSilentReAuth(): Promise<boolean> {
@@ -62,15 +73,17 @@ async function attemptSilentReAuth(): Promise<boolean> {
     const creds = await SecureStorage.getCredentials();
     if (!creds) return false;
 
-    // Call login directly with a fresh axios instance to avoid interceptor recursion
-    const { data } = await axios.post<{
+    const response = await fetch(`${baseURL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(creds),
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as {
       token: string;
       expiresAt: number;
       user: { id: number; username: string; role: string };
-    }>(`${api.defaults.baseURL}/auth/login`, creds, {
-      timeout: 10_000,
-      headers: { "Content-Type": "application/json" },
-    });
+    };
 
     authToken = data.token;
     const userJson = JSON.stringify(data.user);
@@ -86,12 +99,12 @@ async function attemptSilentReAuth(): Promise<boolean> {
   }
 }
 
-async function handle401(
-  originalRequest: InternalAxiosRequestConfig & { _retried?: boolean },
-): Promise<ReturnType<typeof api> | void> {
-  originalRequest._retried = true;
-
-  // Deduplicate concurrent re-auth attempts
+async function handle401<T>(
+  method: string,
+  path: string,
+  body: unknown,
+  config: RequestConfig,
+): Promise<ApiResponse<T> | null> {
   if (!reAuthPromise) {
     const remember = await SecureStorage.getRememberCredentials();
     if (remember) {
@@ -104,65 +117,92 @@ async function handle401(
   if (reAuthPromise) {
     const success = await reAuthPromise;
     if (success) {
-      originalRequest.headers.Authorization = `Bearer ${authToken}`;
-      return api(originalRequest);
+      return request<T>(method, path, body, { ...config, _retried: true });
     }
   }
 
-  // Silent re-auth not available or failed — notify UI
   onSessionExpired?.();
+  return null;
 }
 
-api.interceptors.request.use((config) => {
-  if (authToken) {
-    config.headers.Authorization = `Bearer ${authToken}`;
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  config: RequestConfig = {},
+): Promise<ApiResponse<T>> {
+  const url = buildUrl(path, config.params);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+
+  const timeoutController = new AbortController();
+  const timeoutMs = config.timeout ?? defaultTimeoutMs;
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+
+  // Chain the caller's signal with our timeout controller
+  const callerSignal = config.signal;
+  if (callerSignal) {
+    if (callerSignal.aborted) timeoutController.abort();
+    else
+      callerSignal.addEventListener("abort", () => timeoutController.abort(), {
+        once: true,
+      });
   }
-  return config;
-});
 
-api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError<{ error?: string; message?: string }>) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
-      _retried?: boolean;
-    };
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: timeoutController.signal,
+    });
+  } catch {
+    clearTimeout(timeoutId);
+    throw new ApiError(0, "Unable to reach server. Check your connection.");
+  }
+  clearTimeout(timeoutId);
 
-    // iOS swallows 401 responses that include WWW-Authenticate: Basic headers.
-    // NSURLSession intercepts them as authentication challenges and the response
-    // never reaches JS — the request just times out. So a timeout on an
-    // authenticated request *might* actually be an iOS-swallowed 401 — but only
-    // if the token is already (near) expired. If the token is still known-fresh
-    // by its stored expiresAt, a timeout is almost certainly a real network
-    // issue (slow connection, slow upstream, etc.) and must not trigger the
-    // session-expired flow. See: https://github.com/facebook/react-native/issues/34883
-    if (
-      !error.response &&
-      authToken &&
-      originalRequest &&
-      !originalRequest._retried &&
-      error.code === "ECONNABORTED" &&
-      (await isTokenLikelyExpired())
-    ) {
-      const result = await handle401(originalRequest);
-      if (result) return result;
-      throw new ApiError(401, "Session expired");
+  if (response.status === 401 && !config._retried) {
+    const retried = await handle401<T>(method, path, body, config);
+    if (retried) return retried;
+    throw new ApiError(401, "Session expired");
+  }
+
+  const text = await response.text();
+  let parsed: unknown = undefined;
+  if (text) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = text;
     }
+  }
 
-    if (!error.response) {
-      throw new ApiError(0, "Unable to reach server. Check your connection.");
-    }
+  if (!response.ok) {
+    const body =
+      typeof parsed === "object" && parsed !== null
+        ? (parsed as { error?: string; message?: string })
+        : undefined;
+    const msg = body?.error || body?.message || response.statusText;
+    throw new ApiError(response.status, msg, parsed);
+  }
 
-    const { status, data } = error.response;
+  return { data: parsed as T, status: response.status };
+}
 
-    // Handle real 401s (is there is ever iOS fix in place or on Android)
-    if (status === 401 && originalRequest && !originalRequest._retried) {
-      const result = await handle401(originalRequest);
-      if (result) return result;
-    }
-
-    const msg = data?.error || data?.message || error.message;
-    throw new ApiError(status, msg, data);
+export const api = {
+  get: <T>(path: string, config?: RequestConfig) =>
+    request<T>("GET", path, undefined, config),
+  post: <T>(path: string, body?: unknown, config?: RequestConfig) =>
+    request<T>("POST", path, body, config),
+  put: <T>(path: string, body?: unknown, config?: RequestConfig) =>
+    request<T>("PUT", path, body, config),
+  delete: <T>(path: string, config?: RequestConfig) =>
+    request<T>("DELETE", path, undefined, config),
+  get defaults() {
+    return { baseURL };
   },
-);
-
-export { api };
+};

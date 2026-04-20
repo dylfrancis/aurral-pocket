@@ -1,11 +1,15 @@
-jest.mock('@expo/vector-icons', () => {
-  const React = require('react');
-  const { View } = require('react-native');
+jest.mock("expo/fetch", () => ({
+  fetch: jest.fn(),
+}));
+
+jest.mock("@expo/vector-icons", () => {
+  const React = require("react");
+  const { View } = require("react-native");
 
   const createIconMock = () => {
     const Icon = ({ name, testID, ...props }: any) =>
       React.createElement(View, { ...props, testID: testID ?? `icon-${name}` });
-    Icon.displayName = 'MockIcon';
+    Icon.displayName = "MockIcon";
     return Icon;
   };
 

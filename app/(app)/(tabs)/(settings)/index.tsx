@@ -1,15 +1,16 @@
-import { StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
-import { Button } from '@/components/ui/Button';
-import { useAuth } from '@/contexts/auth-context';
-import { useLogout } from '@/hooks/auth/use-logout';
-import { useSession } from '@/hooks/auth/use-session';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import { StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/contexts/auth-context";
+import { useLogout } from "@/hooks/auth/use-logout";
+import { useSession } from "@/hooks/auth/use-session";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
+import { setAuthToken } from "@/lib/api/client";
 
 export default function SettingsScreen() {
   const { user, serverUrl } = useAuth();
-  const colorScheme = useColorScheme() ?? 'light';
+  const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
   const logoutMutation = useLogout();
 
@@ -33,6 +34,15 @@ export default function SettingsScreen() {
         loading={logoutMutation.isPending}
         style={styles.button}
       />
+
+      {__DEV__ && (
+        <Button
+          title="Invalidate Session (debug)"
+          variant="inline"
+          onPress={() => setAuthToken("invalid-token-for-testing")}
+          style={styles.button}
+        />
+      )}
     </View>
   );
 }
@@ -40,8 +50,8 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 32,
   },
   welcome: {
@@ -52,7 +62,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 32,
-    width: 'auto',
+    width: "auto",
     paddingHorizontal: 32,
   },
 });
