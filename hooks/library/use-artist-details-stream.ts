@@ -29,7 +29,7 @@ export function useArtistDetailsStream(mbid: string | undefined) {
   return useQuery<ArtistDetailsPayload>({
     queryKey: libraryKeys.artistDetails(mbid!),
     queryFn: async ({ signal, queryKey }) => {
-      const url = `${serverUrl}/api/artists/${mbid}/stream?token=${encodeURIComponent(token ?? "")}`;
+      const url = `${serverUrl}/api/artists/${mbid}/stream`;
       const merged: Record<string, unknown> = {};
       const toPayload = (): ArtistDetailsPayload => ({
         tags: (merged.tags as ArtistTag[] | undefined) ?? [],
@@ -38,7 +38,13 @@ export function useArtistDetailsStream(mbid: string | undefined) {
           (merged["release-groups"] as ReleaseGroup[] | undefined) ?? [],
       });
 
-      for await (const evt of streamSSE(url, { signal })) {
+      const authHeaders: Record<string, string> = token
+        ? { Authorization: `Bearer ${token}` }
+        : {};
+      for await (const evt of streamSSE(url, {
+        signal,
+        headers: authHeaders,
+      })) {
         if (signal.aborted) break;
         if (evt.event !== "artist") continue;
         try {

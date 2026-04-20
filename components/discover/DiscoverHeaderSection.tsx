@@ -16,6 +16,9 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
 
   if (!data || data.configured === false) return null;
 
+  // "Top Tags" label intentionally renders `topGenres` — `topTags` drives the
+  // separate "Explore by Tag" section. Parent aurral web app splits them the
+  // same way (DiscoverPage "Top Tags" block pulls from topGenres).
   const tags = data.topGenres ?? [];
   const updatedLabel = formatUpdatedAt(data.lastUpdated);
   const basedOnLabel = formatBasedOn(data.basedOn ?? []);

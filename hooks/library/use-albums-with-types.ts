@@ -10,10 +10,10 @@ import type {
 type Options = {
   /**
    * Release groups to use for enrichment. When provided, the hook skips its
-   * internal `useArtistDetails` fetch. ArtistDetailLayout feeds these in from
-   * the SSE stream so every library album gets a correct `primary-type`, not
-   * the hardcoded "Album" that the REST `/artists/:mbid` endpoint returns for
-   * Lidarr-tracked artists.
+   * internal `useArtistDetailsStream` fetch. ArtistDetailLayout feeds these in
+   * from the SSE stream so every library album gets a correct `primary-type`,
+   * not the hardcoded "Album" that the REST `/artists/:mbid` endpoint returns
+   * for Lidarr-tracked artists.
    */
   releaseGroups?: ReleaseGroup[];
 };
@@ -22,7 +22,8 @@ type Options = {
  * Enriches library albums with primary type and secondary types. Prefers the
  * Lidarr-sourced `albumType` / `secondaryTypes` already on the album. Falls
  * back to matching against release groups — supplied via `options` if the
- * consumer already has them, otherwise fetched lazily via `useArtistDetails`.
+ * consumer already has them, otherwise fetched lazily via
+ * `useArtistDetailsStream`.
  */
 export function useAlbumsWithTypes(
   mbid: string | undefined,

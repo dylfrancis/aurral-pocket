@@ -21,7 +21,7 @@ export async function* streamSSE(
     headers: { Accept: "text/event-stream", ...(headers ?? {}) },
   });
   if (!response.ok || !response.body) {
-    throw new Error(`SSE ${url} failed: ${response.status}`);
+    throw new Error(`SSE request failed: ${response.status}`);
   }
 
   const reader = response.body.getReader();
@@ -51,6 +51,11 @@ export async function* streamSSE(
       }
     }
   } finally {
+    try {
+      await reader.cancel();
+    } catch {
+      // reader may already be closed; ignore
+    }
     reader.releaseLock();
   }
 }

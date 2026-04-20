@@ -11,7 +11,7 @@ type UseNearbyShowsOptions = {
 export function useNearbyShows(options: UseNearbyShowsOptions = {}) {
   const { zipCode, limit, enabled = true } = options;
   return useQuery({
-    queryKey: discoverKeys.nearbyShows(zipCode),
+    queryKey: discoverKeys.nearbyShows(zipCode, limit),
     queryFn: () => getNearbyShows(zipCode, limit),
     enabled,
     staleTime: 30 * 60 * 1000,
