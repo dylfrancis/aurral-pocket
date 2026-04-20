@@ -23,6 +23,7 @@ import {
   setBaseUrl,
   setOnSessionExpired,
   setOnAuthRefreshed,
+  notifyReAuthResult,
 } from "@/lib/api/client";
 
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
@@ -180,7 +181,7 @@ describe("response parsing", () => {
 });
 
 describe("401 handling", () => {
-  it("calls onSessionExpired when no saved credentials are available", async () => {
+  it("opens the re-auth modal and throws 401 when the user dismisses it", async () => {
     mockSecureStore.getItemAsync.mockResolvedValue(null);
     mockFetch.mockResolvedValueOnce(
       mockResponse({
@@ -189,11 +190,33 @@ describe("401 handling", () => {
         body: { error: "no" },
       }),
     );
-    const onExpired = jest.fn();
+    const onExpired = jest.fn(() => notifyReAuthResult(false));
     setOnSessionExpired(onExpired);
 
     await expect(api.get("/me")).rejects.toThrow(ApiError);
     expect(onExpired).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries the failed request after the modal signals re-auth success", async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({
+        ok: false,
+        status: 401,
+        body: { error: "expired" },
+      }),
+    );
+    mockFetch.mockResolvedValueOnce(mockResponse({ body: { ok: true } }));
+
+    setOnSessionExpired(() => {
+      setAuthToken("fresh-token");
+      notifyReAuthResult(true);
+    });
+
+    const res = await api.get<{ ok: boolean }>("/me");
+    expect(res.data).toEqual({ ok: true });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
   it("performs silent re-auth and retries when remember is on", async () => {
@@ -246,7 +269,7 @@ describe("401 handling", () => {
     mockFetch.mockResolvedValue(
       mockResponse({ ok: false, status: 401, body: { error: "still no" } }),
     );
-    const onExpired = jest.fn();
+    const onExpired = jest.fn(() => notifyReAuthResult(false));
     setOnSessionExpired(onExpired);
 
     await expect(api.get("/me")).rejects.toThrow(ApiError);

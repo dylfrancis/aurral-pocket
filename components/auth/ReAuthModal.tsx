@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -24,7 +24,7 @@ import {
 import { Colors, Fonts } from "@/constants/theme";
 import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/platform";
 import { login } from "@/lib/api/auth";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, notifyReAuthResult } from "@/lib/api/client";
 import { SecureStorage } from "@/lib/storage";
 import { authKeys } from "@/lib/query-keys";
 import { useQueryClient } from "@tanstack/react-query";
@@ -86,6 +86,7 @@ export function ReAuthModal() {
       await queryClient.invalidateQueries({
         queryKey: authKeys.me(serverUrl ?? ""),
       });
+      notifyReAuthResult(true);
       dismissSessionExpired();
       reset();
     } catch (e) {
@@ -108,11 +109,26 @@ export function ReAuthModal() {
 
   const handleSignOut = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    notifyReAuthResult(false);
     dismissSessionExpired();
     await clearAuth();
   };
 
   const showBiometric = useBiometrics && hasCredentials && !!biometricLabel;
+
+  const autoTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!sessionExpired) {
+      autoTriggeredRef.current = false;
+      return;
+    }
+    if (!showBiometric || autoTriggeredRef.current) return;
+    autoTriggeredRef.current = true;
+    handleBiometric();
+    // handleBiometric is stable within a render; we intentionally avoid adding
+    // it to deps to prevent re-firing on unrelated re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionExpired, showBiometric]);
 
   return (
     <Modal
@@ -120,9 +136,6 @@ export function ReAuthModal() {
       transparent
       animationType="fade"
       statusBarTranslucent
-      onShow={() => {
-        if (showBiometric) handleBiometric();
-      }}
     >
       <KeyboardAvoidingView
         style={styles.overlay}

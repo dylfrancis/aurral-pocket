@@ -6,13 +6,18 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from 'react';
-import { setAuthToken, setBaseUrl, setOnSessionExpired, setOnAuthRefreshed } from '@/lib/api/client';
-import { login } from '@/lib/api/auth';
-import { AppStorage, SecureStorage } from '@/lib/storage';
-import type { HealthResponse, User } from '@/lib/types/auth';
+} from "react";
+import {
+  setAuthToken,
+  setBaseUrl,
+  setOnSessionExpired,
+  setOnAuthRefreshed,
+} from "@/lib/api/client";
+import { login } from "@/lib/api/auth";
+import { AppStorage, SecureStorage } from "@/lib/storage";
+import type { HealthResponse, User } from "@/lib/types/auth";
 
-type ServerHealth = Pick<HealthResponse, 'authRequired' | 'onboardingRequired'>;
+type ServerHealth = Pick<HealthResponse, "authRequired" | "onboardingRequired">;
 
 type AuthContextValue = {
   serverUrl: string | null;
@@ -55,17 +60,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const [storedUrl, storedToken, storedUserJson, remember, bio, creds, storedExpiry, lastActive] =
-          await Promise.all([
-            AppStorage.getServerUrl(),
-            SecureStorage.getToken(),
-            SecureStorage.getUser(),
-            SecureStorage.getRememberCredentials(),
-            SecureStorage.getUseBiometrics(),
-            SecureStorage.getCredentials(),
-            SecureStorage.getExpiresAt(),
-            SecureStorage.getLastActiveAt(),
-          ]);
+        const [
+          storedUrl,
+          storedToken,
+          storedUserJson,
+          remember,
+          bio,
+          creds,
+          storedExpiry,
+          lastActive,
+        ] = await Promise.all([
+          AppStorage.getServerUrl(),
+          SecureStorage.getToken(),
+          SecureStorage.getUser(),
+          SecureStorage.getRememberCredentials(),
+          SecureStorage.getUseBiometrics(),
+          SecureStorage.getCredentials(),
+          SecureStorage.getExpiresAt(),
+          SecureStorage.getLastActiveAt(),
+        ]);
 
         // Hard expire after 30 days of inactivity with full reset to login screen
         const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -165,39 +178,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [expiresAt, token]);
 
-  const setServer = useCallback(
-    async (url: string, health: HealthResponse) => {
-      setServerUrl(url);
-      setBaseUrl(url);
-      setServerHealth({
-        authRequired: health.authRequired,
-        onboardingRequired: health.onboardingRequired,
-      });
-      await AppStorage.setServerUrl(url);
+  const setServer = useCallback(async (url: string, health: HealthResponse) => {
+    setServerUrl(url);
+    setBaseUrl(url);
+    setServerHealth({
+      authRequired: health.authRequired,
+      onboardingRequired: health.onboardingRequired,
+    });
+    await AppStorage.setServerUrl(url);
+  }, []);
+
+  const setAuth = useCallback(
+    async (newToken: string, newUser: User, newExpiresAt?: number) => {
+      setToken(newToken);
+      setUser(newUser);
+      setAuthToken(newToken);
+      if (newExpiresAt) setExpiresAt(newExpiresAt);
+      const saves: Promise<void>[] = [
+        SecureStorage.setToken(newToken),
+        SecureStorage.setUser(JSON.stringify(newUser)),
+        SecureStorage.setLastActiveAt(Date.now()),
+      ];
+      if (newExpiresAt) saves.push(SecureStorage.setExpiresAt(newExpiresAt));
+      await Promise.all(saves);
     },
     [],
   );
-
-  const setAuth = useCallback(async (newToken: string, newUser: User, newExpiresAt?: number) => {
-    setToken(newToken);
-    setUser(newUser);
-    setAuthToken(newToken);
-    if (newExpiresAt) setExpiresAt(newExpiresAt);
-    const saves: Promise<void>[] = [
-      SecureStorage.setToken(newToken),
-      SecureStorage.setUser(JSON.stringify(newUser)),
-      SecureStorage.setLastActiveAt(Date.now()),
-    ];
-    if (newExpiresAt) saves.push(SecureStorage.setExpiresAt(newExpiresAt));
-    await Promise.all(saves);
-  }, []);
 
   const clearAuth = useCallback(async () => {
     setToken(null);
     setUser(null);
     setExpiresAt(null);
     setAuthToken(null);
-    await Promise.all([SecureStorage.deleteToken(), SecureStorage.deleteUser(), SecureStorage.deleteExpiresAt()]);
+    await Promise.all([
+      SecureStorage.deleteToken(),
+      SecureStorage.deleteUser(),
+      SecureStorage.deleteExpiresAt(),
+    ]);
   }, []);
 
   const clearAll = useCallback(async () => {
@@ -205,7 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     setServerHealth(null);
-    setBaseUrl('');
+    setBaseUrl("");
     setAuthToken(null);
     setRememberCreds(false);
     setBiometrics(false);
@@ -225,12 +242,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setRememberCredentials = useCallback(
     async (value: boolean) => {
       setRememberCreds(value);
-      await SecureStorage.setRememberCredentials(value);
+      const writes: Promise<void>[] = [
+        SecureStorage.setRememberCredentials(value),
+      ];
+      // Remember-me supersedes biometrics: when the user opts into silent
+      // re-auth, turn off the Face ID gate so stored state stays consistent.
+      if (value && biometrics) {
+        setBiometrics(false);
+        writes.push(SecureStorage.setUseBiometrics(false));
+      }
       // If both remember and biometrics are off, clear stored credentials
       if (!value && !biometrics) {
         setHasCredentials(false);
-        await SecureStorage.deleteCredentials();
+        writes.push(SecureStorage.deleteCredentials());
       }
+      await Promise.all(writes);
     },
     [biometrics],
   );
@@ -322,7 +348,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

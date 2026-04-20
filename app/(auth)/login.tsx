@@ -1,5 +1,21 @@
+import { AurralLogo } from "@/components/AurralLogo";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Text } from "@/components/ui/Text";
+import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/platform";
+import { Colors } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import {
-  Alert,
+  authenticateWithBiometrics,
+  useBiometricAvailability,
+} from "@/hooks/auth/use-biometric-availability";
+import { useLogin } from "@/hooks/auth/use-login";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { ApiError } from "@/lib/api/client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as Haptics from "expo-haptics";
+import { Controller, useForm } from "react-hook-form";
+import {
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -7,21 +23,7 @@ import {
   Switch,
   View,
 } from "react-native";
-import * as Haptics from "expo-haptics";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AurralLogo } from "@/components/AurralLogo";
-import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { useAuth } from "@/contexts/auth-context";
-import { useLogin } from "@/hooks/auth/use-login";
-import { useBiometricAvailability } from "@/hooks/auth/use-biometric-availability";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
-import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/platform";
-import { ApiError } from "@/lib/api/client";
 
 const loginSchema = z.object({
   username: z.string().trim().min(1, "Username is required"),
@@ -43,28 +45,6 @@ function getErrorMessage(error: Error | null): string | null {
   return error.message;
 }
 
-function showRememberWarning(onConfirm: () => void) {
-  Alert.alert(
-    "Store Credentials",
-    "Your password will be saved in encrypted storage on this device so you can be automatically signed back in when your session expires.",
-    [
-      { text: "Cancel", style: "cancel" },
-      { text: "Enable", onPress: onConfirm },
-    ],
-  );
-}
-
-function showBiometricWarning(onConfirm: () => void, label: string) {
-  Alert.alert(
-    "Store Credentials",
-    `Your password will be saved in encrypted storage on this device so you can use ${label} to sign back in when your session expires.`,
-    [
-      { text: "Cancel", style: "cancel" },
-      { text: "Enable", onPress: onConfirm },
-    ],
-  );
-}
-
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
@@ -75,7 +55,6 @@ export default function LoginScreen() {
     useBiometrics,
     setRememberCredentials,
     setUseBiometrics,
-    saveCredentials,
   } = useAuth();
   const loginMutation = useLogin();
   const biometricLabel = useBiometricAvailability();
@@ -90,37 +69,26 @@ export default function LoginScreen() {
   });
 
   const onSubmit = (data: LoginForm) => {
-    const trimmedUsername = data.username.trim();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    loginMutation.mutate(
-      { username: trimmedUsername, password: data.password },
-      {
-        onSuccess: () => {
-          if (rememberCredentials || useBiometrics) {
-            saveCredentials(trimmedUsername, data.password);
-          }
-        },
-      },
-    );
+    loginMutation.mutate({
+      username: data.username.trim(),
+      password: data.password,
+    });
   };
 
   const handleToggleRemember = (value: boolean) => {
-    if (value) {
-      showRememberWarning(() => setRememberCredentials(true));
-    } else {
-      setRememberCredentials(false);
-    }
+    setRememberCredentials(value);
   };
 
-  const handleToggleBiometrics = (value: boolean) => {
-    if (value) {
-      showBiometricWarning(
-        () => setUseBiometrics(true),
-        biometricLabel ?? "biometrics",
-      );
-    } else {
+  const handleToggleBiometrics = async (value: boolean) => {
+    if (!value) {
       setUseBiometrics(false);
+      return;
     }
+    const ok = await authenticateWithBiometrics(
+      `Authenticate to enable ${biometricLabel ?? "biometrics"}`,
+    );
+    if (ok) setUseBiometrics(true);
   };
 
   const errorMessage =
@@ -203,21 +171,33 @@ export default function LoginScreen() {
             </Pressable>
 
             {biometricLabel && (
-              <Pressable
-                style={styles.toggleRow}
-                onPress={() => handleToggleBiometrics(!useBiometrics)}
-              >
-                <Switch
-                  value={useBiometrics}
-                  onValueChange={handleToggleBiometrics}
-                  trackColor={{ false: colors.separator, true: colors.brand }}
-                  thumbColor="#ffffff"
-                  style={styles.switch}
-                />
-                <Text variant="body" style={{ flex: 1 }}>
-                  Use {biometricLabel}
-                </Text>
-              </Pressable>
+              <View>
+                <Pressable
+                  style={[
+                    styles.toggleRow,
+                    rememberCredentials && styles.disabledRow,
+                  ]}
+                  onPress={() => handleToggleBiometrics(!useBiometrics)}
+                  disabled={rememberCredentials}
+                >
+                  <Switch
+                    value={useBiometrics && !rememberCredentials}
+                    onValueChange={handleToggleBiometrics}
+                    disabled={rememberCredentials}
+                    trackColor={{ false: colors.separator, true: colors.brand }}
+                    thumbColor="#ffffff"
+                    style={styles.switch}
+                  />
+                  <Text variant="body" style={{ flex: 1 }}>
+                    Use {biometricLabel}
+                  </Text>
+                </Pressable>
+                {rememberCredentials && (
+                  <Text variant="caption" style={styles.biometricHint}>
+                    Turn off Remember me to use {biometricLabel}
+                  </Text>
+                )}
+              </View>
             )}
           </View>
 
@@ -284,6 +264,13 @@ const styles = StyleSheet.create({
   },
   switch: {
     transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }],
+  },
+  disabledRow: {
+    opacity: 0.4,
+  },
+  biometricHint: {
+    marginTop: -2,
+    marginBottom: 4,
   },
   error: {
     marginBottom: 12,
