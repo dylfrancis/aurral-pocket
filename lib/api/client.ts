@@ -33,6 +33,7 @@ let onAuthRefreshed:
   | ((token: string, userJson: string, expiresAt: number) => void)
   | null = null;
 let reAuthPromise: Promise<boolean> | null = null;
+let resolveModalReAuth: ((success: boolean) => void) | null = null;
 const defaultTimeoutMs = 60_000;
 
 export function setBaseUrl(url: string) {
@@ -51,6 +52,15 @@ export function setOnAuthRefreshed(
   cb: ((token: string, userJson: string, expiresAt: number) => void) | null,
 ) {
   onAuthRefreshed = cb;
+}
+
+/**
+ * Resolve the pending re-auth promise when the user finishes (or abandons)
+ * the session-expired modal. Requests paused on the 401 will retry on
+ * success = true, or reject with 401 on success = false.
+ */
+export function notifyReAuthResult(success: boolean) {
+  resolveModalReAuth?.(success);
 }
 
 function buildUrl(path: string, params?: Record<string, unknown>): string {
@@ -106,22 +116,26 @@ async function handle401<T>(
   config: RequestConfig,
 ): Promise<ApiResponse<T> | null> {
   if (!reAuthPromise) {
-    const remember = await SecureStorage.getRememberCredentials();
-    if (remember) {
-      reAuthPromise = attemptSilentReAuth().finally(() => {
-        reAuthPromise = null;
+    reAuthPromise = (async () => {
+      const remember = await SecureStorage.getRememberCredentials();
+      if (remember && (await attemptSilentReAuth())) return true;
+      // Silent path unavailable or failed — open the modal and wait for the
+      // user to finish re-auth (password or Face ID → setAuth → notify).
+      const modalPromise = new Promise<boolean>((resolve) => {
+        resolveModalReAuth = resolve;
       });
-    }
+      onSessionExpired?.();
+      return modalPromise;
+    })().finally(() => {
+      reAuthPromise = null;
+      resolveModalReAuth = null;
+    });
   }
 
-  if (reAuthPromise) {
-    const success = await reAuthPromise;
-    if (success) {
-      return request<T>(method, path, body, { ...config, _retried: true });
-    }
+  const success = await reAuthPromise;
+  if (success) {
+    return request<T>(method, path, body, { ...config, _retried: true });
   }
-
-  onSessionExpired?.();
   return null;
 }
 
