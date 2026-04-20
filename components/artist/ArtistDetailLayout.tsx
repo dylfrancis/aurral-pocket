@@ -1,50 +1,50 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  StyleSheet,
-  View,
-  Pressable,
-} from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedScrollHandler,
-} from "react-native-reanimated";
-import BottomSheet from "@gorhom/bottom-sheet";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArtistHero } from "@/components/library/ArtistHero";
-import { ArtistTags } from "@/components/library/ArtistTags";
-import { ReleaseGroupSheet } from "@/components/library/ReleaseGroupSheet";
-import { AlbumSheet } from "@/components/library/AlbumSheet";
-import { AddArtistSheet } from "@/components/search/AddArtistSheet";
-import { TopTracksSection } from "@/components/artist/TopTracksSection";
+import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
-import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
+import { TopTracksSection } from "@/components/artist/TopTracksSection";
+import { AlbumSheet } from "@/components/library/AlbumSheet";
+import { ArtistHero } from "@/components/library/ArtistHero";
+import { ArtistTags } from "@/components/library/ArtistTags";
+import { ReleaseGroupSheet } from "@/components/library/ReleaseGroupSheet";
+import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { Text } from "@/components/ui/Text";
+import { Colors } from "@/constants/theme";
+import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
+import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
+import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
+import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
+import { useLibraryArtist } from "@/hooks/library/use-library-artist";
+import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
+import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
-import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
-import { useArtistDetails } from "@/hooks/library/use-artist-details";
-import { useLibraryArtist } from "@/hooks/library/use-library-artist";
-import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
-import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
-import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
-import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
-import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
-import * as Haptics from "expo-haptics";
 import type {
   Album,
   PrimaryReleaseType,
   ReleaseGroup,
 } from "@/lib/types/library";
 import type { SimilarArtist } from "@/lib/types/search";
+import { Ionicons } from "@expo/vector-icons";
+import BottomSheet from "@gorhom/bottom-sheet";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from "react-native";
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function sortByDate(albums: Album[]): Album[] {
   return albums.slice().sort((a, b) => {
@@ -71,6 +71,8 @@ const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
   { type: "Album", label: "Albums" },
   { type: "EP", label: "EPs" },
   { type: "Single", label: "Singles" },
+  { type: "Broadcast", label: "Broadcasts" },
+  { type: "Other", label: "Other" },
 ];
 
 type ArtistDetailLayoutProps = {
@@ -103,9 +105,17 @@ export function ArtistDetailLayout({
     error: albumsError,
     refetch: refetchAlbums,
   } = useLibraryAlbums(libraryArtist?.id);
+  const { stop: stopPreview, ...preview } = usePreviewPlayer(mbid, artistName);
+  const { data: details, isLoading: detailsLoading } =
+    useArtistDetailsStream(mbid);
+  const { data: similarArtists } = useSimilarArtists(mbid);
+
+  const allReleaseGroups = details?.releaseGroups;
+
   const { albums: typedAlbums, isLoadingTypes } = useAlbumsWithTypes(
     inLibrary ? mbid : undefined,
     rawAlbums,
+    { releaseGroups: allReleaseGroups },
   );
   const { data: downloadStatuses } = useDownloadStatuses(rawAlbums);
 
@@ -133,12 +143,6 @@ export function ArtistDetailLayout({
     }, 5000);
     return () => clearInterval(interval);
   }, [inLibrary, libraryArtist?.id, rawAlbums, refetchArtist, refetchAlbums]);
-
-  const { stop: stopPreview, ...preview } = usePreviewPlayer(mbid, artistName);
-  const { data: details, isLoading: detailsLoading } = useArtistDetails(mbid);
-  const { data: similarArtists } = useSimilarArtists(mbid);
-
-  const allReleaseGroups = details?.releaseGroups;
 
   const libraryAlbumMbids = useMemo(() => {
     if (!rawAlbums) return new Set<string>();

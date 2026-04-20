@@ -1,14 +1,22 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, type NativeSyntheticEvent, Pressable, StyleSheet, type TextLayoutEventData, View } from 'react-native';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { refreshLibraryArtist } from '@/lib/api/library';
-import { libraryKeys } from '@/lib/query-keys';
-import { useArtistDetails } from '@/hooks/library/use-artist-details';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { Artist } from '@/lib/types/library';
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Linking,
+  type NativeSyntheticEvent,
+  Pressable,
+  StyleSheet,
+  type TextLayoutEventData,
+  View,
+} from "react-native";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { refreshLibraryArtist } from "@/lib/api/library";
+import { libraryKeys } from "@/lib/query-keys";
+import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type { Artist } from "@/lib/types/library";
 
 type ArtistInfoSectionProps = {
   artist: Artist;
@@ -17,7 +25,7 @@ type ArtistInfoSectionProps = {
 export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
   const colors = Colors[useColorScheme()];
   const queryClient = useQueryClient();
-  const { data: details } = useArtistDetails(artist.mbid);
+  const { data: details } = useArtistDetailsStream(artist.mbid);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [bioTruncated, setBioTruncated] = useState(false);
 
@@ -31,8 +39,12 @@ export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
   const refreshMutation = useMutation({
     mutationFn: () => refreshLibraryArtist(artist.mbid),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: libraryKeys.artist(artist.mbid) });
-      queryClient.invalidateQueries({ queryKey: libraryKeys.albums(artist.id) });
+      queryClient.invalidateQueries({
+        queryKey: libraryKeys.artist(artist.mbid),
+      });
+      queryClient.invalidateQueries({
+        queryKey: libraryKeys.albums(artist.id),
+      });
     },
   });
 
@@ -40,7 +52,10 @@ export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
     <View style={styles.container}>
       {details?.bio && (
         <View style={styles.bioSection}>
-          <Text variant="caption" style={[styles.sectionLabel, { color: colors.subtle }]}>
+          <Text
+            variant="caption"
+            style={[styles.sectionLabel, { color: colors.subtle }]}
+          >
             About
           </Text>
           <Text
@@ -54,7 +69,7 @@ export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
           {(bioTruncated || bioExpanded) && (
             <Pressable onPress={() => setBioExpanded((prev) => !prev)}>
               <Text variant="caption" style={{ color: colors.brand }}>
-                {bioExpanded ? 'Show less' : 'Show more'}
+                {bioExpanded ? "Show less" : "Show more"}
               </Text>
             </Pressable>
           )}
@@ -76,7 +91,7 @@ export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
             <Ionicons name="sync-outline" size={18} color={colors.brand} />
           )}
           <Text variant="caption" style={{ color: colors.text }}>
-            {refreshMutation.isSuccess ? 'Refreshed' : 'Refresh'}
+            {refreshMutation.isSuccess ? "Refreshed" : "Refresh"}
           </Text>
         </Pressable>
 
@@ -92,7 +107,9 @@ export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
           }
         >
           <Ionicons name="open-outline" size={18} color={colors.brand} />
-          <Text variant="caption" style={{ color: colors.text }}>Last.fm</Text>
+          <Text variant="caption" style={{ color: colors.text }}>
+            Last.fm
+          </Text>
         </Pressable>
 
         <Pressable
@@ -105,7 +122,9 @@ export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
           }
         >
           <Ionicons name="open-outline" size={18} color={colors.brand} />
-          <Text variant="caption" style={{ color: colors.text }}>MusicBrainz</Text>
+          <Text variant="caption" style={{ color: colors.text }}>
+            MusicBrainz
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -123,7 +142,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: Fonts.semiBold,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 2,
   },
@@ -131,12 +150,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   actions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,

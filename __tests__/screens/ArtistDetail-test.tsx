@@ -171,10 +171,11 @@ jest.mock("@/hooks/search/use-library-lookup", () => ({
   })),
 }));
 
-jest.mock("@/hooks/library/use-artist-details", () => ({
-  useArtistDetails: jest.fn(() => ({
+jest.mock("@/hooks/library/use-artist-details-stream", () => ({
+  useArtistDetailsStream: jest.fn(() => ({
     data: { tags: [], bio: "A test biography.", releaseGroups: [] },
     isLoading: false,
+    error: null,
   })),
 }));
 
@@ -229,11 +230,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ArtistDetailScreen from "@/app/(app)/(tabs)/(library)/artist/[mbid]";
 import { useLibraryArtist } from "@/hooks/library/use-library-artist";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
-import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import type { Artist, Album } from "@/lib/types/library";
 
-const mockUseAlbumsWithTypes = useAlbumsWithTypes as jest.Mock;
 const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
 
 function renderScreen() {
@@ -530,9 +529,9 @@ describe("ArtistDetailScreen", () => {
 
     it("shows Albums & Releases section when release groups exist", async () => {
       const {
-        useArtistDetails,
-      } = require("@/hooks/library/use-artist-details");
-      (useArtistDetails as jest.Mock).mockReturnValue({
+        useArtistDetailsStream,
+      } = require("@/hooks/library/use-artist-details-stream");
+      (useArtistDetailsStream as jest.Mock).mockReturnValue({
         data: {
           tags: [],
           bio: "A test biography.",
@@ -547,6 +546,7 @@ describe("ArtistDetailScreen", () => {
           ],
         },
         isLoading: false,
+        error: null,
       });
       const { findByText } = renderScreen();
       expect(await findByText("Albums & Releases")).toBeTruthy();

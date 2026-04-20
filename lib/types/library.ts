@@ -1,4 +1,4 @@
-export type CoverArtType = 'artist' | 'album';
+export type CoverArtType = "artist" | "album";
 
 export type ArtistTag = {
   name: string;
@@ -28,23 +28,29 @@ export type AlbumStatistics = {
   percentOfTracks: number;
 };
 
-export type PrimaryReleaseType = 'Album' | 'EP' | 'Single';
+export type PrimaryReleaseType =
+  | "Album"
+  | "EP"
+  | "Single"
+  | "Broadcast"
+  | "Other";
+
 export type SecondaryReleaseType =
-  | 'Live'
-  | 'Remix'
-  | 'Compilation'
-  | 'Demo'
-  | 'Broadcast'
-  | 'Soundtrack'
-  | 'Spokenword'
-  | 'Other';
+  | "Live"
+  | "Remix"
+  | "Compilation"
+  | "Demo"
+  | "Broadcast"
+  | "Soundtrack"
+  | "Spokenword"
+  | "Other";
 
 export type ReleaseGroup = {
   id: string;
   title: string;
-  'first-release-date': string | null;
-  'primary-type': PrimaryReleaseType;
-  'secondary-types': SecondaryReleaseType[];
+  "first-release-date": string | null;
+  "primary-type": PrimaryReleaseType;
+  "secondary-types": SecondaryReleaseType[];
 };
 
 export type Album = {
@@ -82,14 +88,14 @@ export type PreviewTrack = {
 };
 
 export type DownloadStatusValue =
-  | 'adding'
-  | 'searching'
-  | 'downloading'
-  | 'moving'
-  | 'processing'
-  | 'failed'
-  | 'added'
-  | 'available';
+  | "adding"
+  | "searching"
+  | "downloading"
+  | "moving"
+  | "processing"
+  | "failed"
+  | "added"
+  | "available";
 
 export type DownloadStatusEntry = {
   status: DownloadStatusValue;
