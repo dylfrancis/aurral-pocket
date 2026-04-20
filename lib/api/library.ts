@@ -1,4 +1,4 @@
-import axios from "axios";
+import { fetch } from "expo/fetch";
 import { api } from "./client";
 import type {
   Artist,
@@ -131,16 +131,25 @@ export async function searchDeezerAlbum(
   albumTitle: string,
 ): Promise<string | null> {
   try {
-    const { data } = await axios.get<{
-      data?: { id: number; title: string }[];
-    }>("https://api.deezer.com/search/album", {
-      params: { q: `${artistName} ${albumTitle}`, limit: 5 },
-      timeout: 10_000,
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const params = new URLSearchParams({
+      q: `${artistName} ${albumTitle}`,
+      limit: "5",
     });
+    const response = await fetch(
+      `https://api.deezer.com/search/album?${params.toString()}`,
+      { signal: controller.signal },
+    );
+    clearTimeout(timeout);
+    if (!response.ok) return null;
+    const body = (await response.json()) as {
+      data?: { id: number; title: string }[];
+    };
     const lowerTitle = albumTitle.toLowerCase();
     const match =
-      data.data?.find((a) => a.title.toLowerCase() === lowerTitle) ??
-      data.data?.find(
+      body.data?.find((a) => a.title.toLowerCase() === lowerTitle) ??
+      body.data?.find(
         (a) =>
           a.title.toLowerCase().includes(lowerTitle) ||
           lowerTitle.includes(a.title.toLowerCase()),
