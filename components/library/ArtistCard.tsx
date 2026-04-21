@@ -1,10 +1,10 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
-import { CoverArtImage } from './CoverArtImage';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { Artist } from '@/lib/types/library';
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Text";
+import { CoverArtImage } from "./CoverArtImage";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type { Artist } from "@/lib/types/library";
 
 type ArtistCardProps = {
   artist: Artist;
@@ -40,7 +40,8 @@ export const ArtistCard = React.memo(function ArtistCard({
           {artist.artistName}
         </Text>
         <Text variant="caption">
-          {artist.statistics.albumCount} {artist.statistics.albumCount === 1 ? 'album' : 'albums'}
+          {artist.statistics.albumCount}{" "}
+          {artist.statistics.albumCount === 1 ? "album" : "albums"}
         </Text>
       </View>
     </Pressable>
@@ -50,7 +51,7 @@ export const ArtistCard = React.memo(function ArtistCard({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   info: {
     padding: 8,

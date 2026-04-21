@@ -1,10 +1,10 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { PreviewTrack } from '@/lib/types/library';
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type { PreviewTrack } from "@/lib/types/library";
 
 type PreviewTrackRowProps = {
   track: PreviewTrack;
@@ -29,11 +29,16 @@ export const PreviewTrackRow = React.memo(function PreviewTrackRow({
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      <View style={[styles.playButton, { backgroundColor: isPlaying ? colors.brand : colors.separator }]}>
+      <View
+        style={[
+          styles.playButton,
+          { backgroundColor: isPlaying ? colors.brand : colors.separator },
+        ]}
+      >
         <Ionicons
-          name={isPlaying ? 'pause' : 'play'}
+          name={isPlaying ? "pause" : "play"}
           size={14}
-          color={isPlaying ? '#fff' : colors.text}
+          color={isPlaying ? "#fff" : colors.text}
           style={isPlaying ? undefined : styles.playIcon}
         />
       </View>
@@ -51,7 +56,9 @@ export const PreviewTrackRow = React.memo(function PreviewTrackRow({
           </Text>
         )}
         {isPlaying && (
-          <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
+          <View
+            style={[styles.progressBar, { backgroundColor: colors.separator }]}
+          >
             <View
               style={[
                 styles.progressFill,
@@ -67,8 +74,8 @@ export const PreviewTrackRow = React.memo(function PreviewTrackRow({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     paddingVertical: 8,
     paddingHorizontal: 4,
@@ -77,8 +84,8 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   playIcon: {
     marginLeft: 2,
@@ -94,10 +101,10 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 1,
     marginTop: 4,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   progressFill: {
-    height: '100%',
+    height: "100%",
     borderRadius: 1,
   },
 });

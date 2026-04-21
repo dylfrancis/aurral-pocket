@@ -1,8 +1,12 @@
-import { Text as RNText, type TextProps as RNTextProps, StyleSheet } from 'react-native';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
+import {
+  Text as RNText,
+  type TextProps as RNTextProps,
+  StyleSheet,
+} from "react-native";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
 
-type Variant = 'title' | 'subtitle' | 'body' | 'caption' | 'error';
+type Variant = "title" | "subtitle" | "body" | "caption" | "error";
 
 interface TextProps extends RNTextProps {
   variant?: Variant;
@@ -28,7 +32,7 @@ const variantStyles = StyleSheet.create({
   error: {
     fontSize: 14,
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
 
@@ -40,19 +44,23 @@ const variantFonts: Record<Variant, string> = {
   error: Fonts.regular,
 };
 
-export function Text({ variant = 'body', style, ...rest }: TextProps) {
+export function Text({ variant = "body", style, ...rest }: TextProps) {
   const colors = Colors[useColorScheme()];
 
   const color =
-    variant === 'error'
+    variant === "error"
       ? colors.error
-      : variant === 'subtitle' || variant === 'caption'
+      : variant === "subtitle" || variant === "caption"
         ? colors.subtle
         : colors.text;
 
   return (
     <RNText
-      style={[variantStyles[variant], { color, fontFamily: variantFonts[variant] }, style]}
+      style={[
+        variantStyles[variant],
+        { color, fontFamily: variantFonts[variant] },
+        style,
+      ]}
       {...rest}
     />
   );

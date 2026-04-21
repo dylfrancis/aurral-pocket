@@ -1,10 +1,10 @@
-import { StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
+import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
 
-type ChipVariant = 'brand' | 'subtle' | 'error';
+type ChipVariant = "brand" | "subtle" | "error";
 
 type ChipProps = {
   label: string;
@@ -12,7 +12,7 @@ type ChipProps = {
   variant?: ChipVariant;
 };
 
-export function Chip({ label, icon, variant = 'subtle' }: ChipProps) {
+export function Chip({ label, icon, variant = "subtle" }: ChipProps) {
   const colors = Colors[useColorScheme()];
 
   const variantStyles: Record<ChipVariant, { bg: string; fg: string }> = {
@@ -35,8 +35,8 @@ export function Chip({ label, icon, variant = 'subtle' }: ChipProps) {
 
 const styles = StyleSheet.create({
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,

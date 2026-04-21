@@ -1,16 +1,16 @@
-import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const KEYS = {
-  SERVER_URL: 'server_url',
-  AUTH_TOKEN: 'auth_token',
-  USER: 'user_json',
-  SAVED_USERNAME: 'saved_username',
-  SAVED_PASSWORD: 'saved_password',
-  REMEMBER_CREDENTIALS: 'remember_credentials',
-  USE_BIOMETRICS: 'use_biometrics',
-  EXPIRES_AT: 'token_expires_at',
-  LAST_ACTIVE_AT: 'last_active_at',
+  SERVER_URL: "server_url",
+  AUTH_TOKEN: "auth_token",
+  USER: "user_json",
+  SAVED_USERNAME: "saved_username",
+  SAVED_PASSWORD: "saved_password",
+  REMEMBER_CREDENTIALS: "remember_credentials",
+  USE_BIOMETRICS: "use_biometrics",
+  EXPIRES_AT: "token_expires_at",
+  LAST_ACTIVE_AT: "last_active_at",
 } as const;
 
 export const SecureStorage = {
@@ -96,7 +96,10 @@ export const SecureStorage = {
     } catch {}
   },
 
-  async getCredentials(): Promise<{ username: string; password: string } | null> {
+  async getCredentials(): Promise<{
+    username: string;
+    password: string;
+  } | null> {
     try {
       const [username, password] = await Promise.all([
         SecureStore.getItemAsync(KEYS.SAVED_USERNAME),
@@ -129,7 +132,9 @@ export const SecureStorage = {
 
   async getRememberCredentials(): Promise<boolean> {
     try {
-      return (await SecureStore.getItemAsync(KEYS.REMEMBER_CREDENTIALS)) === 'true';
+      return (
+        (await SecureStore.getItemAsync(KEYS.REMEMBER_CREDENTIALS)) === "true"
+      );
     } catch {
       return false;
     }
@@ -149,7 +154,7 @@ export const SecureStorage = {
 
   async getUseBiometrics(): Promise<boolean> {
     try {
-      return (await SecureStore.getItemAsync(KEYS.USE_BIOMETRICS)) === 'true';
+      return (await SecureStore.getItemAsync(KEYS.USE_BIOMETRICS)) === "true";
     } catch {
       return false;
     }

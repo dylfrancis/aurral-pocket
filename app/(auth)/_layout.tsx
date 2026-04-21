@@ -1,5 +1,5 @@
-import { Stack } from 'expo-router';
-import { useAuth } from '@/contexts/auth-context';
+import { Stack } from "expo-router";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function AuthLayout() {
   const { serverUrl, serverHealth } = useAuth();
@@ -18,7 +18,7 @@ export default function AuthLayout() {
         <Stack.Screen
           name="get-started"
           options={{
-            animation: 'slide_from_left',
+            animation: "slide_from_left",
           }}
         />
       </Stack.Protected>

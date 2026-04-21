@@ -1,4 +1,4 @@
-import { Chip } from '@/components/ui/Chip';
+import { Chip } from "@/components/ui/Chip";
 
 type MonitoredBadgeProps = {
   monitored: boolean;
@@ -7,9 +7,9 @@ type MonitoredBadgeProps = {
 export function MonitoredBadge({ monitored }: MonitoredBadgeProps) {
   return (
     <Chip
-      label={monitored ? 'Monitored' : 'Unmonitored'}
-      icon={monitored ? 'eye' : 'eye-off-outline'}
-      variant={monitored ? 'brand' : 'subtle'}
+      label={monitored ? "Monitored" : "Unmonitored"}
+      icon={monitored ? "eye" : "eye-off-outline"}
+      variant={monitored ? "brand" : "subtle"}
     />
   );
 }

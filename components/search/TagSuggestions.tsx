@@ -1,9 +1,9 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
+import React from "react";
+import { Pressable, ScrollView, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
 
 type TagSuggestionsProps = {
   tags: string[];
@@ -34,8 +34,15 @@ export const TagSuggestions = React.memo(function TagSuggestions({
             { backgroundColor: colors.brandMuted, opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          <Ionicons name="pricetag-outline" size={13} color={colors.brandStrong} />
-          <Text variant="caption" style={[styles.label, { color: colors.brandStrong }]}>
+          <Ionicons
+            name="pricetag-outline"
+            size={13}
+            color={colors.brandStrong}
+          />
+          <Text
+            variant="caption"
+            style={[styles.label, { color: colors.brandStrong }]}
+          >
             {tag}
           </Text>
         </Pressable>
@@ -51,8 +58,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,

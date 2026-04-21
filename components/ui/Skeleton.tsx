@@ -1,23 +1,28 @@
-import { useEffect } from 'react';
-import { StyleSheet, type ViewStyle } from 'react-native';
+import { useEffect } from "react";
+import { type ViewStyle } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
   withTiming,
   interpolate,
-} from 'react-native-reanimated';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+} from "react-native-reanimated";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
 
 type SkeletonProps = {
-  width: number | '100%';
+  width: number | "100%";
   height: number;
   borderRadius?: number;
   style?: ViewStyle;
 };
 
-export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonProps) {
+export function Skeleton({
+  width,
+  height,
+  borderRadius = 8,
+  style,
+}: SkeletonProps) {
   const colors = Colors[useColorScheme()];
   const progress = useSharedValue(0);
 

@@ -1,20 +1,30 @@
-import React, { useCallback } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { CoverArtImage } from './CoverArtImage';
-import { AlbumStatusBadge } from './AlbumStatusBadge';
-import { TrackRow } from './TrackRow';
-import { useLibraryTracks } from '@/hooks/library/use-library-tracks';
-import { triggerAlbumSearch, deleteAlbum } from '@/lib/api/library';
-import { libraryKeys } from '@/lib/query-keys';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import * as Haptics from 'expo-haptics';
-import type { Album, DownloadStatusValue } from '@/lib/types/library';
+import React, { useCallback } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetScrollView,
+} from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { CoverArtImage } from "./CoverArtImage";
+import { AlbumStatusBadge } from "./AlbumStatusBadge";
+import { TrackRow } from "./TrackRow";
+import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
+import { triggerAlbumSearch, deleteAlbum } from "@/lib/api/library";
+import { libraryKeys } from "@/lib/query-keys";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import * as Haptics from "expo-haptics";
+import type { Album, DownloadStatusValue } from "@/lib/types/library";
 
 type AlbumSheetProps = {
   album: Album | null;
@@ -24,7 +34,13 @@ type AlbumSheetProps = {
   downloadStatus?: DownloadStatusValue;
 };
 
-export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadStatus }: AlbumSheetProps) {
+export function AlbumSheet({
+  album,
+  artistName,
+  sheetRef,
+  onDeleted,
+  downloadStatus,
+}: AlbumSheetProps) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -43,19 +59,26 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
     onMutate: () => {
       // Optimistically set status to searching
       queryClient.setQueriesData<Record<string, { status: string }>>(
-        { queryKey: ['library', 'downloadStatuses'] },
-        (old) => old ? { ...old, [album!.id]: { status: 'searching' } } : { [album!.id]: { status: 'searching' } },
+        { queryKey: ["library", "downloadStatuses"] },
+        (old) =>
+          old
+            ? { ...old, [album!.id]: { status: "searching" } }
+            : { [album!.id]: { status: "searching" } },
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['library', 'downloadStatuses'] });
+      queryClient.invalidateQueries({
+        queryKey: ["library", "downloadStatuses"],
+      });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteAlbum(album!.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: libraryKeys.albums(album!.artistId) });
+      queryClient.invalidateQueries({
+        queryKey: libraryKeys.albums(album!.artistId),
+      });
       sheetRef.current?.close();
       onDeleted?.();
     },
@@ -75,13 +98,13 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
   const handleDelete = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
-      'Delete Album',
+      "Delete Album",
       `Remove "${album?.albumName}" from your library?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: () => deleteMutation.mutate(),
         },
       ],
@@ -90,7 +113,11 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
 
   const renderBackdrop = useCallback(
     (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
     ),
     [],
   );
@@ -99,49 +126,68 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      snapPoints={['60%', '90%']}
+      snapPoints={["60%", "90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
-      <BottomSheetScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
+      <BottomSheetScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+      >
         {album && (
           <>
             <View style={styles.header}>
-              <CoverArtImage type="album" mbid={album.mbid} size={120} borderRadius={10} />
+              <CoverArtImage
+                type="album"
+                mbid={album.mbid}
+                size={120}
+                borderRadius={10}
+              />
               <View style={styles.headerMeta}>
                 <Text variant="title" style={styles.albumName}>
                   {album.albumName}
                 </Text>
                 <Text variant="caption">
-                  {[year, `${album.statistics.trackCount} tracks`].filter(Boolean).join(' \u00B7 ')}
+                  {[year, `${album.statistics.trackCount} tracks`]
+                    .filter(Boolean)
+                    .join(" \u00B7 ")}
                 </Text>
-                <AlbumStatusBadge album={album} downloadStatus={downloadStatus} />
+                <AlbumStatusBadge
+                  album={album}
+                  downloadStatus={downloadStatus}
+                />
               </View>
             </View>
 
             <View style={[styles.actions, { borderColor: colors.separator }]}>
-              {!isComplete && (!downloadStatus || downloadStatus === 'failed') && (
-                <Pressable
-                  style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.6 : 1 }]}
-                  onPress={handleResearch}
-                  disabled={searchMutation.isPending}
-                >
-                  {searchMutation.isPending ? (
-                    <ActivityIndicator size={18} color={colors.brand} />
-                  ) : (
-                    <Ionicons name="refresh" size={18} color={colors.brand} />
-                  )}
-                  <Text variant="body" style={{ color: colors.brand }}>
-                    Re-search
-                  </Text>
-                </Pressable>
-              )}
+              {!isComplete &&
+                (!downloadStatus || downloadStatus === "failed") && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      { opacity: pressed ? 0.6 : 1 },
+                    ]}
+                    onPress={handleResearch}
+                    disabled={searchMutation.isPending}
+                  >
+                    {searchMutation.isPending ? (
+                      <ActivityIndicator size={18} color={colors.brand} />
+                    ) : (
+                      <Ionicons name="refresh" size={18} color={colors.brand} />
+                    )}
+                    <Text variant="body" style={{ color: colors.brand }}>
+                      Re-search
+                    </Text>
+                  </Pressable>
+                )}
 
               <Pressable
-                style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.6 : 1 }]}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  { opacity: pressed ? 0.6 : 1 },
+                ]}
                 onPress={handleLastFm}
               >
                 <Ionicons name="open-outline" size={18} color={colors.text} />
@@ -149,21 +195,38 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
               </Pressable>
 
               <Pressable
-                style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.6 : 1 }]}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  { opacity: pressed ? 0.6 : 1 },
+                ]}
                 onPress={handleDelete}
                 disabled={deleteMutation.isPending}
               >
                 {deleteMutation.isPending ? (
                   <ActivityIndicator size={18} color={colors.error} />
                 ) : (
-                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                  <Ionicons
+                    name="trash-outline"
+                    size={18}
+                    color={colors.error}
+                  />
                 )}
-                <Text variant="body" style={{ color: colors.error }}>Delete Album</Text>
+                <Text variant="body" style={{ color: colors.error }}>
+                  Delete Album
+                </Text>
               </Pressable>
             </View>
 
-            <View style={[styles.trackSection, { borderTopColor: colors.separator }]}>
-              <Text variant="subtitle" style={[styles.trackHeader, { color: colors.text }]}>
+            <View
+              style={[
+                styles.trackSection,
+                { borderTopColor: colors.separator },
+              ]}
+            >
+              <Text
+                variant="subtitle"
+                style={[styles.trackHeader, { color: colors.text }]}
+              >
                 Tracks
               </Text>
               {isLoading ? (
@@ -185,15 +248,15 @@ export function AlbumSheet({ album, artistName, sheetRef, onDeleted, downloadSta
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 16,
     gap: 16,
   },
   headerMeta: {
     flex: 1,
     gap: 6,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
+    justifyContent: "center",
+    alignItems: "flex-start",
   },
   albumName: {
     fontSize: 20,
@@ -208,8 +271,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     paddingVertical: 10,
     paddingHorizontal: 4,
@@ -227,7 +290,7 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
   },
   emptyText: {
-    textAlign: 'center',
+    textAlign: "center",
     paddingVertical: 32,
   },
 });

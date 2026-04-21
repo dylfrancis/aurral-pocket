@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/auth-context';
-import { getLibraryArtists } from '@/lib/api/library';
-import { libraryKeys } from '@/lib/query-keys';
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
+import { getLibraryArtists } from "@/lib/api/library";
+import { libraryKeys } from "@/lib/query-keys";
 
 export function useLibraryArtists() {
   const { serverUrl, token } = useAuth();

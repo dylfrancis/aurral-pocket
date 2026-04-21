@@ -1,15 +1,18 @@
-import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import { SECONDARY_TYPES } from '@/hooks/library/use-release-type-filter';
+import { ScrollView, StyleSheet, Pressable } from "react-native";
+import { Text } from "@/components/ui/Text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import { SECONDARY_TYPES } from "@/hooks/library/use-release-type-filter";
 
 type SecondaryTypeFilterProps = {
   selected: Set<string>;
   onToggle: (type: string) => void;
 };
 
-export function SecondaryTypeFilter({ selected, onToggle }: SecondaryTypeFilterProps) {
+export function SecondaryTypeFilter({
+  selected,
+  onToggle,
+}: SecondaryTypeFilterProps) {
   const colors = Colors[useColorScheme()];
 
   return (
@@ -28,7 +31,7 @@ export function SecondaryTypeFilter({ selected, onToggle }: SecondaryTypeFilterP
               styles.chip,
               {
                 backgroundColor: active ? colors.brandMuted : colors.separator,
-                borderColor: active ? colors.brand : 'transparent',
+                borderColor: active ? colors.brand : "transparent",
               },
             ]}
           >

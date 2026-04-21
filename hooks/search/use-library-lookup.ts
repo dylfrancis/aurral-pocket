@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useLibraryArtists } from '@/hooks/library/use-library-artists';
+import { useMemo } from "react";
+import { useLibraryArtists } from "@/hooks/library/use-library-artists";
 
 export function useLibraryLookup() {
   const { data: artists } = useLibraryArtists();

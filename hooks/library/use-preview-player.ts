@@ -1,11 +1,14 @@
-import { useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getArtistPreviewTracks } from '@/lib/api/library';
-import { libraryKeys } from '@/lib/query-keys';
-import { useAudioPreview } from './use-audio-preview';
-import type { PreviewTrack } from '@/lib/types/library';
+import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getArtistPreviewTracks } from "@/lib/api/library";
+import { libraryKeys } from "@/lib/query-keys";
+import { useAudioPreview } from "./use-audio-preview";
+import type { PreviewTrack } from "@/lib/types/library";
 
-export function usePreviewPlayer(mbid: string | undefined, artistName?: string) {
+export function usePreviewPlayer(
+  mbid: string | undefined,
+  artistName?: string,
+) {
   const { data: tracks, isLoading } = useQuery({
     queryKey: libraryKeys.artistPreviews(mbid!),
     queryFn: () => getArtistPreviewTracks(mbid!, artistName),

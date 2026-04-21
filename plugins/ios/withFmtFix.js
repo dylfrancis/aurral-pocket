@@ -10,7 +10,7 @@ const withFmtFix = (config) => {
     async (config) => {
       const podfilePath = path.join(
         config.modRequest.platformProjectRoot,
-        "Podfile"
+        "Podfile",
       );
       if (!fs.existsSync(podfilePath)) return config;
 
@@ -31,7 +31,7 @@ const withFmtFix = (config) => {
 
       content = content.replace(
         /(react_native_post_install\([^)]*\)[\s\S]*?\))([\s\n]*end[\s\n]*end)/,
-        `$1\n${patchCode}\n$2`
+        `$1\n${patchCode}\n$2`,
       );
       fs.writeFileSync(podfilePath, content);
       return config;

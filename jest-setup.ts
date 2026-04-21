@@ -3,7 +3,9 @@ jest.mock("expo/fetch", () => ({
 }));
 
 jest.mock("@expo/vector-icons", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require("react-native");
 
   const createIconMock = () => {

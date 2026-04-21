@@ -1,9 +1,9 @@
-import { StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { Button } from '@/components/ui/Button';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
 
 type EmptyStateProps = {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -13,7 +13,7 @@ type EmptyStateProps = {
 };
 
 export function EmptyState({
-  icon = 'musical-notes-outline',
+  icon = "musical-notes-outline",
   message,
   actionLabel,
   onAction,
@@ -27,11 +27,7 @@ export function EmptyState({
         {message}
       </Text>
       {actionLabel && onAction && (
-        <Button
-          title={actionLabel}
-          onPress={onAction}
-          style={styles.button}
-        />
+        <Button title={actionLabel} onPress={onAction} style={styles.button} />
       )}
     </View>
   );
@@ -40,18 +36,18 @@ export function EmptyState({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 64,
     gap: 12,
   },
   message: {
-    textAlign: 'center',
+    textAlign: "center",
     paddingHorizontal: 32,
   },
   button: {
     marginTop: 8,
-    width: 'auto',
+    width: "auto",
     paddingHorizontal: 24,
   },
 });

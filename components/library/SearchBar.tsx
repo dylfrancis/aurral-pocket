@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
 
-export type SortMode = 'alpha' | 'recent' | 'albums';
+export type SortMode = "alpha" | "recent" | "albums";
 
 type SearchBarProps = {
   value: string;
@@ -16,9 +16,9 @@ type SearchBarProps = {
 };
 
 const sortOptions: { key: SortMode; label: string }[] = [
-  { key: 'alpha', label: 'A-Z' },
-  { key: 'recent', label: 'Recent' },
-  { key: 'albums', label: 'Albums' },
+  { key: "alpha", label: "A-Z" },
+  { key: "recent", label: "Recent" },
+  { key: "albums", label: "Albums" },
 ];
 
 export function SearchBar({
@@ -33,10 +33,21 @@ export function SearchBar({
 
   return (
     <View style={styles.container}>
-      <View style={[styles.inputContainer, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}>
+      <View
+        style={[
+          styles.inputContainer,
+          {
+            backgroundColor: colors.inputBackground,
+            borderColor: colors.inputBorder,
+          },
+        ]}
+      >
         <Ionicons name="search" size={18} color={colors.placeholder} />
         <TextInput
-          style={[styles.input, { color: colors.inputText, fontFamily: Fonts.regular }]}
+          style={[
+            styles.input,
+            { color: colors.inputText, fontFamily: Fonts.regular },
+          ]}
           placeholder="Search artists..."
           placeholderTextColor={colors.placeholder}
           value={value}
@@ -47,39 +58,45 @@ export function SearchBar({
           onSubmitEditing={onSubmit}
         />
         {value.length > 0 && (
-          <Pressable onPress={() => onChangeText('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={18} color={colors.placeholder} />
+          <Pressable onPress={() => onChangeText("")} hitSlop={8}>
+            <Ionicons
+              name="close-circle"
+              size={18}
+              color={colors.placeholder}
+            />
           </Pressable>
         )}
       </View>
-      {showSort && <View style={styles.sortRow}>
-        {sortOptions.map((option) => {
-          const active = sortMode === option.key;
-          return (
-            <Pressable
-              key={option.key}
-              onPress={() => onSortChange(option.key)}
-              style={[
-                styles.sortPill,
-                {
-                  backgroundColor: active ? `${colors.brand}20` : colors.card,
-                  borderColor: active ? colors.brand : colors.separator,
-                },
-              ]}
-            >
-              <Text
-                variant="caption"
+      {showSort && (
+        <View style={styles.sortRow}>
+          {sortOptions.map((option) => {
+            const active = sortMode === option.key;
+            return (
+              <Pressable
+                key={option.key}
+                onPress={() => onSortChange(option.key)}
                 style={[
-                  styles.sortLabel,
-                  { color: active ? colors.brand : colors.subtle },
+                  styles.sortPill,
+                  {
+                    backgroundColor: active ? `${colors.brand}20` : colors.card,
+                    borderColor: active ? colors.brand : colors.separator,
+                  },
                 ]}
               >
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>}
+                <Text
+                  variant="caption"
+                  style={[
+                    styles.sortLabel,
+                    { color: active ? colors.brand : colors.subtle },
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -90,8 +107,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 12,
@@ -104,7 +121,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   sortRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   sortPill: {

@@ -1,20 +1,20 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
-import { CoverArtImage } from './CoverArtImage';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { Album, DownloadStatusValue } from '@/lib/types/library';
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Text";
+import { CoverArtImage } from "./CoverArtImage";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type { Album, DownloadStatusValue } from "@/lib/types/library";
 
 const CARD_WIDTH = 150;
 
 const STATUS_LABELS: Record<string, string> = {
-  adding: 'Adding...',
-  searching: 'Searching...',
-  downloading: 'Downloading...',
-  moving: 'Moving...',
-  processing: 'Processing...',
-  failed: 'Failed',
+  adding: "Adding...",
+  searching: "Searching...",
+  downloading: "Downloading...",
+  moving: "Moving...",
+  processing: "Processing...",
+  failed: "Failed",
 };
 
 type AlbumCardProps = {
@@ -24,7 +24,12 @@ type AlbumCardProps = {
   downloadStatus?: DownloadStatusValue;
 };
 
-export const AlbumCard = React.memo(function AlbumCard({ album, onPress, fill, downloadStatus }: AlbumCardProps) {
+export const AlbumCard = React.memo(function AlbumCard({
+  album,
+  onPress,
+  fill,
+  downloadStatus,
+}: AlbumCardProps) {
   const colors = Colors[useColorScheme()];
 
   const year = album.releaseDate
@@ -45,7 +50,7 @@ export const AlbumCard = React.memo(function AlbumCard({ album, onPress, fill, d
       <CoverArtImage
         type="album"
         mbid={album.mbid}
-        size={fill ? 'fill' : CARD_WIDTH}
+        size={fill ? "fill" : CARD_WIDTH}
         borderRadius={10}
       />
       <View style={styles.meta}>
@@ -54,18 +59,24 @@ export const AlbumCard = React.memo(function AlbumCard({ album, onPress, fill, d
         </Text>
         <Text variant="caption" numberOfLines={1}>
           {year && `${year} · `}
-          {trackCount} {trackCount === 1 ? 'track' : 'tracks'}
-          {' · '}
+          {trackCount} {trackCount === 1 ? "track" : "tracks"}
+          {" · "}
           <Text
             variant="caption"
-            style={{ color: percent === 100 ? colors.brandStrong : downloadStatus === 'failed' ? colors.error : colors.subtle }}
+            style={{
+              color:
+                percent === 100
+                  ? colors.brandStrong
+                  : downloadStatus === "failed"
+                    ? colors.error
+                    : colors.subtle,
+            }}
           >
             {downloadStatus && percent < 100
-              ? STATUS_LABELS[downloadStatus] ?? `${percent}%`
+              ? (STATUS_LABELS[downloadStatus] ?? `${percent}%`)
               : `${percent}%`}
           </Text>
         </Text>
-
       </View>
     </Pressable>
   );

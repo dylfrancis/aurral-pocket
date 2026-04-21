@@ -1,10 +1,10 @@
-import { useMutation } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/auth-context';
-import { setBaseUrl } from '@/lib/api/client';
-import { checkServerLive, getServerHealth } from '@/lib/api/health';
+import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
+import { setBaseUrl } from "@/lib/api/client";
+import { checkServerLive, getServerHealth } from "@/lib/api/health";
 
 function normalizeUrl(url: string): string {
-  return url.trim().replace(/\/+$/, '');
+  return url.trim().replace(/\/+$/, "");
 }
 
 export function useServerConnect() {
@@ -22,7 +22,7 @@ export function useServerConnect() {
       setServer(url, health);
     },
     onError: () => {
-      setBaseUrl('');
+      setBaseUrl("");
     },
   });
 }

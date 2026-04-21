@@ -1,6 +1,6 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
 import React from "react";
 
 type ScreenCenterProps = {
@@ -12,8 +12,15 @@ export function ScreenCenter({ children, loading }: ScreenCenterProps) {
   const colors = Colors[useColorScheme()];
 
   return (
-    <View testID="screen-center" style={[styles.container, { backgroundColor: colors.background }]}>
-      {loading ? <ActivityIndicator size="large" color={colors.brand} /> : children}
+    <View
+      testID="screen-center"
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      {loading ? (
+        <ActivityIndicator size="large" color={colors.brand} />
+      ) : (
+        children
+      )}
     </View>
   );
 }
@@ -21,7 +28,7 @@ export function ScreenCenter({ children, loading }: ScreenCenterProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

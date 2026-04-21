@@ -1,7 +1,7 @@
 export type User = {
   id: number;
   username: string;
-  role: 'admin' | 'user';
+  role: "admin" | "user";
   permissions: {
     addArtist?: boolean;
     addAlbum?: boolean;

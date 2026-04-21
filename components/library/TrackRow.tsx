@@ -1,10 +1,10 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { Track } from '@/lib/types/library';
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type { Track } from "@/lib/types/library";
 
 type TrackRowProps = {
   track: Track;
@@ -22,14 +22,22 @@ export const TrackRow = React.memo(function TrackRow({ track }: TrackRowProps) {
         {track.trackName}
       </Text>
       {track.hasFile && track.quality && (
-        <View style={[styles.qualityBadge, { backgroundColor: `${colors.brand}20` }]}>
-          <Text variant="caption" style={[styles.qualityText, { color: colors.brand }]}>
+        <View
+          style={[
+            styles.qualityBadge,
+            { backgroundColor: `${colors.brand}20` },
+          ]}
+        >
+          <Text
+            variant="caption"
+            style={[styles.qualityText, { color: colors.brand }]}
+          >
             {track.quality}
           </Text>
         </View>
       )}
       <Ionicons
-        name={track.hasFile ? 'checkmark-circle' : 'remove-circle-outline'}
+        name={track.hasFile ? "checkmark-circle" : "remove-circle-outline"}
         size={16}
         color={track.hasFile ? colors.brand : colors.subtle}
       />
@@ -39,8 +47,8 @@ export const TrackRow = React.memo(function TrackRow({ track }: TrackRowProps) {
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -48,7 +56,7 @@ const styles = StyleSheet.create({
   },
   number: {
     width: 24,
-    textAlign: 'right',
+    textAlign: "right",
     fontFamily: Fonts.medium,
   },
   title: {

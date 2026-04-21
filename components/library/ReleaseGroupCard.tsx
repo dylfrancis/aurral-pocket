@@ -1,10 +1,10 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
-import { CoverArtImage } from './CoverArtImage';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { ReleaseGroup } from '@/lib/types/library';
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Text";
+import { CoverArtImage } from "./CoverArtImage";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type { ReleaseGroup } from "@/lib/types/library";
 
 const CARD_WIDTH = 150;
 
@@ -21,28 +21,42 @@ export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
 }: ReleaseGroupCardProps) {
   const colors = Colors[useColorScheme()];
 
-  const year = releaseGroup['first-release-date']
-    ? new Date(releaseGroup['first-release-date']).getFullYear()
+  const year = releaseGroup["first-release-date"]
+    ? new Date(releaseGroup["first-release-date"]).getFullYear()
     : null;
 
-  const type = releaseGroup['primary-type'] ?? 'Album';
-  const secondary = releaseGroup['secondary-types'];
-  const typeLabel = secondary && secondary.length > 0
-    ? `${type} · ${secondary.join(', ')}`
-    : type;
+  const type = releaseGroup["primary-type"] ?? "Album";
+  const secondary = releaseGroup["secondary-types"];
+  const typeLabel =
+    secondary && secondary.length > 0
+      ? `${type} · ${secondary.join(", ")}`
+      : type;
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [fill ? styles.containerFill : styles.container, { opacity: pressed ? 0.8 : 1 }]}
+      style={({ pressed }) => [
+        fill ? styles.containerFill : styles.container,
+        { opacity: pressed ? 0.8 : 1 },
+      ]}
     >
-      <CoverArtImage type="album" mbid={releaseGroup.id} size={fill ? 'fill' : CARD_WIDTH} borderRadius={10} />
+      <CoverArtImage
+        type="album"
+        mbid={releaseGroup.id}
+        size={fill ? "fill" : CARD_WIDTH}
+        borderRadius={10}
+      />
       <View style={styles.meta}>
         <Text variant="body" numberOfLines={2} style={styles.title}>
           {releaseGroup.title}
         </Text>
-        <Text variant="caption" numberOfLines={1} style={{ color: colors.subtle }}>
-          {year && `${year} · `}{typeLabel}
+        <Text
+          variant="caption"
+          numberOfLines={1}
+          style={{ color: colors.subtle }}
+        >
+          {year && `${year} · `}
+          {typeLabel}
         </Text>
       </View>
     </Pressable>

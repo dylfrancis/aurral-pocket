@@ -1,12 +1,12 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { Chip } from '@/components/ui/Chip';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
-import type { SearchArtist } from '@/lib/types/search';
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { Chip } from "@/components/ui/Chip";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
+import type { SearchArtist } from "@/lib/types/search";
 
 type SearchArtistRowProps = {
   artist: SearchArtist;
@@ -41,7 +41,13 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
           recyclingKey={`search-${artist.id}`}
         />
       ) : (
-        <View style={[styles.thumb, styles.placeholder, { backgroundColor: colors.card }]}>
+        <View
+          style={[
+            styles.thumb,
+            styles.placeholder,
+            { backgroundColor: colors.card },
+          ]}
+        >
           <Ionicons name="person-outline" size={20} color={colors.subtle} />
         </View>
       )}
@@ -54,9 +60,13 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
         >
           {artist.name}
         </Text>
-        {artist['sort-name'] !== artist.name && (
-          <Text variant="caption" numberOfLines={1} style={{ color: colors.subtle }}>
-            {artist['sort-name']}
+        {artist["sort-name"] !== artist.name && (
+          <Text
+            variant="caption"
+            numberOfLines={1}
+            style={{ color: colors.subtle }}
+          >
+            {artist["sort-name"]}
           </Text>
         )}
       </View>
@@ -70,8 +80,8 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -83,8 +93,8 @@ const styles = StyleSheet.create({
     borderRadius: THUMB_SIZE / 2,
   },
   placeholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   meta: {
     flex: 1,

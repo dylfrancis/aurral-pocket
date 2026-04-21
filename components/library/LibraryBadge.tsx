@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
+import { Pressable, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
 
 type LibraryBadgeProps = {
   onPress: () => void;
@@ -20,7 +20,10 @@ export function LibraryBadge({ onPress }: LibraryBadgeProps) {
       ]}
     >
       <Ionicons name="checkmark-circle" size={20} color={colors.brandStrong} />
-      <Text variant="body" style={[styles.label, { color: colors.brandStrong }]}>
+      <Text
+        variant="body"
+        style={[styles.label, { color: colors.brandStrong }]}
+      >
         In Your Library
       </Text>
     </Pressable>
@@ -29,8 +32,8 @@ export function LibraryBadge({ onPress }: LibraryBadgeProps) {
 
 const styles = StyleSheet.create({
   badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 24,

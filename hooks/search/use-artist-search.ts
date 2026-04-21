@@ -1,7 +1,7 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { searchArtists } from '@/lib/api/search';
-import { searchKeys } from '@/lib/query-keys';
-import { useDebouncedValue } from './use-debounced-value';
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { searchArtists } from "@/lib/api/search";
+import { searchKeys } from "@/lib/query-keys";
+import { useDebouncedValue } from "./use-debounced-value";
 
 export function useArtistSearch(query: string) {
   const debouncedQuery = useDebouncedValue(query.trim());

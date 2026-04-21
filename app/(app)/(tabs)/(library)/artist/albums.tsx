@@ -1,19 +1,19 @@
-import { useCallback, useRef, useState } from 'react';
-import { View } from 'react-native';
-import BottomSheet from '@gorhom/bottom-sheet';
-import { AlbumCard } from '@/components/library/AlbumCard';
-import { AlbumSheet } from '@/components/library/AlbumSheet';
-import { ReleaseGrid } from '@/components/library/ReleaseGrid';
-import { useReleaseGrid } from '@/hooks/library/use-release-grid';
-import { useDownloadStatuses } from '@/hooks/library/use-download-statuses';
-import type { Album } from '@/lib/types/library';
+import { useCallback, useRef, useState } from "react";
+import BottomSheet from "@gorhom/bottom-sheet";
+import { AlbumCard } from "@/components/library/AlbumCard";
+import { AlbumSheet } from "@/components/library/AlbumSheet";
+import { ReleaseGrid } from "@/components/library/ReleaseGrid";
+import { useReleaseGrid } from "@/hooks/library/use-release-grid";
+import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
+import type { Album } from "@/lib/types/library";
 
 const albumConfig = {
-  variant: 'albums' as const,
+  variant: "albums" as const,
   getDate: (a: Album) => a.releaseDate,
   getName: (a: Album) => a.albumName,
   supportsMissing: true,
-  isMissing: (a: Album) => a.statistics.percentOfTracks < 100 && a.statistics.sizeOnDisk === 0,
+  isMissing: (a: Album) =>
+    a.statistics.percentOfTracks < 100 && a.statistics.sizeOnDisk === 0,
 };
 
 export default function AlbumsGridScreen() {
@@ -52,7 +52,11 @@ export default function AlbumsGridScreen() {
           artistName={grid.artistName}
           sheetRef={albumSheetRef}
           onDeleted={() => setSelectedAlbum(null)}
-          downloadStatus={selectedAlbum ? downloadStatuses?.[selectedAlbum.id]?.status : undefined}
+          downloadStatus={
+            selectedAlbum
+              ? downloadStatuses?.[selectedAlbum.id]?.status
+              : undefined
+          }
         />
       }
     />

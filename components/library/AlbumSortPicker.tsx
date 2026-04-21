@@ -1,13 +1,21 @@
-import React, { useCallback } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { Text } from '@/components/ui/Text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Fonts } from '@/constants/theme';
+import React, { useCallback } from "react";
+import { Pressable, StyleSheet } from "react-native";
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts } from "@/constants/theme";
 
-export type AlbumSortMode = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'missing';
+export type AlbumSortMode =
+  | "date-desc"
+  | "date-asc"
+  | "name-asc"
+  | "name-desc"
+  | "missing";
 
 export type SortOption = {
   key: AlbumSortMode;
@@ -17,11 +25,36 @@ export type SortOption = {
 };
 
 export const ALBUM_SORT_OPTIONS: SortOption[] = [
-  { key: 'date-desc', label: 'Newest First', icon: 'calendar-outline', iosIcon: 'calendar.badge.clock' },
-  { key: 'date-asc', label: 'Oldest First', icon: 'calendar-outline', iosIcon: 'calendar' },
-  { key: 'name-asc', label: 'Name A-Z', icon: 'text-outline', iosIcon: 'textformat.abc' },
-  { key: 'name-desc', label: 'Name Z-A', icon: 'text-outline', iosIcon: 'textformat.abc' },
-  { key: 'missing', label: 'Missing', icon: 'cloud-download-outline', iosIcon: 'icloud.and.arrow.down' },
+  {
+    key: "date-desc",
+    label: "Newest First",
+    icon: "calendar-outline",
+    iosIcon: "calendar.badge.clock",
+  },
+  {
+    key: "date-asc",
+    label: "Oldest First",
+    icon: "calendar-outline",
+    iosIcon: "calendar",
+  },
+  {
+    key: "name-asc",
+    label: "Name A-Z",
+    icon: "text-outline",
+    iosIcon: "textformat.abc",
+  },
+  {
+    key: "name-desc",
+    label: "Name Z-A",
+    icon: "text-outline",
+    iosIcon: "textformat.abc",
+  },
+  {
+    key: "missing",
+    label: "Missing",
+    icon: "cloud-download-outline",
+    iosIcon: "icloud.and.arrow.down",
+  },
 ];
 
 type AlbumSortTriggerProps = {
@@ -31,7 +64,8 @@ type AlbumSortTriggerProps = {
 
 export function AlbumSortTrigger({ selected, onPress }: AlbumSortTriggerProps) {
   const colors = Colors[useColorScheme()];
-  const currentLabel = ALBUM_SORT_OPTIONS.find((o) => o.key === selected)?.label ?? '';
+  const currentLabel =
+    ALBUM_SORT_OPTIONS.find((o) => o.key === selected)?.label ?? "";
 
   return (
     <Pressable
@@ -46,7 +80,10 @@ export function AlbumSortTrigger({ selected, onPress }: AlbumSortTriggerProps) {
       ]}
     >
       <Ionicons name="swap-vertical" size={14} color={colors.brand} />
-      <Text variant="caption" style={[styles.triggerLabel, { color: colors.brand }]}>
+      <Text
+        variant="caption"
+        style={[styles.triggerLabel, { color: colors.brand }]}
+      >
         {currentLabel}
       </Text>
     </Pressable>
@@ -60,7 +97,12 @@ type AlbumSortSheetProps = {
   options?: typeof ALBUM_SORT_OPTIONS;
 };
 
-export function AlbumSortSheet({ sheetRef, selected, onChange, options = ALBUM_SORT_OPTIONS }: AlbumSortSheetProps) {
+export function AlbumSortSheet({
+  sheetRef,
+  selected,
+  onChange,
+  options = ALBUM_SORT_OPTIONS,
+}: AlbumSortSheetProps) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
 
@@ -74,7 +116,11 @@ export function AlbumSortSheet({ sheetRef, selected, onChange, options = ALBUM_S
 
   const renderBackdrop = useCallback(
     (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
     ),
     [],
   );
@@ -89,8 +135,13 @@ export function AlbumSortSheet({ sheetRef, selected, onChange, options = ALBUM_S
       backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
-      <BottomSheetView style={[styles.sheetContent, { paddingBottom: insets.bottom + 16 }]}>
-        <Text variant="subtitle" style={[styles.sheetTitle, { color: colors.text }]}>
+      <BottomSheetView
+        style={[styles.sheetContent, { paddingBottom: insets.bottom + 16 }]}
+      >
+        <Text
+          variant="subtitle"
+          style={[styles.sheetTitle, { color: colors.text }]}
+        >
           Sort By
         </Text>
         {options.map((option) => {
@@ -119,7 +170,12 @@ export function AlbumSortSheet({ sheetRef, selected, onChange, options = ALBUM_S
                 {option.label}
               </Text>
               {active && (
-                <Ionicons name="checkmark" size={18} color={colors.brand} style={styles.check} />
+                <Ionicons
+                  name="checkmark"
+                  size={18}
+                  color={colors.brand}
+                  style={styles.check}
+                />
               )}
             </Pressable>
           );
@@ -131,8 +187,8 @@ export function AlbumSortSheet({ sheetRef, selected, onChange, options = ALBUM_S
 
 const styles = StyleSheet.create({
   trigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -151,8 +207,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   option: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     paddingVertical: 12,
   },
@@ -161,6 +217,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
   },
   check: {
-    marginLeft: 'auto',
+    marginLeft: "auto",
   },
 });

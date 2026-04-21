@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { getSimilarArtists } from '@/lib/api/search';
-import { searchKeys } from '@/lib/query-keys';
+import { useQuery } from "@tanstack/react-query";
+import { getSimilarArtists } from "@/lib/api/search";
+import { searchKeys } from "@/lib/query-keys";
 
 export function useSimilarArtists(mbid: string | undefined) {
   return useQuery({
