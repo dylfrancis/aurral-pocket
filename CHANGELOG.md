@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.3.0...v0.3.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **artist:** add recycle key on image to load in placeholder on fast scroll ([#69](https://github.com/dylfrancis/aurral-pocket/issues/69)) ([3bf0e8a](https://github.com/dylfrancis/aurral-pocket/commit/3bf0e8afd3be11139b822ea840b02ac5c6ab37c0))
+* **auth:** restore Face ID on session re-auth and fix credential persistence ([#60](https://github.com/dylfrancis/aurral-pocket/issues/60)) ([14fccf9](https://github.com/dylfrancis/aurral-pocket/commit/14fccf972b1de2d9236f8c8eedb027eb8ad39399))
+* **search:** add try search all if recommended results are empty ([#66](https://github.com/dylfrancis/aurral-pocket/issues/66)) ([b46dd29](https://github.com/dylfrancis/aurral-pocket/commit/b46dd293e74a83d8c9f43246b364dcfa04ceba25))
+* **search:** hide subtext if tag result is less than 1 ([#65](https://github.com/dylfrancis/aurral-pocket/issues/65)) ([182a883](https://github.com/dylfrancis/aurral-pocket/commit/182a88393e38125b52ae341df1fc941a328aa299))
+
 ## [0.3.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.2.0...v0.3.0) (2026-04-20)
 
 ### Features

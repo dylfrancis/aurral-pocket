@@ -2,7 +2,7 @@
   "expo": {
     "name": "Aurral",
     "slug": "aurral-pocket",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "orientation": "portrait",
     "icon": "./assets/images/aurral-logo-dark.png",
     "scheme": "aurralpocket",
@@ -21,7 +21,9 @@
         "foregroundImage": "./assets/images/aurral-logo.png"
       },
       "package": "com.aurral.aurralpocket",
-      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static"
