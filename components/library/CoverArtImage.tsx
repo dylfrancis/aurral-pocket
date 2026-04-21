@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Image, type ImageStyle } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,26 +27,16 @@ export function CoverArtImage({
 }: CoverArtImageProps) {
   const { url, isLoading } = useCoverArtUrl({ type, mbid });
   const colors = Colors[useColorScheme()];
+  const recyclingKey = `${type}-${mbid}`;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const loaded = loadedKey === recyclingKey;
 
   const sizeStyle =
     size === "fill"
       ? { width: "100%" as const, aspectRatio: 1 }
       : { width: size, height: size };
 
-  if (isLoading) {
-    return size === "fill" ? (
-      <Skeleton
-        width="100%"
-        height={0}
-        borderRadius={borderRadius}
-        style={{ aspectRatio: 1 }}
-      />
-    ) : (
-      <Skeleton width={size} height={size} borderRadius={borderRadius} />
-    );
-  }
-
-  if (!url) {
+  if (!isLoading && !url) {
     return (
       <View
         style={[
@@ -65,14 +56,27 @@ export function CoverArtImage({
   }
 
   return (
-    <Image
-      source={url ? { uri: url } : undefined}
-      style={[sizeStyle, { borderRadius }, style]}
-      contentFit="cover"
-      transition={200}
-      blurRadius={blurRadius}
-      recyclingKey={`${type}-${mbid}`}
-    />
+    <View style={[sizeStyle, { borderRadius, overflow: "hidden" }, style]}>
+      {!loaded && (
+        <Skeleton
+          width="100%"
+          height={0}
+          borderRadius={borderRadius}
+          style={StyleSheet.absoluteFillObject}
+        />
+      )}
+      {url && (
+        <Image
+          source={{ uri: url }}
+          style={[StyleSheet.absoluteFillObject, { borderRadius }]}
+          contentFit="cover"
+          transition={200}
+          blurRadius={blurRadius}
+          recyclingKey={recyclingKey}
+          onLoad={() => setLoadedKey(recyclingKey)}
+        />
+      )}
+    </View>
   );
 }
 
