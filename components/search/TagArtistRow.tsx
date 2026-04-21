@@ -46,7 +46,7 @@ export const TagArtistRow = React.memo(function TagArtistRow({
         >
           {artist.name}
         </Text>
-        {artist.tags.length > 0 && (
+        {artist.tags.length > 1 && (
           <Text
             variant="caption"
             numberOfLines={1}
