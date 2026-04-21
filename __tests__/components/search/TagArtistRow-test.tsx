@@ -57,6 +57,17 @@ describe("TagArtistRow", () => {
     expect(getByText("In Library")).toBeTruthy();
   });
 
+  it("hides the tag line when only the searched tag is present", () => {
+    const { queryByText } = render(
+      <TagArtistRow
+        artist={{ ...baseArtist, tags: ["rock"] }}
+        isInLibrary={false}
+        onPress={() => {}}
+      />,
+    );
+    expect(queryByText("rock")).toBeNull();
+  });
+
   it("calls onPress when pressed", () => {
     const onPress = jest.fn();
     const { getByText } = render(
