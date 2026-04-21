@@ -13,6 +13,8 @@ jest.mock("react-native-reanimated", () => {
     useAnimatedStyle: (fn: () => any) => fn(),
     useSharedValue: (val: number) => ({ value: val }),
     useAnimatedScrollHandler: () => () => {},
+    withRepeat: jest.fn(),
+    withTiming: jest.fn(),
     interpolate: (val: number, input: number[], output: number[]) => {
       const [inMin, inMax] = input;
       const [outMin, outMax] = output;

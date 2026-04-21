@@ -15,6 +15,7 @@ jest.mock("react-native-reanimated", () => {
     withRepeat: jest.fn(),
     withSequence: jest.fn(),
     withTiming: jest.fn(),
+    interpolate: () => 0,
     Easing: { inOut: jest.fn(), quad: {} },
   };
 });
