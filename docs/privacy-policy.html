@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aurral Pocket - Privacy Policy</title>
+    <meta
+      name="description"
+      content="Privacy policy for Aurral Pocket, a mobile client for the self-hosted Aurral server."
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg-top: #050505;
+        --bg-bottom: #18181c;
+        --card: #211f27;
+        --fg: #ffffff;
+        --muted: #c1c1c3;
+        --accent: #707e61;
+        --accent-strong: #a3b18a;
+        --border: rgba(255, 255, 255, 0.1);
+        --code-bg: #211f27;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        background-color: var(--bg-top);
+        min-height: 100%;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(
+          to bottom,
+          var(--bg-top) 0%,
+          var(--bg-bottom) 80%,
+          var(--bg-bottom) 100%
+        );
+        background-attachment: fixed;
+        background-color: var(--bg-top);
+        color: var(--fg);
+        font-family:
+          "DM Sans",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        line-height: 1.65;
+        font-size: 17px;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        min-height: 100vh;
+      }
+      @supports (-webkit-touch-callout: none) {
+        body {
+          background-attachment: scroll;
+        }
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      header {
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 24px;
+        margin-bottom: 32px;
+      }
+      h1 {
+        font-size: 2rem;
+        margin: 0 0 8px;
+        letter-spacing: -0.02em;
+        font-weight: 600;
+      }
+      h2 {
+        font-size: 1.25rem;
+        margin: 36px 0 8px;
+        letter-spacing: -0.01em;
+        font-weight: 600;
+      }
+      h3 {
+        font-size: 1rem;
+        margin: 20px 0 4px;
+        font-weight: 500;
+        color: var(--muted);
+      }
+      p,
+      ul,
+      ol {
+        margin: 0 0 12px;
+        color: var(--muted);
+      }
+      ul,
+      ol {
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 4px;
+      }
+      strong {
+        color: var(--fg);
+        font-weight: 600;
+      }
+      a {
+        color: var(--accent-strong);
+        text-decoration: none;
+      }
+      a:hover {
+        color: var(--accent);
+        text-decoration: underline;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      code {
+        background: var(--code-bg);
+        color: var(--fg);
+        padding: 1px 6px;
+        border-radius: 2px;
+        font-size: 0.9em;
+        font-family:
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+      }
+      .callout {
+        border-left: 2px solid var(--accent);
+        background: var(--card);
+        padding: 16px 18px;
+        border-radius: 2px;
+        margin: 20px 0;
+      }
+      .callout strong {
+        color: var(--fg);
+      }
+      footer {
+        margin-top: 64px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Aurral Pocket Privacy Policy</h1>
+        <p class="muted">Last updated: April 21, 2026</p>
+      </header>
+
+      <p>
+        Aurral Pocket ("the app", "we", "us") is an open-source mobile client
+        for
+        <a href="https://github.com/lklynet/aurral"
+          >Aurral</a
+        >, a self-hosted music discovery and request manager for Lidarr. The
+        app is published by Dylan Francis and distributed through the Apple App
+        Store and Google Play. The source code is available at
+        <a href="https://github.com/dylfrancis/aurral-pocket"
+          >github.com/dylfrancis/aurral-pocket</a
+        >.
+      </p>
+
+      <p>
+        This policy explains what data the app handles, where that data goes,
+        and what choices you have. The short version: the app does not operate
+        any servers of its own, does not run analytics or tracking, and does
+        not send your data to us or to any third party. It only talks to the
+        Aurral server that <em>you</em> configure.
+      </p>
+
+      <div class="callout">
+        <strong>Summary.</strong> Aurral Pocket connects only to the
+        self-hosted Aurral server address you enter. Credentials, your session
+        token, and app preferences are stored on your device. No analytics,
+        telemetry, advertising SDKs, or third-party trackers are included.
+      </div>
+
+      <h2>1. About the Aurral ecosystem</h2>
+      <p>
+        Aurral Pocket is a client; it is not a service. All music discovery,
+        library browsing, search, and request management is performed by the
+        Aurral server instance you run yourself (typically via Docker) and that
+        you connect the app to by entering its URL.
+      </p>
+      <p>
+        Because Aurral is self-hosted, the operator of the Aurral server - not
+        the authors of Aurral Pocket - controls how data on that server is
+        stored, processed, and shared with any upstream services it integrates
+        with (for example MusicBrainz, Last.fm, Lidarr, Navidrome). If you are
+        connecting to someone else's Aurral server, ask them about their
+        practices. If you are running your own, you are the operator.
+      </p>
+
+      <h2>2. Information the app handles</h2>
+
+      <h3>2.1 Information you provide</h3>
+      <ul>
+        <li>
+          <strong>Server address.</strong> The URL of the Aurral server you
+          want the app to connect to.
+        </li>
+        <li>
+          <strong>Account credentials.</strong> Your Aurral username and
+          password, entered during sign-in to obtain a session token from your
+          server.
+        </li>
+        <li>
+          <strong>Optional ZIP / postal code.</strong> If you use the
+          "Shows near you" discovery section and choose to enter a postal
+          code instead of IP-based location, that value is stored on your
+          device and sent to your Aurral server with nearby-show requests.
+        </li>
+        <li>
+          <strong>Search queries and interactions</strong> you submit while
+          using the app (artist searches, requests, etc.) - these are sent to
+          your Aurral server so it can respond to them.
+        </li>
+      </ul>
+
+      <h3>2.2 Information stored on your device</h3>
+      <p>
+        The following is stored locally on your device. None of it is
+        transmitted to the authors of Aurral Pocket.
+      </p>
+      <ul>
+        <li>
+          <strong>Secure storage</strong> (iOS Keychain / Android Keystore, via
+          <code>expo-secure-store</code>):
+          <ul>
+            <li>Session token issued by your Aurral server</li>
+            <li>
+              Cached profile info returned by your server (user id, username,
+              role)
+            </li>
+            <li>Session expiry and last-active timestamps</li>
+            <li>
+              Your username and password - only if you explicitly enable
+              "Remember me"
+            </li>
+            <li>Your biometric (Face ID / Touch ID) preference</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Local app storage</strong> (via
+          <code>AsyncStorage</code>):
+          <ul>
+            <li>Your configured Aurral server URL</li>
+            <li>
+              Recent search history (kept on-device; you can clear it from the
+              search screen)
+            </li>
+            <li>
+              Nearby-location preference (IP-based or a ZIP / postal code you
+              entered)
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <p>
+        You can remove all of this data at any time by signing out and/or
+        uninstalling the app.
+      </p>
+
+      <h3>2.3 Information automatically collected</h3>
+      <p>
+        <strong>None by the app.</strong> Aurral Pocket does not embed any
+        analytics, crash reporting, advertising, attribution, or tracking SDKs.
+        It does not collect device identifiers, IP addresses, contacts,
+        calendars, photos, audio, health data, or precise GPS location.
+      </p>
+      <p>
+        Apple and Google independently collect aggregate install and crash
+        information for apps distributed through the App Store and Google
+        Play. That data is governed by
+        <a href="https://www.apple.com/legal/privacy/">Apple's privacy policy</a>
+        and
+        <a href="https://policies.google.com/privacy">Google's privacy policy</a>,
+        respectively, and the app authors do not have access to personally
+        identifiable information from it.
+      </p>
+
+      <h2>3. How information is used</h2>
+      <ul>
+        <li>
+          The server URL, token, and credentials are used solely to
+          authenticate and communicate with the Aurral server you configured.
+        </li>
+        <li>
+          Recent searches and nearby-location preferences are used only to
+          populate UI on your device.
+        </li>
+        <li>
+          Biometric authentication (Face ID / Touch ID) is used only to
+          re-unlock a saved session on your device. Biometric data itself
+          never leaves your device - iOS and Android handle the match and only
+          return a yes/no result to the app.
+        </li>
+      </ul>
+
+      <h2>4. Network connections</h2>
+      <p>The app makes network requests to:</p>
+      <ul>
+        <li>
+          <strong>Your Aurral server</strong>, at the URL you provide, for
+          authentication, discovery, library, search, requests, and album
+          artwork.
+        </li>
+        <li>
+          Any hosts that your Aurral server redirects image URLs to (for
+          example, cover art hosted by your server or linked from upstream
+          music metadata providers). The app does not choose these hosts; it
+          only renders URLs returned by your server.
+        </li>
+      </ul>
+      <p>
+        The app does not contact any servers operated by the authors of Aurral
+        Pocket, and does not contact any third-party analytics or advertising
+        networks.
+      </p>
+
+      <h2>5. Device permissions</h2>
+      <ul>
+        <li>
+          <strong>Face ID / Touch ID / biometrics</strong> (optional). Used
+          only to re-authenticate an existing session. You can decline this
+          permission and continue using password sign-in.
+        </li>
+        <li>
+          <strong>Microphone.</strong> Explicitly <em>not</em> requested. The
+          Android manifest blocks <code>RECORD_AUDIO</code>.
+        </li>
+        <li>
+          <strong>Location.</strong> The app does not request device location.
+          The "Shows near you" feature uses IP-based geolocation performed by
+          your Aurral server, or a postal code you type in - never GPS.
+        </li>
+        <li>
+          <strong>Contacts, Photos, Calendar, Health, Motion.</strong> Not
+          requested.
+        </li>
+      </ul>
+
+      <h2>6. Data sharing</h2>
+      <p>
+        The app authors do not receive, store, or share your data. The only
+        party that receives data from the app is the Aurral server whose
+        address you enter. How that server uses or forwards data (for example,
+        to Lidarr, Last.fm, MusicBrainz, or Navidrome) is determined by its
+        operator and configuration, not by the app.
+      </p>
+
+      <h2>7. Data retention and deletion</h2>
+      <ul>
+        <li>
+          <strong>On-device data</strong> persists until you sign out, clear it
+          from the app, or uninstall the app. Uninstalling removes all
+          app-stored data from the device.
+        </li>
+        <li>
+          <strong>Data on your Aurral server</strong> is retained according to
+          the operator's configuration. If you run your own server, you
+          control retention. If you use someone else's, contact that operator.
+        </li>
+      </ul>
+
+      <h2>8. Children's privacy</h2>
+      <p>
+        Aurral Pocket is not directed to children under 13, and the authors do
+        not knowingly collect information from them - in fact, the authors
+        collect no information from any user. Parents or guardians who believe
+        a child's information may have been stored on an Aurral server should
+        contact that server's operator.
+      </p>
+
+      <h2>9. Security</h2>
+      <p>
+        Sensitive values (session token, saved credentials if you enable
+        "Remember me", session metadata) are stored using the operating
+        system's secure keystore. Traffic between the app and your Aurral
+        server is only as secure as the address you configure; we strongly
+        recommend using HTTPS.
+      </p>
+      <p>
+        No system is perfectly secure. You are responsible for keeping the
+        device on which the app is installed physically secure and up to date.
+      </p>
+
+      <h2>10. Your choices</h2>
+      <ul>
+        <li>Sign out from Settings to clear the session token on the device.</li>
+        <li>
+          Disable "Remember me" and biometric sign-in from the sign-in screen
+          to avoid storing credentials on the device.
+        </li>
+        <li>Clear recent searches from the search screen.</li>
+        <li>
+          Uninstall the app to remove all app-stored data from your device.
+        </li>
+      </ul>
+
+      <h2>11. Changes to this policy</h2>
+      <p>
+        This policy may be updated from time to time. Changes are published at
+        the same URL as this document, with a revised "Last updated" date.
+        The version history is also visible in the project repository on
+        GitHub.
+      </p>
+
+      <h2>12. Contact</h2>
+      <p>
+        Questions about this policy or the app itself can be sent via GitHub
+        Issues at
+        <a href="https://github.com/dylfrancis/aurral-pocket/issues"
+          >github.com/dylfrancis/aurral-pocket/issues</a
+        >.
+      </p>
+
+      <footer>
+        Aurral Pocket is open source under the MIT License. It is an
+        independent client built on top of
+        <a href="https://github.com/lklynet/aurral">Aurral</a>
+        by <a href="https://github.com/lklynet">@lklynet</a> and is not
+        affiliated with Apple, Google, MusicBrainz, Last.fm, Lidarr, or
+        Navidrome.
+      </footer>
+    </main>
+  </body>
+</html>
