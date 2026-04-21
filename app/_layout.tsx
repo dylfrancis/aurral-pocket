@@ -1,31 +1,24 @@
-import { useEffect } from 'react';
-import { Stack } from 'expo-router';
-import { Theme, ThemeProvider } from '@react-navigation/native';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { useFonts } from 'expo-font';
-import {
-  DMSans_400Regular,
-} from '@expo-google-fonts/dm-sans/400Regular';
-import {
-  DMSans_500Medium,
-} from '@expo-google-fonts/dm-sans/500Medium';
-import {
-  DMSans_600SemiBold,
-} from '@expo-google-fonts/dm-sans/600SemiBold';
-import {
-  DMSans_700Bold,
-} from '@expo-google-fonts/dm-sans/700Bold';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import 'react-native-reanimated';
+import { useEffect } from "react";
+import { Stack } from "expo-router";
+import { Theme, ThemeProvider } from "@react-navigation/native";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { useFonts } from "expo-font";
+import { DMSans_400Regular } from "@expo-google-fonts/dm-sans/400Regular";
+import { DMSans_500Medium } from "@expo-google-fonts/dm-sans/500Medium";
+import { DMSans_600SemiBold } from "@expo-google-fonts/dm-sans/600SemiBold";
+import { DMSans_700Bold } from "@expo-google-fonts/dm-sans/700Bold";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import "react-native-reanimated";
 
-import { AuthProvider, useAuth } from '@/contexts/auth-context';
-import { ReAuthModal } from '@/components/auth/ReAuthModal';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
-import { queryClient } from '@/lib/query-client';
+import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { ReAuthModal } from "@/components/auth/ReAuthModal";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
+import { queryClient } from "@/lib/query-client";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,10 +33,10 @@ const AurralDarkTheme: Theme = {
     notification: Colors.dark.error,
   },
   fonts: {
-    regular: { fontFamily: 'DMSans_400Regular', fontWeight: '400' },
-    medium: { fontFamily: 'DMSans_500Medium', fontWeight: '500' },
-    bold: { fontFamily: 'DMSans_700Bold', fontWeight: '700' },
-    heavy: { fontFamily: 'DMSans_700Bold', fontWeight: '700' },
+    regular: { fontFamily: "DMSans_400Regular", fontWeight: "400" },
+    medium: { fontFamily: "DMSans_500Medium", fontWeight: "500" },
+    bold: { fontFamily: "DMSans_700Bold", fontWeight: "700" },
+    heavy: { fontFamily: "DMSans_700Bold", fontWeight: "700" },
   },
 };
 
@@ -58,10 +51,10 @@ const AurralLightTheme: Theme = {
     notification: Colors.light.error,
   },
   fonts: {
-    regular: { fontFamily: 'DMSans_400Regular', fontWeight: '400' },
-    medium: { fontFamily: 'DMSans_500Medium', fontWeight: '500' },
-    bold: { fontFamily: 'DMSans_700Bold', fontWeight: '700' },
-    heavy: { fontFamily: 'DMSans_700Bold', fontWeight: '700' },
+    regular: { fontFamily: "DMSans_400Regular", fontWeight: "400" },
+    medium: { fontFamily: "DMSans_500Medium", fontWeight: "500" },
+    bold: { fontFamily: "DMSans_700Bold", fontWeight: "700" },
+    heavy: { fontFamily: "DMSans_700Bold", fontWeight: "700" },
   },
 };
 
@@ -87,7 +80,9 @@ function RootLayoutNav() {
   if (isRestoring || !fontsLoaded) return null;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? AurralDarkTheme : AurralLightTheme}>
+    <ThemeProvider
+      value={colorScheme === "dark" ? AurralDarkTheme : AurralLightTheme}
+    >
       <Stack screenOptions={{ headerShown: false }}>
         {/* Auth screens — visible when NOT authenticated */}
         <Stack.Protected guard={!isAuthenticated}>
@@ -99,7 +94,7 @@ function RootLayoutNav() {
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
     </ThemeProvider>
   );
 }
@@ -107,14 +102,16 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <RootLayoutNav />
-            <ReAuthModal />
-          </AuthProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
+      <KeyboardProvider>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <RootLayoutNav />
+              <ReAuthModal />
+            </AuthProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

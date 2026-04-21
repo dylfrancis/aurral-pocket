@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useForm, Controller } from "react-hook-form";
@@ -22,7 +17,6 @@ import {
   authenticateWithBiometrics,
 } from "@/hooks/auth/use-biometric-availability";
 import { Colors, Fonts } from "@/constants/theme";
-import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/platform";
 import { login } from "@/lib/api/auth";
 import { ApiError, notifyReAuthResult } from "@/lib/api/client";
 import { SecureStorage } from "@/lib/storage";
@@ -137,10 +131,7 @@ export function ReAuthModal() {
       animationType="fade"
       statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={KEYBOARD_AVOIDING_BEHAVIOR}
-      >
+      <KeyboardAvoidingView style={styles.overlay} behavior="padding">
         <Pressable style={styles.backdrop} onPress={() => {}} />
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Ionicons

@@ -2,7 +2,6 @@ import { AurralLogo } from "@/components/AurralLogo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Text } from "@/components/ui/Text";
-import { KEYBOARD_AVOIDING_BEHAVIOR } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -15,14 +14,8 @@ import { ApiError } from "@/lib/api/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Haptics from "expo-haptics";
 import { Controller, useForm } from "react-hook-form";
-import {
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -99,7 +92,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={KEYBOARD_AVOIDING_BEHAVIOR}
+      behavior="padding"
     >
       <ScrollView
         contentContainerStyle={styles.scroll}
