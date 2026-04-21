@@ -168,12 +168,16 @@ export default function SearchResultsScreen() {
     </View>
   ) : null;
 
+  const canBroadenToAll =
+    isTagSearch && tagScope === "recommended" && showNoResults;
   const emptyComponent = isLoading ? (
     <SkeletonRows count={8} />
   ) : showNoResults ? (
     <EmptyState
       icon="search-outline"
       message={`No results found for \u201C${query}\u201D`}
+      actionLabel={canBroadenToAll ? "Try searching all" : undefined}
+      onAction={canBroadenToAll ? () => setTagScope("all") : undefined}
     />
   ) : null;
 
