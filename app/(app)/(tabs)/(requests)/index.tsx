@@ -14,7 +14,8 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import type { Request } from "@/lib/types/requests";
 
-const LIST_PADDING = 12;
+const LIST_PADDING_HORIZONTAL = 16;
+const LIST_PADDING_VERTICAL = 12;
 
 export default function RequestsScreen() {
   const router = useRouter();
@@ -151,6 +152,7 @@ function ItemSeparator() {
 
 const styles = StyleSheet.create({
   listContent: {
-    padding: LIST_PADDING,
+    paddingHorizontal: LIST_PADDING_HORIZONTAL,
+    paddingVertical: LIST_PADDING_VERTICAL,
   },
 });
