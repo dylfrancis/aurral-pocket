@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
@@ -92,17 +93,17 @@ export function ShowsNearYouSection({
     data?.location?.label || data?.location?.postalCode || "your area";
 
   const header = (
-    <View style={styles.headerRow}>
-      <Text variant="caption" style={[styles.label, { color: colors.subtle }]}>
-        Shows Near You
-      </Text>
-      <ModeToggle
-        mode={mode}
-        onSelectIp={handleSelectIp}
-        onSelectZip={handleSelectZip}
-        onEditZip={handleEditZip}
-      />
-    </View>
+    <SectionHeader
+      title="Shows Near You"
+      trailing={
+        <ModeToggle
+          mode={mode}
+          onSelectIp={handleSelectIp}
+          onSelectZip={handleSelectZip}
+          onEditZip={handleEditZip}
+        />
+      }
+    />
   );
 
   const locationPill = data?.configured !== false && (
@@ -409,19 +410,6 @@ function ModeToggle({
 const styles = StyleSheet.create({
   container: {
     paddingTop: 12,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-  },
-  label: {
-    fontFamily: Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 14,
-    paddingVertical: 8,
   },
   toggleRow: {
     flexDirection: "row",

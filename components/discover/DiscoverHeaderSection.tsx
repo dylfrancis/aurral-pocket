@@ -1,9 +1,10 @@
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TagPill } from "@/components/ui/TagPill";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
 import { useDiscovery } from "@/hooks/discover";
 import { formatBasedOn, formatUpdatedAt } from "@/lib/discover/format";
 
@@ -30,12 +31,7 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
           </Text>
         </View>
         <View style={styles.tagsBlock}>
-          <Text
-            variant="caption"
-            style={[styles.label, { color: colors.subtle }]}
-          >
-            Top Tags
-          </Text>
+          <SectionHeader title="Top Tags" />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -78,12 +74,7 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
 
       {tags.length > 0 ? (
         <View style={styles.tagsBlock}>
-          <Text
-            variant="caption"
-            style={[styles.label, { color: colors.subtle }]}
-          >
-            Top Tags
-          </Text>
+          <SectionHeader title="Top Tags" />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -125,13 +116,6 @@ const styles = StyleSheet.create({
   },
   tagsBlock: {
     gap: 4,
-  },
-  label: {
-    fontFamily: Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 14,
-    paddingHorizontal: 16,
   },
   tagList: {
     flexDirection: "row",

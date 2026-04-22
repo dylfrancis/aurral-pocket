@@ -149,6 +149,35 @@ export default function DiscoverScreen() {
     router.push("/(app)/(tabs)/(settings)");
   }, [router]);
 
+  const pushDiscoverList = useCallback(
+    (
+      kind: "recommended" | "trending" | "recently-added" | "recent-releases",
+    ) => {
+      router.push({
+        pathname: "/(app)/(tabs)/(discover)/list/[kind]",
+        params: { kind },
+      });
+    },
+    [router],
+  );
+
+  const handleViewAllRecommended = useCallback(
+    () => pushDiscoverList("recommended"),
+    [pushDiscoverList],
+  );
+  const handleViewAllTrending = useCallback(
+    () => pushDiscoverList("trending"),
+    [pushDiscoverList],
+  );
+  const handleViewAllRecentlyAdded = useCallback(
+    () => pushDiscoverList("recently-added"),
+    [pushDiscoverList],
+  );
+  const handleViewAllRecentReleases = useCallback(
+    () => pushDiscoverList("recent-releases"),
+    [pushDiscoverList],
+  );
+
   const notConfigured =
     discovery?.configured === false &&
     (discovery.recommendations?.length ?? 0) === 0 &&
@@ -209,7 +238,10 @@ export default function DiscoverScreen() {
         ) : (
           <>
             <DiscoverHeaderSection onTagPress={handleTagPress} />
-            <RecentlyAddedSection onArtistPress={handleRecentlyAddedPress} />
+            <RecentlyAddedSection
+              onArtistPress={handleRecentlyAddedPress}
+              onViewAll={handleViewAllRecentlyAdded}
+            />
             <ShowsNearYouSection
               onShowPress={handleShowPress}
               onOpenSettings={handleOpenSettings}
@@ -218,12 +250,22 @@ export default function DiscoverScreen() {
               onModeChange={setMode}
               onEditZip={openZipEditor}
             />
-            <RecentReleasesSection onAlbumPress={handleAlbumPress} />
+            <RecentReleasesSection
+              onAlbumPress={handleAlbumPress}
+              onViewAll={handleViewAllRecentReleases}
+            />
             <RecommendedForYouSection
               onArtistPress={handleDiscoveryArtistPress}
+              onViewAll={handleViewAllRecommended}
             />
-            <GlobalTrendingSection onArtistPress={handleDiscoveryArtistPress} />
-            <GenreSectionsPanel onArtistPress={handleGenreArtistPress} />
+            <GlobalTrendingSection
+              onArtistPress={handleDiscoveryArtistPress}
+              onViewAll={handleViewAllTrending}
+            />
+            <GenreSectionsPanel
+              onArtistPress={handleGenreArtistPress}
+              onViewAllGenre={handleTagPress}
+            />
             <ExploreByTagSection onTagPress={handleTagPress} />
           </>
         )}

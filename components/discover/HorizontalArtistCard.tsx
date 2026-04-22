@@ -12,6 +12,7 @@ export type HorizontalArtistCardProps = {
   subtitle?: string;
   isInLibrary?: boolean;
   onPress: () => void;
+  fill?: boolean;
 };
 
 const CARD_WIDTH = 130;
@@ -22,19 +23,23 @@ function HorizontalArtistCardComponent({
   subtitle,
   isInLibrary,
   onPress,
+  fill,
 }: HorizontalArtistCardProps) {
   const colors = Colors[useColorScheme()];
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, { opacity: pressed ? 0.7 : 1 }]}
+      style={({ pressed }) => [
+        fill ? styles.cardFill : styles.card,
+        { opacity: pressed ? 0.7 : 1 },
+      ]}
       onPress={onPress}
     >
       <View style={styles.coverWrap}>
         <CoverArtImage
           type="artist"
           mbid={mbid}
-          size={CARD_WIDTH}
+          size={fill ? "fill" : CARD_WIDTH}
           borderRadius={10}
         />
         {isInLibrary && (
@@ -73,6 +78,9 @@ export const HorizontalArtistCard = React.memo(HorizontalArtistCardComponent);
 const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
+  },
+  cardFill: {
+    flex: 1,
   },
   coverWrap: {
     position: "relative",
