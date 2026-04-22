@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { Fonts } from "@/constants/theme";
 import { getTagColor } from "@/lib/tag-colors";
@@ -19,7 +20,10 @@ export function TagPill({ name, onPress }: TagPillProps) {
   if (onPress) {
     return (
       <Pressable
-        onPress={() => onPress(name)}
+        onPress={() => {
+          void Haptics.selectionAsync();
+          onPress(name);
+        }}
         style={({ pressed }) => [
           styles.tag,
           { backgroundColor: color, opacity: pressed ? 0.7 : 1 },

@@ -6,6 +6,14 @@ jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
 
+jest.mock("@/components/ui/Skeleton", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return {
+    Skeleton: () => React.createElement(View, { testID: "skeleton" }),
+  };
+});
+
 import { render, fireEvent } from "@testing-library/react-native";
 import { DiscoverHeaderSection } from "@/components/discover/DiscoverHeaderSection";
 import { useDiscovery } from "@/hooks/discover";
@@ -28,10 +36,18 @@ beforeEach(() => {
 });
 
 describe("DiscoverHeaderSection", () => {
-  it("returns null when data is undefined", () => {
-    mockHook.mockReturnValue({ data: undefined });
+  it("returns null when data is undefined and not loading", () => {
+    mockHook.mockReturnValue({ data: undefined, isLoading: false });
     const { toJSON } = render(<DiscoverHeaderSection onTagPress={jest.fn()} />);
     expect(toJSON()).toBeNull();
+  });
+
+  it("renders Top Tags skeleton while loading", () => {
+    mockHook.mockReturnValue({ data: undefined, isLoading: true });
+    const { getByText } = render(
+      <DiscoverHeaderSection onTagPress={jest.fn()} />,
+    );
+    expect(getByText("Top Tags")).toBeTruthy();
   });
 
   it("returns null when configured is false", () => {

@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { TagPill } from "@/components/ui/TagPill";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -12,9 +13,42 @@ type Props = {
 
 export function DiscoverHeaderSection({ onTagPress }: Props) {
   const colors = Colors[useColorScheme()];
-  const { data } = useDiscovery();
+  const { data, isLoading } = useDiscovery();
 
-  if (!data || data.configured === false) return null;
+  if (data?.configured === false) return null;
+
+  if (!data) {
+    if (!isLoading) return null;
+    return (
+      <View style={styles.container}>
+        <View style={styles.intro}>
+          <Text
+            variant="body"
+            style={[styles.subtitle, { color: colors.subtle }]}
+          >
+            Your daily mix, curated from your library.
+          </Text>
+        </View>
+        <View style={styles.tagsBlock}>
+          <Text
+            variant="caption"
+            style={[styles.label, { color: colors.subtle }]}
+          >
+            Top Tags
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tagList}
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} width={72} height={30} borderRadius={12} />
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
 
   // "Top Tags" label intentionally renders `topGenres` — `topTags` drives the
   // separate "Explore by Tag" section. Parent aurral web app splits them the

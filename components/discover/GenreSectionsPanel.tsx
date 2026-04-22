@@ -34,7 +34,10 @@ export function GenreSectionsPanel({ onArtistPress }: Props) {
             variant="caption"
             style={[styles.label, { color: colors.subtle }]}
           >
-            Because you like {section.genre}
+            Because you like{" "}
+            <Text style={[styles.tag, { color: colors.text }]}>
+              #{section.genre}
+            </Text>
           </Text>
           <ScrollView
             horizontal
@@ -59,16 +62,19 @@ export function GenreSectionsPanel({ onArtistPress }: Props) {
 
 const styles = StyleSheet.create({
   section: {
-    paddingTop: 12,
+    paddingTop: 4,
   },
   label: {
     fontFamily: Fonts.semiBold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     fontSize: 14,
-    paddingVertical: 8,
+    paddingVertical: 4,
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  tag: {
+    fontFamily: Fonts.semiBold,
   },
   list: {
     paddingHorizontal: 16,

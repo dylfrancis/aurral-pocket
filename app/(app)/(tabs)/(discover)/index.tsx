@@ -1,3 +1,33 @@
+import {
+  DiscoverHeaderSection,
+  ExploreByTagSection,
+  GenreSectionsPanel,
+  GlobalTrendingSection,
+  RecentlyAddedSection,
+  RecentReleasesSection,
+  RecommendedForYouSection,
+  ShowsNearYouSection,
+} from "@/components/discover";
+import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
+import { Text } from "@/components/ui/Text";
+import { Colors, Fonts } from "@/constants/theme";
+import {
+  useDiscovery,
+  useNearbyLocationPref,
+  useRecentlyAdded,
+  useRecentReleases,
+} from "@/hooks/discover";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { discoverKeys } from "@/lib/query-keys";
+import type {
+  ConcertEvent,
+  DiscoveryArtist,
+  RecentlyAddedArtist,
+  RecentReleaseAlbum,
+} from "@/lib/types/search";
+import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Linking,
@@ -7,36 +37,6 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
-import {
-  useDiscovery,
-  useRecentlyAdded,
-  useRecentReleases,
-  useNearbyLocationPref,
-} from "@/hooks/discover";
-import { discoverKeys } from "@/lib/query-keys";
-import {
-  DiscoverHeaderSection,
-  RecentlyAddedSection,
-  RecommendedForYouSection,
-  GlobalTrendingSection,
-  GenreSectionsPanel,
-  ExploreByTagSection,
-  RecentReleasesSection,
-  ShowsNearYouSection,
-} from "@/components/discover";
-import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
-import type {
-  ConcertEvent,
-  DiscoveryArtist,
-  RecentlyAddedArtist,
-  RecentReleaseAlbum,
-} from "@/lib/types/search";
 
 export default function DiscoverScreen() {
   const colors = Colors[useColorScheme()];
@@ -241,7 +241,7 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: 32,
-    gap: 20,
+    gap: 12,
   },
   emptyCard: {
     margin: 16,
