@@ -1,8 +1,9 @@
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
 import type { PrimaryReleaseType } from "@/lib/types/library";
 
 const MAX_VISIBLE = 10;
@@ -31,29 +32,15 @@ export function AlbumCategoryList<T>({
   const visible = items.slice(0, MAX_VISIBLE);
   const hasMore = items.length > MAX_VISIBLE;
 
+  const handleNavigate = onNavigate ? () => onNavigate(type, label) : undefined;
+
   return (
     <View style={styles.container}>
-      <Pressable
-        onPress={onNavigate ? () => onNavigate(type, label) : undefined}
-        disabled={!onNavigate}
-        style={({ pressed }) => [styles.header, { opacity: pressed ? 0.6 : 1 }]}
-      >
-        <Text variant="subtitle" style={[styles.title, { color: colors.text }]}>
-          {label}
-          <Text variant="caption" style={{ color: colors.subtle }}>
-            {"  "}
-            {items.length}
-          </Text>
-        </Text>
-        {onNavigate && (
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={colors.subtle}
-            style={{ marginLeft: 4 }}
-          />
-        )}
-      </Pressable>
+      <SectionHeader
+        title={label}
+        count={items.length}
+        onNavigate={handleNavigate}
+      />
       <FlatList
         horizontal
         data={visible}
@@ -94,16 +81,6 @@ export function AlbumCategoryList<T>({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 20,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  title: {
-    fontFamily: Fonts.semiBold,
-    fontSize: 18,
   },
   list: {
     paddingHorizontal: 16,

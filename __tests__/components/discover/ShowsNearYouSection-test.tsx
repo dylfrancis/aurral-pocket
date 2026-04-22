@@ -21,6 +21,37 @@ jest.mock("@/components/ui/Skeleton", () => {
   };
 });
 
+jest.mock("@react-native-segmented-control/segmented-control", () => {
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  type MockProps = {
+    values: string[];
+    selectedIndex: number;
+    onChange: (event: {
+      nativeEvent: { selectedSegmentIndex: number };
+    }) => void;
+  };
+  return {
+    __esModule: true,
+    default: ({ values, onChange }: MockProps) =>
+      React.createElement(
+        View,
+        { testID: "mock-segmented-control" },
+        values.map((value, index) =>
+          React.createElement(
+            Pressable,
+            {
+              key: value,
+              onPress: () =>
+                onChange({ nativeEvent: { selectedSegmentIndex: index } }),
+            },
+            React.createElement(Text, null, value),
+          ),
+        ),
+      ),
+  };
+});
+
 import { render, fireEvent } from "@testing-library/react-native";
 import { ShowsNearYouSection } from "@/components/discover/ShowsNearYouSection";
 import { useNearbyShows } from "@/hooks/discover";

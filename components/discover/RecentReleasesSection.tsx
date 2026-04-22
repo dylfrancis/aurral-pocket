@@ -5,17 +5,25 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useRecentReleases } from "@/hooks/discover";
 import type { RecentReleaseAlbum } from "@/lib/types/search";
 import { DiscoverReleaseCard } from "./DiscoverReleaseCard";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ViewAllCard } from "./ViewAllCard";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
+
+const MAX_VISIBLE = 12;
+const CARD_SIZE = 140;
 
 type Props = {
   onAlbumPress: (album: RecentReleaseAlbum) => void;
+  onViewAll?: () => void;
 };
 
-export function RecentReleasesSection({ onAlbumPress }: Props) {
+export function RecentReleasesSection({ onAlbumPress, onViewAll }: Props) {
   const colors = Colors[useColorScheme()];
   const { data, isLoading } = useRecentReleases();
 
-  const albums = (data ?? []).slice(0, 12);
+  const all = data ?? [];
+  const albums = all.slice(0, MAX_VISIBLE);
+  const hasMore = all.length > MAX_VISIBLE;
 
   if (isLoading) {
     return (
@@ -35,9 +43,10 @@ export function RecentReleasesSection({ onAlbumPress }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text variant="caption" style={[styles.label, { color: colors.subtle }]}>
-        Recent & Upcoming Releases
-      </Text>
+      <SectionHeader
+        title="Recent & Upcoming Releases"
+        onNavigate={onViewAll}
+      />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -50,6 +59,9 @@ export function RecentReleasesSection({ onAlbumPress }: Props) {
             onPress={() => onAlbumPress(album)}
           />
         ))}
+        {hasMore && onViewAll ? (
+          <ViewAllCard size={CARD_SIZE} onPress={onViewAll} />
+        ) : null}
       </ScrollView>
     </View>
   );

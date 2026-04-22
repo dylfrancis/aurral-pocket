@@ -1,3 +1,33 @@
+import {
+  DiscoverHeaderSection,
+  ExploreByTagSection,
+  GenreSectionsPanel,
+  GlobalTrendingSection,
+  RecentlyAddedSection,
+  RecentReleasesSection,
+  RecommendedForYouSection,
+  ShowsNearYouSection,
+} from "@/components/discover";
+import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
+import { Text } from "@/components/ui/Text";
+import { Colors, Fonts } from "@/constants/theme";
+import {
+  useDiscovery,
+  useNearbyLocationPref,
+  useRecentlyAdded,
+  useRecentReleases,
+} from "@/hooks/discover";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { discoverKeys } from "@/lib/query-keys";
+import type {
+  ConcertEvent,
+  DiscoveryArtist,
+  RecentlyAddedArtist,
+  RecentReleaseAlbum,
+} from "@/lib/types/search";
+import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Linking,
@@ -7,36 +37,6 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
-import {
-  useDiscovery,
-  useRecentlyAdded,
-  useRecentReleases,
-  useNearbyLocationPref,
-} from "@/hooks/discover";
-import { discoverKeys } from "@/lib/query-keys";
-import {
-  DiscoverHeaderSection,
-  RecentlyAddedSection,
-  RecommendedForYouSection,
-  GlobalTrendingSection,
-  GenreSectionsPanel,
-  ExploreByTagSection,
-  RecentReleasesSection,
-  ShowsNearYouSection,
-} from "@/components/discover";
-import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
-import type {
-  ConcertEvent,
-  DiscoveryArtist,
-  RecentlyAddedArtist,
-  RecentReleaseAlbum,
-} from "@/lib/types/search";
 
 export default function DiscoverScreen() {
   const colors = Colors[useColorScheme()];
@@ -149,6 +149,35 @@ export default function DiscoverScreen() {
     router.push("/(app)/(tabs)/(settings)");
   }, [router]);
 
+  const pushDiscoverList = useCallback(
+    (
+      kind: "recommended" | "trending" | "recently-added" | "recent-releases",
+    ) => {
+      router.push({
+        pathname: "/(app)/(tabs)/(discover)/list/[kind]",
+        params: { kind },
+      });
+    },
+    [router],
+  );
+
+  const handleViewAllRecommended = useCallback(
+    () => pushDiscoverList("recommended"),
+    [pushDiscoverList],
+  );
+  const handleViewAllTrending = useCallback(
+    () => pushDiscoverList("trending"),
+    [pushDiscoverList],
+  );
+  const handleViewAllRecentlyAdded = useCallback(
+    () => pushDiscoverList("recently-added"),
+    [pushDiscoverList],
+  );
+  const handleViewAllRecentReleases = useCallback(
+    () => pushDiscoverList("recent-releases"),
+    [pushDiscoverList],
+  );
+
   const notConfigured =
     discovery?.configured === false &&
     (discovery.recommendations?.length ?? 0) === 0 &&
@@ -209,7 +238,10 @@ export default function DiscoverScreen() {
         ) : (
           <>
             <DiscoverHeaderSection onTagPress={handleTagPress} />
-            <RecentlyAddedSection onArtistPress={handleRecentlyAddedPress} />
+            <RecentlyAddedSection
+              onArtistPress={handleRecentlyAddedPress}
+              onViewAll={handleViewAllRecentlyAdded}
+            />
             <ShowsNearYouSection
               onShowPress={handleShowPress}
               onOpenSettings={handleOpenSettings}
@@ -218,12 +250,22 @@ export default function DiscoverScreen() {
               onModeChange={setMode}
               onEditZip={openZipEditor}
             />
-            <RecentReleasesSection onAlbumPress={handleAlbumPress} />
+            <RecentReleasesSection
+              onAlbumPress={handleAlbumPress}
+              onViewAll={handleViewAllRecentReleases}
+            />
             <RecommendedForYouSection
               onArtistPress={handleDiscoveryArtistPress}
+              onViewAll={handleViewAllRecommended}
             />
-            <GlobalTrendingSection onArtistPress={handleDiscoveryArtistPress} />
-            <GenreSectionsPanel onArtistPress={handleGenreArtistPress} />
+            <GlobalTrendingSection
+              onArtistPress={handleDiscoveryArtistPress}
+              onViewAll={handleViewAllTrending}
+            />
+            <GenreSectionsPanel
+              onArtistPress={handleGenreArtistPress}
+              onViewAllGenre={handleTagPress}
+            />
             <ExploreByTagSection onTagPress={handleTagPress} />
           </>
         )}
@@ -241,7 +283,7 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: 32,
-    gap: 20,
+    gap: 12,
   },
   emptyCard: {
     margin: 16,

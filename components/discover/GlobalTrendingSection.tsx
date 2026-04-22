@@ -6,18 +6,26 @@ import { useDiscovery } from "@/hooks/discover";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import type { DiscoveryArtist } from "@/lib/types/search";
 import { HorizontalArtistCard } from "./HorizontalArtistCard";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ViewAllCard } from "./ViewAllCard";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
+
+const MAX_VISIBLE = 12;
+const CARD_SIZE = 130;
 
 type Props = {
   onArtistPress: (artist: DiscoveryArtist) => void;
+  onViewAll?: () => void;
 };
 
-export function GlobalTrendingSection({ onArtistPress }: Props) {
+export function GlobalTrendingSection({ onArtistPress, onViewAll }: Props) {
   const colors = Colors[useColorScheme()];
   const { data, isLoading } = useDiscovery();
   const { isInLibrary } = useLibraryLookup();
 
-  const artists = (data?.globalTop ?? []).slice(0, 12);
+  const all = data?.globalTop ?? [];
+  const artists = all.slice(0, MAX_VISIBLE);
+  const hasMore = all.length > MAX_VISIBLE;
 
   if (isLoading) {
     return (
@@ -37,9 +45,7 @@ export function GlobalTrendingSection({ onArtistPress }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text variant="caption" style={[styles.label, { color: colors.subtle }]}>
-        Global Trending
-      </Text>
+      <SectionHeader title="Global Trending" onNavigate={onViewAll} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -54,6 +60,9 @@ export function GlobalTrendingSection({ onArtistPress }: Props) {
             onPress={() => onArtistPress(artist)}
           />
         ))}
+        {hasMore && onViewAll ? (
+          <ViewAllCard size={CARD_SIZE} onPress={onViewAll} />
+        ) : null}
       </ScrollView>
     </View>
   );

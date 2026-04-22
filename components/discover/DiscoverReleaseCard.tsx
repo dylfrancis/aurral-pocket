@@ -10,6 +10,7 @@ import type { RecentReleaseAlbum } from "@/lib/types/search";
 export type DiscoverReleaseCardProps = {
   album: RecentReleaseAlbum;
   onPress: () => void;
+  fill?: boolean;
 };
 
 const CARD_WIDTH = 140;
@@ -17,6 +18,7 @@ const CARD_WIDTH = 140;
 function DiscoverReleaseCardComponent({
   album,
   onPress,
+  fill,
 }: DiscoverReleaseCardProps) {
   const colors = Colors[useColorScheme()];
   const title = album.albumName || album.title || "Untitled";
@@ -25,24 +27,36 @@ function DiscoverReleaseCardComponent({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, { opacity: pressed ? 0.7 : 1 }]}
+      style={({ pressed }) => [
+        fill ? styles.cardFill : styles.card,
+        { opacity: pressed ? 0.7 : 1 },
+      ]}
       onPress={onPress}
     >
       {coverMbid ? (
         <CoverArtImage
           type="album"
           mbid={coverMbid}
-          size={CARD_WIDTH}
+          size={fill ? "fill" : CARD_WIDTH}
           borderRadius={10}
         />
       ) : (
         <View
-          style={{
-            width: CARD_WIDTH,
-            height: CARD_WIDTH,
-            borderRadius: 10,
-            backgroundColor: colors.card,
-          }}
+          style={
+            fill
+              ? {
+                  width: "100%",
+                  aspectRatio: 1,
+                  borderRadius: 10,
+                  backgroundColor: colors.card,
+                }
+              : {
+                  width: CARD_WIDTH,
+                  height: CARD_WIDTH,
+                  borderRadius: 10,
+                  backgroundColor: colors.card,
+                }
+          }
         />
       )}
       <View style={styles.info}>
@@ -82,6 +96,9 @@ export const DiscoverReleaseCard = React.memo(DiscoverReleaseCardComponent);
 const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
+  },
+  cardFill: {
+    flex: 1,
   },
   info: {
     paddingTop: 8,

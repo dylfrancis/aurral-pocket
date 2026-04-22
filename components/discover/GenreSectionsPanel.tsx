@@ -8,12 +8,18 @@ import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { buildGenreSections } from "@/lib/discover/format";
 import type { DiscoveryArtist } from "@/lib/types/search";
 import { HorizontalArtistCard } from "./HorizontalArtistCard";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ViewAllCard } from "./ViewAllCard";
+
+const MAX_VISIBLE = 12;
+const CARD_SIZE = 130;
 
 type Props = {
   onArtistPress: (artist: DiscoveryArtist, genre: string) => void;
+  onViewAllGenre: (genre: string) => void;
 };
 
-export function GenreSectionsPanel({ onArtistPress }: Props) {
+export function GenreSectionsPanel({ onArtistPress, onViewAllGenre }: Props) {
   const colors = Colors[useColorScheme()];
   const { data } = useDiscovery();
   const { isInLibrary } = useLibraryLookup();
@@ -28,47 +34,53 @@ export function GenreSectionsPanel({ onArtistPress }: Props) {
 
   return (
     <>
-      {sections.map((section) => (
-        <View key={section.genre} style={styles.section}>
-          <Text
-            variant="caption"
-            style={[styles.label, { color: colors.subtle }]}
-          >
-            Because you like {section.genre}
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.list}
-          >
-            {section.artists.map((artist) => (
-              <HorizontalArtistCard
-                key={`${section.genre}-${artist.id}`}
-                mbid={artist.id}
-                name={artist.name}
-                isInLibrary={isInLibrary(artist.id)}
-                onPress={() => onArtistPress(artist, section.genre)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      ))}
+      {sections.map((section) => {
+        const artists = section.artists.slice(0, MAX_VISIBLE);
+        const hasMore = section.artists.length > MAX_VISIBLE;
+        const viewAll = () => onViewAllGenre(section.genre);
+        return (
+          <View key={section.genre} style={styles.section}>
+            <SectionHeader
+              title="Because you like"
+              accent={
+                <Text style={[styles.tag, { color: colors.text }]}>
+                  #{section.genre}
+                </Text>
+              }
+              onNavigate={viewAll}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.list}
+            >
+              {artists.map((artist) => (
+                <HorizontalArtistCard
+                  key={`${section.genre}-${artist.id}`}
+                  mbid={artist.id}
+                  name={artist.name}
+                  isInLibrary={isInLibrary(artist.id)}
+                  onPress={() => onArtistPress(artist, section.genre)}
+                />
+              ))}
+              {hasMore ? (
+                <ViewAllCard size={CARD_SIZE} onPress={viewAll} />
+              ) : null}
+            </ScrollView>
+          </View>
+        );
+      })}
     </>
   );
 }
 
 const styles = StyleSheet.create({
   section: {
-    paddingTop: 12,
+    paddingTop: 4,
   },
-  label: {
+  tag: {
     fontFamily: Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    fontSize: 18,
   },
   list: {
     paddingHorizontal: 16,

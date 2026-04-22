@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
@@ -7,6 +8,7 @@ import { useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { ConcertEvent } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
+import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
 import { useCallback } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
@@ -92,34 +94,63 @@ export function ShowsNearYouSection({
     data?.location?.label || data?.location?.postalCode || "your area";
 
   const header = (
-    <View style={styles.headerRow}>
-      <Text variant="caption" style={[styles.label, { color: colors.subtle }]}>
-        Shows Near You
-      </Text>
-      <ModeToggle
-        mode={mode}
-        onSelectIp={handleSelectIp}
-        onSelectZip={handleSelectZip}
-        onEditZip={handleEditZip}
-      />
-    </View>
+    <SectionHeader
+      title="Shows Near You"
+      trailing={
+        <ModeToggle
+          mode={mode}
+          onSelectIp={handleSelectIp}
+          onSelectZip={handleSelectZip}
+        />
+      }
+    />
   );
 
-  const locationPill = data?.configured !== false && (
-    <View style={styles.locationRow}>
+  const locationInner = (
+    <>
       <Text
-        variant="caption"
-        style={[styles.locationPill, { color: colors.subtle }]}
+        variant="body"
+        style={[styles.locationText, { color: colors.subtle }]}
+        numberOfLines={1}
       >
         {locationLabel}
       </Text>
-    </View>
+      {zipModeActive && (
+        <View
+          style={[
+            styles.editButton,
+            { backgroundColor: colors.card, borderColor: colors.separator },
+          ]}
+        >
+          <Ionicons name="pencil" size={11} color={colors.subtle} />
+        </View>
+      )}
+    </>
   );
+
+  const locationRow =
+    data?.configured !== false &&
+    (zipModeActive ? (
+      <Pressable
+        onPress={handleEditZip}
+        accessibilityLabel="Edit ZIP"
+        hitSlop={{ top: 8, bottom: 8 }}
+        style={({ pressed }) => [
+          styles.locationRow,
+          pressed && { opacity: 0.6 },
+        ]}
+      >
+        {locationInner}
+      </Pressable>
+    ) : (
+      <View style={styles.locationRow}>{locationInner}</View>
+    ));
 
   if (isLoading) {
     return (
       <View style={styles.container}>
         {header}
+        {locationRow}
         <View style={styles.skeletons}>
           {Array.from({ length: 2 }).map((_, i) => (
             <Skeleton
@@ -202,7 +233,7 @@ export function ShowsNearYouSection({
     return (
       <View style={styles.container}>
         {header}
-        {locationPill}
+        {locationRow}
         <View
           style={[
             styles.emptyCard,
@@ -233,7 +264,7 @@ export function ShowsNearYouSection({
   return (
     <View style={styles.container}>
       {header}
-      {locationPill}
+      {locationRow}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -326,83 +357,37 @@ type ModeToggleProps = {
   mode: NearbyLocationMode;
   onSelectIp: () => void;
   onSelectZip: () => void;
-  onEditZip: () => void;
 };
 
-function ModeToggle({
-  mode,
-  onSelectIp,
-  onSelectZip,
-  onEditZip,
-}: ModeToggleProps) {
+const MODE_VALUES = ["Your Area", "ZIP"] as const;
+
+function ModeToggle({ mode, onSelectIp, onSelectZip }: ModeToggleProps) {
   const colors = Colors[useColorScheme()];
   const zipActive = mode === "zip";
 
   return (
-    <View style={styles.toggleRow}>
-      <View
-        style={[
-          styles.segmented,
-          { backgroundColor: colors.card, borderColor: colors.separator },
-        ]}
-      >
-        <Pressable
-          onPress={onSelectIp}
-          style={({ pressed }) => [
-            styles.segment,
-            !zipActive && { backgroundColor: colors.brand },
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <Text
-            variant="caption"
-            style={[
-              styles.segmentLabel,
-              {
-                color: !zipActive ? colors.background : colors.subtle,
-                fontFamily: Fonts.semiBold,
-              },
-            ]}
-          >
-            Your Area
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={onSelectZip}
-          style={({ pressed }) => [
-            styles.segment,
-            zipActive && { backgroundColor: colors.brand },
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <Text
-            variant="caption"
-            style={[
-              styles.segmentLabel,
-              {
-                color: zipActive ? colors.background : colors.subtle,
-                fontFamily: Fonts.semiBold,
-              },
-            ]}
-          >
-            ZIP
-          </Text>
-        </Pressable>
-      </View>
-      {zipActive && (
-        <Pressable
-          onPress={onEditZip}
-          style={({ pressed }) => [
-            styles.editButton,
-            { backgroundColor: colors.card, borderColor: colors.separator },
-            pressed && { opacity: 0.7 },
-          ]}
-          accessibilityLabel="Edit ZIP"
-        >
-          <Ionicons name="pencil" size={14} color={colors.subtle} />
-        </Pressable>
-      )}
-    </View>
+    <SegmentedControl
+      values={MODE_VALUES as unknown as string[]}
+      selectedIndex={zipActive ? 1 : 0}
+      onChange={(event) => {
+        const index = event.nativeEvent.selectedSegmentIndex;
+        if (index === 0) onSelectIp();
+        else onSelectZip();
+      }}
+      fontStyle={{
+        fontFamily: Fonts.medium,
+        fontSize: 12,
+        color: colors.subtle,
+      }}
+      activeFontStyle={{
+        fontFamily: Fonts.semiBold,
+        fontSize: 12,
+        color: colors.background,
+      }}
+      tintColor={colors.brand}
+      backgroundColor={colors.background}
+      style={styles.segmentedControl}
+    />
   );
 }
 
@@ -410,54 +395,27 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 12,
   },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-  },
-  label: {
-    fontFamily: Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 14,
-    paddingVertical: 8,
-  },
-  toggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  segmented: {
-    flexDirection: "row",
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: "hidden",
-  },
-  segment: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  segmentLabel: {
-    fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+  segmentedControl: {
+    width: 160,
   },
   editButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 6,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
   },
   locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     paddingHorizontal: 16,
-    marginTop: 2,
-    marginBottom: 8,
+    paddingVertical: 4,
+    marginBottom: 4,
   },
-  locationPill: {
-    fontSize: 12,
+  locationText: {
+    fontSize: 15,
   },
   list: {
     paddingHorizontal: 16,

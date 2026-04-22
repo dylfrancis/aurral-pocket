@@ -6,10 +6,16 @@ import { useRecentlyAdded } from "@/hooks/discover";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import type { RecentlyAddedArtist } from "@/lib/types/search";
 import { HorizontalArtistCard } from "./HorizontalArtistCard";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ViewAllCard } from "./ViewAllCard";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
+
+const MAX_VISIBLE = 12;
+const CARD_SIZE = 130;
 
 type Props = {
   onArtistPress: (artist: RecentlyAddedArtist) => void;
+  onViewAll?: () => void;
 };
 
 function formatAdded(date?: string | null) {
@@ -19,12 +25,14 @@ function formatAdded(date?: string | null) {
   return `Added ${d.toLocaleDateString()}`;
 }
 
-export function RecentlyAddedSection({ onArtistPress }: Props) {
+export function RecentlyAddedSection({ onArtistPress, onViewAll }: Props) {
   const colors = Colors[useColorScheme()];
   const { data, isLoading } = useRecentlyAdded();
   const { isInLibrary } = useLibraryLookup();
 
-  const artists = (data ?? []).slice(0, 10);
+  const all = data ?? [];
+  const artists = all.slice(0, MAX_VISIBLE);
+  const hasMore = all.length > MAX_VISIBLE;
 
   if (isLoading) {
     return (
@@ -44,9 +52,7 @@ export function RecentlyAddedSection({ onArtistPress }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text variant="caption" style={[styles.label, { color: colors.subtle }]}>
-        Recently Added
-      </Text>
+      <SectionHeader title="Recently Added" onNavigate={onViewAll} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -65,6 +71,9 @@ export function RecentlyAddedSection({ onArtistPress }: Props) {
             />
           );
         })}
+        {hasMore && onViewAll ? (
+          <ViewAllCard size={CARD_SIZE} onPress={onViewAll} />
+        ) : null}
       </ScrollView>
     </View>
   );
