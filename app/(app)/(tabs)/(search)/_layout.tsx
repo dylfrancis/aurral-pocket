@@ -1,11 +1,7 @@
 import { Stack } from "expo-router";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
-
-const transparentHeader = IS_IOS
-  ? { headerTransparent: true, headerStyle: { backgroundColor: "transparent" } }
-  : {};
+import { TRANSPARENT_HEADER } from "@/constants/navigation";
 
 export default function SearchLayout() {
   const colors = Colors[useColorScheme()];
@@ -15,7 +11,7 @@ export default function SearchLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
-        ...transparentHeader,
+        ...TRANSPARENT_HEADER,
       }}
     >
       <Stack.Screen

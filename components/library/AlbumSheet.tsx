@@ -59,7 +59,7 @@ export function AlbumSheet({
     onMutate: () => {
       // Optimistically set status to searching
       queryClient.setQueriesData<Record<string, { status: string }>>(
-        { queryKey: ["library", "downloadStatuses"] },
+        { queryKey: libraryKeys.downloadStatusesAll() },
         (old) =>
           old
             ? { ...old, [album!.id]: { status: "searching" } }
@@ -68,7 +68,7 @@ export function AlbumSheet({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["library", "downloadStatuses"],
+        queryKey: libraryKeys.downloadStatusesAll(),
       });
     },
   });
