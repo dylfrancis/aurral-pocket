@@ -26,6 +26,12 @@ export const searchKeys = {
   similarArtists: (mbid: string) => ["search", "similar", mbid] as const,
 };
 
+export const requestsKeys = {
+  list: () => ["requests", "list"] as const,
+  downloadStatuses: (albumIds: string) =>
+    ["requests", "downloadStatuses", albumIds] as const,
+};
+
 export const discoverKeys = {
   discovery: () => ["discover", "main"] as const,
   recentlyAdded: () => ["discover", "recentlyAdded"] as const,

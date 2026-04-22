@@ -46,14 +46,16 @@ export default function SearchScreen() {
   } = useArtistSearch(artistQuery);
 
   const [showSlowLoader, setShowSlowLoader] = useState(false);
-  const slowTimer = useRef<ReturnType<typeof setTimeout>>();
+  const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (artistFetching && hasQuery && !isTagSearch) {
       slowTimer.current = setTimeout(() => setShowSlowLoader(true), 1000);
     } else {
       setShowSlowLoader(false);
     }
-    return () => clearTimeout(slowTimer.current);
+    return () => {
+      if (slowTimer.current) clearTimeout(slowTimer.current);
+    };
   }, [artistFetching, hasQuery, isTagSearch]);
   const { data: tags } = useTagSuggestions(
     isTagSearch ? tagQuery : artistQuery,
