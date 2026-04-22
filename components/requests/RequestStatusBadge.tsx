@@ -29,6 +29,7 @@ function resolveBadge(
     case "processing":
       return { label: "Processing", icon: "sync-outline", variant: "brand" };
     case "added":
+    case "available":
       return {
         label: "Available",
         icon: "checkmark-circle",

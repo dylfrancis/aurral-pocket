@@ -14,6 +14,7 @@ export const libraryKeys = {
     ["library", "artistPreviews", mbid] as const,
   releaseGroupTracks: (mbid: string) =>
     ["library", "releaseGroupTracks", mbid] as const,
+  downloadStatusesAll: () => ["library", "downloadStatuses"] as const,
   downloadStatuses: (artistId: string) =>
     ["library", "downloadStatuses", artistId] as const,
 };
@@ -28,6 +29,7 @@ export const searchKeys = {
 
 export const requestsKeys = {
   list: () => ["requests", "list"] as const,
+  downloadStatusesAll: () => ["requests", "downloadStatuses"] as const,
   downloadStatuses: (albumIds: string) =>
     ["requests", "downloadStatuses", albumIds] as const,
 };

@@ -10,14 +10,14 @@ export function useResearchAlbum() {
     mutationFn: (albumId: string) => triggerAlbumSearch(albumId),
     onMutate: (albumId) => {
       queryClient.setQueriesData<DownloadStatusMap>(
-        { queryKey: ["requests", "downloadStatuses"] },
+        { queryKey: requestsKeys.downloadStatusesAll() },
         (old) => ({ ...(old ?? {}), [albumId]: { status: "searching" } }),
       );
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: requestsKeys.list() });
       queryClient.invalidateQueries({
-        queryKey: ["requests", "downloadStatuses"],
+        queryKey: requestsKeys.downloadStatusesAll(),
       });
     },
   });
