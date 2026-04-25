@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.3.1...v0.4.0) (2026-04-25)
+
+
+### Features
+
+* **discover:** discover page improvements ([#74](https://github.com/dylfrancis/aurral-pocket/issues/74)) ([73627cb](https://github.com/dylfrancis/aurral-pocket/commit/73627cbd4d3e6826dcbf443123702c83bfef02f9))
+* **requests:** add requests page ([#70](https://github.com/dylfrancis/aurral-pocket/issues/70)) ([a59fa9a](https://github.com/dylfrancis/aurral-pocket/commit/a59fa9ae3c30423e6de4f703653442ee60b1fc71))
+
+
+### Bug Fixes
+
+* **tag:** fix tag click showing proper screen and results ([#75](https://github.com/dylfrancis/aurral-pocket/issues/75)) ([e2c4863](https://github.com/dylfrancis/aurral-pocket/commit/e2c486349bd568315611f81a41518fa4c14559e4))
+
 ## [0.3.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.3.0...v0.3.1) (2026-04-21)
 
 
