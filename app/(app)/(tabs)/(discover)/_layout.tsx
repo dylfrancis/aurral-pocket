@@ -33,6 +33,13 @@ export default function DiscoverLayout() {
         }}
       />
       <Stack.Screen
+        name="tag-results"
+        options={({ route }) => ({
+          title: (route.params as { q?: string })?.q ?? "Results",
+          headerBackButtonDisplayMode: "minimal",
+        })}
+      />
+      <Stack.Screen
         name="artist/albums"
         options={({ route }) => ({
           title: (route.params as { title?: string })?.title ?? "Albums",
