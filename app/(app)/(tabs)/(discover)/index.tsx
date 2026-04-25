@@ -125,7 +125,7 @@ export default function DiscoverScreen() {
   const handleTagPress = useCallback(
     (tag: string) => {
       router.push({
-        pathname: "/(app)/(tabs)/(search)/results",
+        pathname: "/(app)/(tabs)/(discover)/tag-results",
         params: { q: `#${tag}` },
       });
     },
