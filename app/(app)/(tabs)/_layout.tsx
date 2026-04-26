@@ -1,7 +1,7 @@
-import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { Colors, Fonts } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 
 export default function TabsLayout() {
   const hasPermission = useHasPermission();
@@ -31,6 +31,11 @@ export default function TabsLayout() {
       <NativeTabs.Trigger name="(search)" role="search">
         <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
         <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="(flow)" hidden={!hasPermission("accessFlow")}>
+        <NativeTabs.Trigger.Icon sf="scribble" md="gesture" />
+        <NativeTabs.Trigger.Label>Flow</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="(requests)">

@@ -1,7 +1,7 @@
-import { Stack } from "expo-router";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import { TRANSPARENT_HEADER } from "@/constants/navigation";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Stack } from "expo-router";
 
 export default function LibraryLayout() {
   const colors = Colors[useColorScheme()];
