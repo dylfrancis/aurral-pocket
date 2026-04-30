@@ -35,12 +35,19 @@ export function useSharedPlaylist(
   );
 }
 
-export function useJobsForPlaylist(playlistId: string | undefined): FlowJob[] {
+export function useJobsForPlaylist(
+  playlistId: string | undefined,
+  { includeFailed = false }: { includeFailed?: boolean } = {},
+): FlowJob[] {
   const { data } = useFlowStatus();
   return useMemo(() => {
     if (!playlistId || !data?.jobs) return [];
-    return data.jobs.filter((job) => job.playlistType === playlistId);
-  }, [playlistId, data?.jobs]);
+    return data.jobs.filter(
+      (job) =>
+        job.playlistType === playlistId &&
+        (includeFailed || job.status !== "failed"),
+    );
+  }, [playlistId, data?.jobs, includeFailed]);
 }
 
 export function useFlowStats(

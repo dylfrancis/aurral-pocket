@@ -12,10 +12,12 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import "react-native-reanimated";
 
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { ReAuthModal } from "@/components/auth/ReAuthModal";
+import { FlowAudioPreviewProvider } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { queryClient } from "@/lib/query-client";
@@ -106,8 +108,12 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
-              <RootLayoutNav />
-              <ReAuthModal />
+              <FlowAudioPreviewProvider>
+                <BottomSheetModalProvider>
+                  <RootLayoutNav />
+                  <ReAuthModal />
+                </BottomSheetModalProvider>
+              </FlowAudioPreviewProvider>
             </AuthProvider>
           </QueryClientProvider>
         </SafeAreaProvider>

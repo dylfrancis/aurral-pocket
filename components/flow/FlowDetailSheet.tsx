@@ -7,17 +7,20 @@ import {
   Switch,
   View,
 } from "react-native";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
-  BottomSheetFlashList,
+  BottomSheetModal,
+  useBottomSheetScrollableCreator,
 } from "@gorhom/bottom-sheet";
+import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { TrackRow } from "./TrackRow";
-import { MixBar } from "./MixBar";
+import { MixPills } from "./MixPills";
+import { ProgressBar } from "./ProgressBar";
 import {
   useConvertFlowToStaticPlaylist,
   useDeleteFlow,
@@ -38,7 +41,7 @@ import type { FlowJob } from "@/lib/types/flow";
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 type Props = {
-  sheetRef: React.RefObject<BottomSheet | null>;
+  sheetRef: React.RefObject<BottomSheetModal | null>;
   flowId: string | null;
   onClose: () => void;
 };
@@ -60,8 +63,10 @@ export function FlowDetailSheet({ sheetRef, flowId, onClose }: Props) {
   const convertFlow = useConvertFlowToStaticPlaylist();
   const setRetryPaused = useSetRetryCyclePaused();
 
+  const renderScrollComponent = useBottomSheetScrollableCreator();
+
   const dismiss = useCallback(() => {
-    sheetRef.current?.close();
+    sheetRef.current?.dismiss();
   }, [sheetRef]);
 
   const renderBackdrop = useCallback(
@@ -190,7 +195,10 @@ export function FlowDetailSheet({ sheetRef, flowId, onClose }: Props) {
         </View>
 
         <View style={styles.mixWrap}>
-          <MixBar mix={flow.mix} />
+          <ProgressBar done={stats?.done ?? 0} total={flow.size} />
+          <View style={styles.mixPillsWrap}>
+            <MixPills mix={flow.mix} />
+          </View>
         </View>
 
         {headerHint ? (
@@ -294,28 +302,28 @@ export function FlowDetailSheet({ sheetRef, flowId, onClose }: Props) {
   );
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={sheetRef}
-      index={-1}
       snapPoints={["90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
-      onClose={onClose}
+      onDismiss={onClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       {flow ? (
-        <BottomSheetFlashList
+        <FlashList
           data={jobs}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+          renderScrollComponent={renderScrollComponent}
         />
       ) : null}
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 
@@ -385,6 +393,11 @@ const styles = StyleSheet.create({
   },
   mixWrap: {
     paddingHorizontal: 16,
+    gap: 10,
+  },
+  mixPillsWrap: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   hintRow: {
     marginHorizontal: 16,

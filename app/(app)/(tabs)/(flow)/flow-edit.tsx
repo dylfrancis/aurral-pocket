@@ -109,11 +109,11 @@ export default function FlowEditScreen() {
               ]}
             >
               {isPending ? (
-                <ActivityIndicator size="small" color={colors.brand} />
+                <ActivityIndicator size="small" color={colors.text} />
               ) : (
                 <Text
                   variant="body"
-                  style={{ color: colors.brand, fontFamily: Fonts.semiBold }}
+                  style={{ color: colors.text, fontFamily: Fonts.semiBold }}
                 >
                   Save
                 </Text>
@@ -164,9 +164,7 @@ export default function FlowEditScreen() {
         <Section
           title="Deep Dive"
           subtitle="Surface lesser-known tracks from each artist."
-        >
-          <View style={[styles.toggleRow, { borderColor: colors.separator }]}>
-            <Text variant="body">Deep Dive</Text>
+          trailing={
             <Switch
               value={values.deepDive}
               onValueChange={(deepDive) =>
@@ -176,8 +174,8 @@ export default function FlowEditScreen() {
               thumbColor={colors.surfaceElevated}
               ios_backgroundColor={colors.separator}
             />
-          </View>
-        </Section>
+          }
+        />
 
         <Section
           title="Focus"
@@ -240,11 +238,13 @@ export default function FlowEditScreen() {
 function Section({
   title,
   subtitle,
+  trailing,
   children,
 }: {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  trailing?: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   const colors = Colors[useColorScheme()];
 
@@ -256,15 +256,18 @@ function Section({
       ]}
     >
       <View style={styles.sectionHead}>
-        <Text
-          variant="subtitle"
-          style={[
-            styles.sectionTitle,
-            { color: colors.text, fontFamily: Fonts.semiBold },
-          ]}
-        >
-          {title}
-        </Text>
+        <View style={styles.sectionTitleRow}>
+          <Text
+            variant="subtitle"
+            style={[
+              styles.sectionTitle,
+              { color: colors.text, fontFamily: Fonts.semiBold },
+            ]}
+          >
+            {title}
+          </Text>
+          {trailing ? <View>{trailing}</View> : null}
+        </View>
         {subtitle ? (
           <Text variant="caption" style={{ color: colors.subtle }}>
             {subtitle}
@@ -291,18 +294,15 @@ const styles = StyleSheet.create({
   sectionHead: {
     gap: 4,
   },
-  sectionTitle: {
-    fontSize: 17,
-    lineHeight: 22,
-  },
-  toggleRow: {
-    height: 50,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
+  sectionTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    lineHeight: 22,
   },
   subLabel: {
     fontFamily: Fonts.medium,

@@ -16,16 +16,20 @@ type Props = {
   onPress: () => void;
 };
 
-function progressLabel(stats?: PlaylistStats): string | null {
-  if (!stats || stats.total === 0) return null;
-  return `${stats.done}/${stats.total} ready`;
+function progressLabel(
+  stats: PlaylistStats | undefined,
+  target: number,
+): string | null {
+  if (target <= 0) return null;
+  const done = Math.max(0, Math.min(stats?.done ?? 0, target));
+  return `${done}/${target} ready`;
 }
 
 export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
   const colors = Colors[useColorScheme()];
   const { token } = useAuth();
   const artworkUrl = getFlowArtworkUrl(playlist.id, token);
-  const progress = progressLabel(stats);
+  const progress = progressLabel(stats, playlist.trackCount);
 
   return (
     <Pressable
@@ -66,6 +70,7 @@ export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
           {playlist.sourceName ? ` · from ${playlist.sourceName}` : ""}
         </Text>
         <View style={styles.chipRow}>
+          <Chip label="Playlist" icon="albums-outline" variant="brand" />
           {progress ? (
             <View style={styles.progress}>
               <Ionicons

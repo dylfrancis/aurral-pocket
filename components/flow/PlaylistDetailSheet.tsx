@@ -6,10 +6,12 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
-  BottomSheetFlashList,
+  BottomSheetModal,
+  useBottomSheetScrollableCreator,
 } from "@gorhom/bottom-sheet";
+import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -31,7 +33,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import type { FlowJob } from "@/lib/types/flow";
 
 type Props = {
-  sheetRef: React.RefObject<BottomSheet | null>;
+  sheetRef: React.RefObject<BottomSheetModal | null>;
   playlistId: string | null;
   onClose: () => void;
 };
@@ -51,8 +53,10 @@ export function PlaylistDetailSheet({ sheetRef, playlistId, onClose }: Props) {
   const deleteTrack = useDeleteSharedPlaylistTrack();
   const setRetryPaused = useSetRetryCyclePaused();
 
+  const renderScrollComponent = useBottomSheetScrollableCreator();
+
   const dismiss = useCallback(() => {
-    sheetRef.current?.close();
+    sheetRef.current?.dismiss();
   }, [sheetRef]);
 
   const renderBackdrop = useCallback(
@@ -139,8 +143,10 @@ export function PlaylistDetailSheet({ sheetRef, playlistId, onClose }: Props) {
 
   const subtitle = useMemo(() => {
     if (!playlist || !stats) return "";
-    const total = stats.total || playlist.trackCount;
-    return `${stats.done}/${total} ready`;
+    const total = playlist.trackCount;
+    if (total <= 0) return "";
+    const done = Math.max(0, Math.min(stats.done, total));
+    return `${done}/${total} ready`;
   }, [playlist, stats]);
 
   const renderHeader = () => {
@@ -222,28 +228,28 @@ export function PlaylistDetailSheet({ sheetRef, playlistId, onClose }: Props) {
   );
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={sheetRef}
-      index={-1}
       snapPoints={["90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
-      onClose={onClose}
+      onDismiss={onClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       {playlist ? (
-        <BottomSheetFlashList
+        <FlashList
           data={jobs}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+          renderScrollComponent={renderScrollComponent}
         />
       ) : null}
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

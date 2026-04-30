@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -34,17 +35,21 @@ export function FocusEditor({ label, placeholder, value, onChange }: Props) {
       setDraft("");
       return;
     }
+    Haptics.selectionAsync();
     onChange({ ...value, [trimmed]: "medium" });
     setDraft("");
   };
 
   const remove = (key: string) => {
+    Haptics.selectionAsync();
     const next = { ...value };
     delete next[key];
     onChange(next);
   };
 
   const setStrength = (key: string, strength: FocusStrength) => {
+    if (value[key] === strength) return;
+    Haptics.selectionAsync();
     onChange({ ...value, [key]: strength });
   };
 

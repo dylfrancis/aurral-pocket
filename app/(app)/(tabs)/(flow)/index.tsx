@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import BottomSheet from "@gorhom/bottom-sheet";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
 import { EmptyState } from "@/components/library/EmptyState";
@@ -43,8 +43,8 @@ export default function FlowScreen() {
     }
   }, [refetch]);
 
-  const flowSheetRef = useRef<BottomSheet>(null);
-  const playlistSheetRef = useRef<BottomSheet>(null);
+  const flowSheetRef = useRef<BottomSheetModal>(null);
+  const playlistSheetRef = useRef<BottomSheetModal>(null);
   const [activeFlowId, setActiveFlowId] = useState<string | null>(null);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 
@@ -52,7 +52,6 @@ export default function FlowScreen() {
     if (!data) return [];
     const out: SectionRow[] = [];
     if (data.flows.length > 0) {
-      out.push({ kind: "header", title: "Flows", key: "h-flows" });
       for (const flow of data.flows) {
         out.push({
           kind: "flow",
@@ -79,12 +78,12 @@ export default function FlowScreen() {
 
   const openFlow = useCallback((flowId: string) => {
     setActiveFlowId(flowId);
-    flowSheetRef.current?.expand();
+    flowSheetRef.current?.present();
   }, []);
 
   const openPlaylist = useCallback((playlistId: string) => {
     setActivePlaylistId(playlistId);
-    playlistSheetRef.current?.expand();
+    playlistSheetRef.current?.present();
   }, []);
 
   const renderItem = useCallback(

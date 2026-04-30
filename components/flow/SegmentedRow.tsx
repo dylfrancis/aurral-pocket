@@ -1,5 +1,5 @@
-import { Pressable, StyleSheet, View } from "react-native";
-import { Text } from "@/components/ui/Text";
+import { useMemo } from "react";
+import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 
@@ -19,61 +19,35 @@ export function SegmentedRow<T extends string | number>({
   options,
   onChange,
 }: Props<T>) {
-  const colors = Colors[useColorScheme()];
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
+
+  const labels = useMemo(
+    () => options.map((option) => option.label),
+    [options],
+  );
+  const selectedIndex = options.findIndex((option) => option.value === value);
 
   return (
-    <View
-      style={[
-        styles.wrap,
-        {
-          backgroundColor: colors.inputBackground,
-          borderColor: colors.inputBorder,
-        },
-      ]}
-    >
-      {options.map((option) => {
-        const active = option.value === value;
-        return (
-          <Pressable
-            key={String(option.value)}
-            onPress={() => onChange(option.value)}
-            style={({ pressed }) => [
-              styles.segment,
-              {
-                backgroundColor: active ? colors.brand : "transparent",
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <Text
-              variant="body"
-              style={{
-                color: active ? colors.buttonPrimaryText : colors.text,
-                fontFamily: Fonts.semiBold,
-              }}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <SegmentedControl
+      values={labels}
+      selectedIndex={selectedIndex >= 0 ? selectedIndex : 0}
+      appearance={colorScheme}
+      backgroundColor={colors.inputBackground}
+      tintColor={colors.brand}
+      fontStyle={{
+        color: colors.subtle,
+        fontFamily: Fonts.medium,
+      }}
+      activeFontStyle={{
+        color: colors.buttonPrimaryText,
+        fontFamily: Fonts.semiBold,
+      }}
+      onChange={(event) => {
+        const index = event.nativeEvent.selectedSegmentIndex;
+        const next = options[index];
+        if (next) onChange(next.value);
+      }}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    flexDirection: "row",
-    height: 44,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 4,
-    gap: 4,
-  },
-  segment: {
-    flex: 1,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});

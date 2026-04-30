@@ -1,5 +1,7 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -10,12 +12,42 @@ type Props = {
   onChange: (value: number) => void;
 };
 
+function clamp(next: number): number {
+  if (!Number.isFinite(next)) return FLOW_SIZE_MIN;
+  return Math.max(FLOW_SIZE_MIN, Math.min(FLOW_SIZE_MAX, Math.round(next)));
+}
+
 export function SizeStepper({ value, onChange }: Props) {
   const colors = Colors[useColorScheme()];
-  const decrement = () =>
+  const [draft, setDraft] = useState(String(value));
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setDraft(String(value));
+  }, [value, editing]);
+
+  const decrement = () => {
+    if (value <= FLOW_SIZE_MIN) return;
+    Haptics.selectionAsync();
     onChange(Math.max(FLOW_SIZE_MIN, value - FLOW_SIZE_STEP));
-  const increment = () =>
+  };
+  const increment = () => {
+    if (value >= FLOW_SIZE_MAX) return;
+    Haptics.selectionAsync();
     onChange(Math.min(FLOW_SIZE_MAX, value + FLOW_SIZE_STEP));
+  };
+
+  const commit = () => {
+    setEditing(false);
+    const parsed = Number(draft.replace(/[^0-9]/g, ""));
+    if (!Number.isFinite(parsed) || draft.trim() === "") {
+      setDraft(String(value));
+      return;
+    }
+    const next = clamp(parsed);
+    setDraft(String(next));
+    if (next !== value) onChange(next);
+  };
 
   return (
     <View
@@ -39,15 +71,22 @@ export function SizeStepper({ value, onChange }: Props) {
         <Ionicons name="remove" size={20} color={colors.text} />
       </Pressable>
       <View style={styles.valueWrap}>
-        <Text
-          variant="body"
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          onFocus={() => setEditing(true)}
+          onBlur={commit}
+          onSubmitEditing={commit}
+          keyboardType="number-pad"
+          returnKeyType="done"
+          maxLength={3}
+          selectTextOnFocus
           style={[
             styles.value,
             { color: colors.text, fontFamily: Fonts.semiBold },
           ]}
-        >
-          {value}
-        </Text>
+          accessibilityLabel="Track count"
+        />
         <Text variant="caption">tracks</Text>
       </View>
       <Pressable
@@ -83,9 +122,13 @@ const styles = StyleSheet.create({
   },
   valueWrap: {
     alignItems: "center",
+    minWidth: 80,
   },
   value: {
     fontSize: 18,
     lineHeight: 22,
+    textAlign: "center",
+    minWidth: 60,
+    paddingVertical: 0,
   },
 });

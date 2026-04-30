@@ -150,11 +150,11 @@ export default function PlaylistEditScreen() {
               ]}
             >
               {isPending ? (
-                <ActivityIndicator size="small" color={colors.brand} />
+                <ActivityIndicator size="small" color={colors.text} />
               ) : (
                 <Text
                   variant="body"
-                  style={{ color: colors.brand, fontFamily: Fonts.semiBold }}
+                  style={{ color: colors.text, fontFamily: Fonts.semiBold }}
                 >
                   Save
                 </Text>

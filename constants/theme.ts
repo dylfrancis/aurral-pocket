@@ -20,6 +20,7 @@ export const Colors = {
     brandMuted: "#707e6125",
     buttonPrimary: "#707e61",
     buttonPrimaryText: "#ffffff",
+    complete: "#3b82f6",
   },
   dark: {
     text: "#ffffff",
@@ -42,6 +43,7 @@ export const Colors = {
     brandMuted: "#707e6140",
     buttonPrimary: "#707e61",
     buttonPrimaryText: "#ffffff",
+    complete: "#60a5fa",
   },
 };
 

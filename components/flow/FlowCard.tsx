@@ -2,7 +2,8 @@ import { Pressable, StyleSheet, Switch, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
-import { MixBar } from "./MixBar";
+import { MixPills } from "./MixPills";
+import { ProgressBar } from "./ProgressBar";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { Flow, PlaylistStats } from "@/lib/types/flow";
@@ -24,14 +25,18 @@ function scheduleLabel(flow: Flow): string {
   return `${days.join(", ")} · ${flow.scheduleTime}`;
 }
 
-function progressLabel(stats?: PlaylistStats): string | null {
-  if (!stats || stats.total === 0) return null;
-  return `${stats.done}/${stats.total} ready`;
+function progressLabel(
+  stats: PlaylistStats | undefined,
+  target: number,
+): string | null {
+  if (target <= 0) return null;
+  const done = Math.max(0, Math.min(stats?.done ?? 0, target));
+  return `${done}/${target} ready`;
 }
 
 export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
   const colors = Colors[useColorScheme()];
-  const progress = progressLabel(stats);
+  const progress = progressLabel(stats, flow.size);
 
   return (
     <Pressable
@@ -67,13 +72,12 @@ export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
         />
       </View>
 
-      <MixBar mix={flow.mix} />
+      <ProgressBar done={stats?.done ?? 0} total={flow.size} />
 
       <View style={styles.footer}>
         <View style={styles.chips}>
-          <Chip label={`Discover ${flow.mix.discover}%`} variant="brand" />
-          <Chip label={`Mix ${flow.mix.mix}%`} />
-          <Chip label={`Trend ${flow.mix.trending}%`} />
+          <Chip label="Flow" icon="repeat" variant="brand" />
+          <MixPills mix={flow.mix} />
           {flow.deepDive ? (
             <Chip label="Deep Dive" icon="layers-outline" variant="brand" />
           ) : null}
@@ -120,6 +124,7 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "center",
     gap: 6,
   },
   progress: {
