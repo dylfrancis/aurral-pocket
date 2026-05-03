@@ -108,7 +108,7 @@ export default function WorkerSettingsScreen() {
               apply({ preferredFormatStrict })
             }
             trackColor={{ false: colors.separator, true: colors.brand }}
-            thumbColor={colors.surfaceElevated}
+            thumbColor={colors.switchThumb}
             ios_backgroundColor={colors.separator}
           />
         </View>

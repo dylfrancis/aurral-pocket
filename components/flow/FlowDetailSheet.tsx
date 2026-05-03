@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -70,6 +70,14 @@ export function FlowDetailSheet({
   const setRetryPaused = useSetRetryCyclePaused();
 
   const renderScrollComponent = useBottomSheetScrollableCreator();
+
+  // Workaround for facebook/react-native#53856: on iOS 26, <Switch> drops its
+  // custom thumbColor when re-mounted (e.g. when a bottom sheet opens). Bumping
+  // the key on every present forces a fresh mount that picks up the color.
+  const [switchKey, setSwitchKey] = useState(0);
+  const handleSheetChange = useCallback((index: number) => {
+    if (index >= 0) setSwitchKey((k) => k + 1);
+  }, []);
 
   const dismiss = useCallback(() => {
     sheetRef.current?.dismiss();
@@ -240,12 +248,13 @@ export function FlowDetailSheet({
             <Text variant="caption">Refresh on schedule when on.</Text>
           </View>
           <Switch
+            key={`enabled-${switchKey}`}
             value={flow.enabled}
             onValueChange={(next) =>
               setEnabled.mutate({ flowId: flow.id, enabled: next })
             }
             trackColor={{ false: colors.separator, true: colors.brand }}
-            thumbColor={colors.surfaceElevated}
+            thumbColor={colors.switchThumb}
             ios_backgroundColor={colors.separator}
           />
         </View>
@@ -315,6 +324,7 @@ export function FlowDetailSheet({
       enablePanDownToClose
       enableDynamicSizing={false}
       onDismiss={onClose}
+      onChange={handleSheetChange}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}

@@ -82,7 +82,7 @@ export function FlowCard({
           onValueChange={onToggleEnabled}
           disabled={isDeleting}
           trackColor={{ false: colors.separator, true: colors.brand }}
-          thumbColor={colors.surfaceElevated}
+          thumbColor={colors.switchThumb}
           ios_backgroundColor={colors.separator}
         />
       </View>

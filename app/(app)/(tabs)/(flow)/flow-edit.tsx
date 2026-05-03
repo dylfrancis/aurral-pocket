@@ -148,7 +148,7 @@ export default function FlowEditScreen() {
                 setValues((v) => ({ ...v, deepDive }))
               }
               trackColor={{ false: colors.separator, true: colors.brand }}
-              thumbColor={colors.surfaceElevated}
+              thumbColor={colors.switchThumb}
               ios_backgroundColor={colors.separator}
             />
           }
