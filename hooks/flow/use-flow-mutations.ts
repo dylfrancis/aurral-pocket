@@ -46,30 +46,10 @@ export function useUpdateFlow() {
 }
 
 export function useDeleteFlow() {
-  const queryClient = useQueryClient();
+  const invalidate = useFlowInvalidate();
   return useMutation({
     mutationFn: (flowId: string) => deleteFlow(flowId),
-    onMutate: async (flowId) => {
-      await queryClient.cancelQueries({ queryKey: flowKeys.status() });
-      const prev = queryClient.getQueryData<FlowStatusSnapshot>(
-        flowKeys.status(),
-      );
-      if (prev) {
-        queryClient.setQueryData<FlowStatusSnapshot>(flowKeys.status(), {
-          ...prev,
-          flows: prev.flows.filter((f) => f.id !== flowId),
-        });
-      }
-      return { prev };
-    },
-    onError: (_err, _flowId, context) => {
-      if (context?.prev) {
-        queryClient.setQueryData(flowKeys.status(), context.prev);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: flowKeys.status() });
-    },
+    onSettled: invalidate,
   });
 }
 
@@ -137,32 +117,10 @@ export function useUpdateSharedPlaylist() {
 }
 
 export function useDeleteSharedPlaylist() {
-  const queryClient = useQueryClient();
+  const invalidate = useFlowInvalidate();
   return useMutation({
     mutationFn: (playlistId: string) => deleteSharedPlaylist(playlistId),
-    onMutate: async (playlistId) => {
-      await queryClient.cancelQueries({ queryKey: flowKeys.status() });
-      const prev = queryClient.getQueryData<FlowStatusSnapshot>(
-        flowKeys.status(),
-      );
-      if (prev) {
-        queryClient.setQueryData<FlowStatusSnapshot>(flowKeys.status(), {
-          ...prev,
-          sharedPlaylists: prev.sharedPlaylists.filter(
-            (p) => p.id !== playlistId,
-          ),
-        });
-      }
-      return { prev };
-    },
-    onError: (_err, _id, context) => {
-      if (context?.prev) {
-        queryClient.setQueryData(flowKeys.status(), context.prev);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: flowKeys.status() });
-    },
+    onSettled: invalidate,
   });
 }
 

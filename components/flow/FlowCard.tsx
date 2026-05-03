@@ -1,4 +1,10 @@
-import { Pressable, StyleSheet, Switch, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Switch,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
@@ -13,6 +19,7 @@ const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 type Props = {
   flow: Flow;
   stats?: PlaylistStats;
+  isDeleting?: boolean;
   onPress: () => void;
   onToggleEnabled: (enabled: boolean) => void;
 };
@@ -34,13 +41,20 @@ function progressLabel(
   return `${done}/${target} ready`;
 }
 
-export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
+export function FlowCard({
+  flow,
+  stats,
+  isDeleting,
+  onPress,
+  onToggleEnabled,
+}: Props) {
   const colors = Colors[useColorScheme()];
   const progress = progressLabel(stats, flow.size);
 
   return (
     <Pressable
       onPress={onPress}
+      disabled={isDeleting}
       style={({ pressed }) => [
         styles.card,
         {
@@ -66,6 +80,7 @@ export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
         <Switch
           value={flow.enabled}
           onValueChange={onToggleEnabled}
+          disabled={isDeleting}
           trackColor={{ false: colors.separator, true: colors.brand }}
           thumbColor={colors.surfaceElevated}
           ios_backgroundColor={colors.separator}
@@ -82,7 +97,14 @@ export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
             <Chip label="Deep Dive" icon="layers-outline" variant="brand" />
           ) : null}
         </View>
-        {progress ? (
+        {isDeleting ? (
+          <View style={styles.progress}>
+            <ActivityIndicator size="small" color={colors.error} />
+            <Text variant="caption" style={{ color: colors.error }}>
+              Cleaning existing flow files…
+            </Text>
+          </View>
+        ) : progress ? (
           <View style={styles.progress}>
             <Ionicons
               name="cloud-download-outline"

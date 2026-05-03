@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -99,27 +97,6 @@ export default function FlowEditScreen() {
       <Stack.Screen
         options={{
           title: editingId ? "Edit Flow" : "New Flow",
-          headerRight: () => (
-            <Pressable
-              onPress={handleSave}
-              disabled={isPending}
-              style={({ pressed }) => [
-                styles.headerButton,
-                { opacity: pressed || isPending ? 0.5 : 1 },
-              ]}
-            >
-              {isPending ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
-                <Text
-                  variant="body"
-                  style={{ color: colors.text, fontFamily: Fonts.semiBold }}
-                >
-                  Save
-                </Text>
-              )}
-            </Pressable>
-          ),
         }}
       />
       <ScrollView
@@ -208,13 +185,6 @@ export default function FlowEditScreen() {
               setValues((v) => ({ ...v, scheduleDays }))
             }
           />
-          <View style={{ height: 16 }} />
-          <Text
-            variant="caption"
-            style={[styles.subLabel, { color: colors.subtle }]}
-          >
-            Refresh hour
-          </Text>
           <ScheduleHourPicker
             value={values.scheduleTime}
             onChange={(scheduleTime) =>
@@ -306,9 +276,5 @@ const styles = StyleSheet.create({
   },
   subLabel: {
     fontFamily: Fonts.medium,
-  },
-  headerButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
   },
 });

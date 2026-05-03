@@ -1,4 +1,6 @@
-import { Pressable, ScrollView, StyleSheet } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import { getCalendars } from "expo-localization";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -8,71 +10,74 @@ type Props = {
   onChange: (value: string) => void;
 };
 
-const HOURS = Array.from(
-  { length: 24 },
-  (_, i) => `${String(i).padStart(2, "0")}:00`,
-);
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-function format12h(hour: string): string {
-  const h = Number(hour.slice(0, 2));
-  if (h === 0) return "12 AM";
-  if (h === 12) return "12 PM";
-  if (h < 12) return `${h} AM`;
-  return `${h - 12} PM`;
+function uses24HourClock(): boolean {
+  return getCalendars()[0]?.uses24hourClock ?? false;
+}
+
+function formatHour(hour: number, h24: boolean): string {
+  if (h24) return `${String(hour).padStart(2, "0")}:00`;
+  if (hour === 0) return "12 AM";
+  if (hour === 12) return "12 PM";
+  if (hour < 12) return `${hour} AM`;
+  return `${hour - 12} PM`;
+}
+
+function parseHour(value: string): number {
+  const match = /^(\d{1,2}):/.exec(String(value || "").trim());
+  if (!match) return 0;
+  return Math.max(0, Math.min(23, Number(match[1])));
+}
+
+function toHourString(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
 }
 
 export function ScheduleHourPicker({ value, onChange }: Props) {
   const colors = Colors[useColorScheme()];
+  const selectedHour = parseHour(value);
+  const h24 = uses24HourClock();
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
-    >
-      {HOURS.map((hour) => {
-        const active = hour === value;
-        return (
-          <Pressable
-            key={hour}
-            onPress={() => onChange(hour)}
-            style={({ pressed }) => [
-              styles.chip,
-              {
-                backgroundColor: active ? colors.brand : colors.inputBackground,
-                borderColor: active ? colors.brand : colors.inputBorder,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <Text
-              variant="caption"
-              style={{
-                color: active ? colors.buttonPrimaryText : colors.text,
-                fontFamily: Fonts.semiBold,
-              }}
-            >
-              {format12h(hour)}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+    <View style={styles.wrap}>
+      <Text variant="body" style={[styles.label, { fontFamily: Fonts.medium }]}>
+        Refresh hour
+      </Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={selectedHour}
+          onValueChange={(next) => onChange(toHourString(Number(next)))}
+          itemStyle={[styles.item, { color: colors.text }]}
+          accessibilityLabel="Refresh hour"
+        >
+          {HOURS.map((hour) => (
+            <Picker.Item
+              key={hour}
+              label={formatHour(hour, h24)}
+              value={hour}
+              color={Platform.OS === "android" ? colors.text : undefined}
+            />
+          ))}
+        </Picker>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    gap: 8,
-    paddingVertical: 4,
+  wrap: {
+    gap: 4,
   },
-  chip: {
-    minWidth: 64,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: "center",
+  label: {
+    fontSize: 14,
+  },
+  pickerWrap: {
+    height: Platform.OS === "ios" ? 140 : 50,
     justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
+  },
+  item: {
+    fontFamily: Fonts.regular,
+    fontSize: 18,
   },
 });

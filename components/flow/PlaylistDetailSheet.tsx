@@ -36,9 +36,15 @@ type Props = {
   sheetRef: React.RefObject<BottomSheetModal | null>;
   playlistId: string | null;
   onClose: () => void;
+  onDeleting?: (playlistId: string | null) => void;
 };
 
-export function PlaylistDetailSheet({ sheetRef, playlistId, onClose }: Props) {
+export function PlaylistDetailSheet({
+  sheetRef,
+  playlistId,
+  onClose,
+  onDeleting,
+}: Props) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -90,13 +96,15 @@ export function PlaylistDetailSheet({ sheetRef, playlistId, onClose }: Props) {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () =>
-            deletePlaylist.mutate(playlist.id, {
-              onSuccess: () => {
-                stop();
-                dismiss();
-              },
-            }),
+          onPress: () => {
+            const id = playlist.id;
+            stop();
+            dismiss();
+            onDeleting?.(id);
+            deletePlaylist.mutate(id, {
+              onSettled: () => onDeleting?.(null),
+            });
+          },
         },
       ],
     );

@@ -44,9 +44,15 @@ type Props = {
   sheetRef: React.RefObject<BottomSheetModal | null>;
   flowId: string | null;
   onClose: () => void;
+  onDeleting?: (flowId: string | null) => void;
 };
 
-export function FlowDetailSheet({ sheetRef, flowId, onClose }: Props) {
+export function FlowDetailSheet({
+  sheetRef,
+  flowId,
+  onClose,
+  onDeleting,
+}: Props) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -132,11 +138,12 @@ export function FlowDetailSheet({ sheetRef, flowId, onClose }: Props) {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            deleteFlow.mutate(flow.id, {
-              onSuccess: () => {
-                stop();
-                dismiss();
-              },
+            const flowId = flow.id;
+            stop();
+            dismiss();
+            onDeleting?.(flowId);
+            deleteFlow.mutate(flowId, {
+              onSettled: () => onDeleting?.(null),
             });
           },
         },

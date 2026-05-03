@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
@@ -13,6 +13,7 @@ type Props = {
   playlist: SharedPlaylist;
   stats?: PlaylistStats;
   retryPaused?: boolean;
+  isDeleting?: boolean;
   onPress: () => void;
 };
 
@@ -25,7 +26,13 @@ function progressLabel(
   return `${done}/${target} ready`;
 }
 
-export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
+export function PlaylistCard({
+  playlist,
+  stats,
+  retryPaused,
+  isDeleting,
+  onPress,
+}: Props) {
   const colors = Colors[useColorScheme()];
   const { token } = useAuth();
   const artworkUrl = getFlowArtworkUrl(playlist.id, token);
@@ -34,6 +41,7 @@ export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={isDeleting}
       style={({ pressed }) => [
         styles.card,
         {
@@ -71,19 +79,30 @@ export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
         </Text>
         <View style={styles.chipRow}>
           <Chip label="Playlist" icon="albums-outline" variant="brand" />
-          {progress ? (
+          {isDeleting ? (
             <View style={styles.progress}>
-              <Ionicons
-                name="cloud-download-outline"
-                size={14}
-                color={colors.subtle}
-              />
-              <Text variant="caption">{progress}</Text>
+              <ActivityIndicator size="small" color={colors.error} />
+              <Text variant="caption" style={{ color: colors.error }}>
+                Cleaning playlist files…
+              </Text>
             </View>
-          ) : null}
-          {retryPaused ? (
-            <Chip label="Retry paused" icon="pause" variant="subtle" />
-          ) : null}
+          ) : (
+            <>
+              {progress ? (
+                <View style={styles.progress}>
+                  <Ionicons
+                    name="cloud-download-outline"
+                    size={14}
+                    color={colors.subtle}
+                  />
+                  <Text variant="caption">{progress}</Text>
+                </View>
+              ) : null}
+              {retryPaused ? (
+                <Chip label="Retry paused" icon="pause" variant="subtle" />
+              ) : null}
+            </>
+          )}
         </View>
       </View>
     </Pressable>

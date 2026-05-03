@@ -4,6 +4,7 @@ import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import * as Haptics from "expo-haptics";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
 import { EmptyState } from "@/components/library/EmptyState";
@@ -47,6 +48,10 @@ export default function FlowScreen() {
   const playlistSheetRef = useRef<BottomSheetModal>(null);
   const [activeFlowId, setActiveFlowId] = useState<string | null>(null);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
+  const [deletingFlowId, setDeletingFlowId] = useState<string | null>(null);
+  const [deletingPlaylistId, setDeletingPlaylistId] = useState<string | null>(
+    null,
+  );
 
   const rows = useMemo<SectionRow[]>(() => {
     if (!data) return [];
@@ -76,15 +81,23 @@ export default function FlowScreen() {
     return out;
   }, [data]);
 
-  const openFlow = useCallback((flowId: string) => {
-    setActiveFlowId(flowId);
-    flowSheetRef.current?.present();
-  }, []);
+  const openFlow = useCallback(
+    (flowId: string) => {
+      if (deletingFlowId === flowId) return;
+      setActiveFlowId(flowId);
+      flowSheetRef.current?.present();
+    },
+    [deletingFlowId],
+  );
 
-  const openPlaylist = useCallback((playlistId: string) => {
-    setActivePlaylistId(playlistId);
-    playlistSheetRef.current?.present();
-  }, []);
+  const openPlaylist = useCallback(
+    (playlistId: string) => {
+      if (deletingPlaylistId === playlistId) return;
+      setActivePlaylistId(playlistId);
+      playlistSheetRef.current?.present();
+    },
+    [deletingPlaylistId],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: SectionRow }) => {
@@ -107,6 +120,7 @@ export default function FlowScreen() {
             <FlowCard
               flow={item.flow}
               stats={item.stats}
+              isDeleting={deletingFlowId === item.flow.id}
               onPress={() => openFlow(item.flow.id)}
               onToggleEnabled={(next) =>
                 setEnabled.mutate({ flowId: item.flow.id, enabled: next })
@@ -121,12 +135,20 @@ export default function FlowScreen() {
             playlist={item.playlist}
             stats={item.stats}
             retryPaused={item.retryPaused}
+            isDeleting={deletingPlaylistId === item.playlist.id}
             onPress={() => openPlaylist(item.playlist.id)}
           />
         </View>
       );
     },
-    [colors.text, openFlow, openPlaylist, setEnabled],
+    [
+      colors.text,
+      openFlow,
+      openPlaylist,
+      setEnabled,
+      deletingFlowId,
+      deletingPlaylistId,
+    ],
   );
 
   if (isLoading && !data) {
@@ -169,7 +191,10 @@ export default function FlowScreen() {
                 />
               </Pressable>
               <Pressable
-                onPress={() => router.push("/(app)/(tabs)/(flow)/flow-edit")}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  router.push("/(app)/(tabs)/(flow)/flow-edit");
+                }}
                 style={({ pressed }) => [
                   styles.headerButton,
                   { opacity: pressed ? 0.6 : 1 },
@@ -198,7 +223,10 @@ export default function FlowScreen() {
               icon="albums-outline"
               message="No flows or playlists yet"
               actionLabel="Create Flow"
-              onAction={() => router.push("/(app)/(tabs)/(flow)/flow-edit")}
+              onAction={() => {
+                Haptics.selectionAsync();
+                router.push("/(app)/(tabs)/(flow)/flow-edit");
+              }}
             />
           </View>
         }
@@ -214,11 +242,13 @@ export default function FlowScreen() {
         sheetRef={flowSheetRef}
         flowId={activeFlowId}
         onClose={() => setActiveFlowId(null)}
+        onDeleting={setDeletingFlowId}
       />
       <PlaylistDetailSheet
         sheetRef={playlistSheetRef}
         playlistId={activePlaylistId}
         onClose={() => setActivePlaylistId(null)}
+        onDeleting={setDeletingPlaylistId}
       />
     </>
   );

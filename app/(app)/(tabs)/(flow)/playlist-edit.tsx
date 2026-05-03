@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -140,27 +139,6 @@ export default function PlaylistEditScreen() {
       <Stack.Screen
         options={{
           title: "Edit Playlist",
-          headerRight: () => (
-            <Pressable
-              onPress={handleSave}
-              disabled={isPending}
-              style={({ pressed }) => [
-                styles.headerButton,
-                { opacity: pressed || isPending ? 0.5 : 1 },
-              ]}
-            >
-              {isPending ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
-                <Text
-                  variant="body"
-                  style={{ color: colors.text, fontFamily: Fonts.semiBold }}
-                >
-                  Save
-                </Text>
-              )}
-            </Pressable>
-          ),
         }}
       />
       <ScrollView
@@ -336,9 +314,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  headerButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
   },
 });
