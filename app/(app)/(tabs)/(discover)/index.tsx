@@ -9,8 +9,10 @@ import {
   ShowsNearYouSection,
 } from "@/components/discover";
 import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
+import { SettingsSheet } from "@/components/settings/SettingsSheet";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
   useDiscovery,
   useNearbyLocationPref,
@@ -26,9 +28,10 @@ import type {
   RecentReleaseAlbum,
 } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { Stack, useRouter } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import {
   Linking,
   Pressable,
@@ -42,6 +45,8 @@ export default function DiscoverScreen() {
   const colors = Colors[useColorScheme()];
   const router = useRouter();
   const queryClient = useQueryClient();
+  const hasPermission = useHasPermission();
+  const canAccessSettings = hasPermission("accessSettings");
 
   const { data: discovery, refetch: refetchDiscovery } = useDiscovery();
   const { refetch: refetchRecentlyAdded } = useRecentlyAdded();
@@ -50,6 +55,7 @@ export default function DiscoverScreen() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [zipEditorVisible, setZipEditorVisible] = useState(false);
+  const settingsSheetRef = useRef<BottomSheetModal>(null);
 
   const openZipEditor = useCallback(() => {
     setZipEditorVisible(true);
@@ -146,8 +152,8 @@ export default function DiscoverScreen() {
   }, []);
 
   const handleOpenSettings = useCallback(() => {
-    router.push("/(app)/(tabs)/(settings)");
-  }, [router]);
+    settingsSheetRef.current?.present();
+  }, []);
 
   const pushDiscoverList = useCallback(
     (
@@ -186,6 +192,28 @@ export default function DiscoverScreen() {
 
   return (
     <>
+      <Stack.Screen
+        options={{
+          headerRight: canAccessSettings
+            ? () => (
+                <Pressable
+                  onPress={handleOpenSettings}
+                  style={({ pressed }) => [
+                    styles.headerButton,
+                    { opacity: pressed ? 0.6 : 1 },
+                  ]}
+                  accessibilityLabel="Settings"
+                >
+                  <Ionicons
+                    name="settings-outline"
+                    size={22}
+                    color={colors.text}
+                  />
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
@@ -276,6 +304,7 @@ export default function DiscoverScreen() {
         onSave={handleZipSave}
         onClose={closeZipEditor}
       />
+      <SettingsSheet sheetRef={settingsSheetRef} />
     </>
   );
 }
@@ -304,5 +333,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 8,
+  },
+  headerButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
 });

@@ -49,10 +49,7 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Label>Requests</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger
-        name="(settings)"
-        hidden={!hasPermission("accessSettings")}
-      >
+      <NativeTabs.Trigger name="(settings)" hidden>
         <NativeTabs.Trigger.Icon
           sf={{ default: "gearshape", selected: "gearshape.fill" }}
           md="settings"
