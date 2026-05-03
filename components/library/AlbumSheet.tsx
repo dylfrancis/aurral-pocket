@@ -85,7 +85,7 @@ export function AlbumSheet({
   });
 
   const handleResearch = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     searchMutation.mutate();
   };
 

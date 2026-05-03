@@ -1,11 +1,13 @@
 import {
   ActivityIndicator,
+  type GestureResponderEvent,
   Pressable,
   type PressableProps,
   type StyleProp,
   StyleSheet,
   type ViewStyle,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -23,10 +25,16 @@ export function Button({
   disabled,
   variant = "primary",
   style,
+  onPress,
   ...rest
 }: ButtonProps) {
   const colors = Colors[useColorScheme()];
   const isDisabled = disabled || loading;
+
+  const handlePress = (event: GestureResponderEvent) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onPress?.(event);
+  };
 
   if (variant === "inline") {
     return (
@@ -37,6 +45,7 @@ export function Button({
           style,
         ]}
         disabled={isDisabled}
+        onPress={handlePress}
         {...rest}
       >
         <Text
@@ -59,6 +68,7 @@ export function Button({
         style,
       ]}
       disabled={isDisabled}
+      onPress={handlePress}
       {...rest}
     >
       {loading ? (

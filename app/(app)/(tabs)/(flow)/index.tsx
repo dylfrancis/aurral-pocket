@@ -192,7 +192,7 @@ export default function FlowScreen() {
               </Pressable>
               <Pressable
                 onPress={() => {
-                  Haptics.selectionAsync();
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   router.push("/(app)/(tabs)/(flow)/flow-edit");
                 }}
                 style={({ pressed }) => [
@@ -224,7 +224,6 @@ export default function FlowScreen() {
               message="No flows or playlists yet"
               actionLabel="Create Flow"
               onAction={() => {
-                Haptics.selectionAsync();
                 router.push("/(app)/(tabs)/(flow)/flow-edit");
               }}
             />

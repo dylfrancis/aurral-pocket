@@ -105,13 +105,13 @@ export function FlowDetailSheet({
 
   const handleStartNow = () => {
     if (!flow) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     startFlow.mutate({ flowId: flow.id });
   };
 
   const handleConvert = () => {
     if (!flow) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       "Convert to Static Playlist",
       `Save the current "${flow.name}" tracks as a static playlist?`,

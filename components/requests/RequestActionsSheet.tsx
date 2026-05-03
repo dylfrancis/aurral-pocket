@@ -74,7 +74,7 @@ export function RequestActionsSheet({
 
   const handleResearch = () => {
     if (!request?.albumId) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     researchMutation.mutate(String(request.albumId), { onSettled: close });
   };
 

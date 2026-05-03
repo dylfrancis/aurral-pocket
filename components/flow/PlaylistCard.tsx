@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
+import { FlowArtwork } from "./FlowArtwork";
 import { useAuth } from "@/contexts/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -35,6 +37,7 @@ export function PlaylistCard({
 }: Props) {
   const colors = Colors[useColorScheme()];
   const { token } = useAuth();
+  const [imageFailed, setImageFailed] = useState(false);
   const artworkUrl = getFlowArtworkUrl(playlist.id, token);
   const progress = progressLabel(stats, playlist.trackCount);
 
@@ -51,19 +54,23 @@ export function PlaylistCard({
         },
       ]}
     >
-      <View
-        style={[
-          styles.artwork,
-          { backgroundColor: colors.brandMuted, borderColor: colors.separator },
-        ]}
-      >
-        <Image
-          source={{ uri: artworkUrl }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          transition={150}
-          cachePolicy="memory-disk"
+      <View style={[styles.artwork, { borderColor: colors.separator }]}>
+        <FlowArtwork
+          name={playlist.name}
+          kind="playlist"
+          size={60}
+          radius={10}
         />
+        {!imageFailed ? (
+          <Image
+            source={{ uri: artworkUrl }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
+            onError={() => setImageFailed(true)}
+          />
+        ) : null}
       </View>
       <View style={styles.body}>
         <Text

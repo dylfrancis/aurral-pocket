@@ -39,7 +39,7 @@ export const RequestRow = React.memo(function RequestRow({
 
   const handleLongPress = () => {
     if (!hasActions) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     onLongPress();
   };
 

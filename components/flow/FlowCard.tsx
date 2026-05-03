@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -5,13 +6,17 @@ import {
   Switch,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
 import { MixPills } from "./MixPills";
 import { ProgressBar } from "./ProgressBar";
+import { FlowArtwork } from "./FlowArtwork";
+import { useAuth } from "@/contexts/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { getFlowArtworkUrl } from "@/lib/api/flow";
 import type { Flow, PlaylistStats } from "@/lib/types/flow";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -49,6 +54,9 @@ export function FlowCard({
   onToggleEnabled,
 }: Props) {
   const colors = Colors[useColorScheme()];
+  const { token } = useAuth();
+  const [imageFailed, setImageFailed] = useState(false);
+  const artworkUrl = getFlowArtworkUrl(flow.id, token);
   const progress = progressLabel(stats, flow.size);
 
   return (
@@ -64,7 +72,20 @@ export function FlowCard({
         },
       ]}
     >
-      <View style={styles.header}>
+      <View style={styles.topRow}>
+        <View style={[styles.artwork, { borderColor: colors.separator }]}>
+          <FlowArtwork name={flow.name} kind="flow" size={60} radius={10} />
+          {!imageFailed ? (
+            <Image
+              source={{ uri: artworkUrl }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={150}
+              cachePolicy="memory-disk"
+              onError={() => setImageFailed(true)}
+            />
+          ) : null}
+        </View>
         <View style={styles.titleGroup}>
           <Text
             variant="subtitle"
@@ -126,11 +147,17 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
   },
-  header: {
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 12,
+  },
+  artwork: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
   },
   titleGroup: {
     flex: 1,

@@ -170,7 +170,7 @@ export function ReleaseGroupSheet({
                     },
                   ]}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     addMutation.mutate();
                   }}
                   disabled={addMutation.isPending}
