@@ -249,8 +249,8 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   androidSearchBar: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: 18,
+    paddingTop: 12,
   },
   previewSection: {
     paddingTop: 4,
