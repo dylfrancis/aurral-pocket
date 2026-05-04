@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
@@ -150,6 +149,15 @@ export default function FlowScreen() {
     ],
   );
 
+  const openWorkerSettings = useCallback(
+    () => router.push("/(app)/(tabs)/(flow)/worker-settings"),
+    [router],
+  );
+  const openCreateFlow = useCallback(
+    () => router.push("/(app)/(tabs)/(flow)/flow-edit"),
+    [router],
+  );
+
   if (isLoading && !data) {
     return <ScreenCenter loading />;
   }
@@ -169,40 +177,22 @@ export default function FlowScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <View style={styles.headerActions}>
-              <Pressable
-                onPress={() =>
-                  router.push("/(app)/(tabs)/(flow)/worker-settings")
-                }
-                style={({ pressed }) => [
-                  styles.headerButton,
-                  { opacity: pressed ? 0.6 : 1 },
-                ]}
-                accessibilityLabel="Worker settings"
-              >
-                <Ionicons
-                  name="settings-outline"
-                  size={22}
-                  color={colors.text}
-                />
-              </Pressable>
-              <Pressable
-                onPress={() => router.push("/(app)/(tabs)/(flow)/flow-edit")}
-                style={({ pressed }) => [
-                  styles.headerButton,
-                  { opacity: pressed ? 0.6 : 1 },
-                ]}
-                accessibilityLabel="Create flow"
-              >
-                <Ionicons name="add" size={26} color={colors.text} />
-              </Pressable>
-            </View>
-          ),
-        }}
-      />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon="gearshape"
+          accessibilityLabel="Worker settings"
+          onPress={openWorkerSettings}
+        >
+          Worker settings
+        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          icon="plus"
+          accessibilityLabel="Create flow"
+          onPress={openCreateFlow}
+        >
+          Create flow
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
       <FlashList
         data={rows}
         renderItem={renderItem}
@@ -265,14 +255,5 @@ const styles = StyleSheet.create({
   },
   emptyWrap: {
     paddingTop: 60,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  headerButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
   },
 });

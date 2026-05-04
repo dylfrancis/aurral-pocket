@@ -106,19 +106,35 @@ export async function setRetryCyclePaused(
   await api.put(`/weekly-flow/playlists/${playlistId}/retry-cycle`, { paused });
 }
 
-export function getFlowStreamUrl(jobId: string, token: string | null): string {
-  const base = api.defaults.baseURL;
-  const url = `${base}/weekly-flow/stream/${encodeURIComponent(jobId)}`;
-  if (!token) return url;
-  return `${url}?token=${encodeURIComponent(token)}`;
+export type FlowAuthedSource = {
+  uri: string;
+  headers?: Record<string, string>;
+};
+
+function authedSource(uri: string, token: string | null): FlowAuthedSource {
+  return token
+    ? { uri, headers: { Authorization: `Bearer ${token}` } }
+    : { uri };
 }
 
-export function getFlowArtworkUrl(
+export function getFlowStreamSource(
+  jobId: string,
+  token: string | null,
+): FlowAuthedSource {
+  const base = api.defaults.baseURL;
+  return authedSource(
+    `${base}/weekly-flow/stream/${encodeURIComponent(jobId)}`,
+    token,
+  );
+}
+
+export function getFlowArtworkSource(
   playlistId: string,
   token: string | null,
-): string {
+): FlowAuthedSource {
   const base = api.defaults.baseURL;
-  const url = `${base}/weekly-flow/artwork/${encodeURIComponent(playlistId)}`;
-  if (!token) return url;
-  return `${url}?token=${encodeURIComponent(token)}`;
+  return authedSource(
+    `${base}/weekly-flow/artwork/${encodeURIComponent(playlistId)}`,
+    token,
+  );
 }

@@ -16,7 +16,7 @@ import { FlowArtwork } from "./FlowArtwork";
 import { useAuth } from "@/contexts/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { getFlowArtworkUrl } from "@/lib/api/flow";
+import { getFlowArtworkSource } from "@/lib/api/flow";
 import type { Flow, PlaylistStats } from "@/lib/types/flow";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -57,7 +57,7 @@ export function FlowCard({
   const { token } = useAuth();
   const [imageFailed, setImageFailed] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const artworkUrl = getFlowArtworkUrl(flow.id, token);
+  const artworkSource = getFlowArtworkSource(flow.id, token);
   const progress = progressLabel(stats, flow.size);
 
   // Retry image load when polling picks up new stats — the backend writes the
@@ -87,7 +87,7 @@ export function FlowCard({
           <FlowArtwork name={flow.name} kind="flow" size={60} radius={10} />
           {!imageFailed ? (
             <Image
-              source={{ uri: artworkUrl }}
+              source={artworkSource}
               style={[
                 StyleSheet.absoluteFill,
                 { opacity: imageLoaded ? 1 : 0 },

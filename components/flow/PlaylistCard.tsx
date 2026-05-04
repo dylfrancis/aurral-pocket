@@ -8,7 +8,7 @@ import { FlowArtwork } from "./FlowArtwork";
 import { useAuth } from "@/contexts/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { getFlowArtworkUrl } from "@/lib/api/flow";
+import { getFlowArtworkSource } from "@/lib/api/flow";
 import type { PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
 
 type Props = {
@@ -39,7 +39,7 @@ export function PlaylistCard({
   const { token } = useAuth();
   const [imageFailed, setImageFailed] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const artworkUrl = getFlowArtworkUrl(playlist.id, token);
+  const artworkSource = getFlowArtworkSource(playlist.id, token);
   const progress = progressLabel(stats, playlist.trackCount);
 
   // Retry image load when polling picks up new stats — see FlowCard.
@@ -73,7 +73,7 @@ export function PlaylistCard({
         />
         {!imageFailed ? (
           <Image
-            source={{ uri: artworkUrl }}
+            source={artworkSource}
             style={[StyleSheet.absoluteFill, { opacity: imageLoaded ? 1 : 0 }]}
             contentFit="cover"
             transition={150}

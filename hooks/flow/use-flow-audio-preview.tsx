@@ -14,7 +14,7 @@ import {
   useAudioPlayerStatus,
 } from "expo-audio";
 import { useAuth } from "@/contexts/auth-context";
-import { getFlowStreamUrl } from "@/lib/api/flow";
+import { getFlowStreamSource } from "@/lib/api/flow";
 
 type FlowAudioPreviewContextValue = {
   activeJobId: string | null;
@@ -58,9 +58,9 @@ export function FlowAudioPreviewProvider({
         }
         return;
       }
-      const url = getFlowStreamUrl(jobId, token);
+      const source = getFlowStreamSource(jobId, token);
       try {
-        player.replace({ uri: url });
+        player.replace(source);
         player.play();
         setActiveJobId(jobId);
       } catch {
