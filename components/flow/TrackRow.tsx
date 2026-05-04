@@ -14,7 +14,7 @@ type Props = {
 
 export function TrackRow({ job, onLongPress }: Props) {
   const colors = Colors[useColorScheme()];
-  const { activeJobId, isPlaying, toggle } = useFlowAudioPreview();
+  const { activeJobId, isPlaying, progress, toggle } = useFlowAudioPreview();
   const isActive = activeJobId === job.id;
   const playable = job.status === "done";
 
@@ -63,6 +63,18 @@ export function TrackRow({ job, onLongPress }: Props) {
         <Text variant="caption" numberOfLines={1}>
           {subtitle}
         </Text>
+        {isActive && isPlaying ? (
+          <View
+            style={[styles.progressBar, { backgroundColor: colors.separator }]}
+          >
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${progress * 100}%`, backgroundColor: colors.brand },
+              ]}
+            />
+          </View>
+        ) : null}
       </View>
       <StatusBadge status={job.status} />
     </Pressable>
@@ -91,5 +103,15 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: Fonts.medium,
+  },
+  progressBar: {
+    height: 2,
+    borderRadius: 1,
+    marginTop: 4,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 1,
   },
 });

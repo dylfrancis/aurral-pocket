@@ -5,9 +5,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import {
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioPlayerStatus,
+} from "expo-audio";
 import { useAuth } from "@/contexts/auth-context";
 import { getFlowStreamUrl } from "@/lib/api/flow";
 
@@ -15,6 +20,7 @@ type FlowAudioPreviewContextValue = {
   activeJobId: string | null;
   isPlaying: boolean;
   isLoading: boolean;
+  progress: number;
   toggle: (jobId: string) => void;
   stop: () => void;
 };
@@ -31,10 +37,19 @@ export function FlowAudioPreviewProvider({
   const player = useAudioPlayer(null, { updateInterval: 500 });
   const status = useAudioPlayerStatus(player);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const audioModeSet = useRef(false);
+
+  useEffect(() => {
+    if (status.didJustFinish) setActiveJobId(null);
+  }, [status.didJustFinish]);
 
   const toggle = useCallback(
-    (jobId: string) => {
+    async (jobId: string) => {
       if (!token) return;
+      if (!audioModeSet.current) {
+        await setAudioModeAsync({ playsInSilentMode: true });
+        audioModeSet.current = true;
+      }
       if (activeJobId === jobId) {
         if (status.playing) {
           player.pause();
@@ -74,15 +89,19 @@ export function FlowAudioPreviewProvider({
     };
   }, [player]);
 
+  const progress =
+    status.duration > 0 ? status.currentTime / status.duration : 0;
+
   const value = useMemo<FlowAudioPreviewContextValue>(
     () => ({
       activeJobId,
       isPlaying: !!status.playing,
       isLoading: !!status.isBuffering && !status.playing,
+      progress,
       toggle,
       stop,
     }),
-    [activeJobId, status.playing, status.isBuffering, toggle, stop],
+    [activeJobId, status.playing, status.isBuffering, progress, toggle, stop],
   );
 
   return (
