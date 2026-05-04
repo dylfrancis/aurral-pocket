@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,6 +9,9 @@ import {
   View,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -21,17 +24,35 @@ import { FocusEditor } from "@/components/flow/FocusEditor";
 import { useCreateFlow, useFlow, useUpdateFlow } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { DEFAULT_FLOW_FORM, FlowFormValues } from "@/lib/types/flow";
+import {
+  DEFAULT_FLOW_FORM,
+  FLOW_SIZE_MAX,
+  FLOW_SIZE_MIN,
+  type FlowFormValues,
+} from "@/lib/types/flow";
 
-function clone(values: FlowFormValues): FlowFormValues {
-  return {
-    ...values,
-    mix: { ...values.mix },
-    tags: { ...values.tags },
-    relatedArtists: { ...values.relatedArtists },
-    scheduleDays: [...values.scheduleDays],
-  };
-}
+const focusStrength = z.enum(["light", "medium", "heavy"]);
+
+const flowFormSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  size: z.number().int().min(FLOW_SIZE_MIN).max(FLOW_SIZE_MAX),
+  mix: z
+    .object({
+      discover: z.number().min(0).max(100),
+      mix: z.number().min(0).max(100),
+      trending: z.number().min(0).max(100),
+    })
+    .refine((m) => Math.round(m.discover + m.mix + m.trending) === 100, {
+      message: "Mix must total 100%",
+    }),
+  deepDive: z.boolean(),
+  tags: z.record(z.string(), focusStrength),
+  relatedArtists: z.record(z.string(), focusStrength),
+  scheduleDays: z.array(z.number().int().min(0).max(6)),
+  scheduleTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time"),
+});
+
+type FlowFormSchema = z.infer<typeof flowFormSchema>;
 
 export default function FlowEditScreen() {
   const colors = Colors[useColorScheme()];
@@ -43,13 +64,19 @@ export default function FlowEditScreen() {
   const createFlow = useCreateFlow();
   const updateFlow = useUpdateFlow();
 
-  const [values, setValues] = useState<FlowFormValues>(() =>
-    clone(DEFAULT_FLOW_FORM),
-  );
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FlowFormSchema>({
+    resolver: zodResolver(flowFormSchema),
+    defaultValues: DEFAULT_FLOW_FORM,
+  });
 
   useEffect(() => {
     if (!editingId || !existingFlow) return;
-    setValues({
+    reset({
       name: existingFlow.name,
       size: existingFlow.size,
       mix: { ...existingFlow.mix },
@@ -59,18 +86,12 @@ export default function FlowEditScreen() {
       scheduleDays: [...(existingFlow.scheduleDays ?? [])],
       scheduleTime: existingFlow.scheduleTime || "00:00",
     });
-  }, [editingId, existingFlow]);
+  }, [editingId, existingFlow, reset]);
 
   const isPending = createFlow.isPending || updateFlow.isPending;
 
-  const handleSave = () => {
-    const trimmedName = values.name.trim();
-    if (!trimmedName) {
-      Alert.alert("Name required", "Give your flow a name before saving.");
-      return;
-    }
-    const payload: FlowFormValues = { ...values, name: trimmedName };
-
+  const onSubmit = (values: FlowFormSchema) => {
+    const payload: FlowFormValues = values;
     if (editingId) {
       updateFlow.mutate(
         { flowId: editingId, payload },
@@ -108,70 +129,109 @@ export default function FlowEditScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Section title="Name">
-          <Input
-            value={values.name}
-            onChangeText={(name) => setValues((v) => ({ ...v, name }))}
-            placeholder="Discover"
-            autoCapitalize="words"
+          <Controller
+            control={control}
+            name="name"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <Input
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="Discover"
+                autoCapitalize="words"
+              />
+            )}
           />
+          {errors.name?.message ? (
+            <Text variant="caption" style={{ color: colors.error }}>
+              {errors.name.message}
+            </Text>
+          ) : null}
         </Section>
 
         <Section
           title="Mix"
           subtitle="How tracks are sourced. The three values always total 100%."
         >
-          <MixPresetPicker
-            value={values.mix}
-            onPick={(mix) => setValues((v) => ({ ...v, mix }))}
-          />
-          <View style={{ height: 12 }} />
-          <MixSlider
-            value={values.mix}
-            onChange={(mix) => setValues((v) => ({ ...v, mix }))}
+          <Controller
+            control={control}
+            name="mix"
+            render={({ field: { value, onChange } }) => (
+              <>
+                <MixPresetPicker value={value} onPick={onChange} />
+                <View style={{ height: 12 }} />
+                <MixSlider value={value} onChange={onChange} />
+                {errors.mix?.message ? (
+                  <Text
+                    variant="caption"
+                    style={{ color: colors.error, marginTop: 6 }}
+                  >
+                    {errors.mix.message}
+                  </Text>
+                ) : null}
+              </>
+            )}
           />
         </Section>
 
         <Section title="Size" subtitle="Number of tracks per refresh.">
-          <SizeStepper
-            value={values.size}
-            onChange={(size) => setValues((v) => ({ ...v, size }))}
+          <Controller
+            control={control}
+            name="size"
+            render={({ field: { value, onChange } }) => (
+              <SizeStepper value={value} onChange={onChange} />
+            )}
           />
         </Section>
 
-        <Section
-          title="Deep Dive"
-          subtitle="Surface lesser-known tracks from each artist."
-          trailing={
-            <Switch
-              value={values.deepDive}
-              onValueChange={(deepDive) =>
-                setValues((v) => ({ ...v, deepDive }))
+        <Controller
+          control={control}
+          name="deepDive"
+          render={({ field: { value, onChange } }) => (
+            <Section
+              title="Deep Dive"
+              subtitle="Surface lesser-known tracks from each artist."
+              trailing={
+                <Switch
+                  value={value}
+                  onValueChange={onChange}
+                  trackColor={{ false: colors.separator, true: colors.brand }}
+                  thumbColor={colors.switchThumb}
+                  ios_backgroundColor={colors.separator}
+                />
               }
-              trackColor={{ false: colors.separator, true: colors.brand }}
-              thumbColor={colors.switchThumb}
-              ios_backgroundColor={colors.separator}
             />
-          }
+          )}
         />
 
         <Section
           title="Focus"
           subtitle="Bias the flow toward specific tags or artists."
         >
-          <FocusEditor
-            label="Tags"
-            placeholder="Add a tag (e.g. ambient)"
-            value={values.tags}
-            onChange={(tags) => setValues((v) => ({ ...v, tags }))}
+          <Controller
+            control={control}
+            name="tags"
+            render={({ field: { value, onChange } }) => (
+              <FocusEditor
+                label="Tags"
+                placeholder="Add a tag (e.g. ambient)"
+                value={value}
+                onChange={onChange}
+              />
+            )}
           />
           <View style={{ height: 16 }} />
-          <FocusEditor
-            label="Related artists"
-            placeholder="Add an artist name"
-            value={values.relatedArtists}
-            onChange={(relatedArtists) =>
-              setValues((v) => ({ ...v, relatedArtists }))
-            }
+          <Controller
+            control={control}
+            name="relatedArtists"
+            render={({ field: { value, onChange } }) => (
+              <FocusEditor
+                label="Related artists"
+                placeholder="Add an artist name"
+                value={value}
+                onChange={onChange}
+              />
+            )}
           />
         </Section>
 
@@ -179,24 +239,26 @@ export default function FlowEditScreen() {
           title="Schedule"
           subtitle="Pick refresh days. Leave empty for manual-only runs."
         >
-          <ScheduleDayPicker
-            value={values.scheduleDays}
-            onChange={(scheduleDays) =>
-              setValues((v) => ({ ...v, scheduleDays }))
-            }
+          <Controller
+            control={control}
+            name="scheduleDays"
+            render={({ field: { value, onChange } }) => (
+              <ScheduleDayPicker value={value} onChange={onChange} />
+            )}
           />
-          <ScheduleHourPicker
-            value={values.scheduleTime}
-            onChange={(scheduleTime) =>
-              setValues((v) => ({ ...v, scheduleTime }))
-            }
+          <Controller
+            control={control}
+            name="scheduleTime"
+            render={({ field: { value, onChange } }) => (
+              <ScheduleHourPicker value={value} onChange={onChange} />
+            )}
           />
         </Section>
 
         <View style={{ paddingTop: 8 }}>
           <Button
             title={editingId ? "Save Changes" : "Create Flow"}
-            onPress={handleSave}
+            onPress={handleSubmit(onSubmit)}
             loading={isPending}
           />
         </View>
@@ -273,8 +335,5 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     lineHeight: 22,
-  },
-  subLabel: {
-    fontFamily: Fonts.medium,
   },
 });

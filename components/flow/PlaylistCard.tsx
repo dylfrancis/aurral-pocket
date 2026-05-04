@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,8 +38,18 @@ export function PlaylistCard({
   const colors = Colors[useColorScheme()];
   const { token } = useAuth();
   const [imageFailed, setImageFailed] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const artworkUrl = getFlowArtworkUrl(playlist.id, token);
   const progress = progressLabel(stats, playlist.trackCount);
+
+  // Retry image load when polling picks up new stats — see FlowCard.
+  const statsKey = stats
+    ? `${stats.done}-${stats.total}`
+    : `count-${playlist.trackCount}`;
+  useEffect(() => {
+    setImageFailed(false);
+    setImageLoaded(false);
+  }, [statsKey]);
 
   return (
     <Pressable
@@ -64,10 +74,11 @@ export function PlaylistCard({
         {!imageFailed ? (
           <Image
             source={{ uri: artworkUrl }}
-            style={StyleSheet.absoluteFill}
+            style={[StyleSheet.absoluteFill, { opacity: imageLoaded ? 1 : 0 }]}
             contentFit="cover"
             transition={150}
             cachePolicy="memory-disk"
+            onLoad={() => setImageLoaded(true)}
             onError={() => setImageFailed(true)}
           />
         ) : null}

@@ -160,7 +160,7 @@ describe("GetStartedScreen", () => {
     fireEvent.press(getByText("Get Started"));
     await waitFor(() => {
       expect(Haptics.impactAsync).toHaveBeenCalledWith(
-        Haptics.ImpactFeedbackStyle.Light,
+        Haptics.ImpactFeedbackStyle.Medium,
       );
     });
   });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -56,8 +56,18 @@ export function FlowCard({
   const colors = Colors[useColorScheme()];
   const { token } = useAuth();
   const [imageFailed, setImageFailed] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const artworkUrl = getFlowArtworkUrl(flow.id, token);
   const progress = progressLabel(stats, flow.size);
+
+  // Retry image load when polling picks up new stats — the backend writes the
+  // artwork PNG when a flow first runs, so a stats change is a good signal
+  // that the previously-404'd URL is now valid.
+  const statsKey = stats ? `${stats.done}-${stats.total}` : "none";
+  useEffect(() => {
+    setImageFailed(false);
+    setImageLoaded(false);
+  }, [statsKey]);
 
   return (
     <Pressable
@@ -78,10 +88,14 @@ export function FlowCard({
           {!imageFailed ? (
             <Image
               source={{ uri: artworkUrl }}
-              style={StyleSheet.absoluteFill}
+              style={[
+                StyleSheet.absoluteFill,
+                { opacity: imageLoaded ? 1 : 0 },
+              ]}
               contentFit="cover"
               transition={150}
               cachePolicy="memory-disk"
+              onLoad={() => setImageLoaded(true)}
               onError={() => setImageFailed(true)}
             />
           ) : null}

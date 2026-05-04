@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,6 +9,9 @@ import {
   View,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
@@ -22,11 +25,20 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 
-type EditableTrack = SharedPlaylistTrack & { key: string };
+const trackSchema = z.object({
+  artistName: z.string(),
+  trackName: z.string(),
+  albumName: z.string().nullable().optional(),
+  artistMbid: z.string().nullable().optional(),
+  reason: z.string().nullable().optional(),
+});
 
-function makeKey(track: SharedPlaylistTrack, index: number): string {
-  return `${track.artistName}|${track.trackName}|${track.albumName ?? ""}|${index}`;
-}
+const playlistEditSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  tracks: z.array(trackSchema).min(1, "Add at least one track"),
+});
+
+type PlaylistEditForm = z.infer<typeof playlistEditSchema>;
 
 export default function PlaylistEditScreen() {
   const colors = Colors[useColorScheme()];
@@ -38,75 +50,42 @@ export default function PlaylistEditScreen() {
   const jobs = useJobsForPlaylist(playlistId ?? undefined);
   const update = useUpdateSharedPlaylist();
 
-  const [name, setName] = useState("");
-  const [tracks, setTracks] = useState<EditableTrack[]>([]);
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PlaylistEditForm>({
+    resolver: zodResolver(playlistEditSchema),
+    defaultValues: { name: "", tracks: [] },
+  });
+
+  const { fields, move, remove } = useFieldArray({
+    control,
+    name: "tracks",
+  });
 
   useEffect(() => {
     if (!playlist) return;
-    setName(playlist.name);
-  }, [playlist]);
-
-  useEffect(() => {
-    if (!playlist) return;
-    const sourceTracks =
+    const sourceTracks: SharedPlaylistTrack[] =
       playlist.tracks && playlist.tracks.length > 0
         ? playlist.tracks
-        : jobs.map<SharedPlaylistTrack>((job) => ({
+        : jobs.map((job) => ({
             artistName: job.artistName,
             trackName: job.trackName,
             albumName: job.albumName ?? null,
             artistMbid: job.artistMbid ?? null,
             reason: job.reason ?? null,
           }));
-    setTracks(sourceTracks.map((t, idx) => ({ ...t, key: makeKey(t, idx) })));
-  }, [playlist, jobs]);
-
-  const moveUp = (index: number) => {
-    if (index <= 0) return;
-    setTracks((current) => {
-      const next = [...current];
-      const [item] = next.splice(index, 1);
-      next.splice(index - 1, 0, item);
-      return next;
-    });
-  };
-
-  const moveDown = (index: number) => {
-    setTracks((current) => {
-      if (index >= current.length - 1) return current;
-      const next = [...current];
-      const [item] = next.splice(index, 1);
-      next.splice(index + 1, 0, item);
-      return next;
-    });
-  };
-
-  const remove = (index: number) => {
-    setTracks((current) => current.filter((_, i) => i !== index));
-  };
+    reset({ name: playlist.name, tracks: sourceTracks });
+  }, [playlist, jobs, reset]);
 
   const isPending = update.isPending;
 
-  const handleSave = () => {
+  const onSubmit = (values: PlaylistEditForm) => {
     if (!playlistId) return;
-    const trimmed = name.trim();
-    if (!trimmed) {
-      Alert.alert("Name required", "Give your playlist a name before saving.");
-      return;
-    }
-    if (tracks.length === 0) {
-      Alert.alert(
-        "No tracks",
-        "Add at least one track before saving the playlist.",
-      );
-      return;
-    }
-    const payload = {
-      name: trimmed,
-      tracks: tracks.map<SharedPlaylistTrack>(({ key: _key, ...t }) => t),
-    };
     update.mutate(
-      { playlistId, payload },
+      { playlistId, payload: values },
       {
         onSuccess: () => router.back(),
         onError: (err: any) =>
@@ -136,11 +115,7 @@ export default function PlaylistEditScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1 }}
     >
-      <Stack.Screen
-        options={{
-          title: "Edit Playlist",
-        }}
-      />
+      <Stack.Screen options={{ title: "Edit Playlist" }} />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
@@ -159,12 +134,24 @@ export default function PlaylistEditScreen() {
           >
             Name
           </Text>
-          <Input
-            value={name}
-            onChangeText={setName}
-            placeholder="Playlist name"
-            autoCapitalize="words"
+          <Controller
+            control={control}
+            name="name"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <Input
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="Playlist name"
+                autoCapitalize="words"
+              />
+            )}
           />
+          {errors.name?.message ? (
+            <Text variant="caption" style={{ color: colors.error }}>
+              {errors.name.message}
+            </Text>
+          ) : null}
         </View>
 
         <View style={sectionStyle}>
@@ -178,15 +165,15 @@ export default function PlaylistEditScreen() {
             >
               Tracks
             </Text>
-            <Text variant="caption">{tracks.length} total</Text>
+            <Text variant="caption">{fields.length} total</Text>
           </View>
-          {tracks.length === 0 ? (
+          {fields.length === 0 ? (
             <Text variant="caption">No tracks. Add some from the web app.</Text>
           ) : (
             <View style={styles.trackList}>
-              {tracks.map((track, index) => (
+              {fields.map((track, index) => (
                 <View
-                  key={track.key}
+                  key={track.id}
                   style={[styles.trackRow, { borderColor: colors.separator }]}
                 >
                   <View style={styles.trackBody}>
@@ -205,7 +192,7 @@ export default function PlaylistEditScreen() {
                   </View>
                   <View style={styles.trackActions}>
                     <Pressable
-                      onPress={() => moveUp(index)}
+                      onPress={() => move(index, index - 1)}
                       disabled={index === 0}
                       style={({ pressed }) => [
                         styles.trackButton,
@@ -220,13 +207,13 @@ export default function PlaylistEditScreen() {
                       />
                     </Pressable>
                     <Pressable
-                      onPress={() => moveDown(index)}
-                      disabled={index === tracks.length - 1}
+                      onPress={() => move(index, index + 1)}
+                      disabled={index === fields.length - 1}
                       style={({ pressed }) => [
                         styles.trackButton,
                         {
                           opacity:
-                            pressed || index === tracks.length - 1 ? 0.4 : 1,
+                            pressed || index === fields.length - 1 ? 0.4 : 1,
                         },
                       ]}
                       accessibilityLabel="Move down"
@@ -256,9 +243,18 @@ export default function PlaylistEditScreen() {
               ))}
             </View>
           )}
+          {errors.tracks?.message ? (
+            <Text variant="caption" style={{ color: colors.error }}>
+              {errors.tracks.message}
+            </Text>
+          ) : null}
         </View>
 
-        <Button title="Save Changes" onPress={handleSave} loading={isPending} />
+        <Button
+          title="Save Changes"
+          onPress={handleSubmit(onSubmit)}
+          loading={isPending}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
