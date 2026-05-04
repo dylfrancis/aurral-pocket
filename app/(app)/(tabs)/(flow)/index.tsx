@@ -4,7 +4,6 @@ import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
-import * as Haptics from "expo-haptics";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
 import { EmptyState } from "@/components/library/EmptyState";
@@ -191,10 +190,7 @@ export default function FlowScreen() {
                 />
               </Pressable>
               <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push("/(app)/(tabs)/(flow)/flow-edit");
-                }}
+                onPress={() => router.push("/(app)/(tabs)/(flow)/flow-edit")}
                 style={({ pressed }) => [
                   styles.headerButton,
                   { opacity: pressed ? 0.6 : 1 },
