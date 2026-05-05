@@ -10,6 +10,7 @@ jest.mock("@/lib/api/client", () => ({
 import { api } from "@/lib/api/client";
 import {
   searchArtists,
+  searchAlbums,
   addArtist,
   getSimilarArtists,
   getDiscovery,
@@ -68,6 +69,69 @@ describe("searchArtists", () => {
   it("propagates errors", async () => {
     mockApi.get.mockRejectedValue(new Error("Network error"));
     await expect(searchArtists("test")).rejects.toThrow("Network error");
+  });
+});
+
+describe("searchAlbums", () => {
+  const emptyResponse = {
+    scope: "album",
+    query: "abbey road",
+    count: 0,
+    offset: 0,
+    items: [],
+  };
+
+  it("calls GET /search with album scope and default limit/offset", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await searchAlbums("abbey road");
+    expect(mockApi.get).toHaveBeenCalledWith("/search", {
+      params: { q: "abbey road", scope: "album", limit: 24, offset: 0 },
+    });
+  });
+
+  it("passes custom limit and offset", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await searchAlbums("test", 10, 20);
+    expect(mockApi.get).toHaveBeenCalledWith("/search", {
+      params: { q: "test", scope: "album", limit: 10, offset: 20 },
+    });
+  });
+
+  it("returns the response payload unchanged", async () => {
+    const response = {
+      scope: "album",
+      query: "abbey road",
+      count: 1,
+      offset: 0,
+      items: [
+        {
+          type: "album",
+          id: "rg-1",
+          title: "Abbey Road",
+          artistName: "The Beatles",
+          artistMbid: "artist-mbid",
+          releaseDate: "1969-09-26",
+          primaryType: "Album",
+          secondaryTypes: [],
+          coverUrl: null,
+          inLibrary: false,
+          libraryAlbumId: null,
+          libraryArtistId: null,
+          status: "missing",
+        },
+      ],
+    };
+    mockApi.get.mockResolvedValue({ data: response });
+
+    const result = await searchAlbums("abbey road");
+    expect(result).toEqual(response);
+  });
+
+  it("propagates errors", async () => {
+    mockApi.get.mockRejectedValue(new Error("503"));
+    await expect(searchAlbums("test")).rejects.toThrow("503");
   });
 });
 

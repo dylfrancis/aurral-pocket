@@ -18,8 +18,19 @@ jest.mock("@/hooks/search/use-artist-search", () => ({
   })),
 }));
 
+jest.mock("@/hooks/search/use-album-search", () => ({
+  useAlbumSearch: jest.fn(() => ({
+    data: undefined,
+    isLoading: false,
+  })),
+}));
+
 jest.mock("@/hooks/search/use-tag-suggestions", () => ({
   useTagSuggestions: jest.fn(() => ({ data: undefined })),
+}));
+
+jest.mock("@/components/search/SearchAlbumSheet", () => ({
+  SearchAlbumSheet: () => null,
 }));
 
 jest.mock("@/hooks/search/use-library-lookup", () => ({

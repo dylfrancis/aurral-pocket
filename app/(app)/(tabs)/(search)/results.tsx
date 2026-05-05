@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import {
@@ -7,40 +7,58 @@ import {
   useNavigation,
   useRouter,
 } from "expo-router";
+import type BottomSheet from "@gorhom/bottom-sheet";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
+import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
+import { SearchAlbumSheet } from "@/components/search/SearchAlbumSheet";
 import { TagArtistRow } from "@/components/search/TagArtistRow";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { Text } from "@/components/ui/Text";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
+import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import type {
+  SearchAlbum,
   SearchArtist,
   TagArtist,
   TagSearchScope,
 } from "@/lib/types/search";
 
-const SCOPE_OPTIONS: { key: TagSearchScope; label: string; icon: string }[] = [
+type ResultScope = "artist" | "album";
+
+const SCOPE_OPTIONS: { key: ResultScope; label: string; icon: string }[] = [
+  { key: "artist", label: "Artists", icon: "person.2" },
+  { key: "album", label: "Albums", icon: "opticaldisc" },
+];
+
+const TAG_SCOPE_OPTIONS: {
+  key: TagSearchScope;
+  label: string;
+  icon: string;
+}[] = [
   { key: "all", label: "All Artists", icon: "globe" },
   { key: "recommended", label: "Recommended", icon: "star" },
 ];
 
-function ScopePills({
+function ScopePills<T extends string>({
+  options,
   scope,
   onChange,
 }: {
-  scope: TagSearchScope;
-  onChange: (s: TagSearchScope) => void;
+  options: { key: T; label: string }[];
+  scope: T;
+  onChange: (s: T) => void;
 }) {
   const colors = Colors[useColorScheme()];
 
   return (
     <View style={styles.scopeRow}>
-      {SCOPE_OPTIONS.map((option) => {
+      {options.map((option) => {
         const active = scope === option.key;
         return (
           <Pressable
@@ -71,7 +89,10 @@ function ScopePills({
 }
 
 export default function SearchResultsScreen() {
-  const { q } = useLocalSearchParams<{ q: string }>();
+  const { q, scope: scopeParam } = useLocalSearchParams<{
+    q: string;
+    scope?: ResultScope;
+  }>();
   const router = useRouter();
   const colors = Colors[useColorScheme()];
 
@@ -80,12 +101,22 @@ export default function SearchResultsScreen() {
   const tagQuery = isTagSearch ? query.slice(1).trim() : "";
 
   const [tagScope, setTagScope] = useState<TagSearchScope>("recommended");
+  const [resultScope, setResultScope] = useState<ResultScope>(
+    scopeParam === "album" ? "album" : "artist",
+  );
 
   const {
     data: artistData,
     isLoading: artistLoading,
     refetch: refetchArtists,
-  } = useArtistSearch(isTagSearch ? "" : query);
+  } = useArtistSearch(isTagSearch || resultScope !== "artist" ? "" : query);
+
+  const {
+    data: albumData,
+    isLoading: albumLoading,
+    refetch: refetchAlbums,
+  } = useAlbumSearch(isTagSearch || resultScope !== "album" ? "" : query);
+
   const {
     data: tagData,
     isLoading: tagLoading,
@@ -100,17 +131,30 @@ export default function SearchResultsScreen() {
     setRefreshing(true);
     if (isTagSearch) {
       await refetchTags();
+    } else if (resultScope === "album") {
+      await refetchAlbums();
     } else {
       await refetchArtists();
     }
     setRefreshing(false);
-  }, [isTagSearch, refetchTags, refetchArtists]);
+  }, [isTagSearch, resultScope, refetchTags, refetchAlbums, refetchArtists]);
   const { isInLibrary } = useLibraryLookup();
 
-  const isLoading = isTagSearch ? tagLoading : artistLoading;
+  const isLoading = isTagSearch
+    ? tagLoading
+    : resultScope === "album"
+      ? albumLoading
+      : artistLoading;
+
   const artists = artistData?.artists;
+  const albums = albumData?.items;
   const tagArtists = tagData?.recommendations;
-  const fullData = isTagSearch ? tagArtists : artists;
+
+  const fullData = isTagSearch
+    ? tagArtists
+    : resultScope === "album"
+      ? albums
+      : artists;
   const resultCount = fullData?.length ?? 0;
   const showResults = fullData !== undefined && resultCount > 0;
   const showNoResults =
@@ -133,6 +177,13 @@ export default function SearchResultsScreen() {
     [router],
   );
 
+  const sheetRef = useRef<BottomSheet | null>(null);
+  const [activeAlbum, setActiveAlbum] = useState<SearchAlbum | null>(null);
+  const handleAlbumPress = useCallback((album: SearchAlbum) => {
+    setActiveAlbum(album);
+    sheetRef.current?.snapToIndex(0);
+  }, []);
+
   const renderArtistItem = useCallback(
     ({ item }: { item: SearchArtist }) => (
       <SearchArtistRow
@@ -142,6 +193,13 @@ export default function SearchResultsScreen() {
       />
     ),
     [isInLibrary, handleArtistPress],
+  );
+
+  const renderAlbumItem = useCallback(
+    ({ item }: { item: SearchAlbum }) => (
+      <SearchAlbumRow album={item} onPress={() => handleAlbumPress(item)} />
+    ),
+    [handleAlbumPress],
   );
 
   const renderTagArtistItem = useCallback(
@@ -155,17 +213,31 @@ export default function SearchResultsScreen() {
     [isInLibrary, handleArtistPress],
   );
 
-  const scopeLabel = tagScope === "recommended" ? "Recommended" : "All";
-  const listHeader = isTagSearch ? (
+  const tagScopeLabel = tagScope === "recommended" ? "Recommended" : "All";
+  const tagListHeader = (
     <View>
       <Text
         variant="caption"
         style={[styles.subtitle, { color: colors.subtle }]}
       >
-        {scopeLabel} artists for tag {`\u201C${tagQuery}\u201D`}
+        {tagScopeLabel} artists for tag {`“${tagQuery}”`}
       </Text>
-      {IS_ANDROID && <ScopePills scope={tagScope} onChange={setTagScope} />}
+      {IS_ANDROID && (
+        <ScopePills
+          options={TAG_SCOPE_OPTIONS}
+          scope={tagScope}
+          onChange={setTagScope}
+        />
+      )}
     </View>
+  );
+
+  const resultsListHeader = IS_ANDROID ? (
+    <ScopePills
+      options={SCOPE_OPTIONS}
+      scope={resultScope}
+      onChange={setResultScope}
+    />
   ) : null;
 
   const canBroadenToAll =
@@ -175,18 +247,24 @@ export default function SearchResultsScreen() {
   ) : showNoResults ? (
     <EmptyState
       icon="search-outline"
-      message={`No results found for \u201C${query}\u201D`}
+      message={`No results found for “${query}”`}
       actionLabel={canBroadenToAll ? "Try searching all" : undefined}
       onAction={canBroadenToAll ? () => setTagScope("all") : undefined}
     />
   ) : null;
+
+  const albumKeyExtractor = useMemo(() => (item: SearchAlbum) => item.id, []);
+  const artistKeyExtractor = useMemo(
+    () => (item: SearchArtist | TagArtist) => item.id,
+    [],
+  );
 
   return (
     <>
       {IS_IOS && isTagSearch && (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu icon="line.3.horizontal.decrease" title="Scope">
-            {SCOPE_OPTIONS.map((option) => (
+            {TAG_SCOPE_OPTIONS.map((option) => (
               <Stack.Toolbar.MenuAction
                 key={option.key}
                 icon={option.icon as any}
@@ -200,13 +278,42 @@ export default function SearchResultsScreen() {
         </Stack.Toolbar>
       )}
 
+      {IS_IOS && !isTagSearch && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu icon="line.3.horizontal.decrease" title="Scope">
+            {SCOPE_OPTIONS.map((option) => (
+              <Stack.Toolbar.MenuAction
+                key={option.key}
+                icon={option.icon as any}
+                isOn={resultScope === option.key}
+                onPress={() => setResultScope(option.key)}
+              >
+                {option.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      )}
+
       {isTagSearch ? (
         <FlashList
           data={showResults ? (tagArtists as TagArtist[]) : []}
           renderItem={renderTagArtistItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={artistKeyExtractor}
           contentInsetAdjustmentBehavior="automatic"
-          ListHeaderComponent={listHeader}
+          ListHeaderComponent={tagListHeader}
+          ListEmptyComponent={emptyComponent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+        />
+      ) : resultScope === "album" ? (
+        <FlashList
+          data={showResults ? (albums as SearchAlbum[]) : []}
+          renderItem={renderAlbumItem}
+          keyExtractor={albumKeyExtractor}
+          contentInsetAdjustmentBehavior="automatic"
+          ListHeaderComponent={resultsListHeader}
           ListEmptyComponent={emptyComponent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -216,15 +323,17 @@ export default function SearchResultsScreen() {
         <FlashList
           data={showResults ? (artists as SearchArtist[]) : []}
           renderItem={renderArtistItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={artistKeyExtractor}
           contentInsetAdjustmentBehavior="automatic"
-          ListHeaderComponent={listHeader}
+          ListHeaderComponent={resultsListHeader}
           ListEmptyComponent={emptyComponent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
         />
       )}
+
+      <SearchAlbumSheet album={activeAlbum} sheetRef={sheetRef} />
     </>
   );
 }

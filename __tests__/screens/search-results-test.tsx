@@ -19,6 +19,18 @@ jest.mock("@/hooks/search/use-artist-search", () => ({
   })),
 }));
 
+jest.mock("@/hooks/search/use-album-search", () => ({
+  useAlbumSearch: jest.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    refetch: jest.fn(),
+  })),
+}));
+
+jest.mock("@/components/search/SearchAlbumSheet", () => ({
+  SearchAlbumSheet: () => null,
+}));
+
 jest.mock("@/hooks/search/use-artists-by-tag", () => ({
   useArtistsByTag: jest.fn(() => ({
     data: { recommendations: [], tag: "rock", total: 0, offset: 0 },

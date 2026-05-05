@@ -1,6 +1,7 @@
 import { api } from "./client";
 import type {
   SearchArtistsResponse,
+  SearchAlbumsResponse,
   SimilarArtistsResponse,
   TagSuggestionsResponse,
   TagArtistsResponse,
@@ -16,6 +17,13 @@ import type {
 export async function searchArtists(query: string, limit = 24, offset = 0) {
   const r = await api.get<SearchArtistsResponse>("/search/artists", {
     params: { query, limit, offset },
+  });
+  return r.data;
+}
+
+export async function searchAlbums(query: string, limit = 24, offset = 0) {
+  const r = await api.get<SearchAlbumsResponse>("/search", {
+    params: { q: query, scope: "album", limit, offset },
   });
   return r.data;
 }

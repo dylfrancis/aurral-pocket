@@ -13,6 +13,39 @@ export type SearchArtistsResponse = {
   offset: number;
 };
 
+export type AlbumStatus =
+  | "available"
+  | "inLibrary"
+  | "searching"
+  | "downloading"
+  | "processing"
+  | "missing";
+
+export type SearchAlbum = {
+  type: "album";
+  id: string;
+  title: string;
+  artistName: string;
+  artistMbid: string | null;
+  releaseDate: string | null;
+  primaryType: string | null;
+  secondaryTypes: string[];
+  coverUrl: string | null;
+  inLibrary: boolean;
+  libraryAlbumId: string | null;
+  libraryArtistId: string | null;
+  status: AlbumStatus;
+};
+
+export type SearchAlbumsResponse = {
+  scope: "album";
+  query: string;
+  count: number;
+  offset: number;
+  hasMore?: boolean;
+  items: SearchAlbum[];
+};
+
 export type SimilarArtist = {
   id: string;
   name: string;
