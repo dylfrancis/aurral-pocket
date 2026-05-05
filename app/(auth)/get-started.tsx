@@ -151,7 +151,7 @@ export default function GetStartedScreen() {
   const [col1, col2, col3] = useMemo(() => generateColumns(42), []);
 
   const handleGetStarted = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     bottomSheetRef.current?.expand();
   };
 

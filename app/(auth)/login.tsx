@@ -62,7 +62,7 @@ export default function LoginScreen() {
   });
 
   const onSubmit = (data: LoginForm) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     loginMutation.mutate({
       username: data.username.trim(),
       password: data.password,

@@ -64,6 +64,7 @@ const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   useLocalSearchParams: jest.fn(() => ({ mbid: "abc-123" })),
   useRouter: jest.fn(() => ({ back: jest.fn(), push: mockPush })),
+  Stack: { Screen: () => null },
 }));
 
 jest.mock("react-native-safe-area-context", () => ({

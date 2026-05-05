@@ -52,7 +52,7 @@ export function TopTracksSection({
           isPlaying={playingId === track.id}
           progress={playingId === track.id ? progress : 0}
           onToggle={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            void Haptics.selectionAsync();
             onToggle(track);
           }}
         />

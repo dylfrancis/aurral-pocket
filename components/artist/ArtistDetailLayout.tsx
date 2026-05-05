@@ -9,7 +9,7 @@ import { ArtistTags } from "@/components/library/ArtistTags";
 import { ReleaseGroupSheet } from "@/components/library/ReleaseGroupSheet";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { Text } from "@/components/ui/Text";
-import { Colors } from "@/constants/theme";
+import { Colors, Fonts } from "@/constants/theme";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
@@ -30,18 +30,24 @@ import type { SimilarArtist } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Stack } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Pressable,
   RefreshControl,
   StyleSheet,
   View,
 } from "react-native";
 import Animated, {
+  Extrapolation,
+  interpolate,
+  type SharedValue,
   useAnimatedScrollHandler,
+  useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -270,6 +276,13 @@ export function ArtistDetailLayout({
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen
+        options={{
+          headerTitle: () => (
+            <ScrollHeaderTitle name={artistName} scrollY={scrollY} />
+          ),
+        }}
+      />
       <Animated.ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         onScroll={scrollHandler}
@@ -415,4 +428,52 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignSelf: "flex-start",
   },
+  headerTitle: {
+    fontSize: 17,
+    fontFamily: Fonts.semiBold,
+  },
 });
+
+function ScrollHeaderTitle({
+  name,
+  scrollY,
+}: {
+  name: string;
+  scrollY: SharedValue<number>;
+}) {
+  const colors = Colors[useColorScheme()];
+  const screenWidth = Dimensions.get("window").width;
+  // Hero artist name sits at roughly screenWidth - 92px from top of scrollview.
+  // Account for nav bar (~94px) so we trigger when it scrolls under the bar,
+  // with extra vertical buffer so the hero title is clearly gone first.
+  const start = screenWidth - 140;
+  const end = screenWidth - 60;
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [start, end],
+      [0, 1],
+      Extrapolation.CLAMP,
+    ),
+    transform: [
+      {
+        translateY: interpolate(
+          scrollY.value,
+          [start, end],
+          [8, 0],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
+  }));
+
+  return (
+    <Animated.Text
+      numberOfLines={1}
+      style={[styles.headerTitle, { color: colors.text }, animatedStyle]}
+    >
+      {name}
+    </Animated.Text>
+  );
+}

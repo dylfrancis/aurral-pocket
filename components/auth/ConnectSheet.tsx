@@ -62,7 +62,7 @@ export const ConnectSheet = forwardRef<BottomSheet>(
     });
 
     const onSubmit = async (data: ConnectForm) => {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       connectMutation.mutate(data.url.trim());
     };
 

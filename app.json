@@ -21,9 +21,7 @@
         "foregroundImage": "./assets/images/aurral-logo.png"
       },
       "package": "com.aurral.aurralpocket",
-      "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "output": "static"
@@ -54,7 +52,8 @@
         {
           "faceIDPermission": "Allow Aurral to use Face ID to sign you back in when your session expires."
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

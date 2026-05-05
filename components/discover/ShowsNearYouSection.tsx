@@ -91,7 +91,7 @@ export function ShowsNearYouSection({
   }, [onOpenSettings]);
 
   const locationLabel =
-    data?.location?.label || data?.location?.postalCode || "your area";
+    data?.location?.label || data?.location?.postalCode || "";
 
   const header = (
     <SectionHeader
