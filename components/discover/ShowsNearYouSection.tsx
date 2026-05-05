@@ -377,7 +377,7 @@ function ModeToggle({ mode, onSelectIp, onSelectZip }: ModeToggleProps) {
       fontStyle={{
         fontFamily: Fonts.medium,
         fontSize: 12,
-        color: colors.subtle,
+        color: colors.text,
       }}
       activeFontStyle={{
         fontFamily: Fonts.semiBold,

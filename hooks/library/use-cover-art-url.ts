@@ -17,7 +17,7 @@ export function useCoverArtUrl({ type, mbid }: CoverArtOptions) {
     queryFn: () =>
       type === "artist" ? getArtistCover(mbid!) : getAlbumCover(mbid!),
     enabled: !!mbid,
-    staleTime: Infinity,
+    staleTime: (query) => (query.state.error ? 0 : Infinity),
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
   });

@@ -1,7 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
-import { Chip } from "@/components/ui/Chip";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -31,12 +31,19 @@ export const SimilarArtistCard = React.memo(function SimilarArtistCard({
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      <CoverArtImage
-        type="artist"
-        mbid={artist.id}
-        size={IMAGE_SIZE}
-        borderRadius={IMAGE_SIZE / 2}
-      />
+      <View style={styles.coverWrap}>
+        <CoverArtImage
+          type="artist"
+          mbid={artist.id}
+          size={IMAGE_SIZE}
+          borderRadius={IMAGE_SIZE / 2}
+        />
+        {isInLibrary && (
+          <View style={[styles.badge, { backgroundColor: colors.card }]}>
+            <Ionicons name="checkmark-circle" size={18} color={colors.brand} />
+          </View>
+        )}
+      </View>
       <Text
         variant="body"
         numberOfLines={1}
@@ -49,7 +56,6 @@ export const SimilarArtistCard = React.memo(function SimilarArtistCard({
           {artist.match}% match
         </Text>
       )}
-      {isInLibrary && <Chip label="In Library" variant="brand" />}
     </Pressable>
   );
 });
@@ -60,6 +66,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginRight: 12,
+  },
+  coverWrap: {
+    position: "relative",
+  },
+  badge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    borderRadius: 999,
+    padding: 2,
   },
   name: {
     fontFamily: Fonts.medium,

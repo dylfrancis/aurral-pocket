@@ -1,7 +1,7 @@
-import { useMemo } from "react";
-import SegmentedControl from "@react-native-segmented-control/segmented-control";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import SegmentedControl from "@react-native-segmented-control/segmented-control";
+import { useMemo } from "react";
 
 type Option<T extends string | number> = {
   value: T;
@@ -36,7 +36,7 @@ export function SegmentedRow<T extends string | number>({
       backgroundColor={colors.inputBackground}
       tintColor={colors.brand}
       fontStyle={{
-        color: colors.subtle,
+        color: colors.text,
         fontFamily: Fonts.medium,
       }}
       activeFontStyle={{

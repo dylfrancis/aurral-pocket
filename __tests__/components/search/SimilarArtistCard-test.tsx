@@ -66,26 +66,26 @@ describe("SimilarArtistCard", () => {
     expect(getByText("92% match")).toBeTruthy();
   });
 
-  it('shows "In Library" chip when isInLibrary is true', () => {
-    const { getByText } = render(
+  it("renders the library badge when isInLibrary is true", () => {
+    const { queryByTestId } = render(
       <SimilarArtistCard
         artist={baseArtist}
         isInLibrary={true}
         onPress={() => {}}
       />,
     );
-    expect(getByText("In Library")).toBeTruthy();
+    expect(queryByTestId("icon-checkmark-circle")).toBeTruthy();
   });
 
-  it('does not show "In Library" chip when isInLibrary is false', () => {
-    const { queryByText } = render(
+  it("omits the library badge when isInLibrary is false", () => {
+    const { queryByTestId } = render(
       <SimilarArtistCard
         artist={baseArtist}
         isInLibrary={false}
         onPress={() => {}}
       />,
     );
-    expect(queryByText("In Library")).toBeNull();
+    expect(queryByTestId("icon-checkmark-circle")).toBeNull();
   });
 
   it("calls onPress when pressed", () => {
