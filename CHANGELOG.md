@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.4.0...v0.5.0) (2026-05-05)
+
+
+### Features
+
+* **flow:** add flow page ([#84](https://github.com/dylfrancis/aurral-pocket/issues/84)) ([51c5f9b](https://github.com/dylfrancis/aurral-pocket/commit/51c5f9b44db903c894cd7ade7962b614078259fd))
+
 ## [0.4.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.3.1...v0.4.0) (2026-04-25)
 
 
