@@ -242,8 +242,10 @@ export default function SearchResultsScreen() {
 
   const canBroadenToAll =
     isTagSearch && tagScope === "recommended" && showNoResults;
+  const skeletonVariant: "artist" | "album" =
+    !isTagSearch && resultScope === "album" ? "album" : "artist";
   const emptyComponent = isLoading ? (
-    <SkeletonRows count={8} />
+    <SkeletonRows count={8} variant={skeletonVariant} />
   ) : showNoResults ? (
     <EmptyState
       icon="search-outline"

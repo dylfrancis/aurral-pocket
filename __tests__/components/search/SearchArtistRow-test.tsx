@@ -2,6 +2,10 @@ jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
 
+jest.mock("@/lib/api/client", () => ({
+  absolutizeImageUrl: (raw: string | null | undefined) => raw ?? null,
+}));
+
 jest.mock("expo-image", () => {
   const { View } = require("react-native");
   return { Image: (props: any) => <View testID="expo-image" {...props} /> };
@@ -33,33 +37,20 @@ describe("SearchArtistRow", () => {
     expect(getByText("Radiohead")).toBeTruthy();
   });
 
-  it("renders sort-name when different from name", () => {
+  it("does not render the sort-name as subtext", () => {
     const artist = {
       ...baseArtist,
       name: "The Beatles",
       "sort-name": "Beatles, The",
     };
-    const { getByText } = render(
+    const { queryByText } = render(
       <SearchArtistRow
         artist={artist}
         isInLibrary={false}
         onPress={() => {}}
       />,
     );
-    expect(getByText("Beatles, The")).toBeTruthy();
-  });
-
-  it("does not render sort-name when same as name", () => {
-    const { queryByText } = render(
-      <SearchArtistRow
-        artist={baseArtist}
-        isInLibrary={false}
-        onPress={() => {}}
-      />,
-    );
-    // 'Radiohead' appears only once (as name, not duplicated as sort-name)
-    const matches = queryByText("Radiohead");
-    expect(matches).toBeTruthy();
+    expect(queryByText("Beatles, The")).toBeNull();
   });
 
   it('shows "In Library" chip when isInLibrary is true', () => {

@@ -6,6 +6,7 @@ import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { absolutizeImageUrl } from "@/lib/api/client";
 import type { SearchArtist } from "@/lib/types/search";
 
 type SearchArtistRowProps = {
@@ -22,7 +23,7 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
   onPress,
 }: SearchArtistRowProps) {
   const colors = Colors[useColorScheme()];
-  const imageUrl = artist.image ?? artist.imageUrl;
+  const imageUrl = absolutizeImageUrl(artist.image ?? artist.imageUrl);
 
   return (
     <Pressable
@@ -60,15 +61,6 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
         >
           {artist.name}
         </Text>
-        {artist["sort-name"] !== artist.name && (
-          <Text
-            variant="caption"
-            numberOfLines={1}
-            style={{ color: colors.subtle }}
-          >
-            {artist["sort-name"]}
-          </Text>
-        )}
       </View>
 
       {isInLibrary && <Chip label="In Library" variant="brand" />}

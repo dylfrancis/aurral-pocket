@@ -13,6 +13,7 @@ import { SearchBar } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
+import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumSheet } from "@/components/search/SearchAlbumSheet";
 import { RecentSearches } from "@/components/search/RecentSearches";
@@ -49,29 +50,15 @@ export default function SearchScreen() {
   const {
     data: artistData,
     isLoading: artistLoading,
-    isFetching: artistFetching,
+    isPlaceholderData: artistIsStale,
   } = useArtistSearch(artistQuery);
 
   const {
     data: albumData,
     isLoading: albumLoading,
-    isFetching: albumFetching,
+    isPlaceholderData: albumIsStale,
   } = useAlbumSearch(artistQuery);
 
-  const previewFetching = artistFetching || albumFetching;
-
-  const [showSlowLoader, setShowSlowLoader] = useState(false);
-  const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (previewFetching && hasQuery && !isTagSearch) {
-      slowTimer.current = setTimeout(() => setShowSlowLoader(true), 1000);
-    } else {
-      setShowSlowLoader(false);
-    }
-    return () => {
-      if (slowTimer.current) clearTimeout(slowTimer.current);
-    };
-  }, [previewFetching, hasQuery, isTagSearch]);
   const { data: tags } = useTagSuggestions(
     isTagSearch ? tagQuery : artistQuery,
   );
@@ -148,14 +135,26 @@ export default function SearchScreen() {
     hasQuery && !isTagSearch
       ? (albums ?? []).slice(0, ALBUM_PREVIEW_LIMIT)
       : [];
-  const previewLoading =
+
+  const showArtistSkeleton =
+    hasQuery && !isTagSearch && (artistLoading || artistIsStale);
+  const showAlbumSkeleton =
+    hasQuery && !isTagSearch && (albumLoading || albumIsStale);
+  const showArtistSection = showArtistSkeleton || previewArtists.length > 0;
+  const showAlbumSection = showAlbumSkeleton || previewAlbums.length > 0;
+
+  const noResults =
     hasQuery &&
     !isTagSearch &&
-    ((artistLoading && albumLoading) || showSlowLoader);
-  const hasPreviewContent =
-    previewTags.length > 0 ||
-    previewArtists.length > 0 ||
-    previewAlbums.length > 0;
+    !artistLoading &&
+    !albumLoading &&
+    !artistIsStale &&
+    !albumIsStale &&
+    previewArtists.length === 0 &&
+    previewAlbums.length === 0 &&
+    previewTags.length === 0;
+
+  const noTagResults = hasQuery && isTagSearch && previewTags.length === 0;
 
   const sheetRef = useRef<BottomSheet | null>(null);
   const [activeAlbum, setActiveAlbum] = useState<SearchAlbum | null>(null);
@@ -166,9 +165,14 @@ export default function SearchScreen() {
 
   let content;
 
-  if (hasQuery && previewLoading) {
-    content = <SkeletonRows />;
-  } else if (hasQuery && hasPreviewContent) {
+  if (noResults || noTagResults) {
+    content = (
+      <EmptyState
+        icon="search-outline"
+        message={`No results for \u201C${query.trim()}\u201D`}
+      />
+    );
+  } else if (hasQuery) {
     const hasMoreArtists =
       !isTagSearch && (artists?.length ?? 0) > ARTIST_PREVIEW_LIMIT;
     const hasMoreAlbums =
@@ -192,60 +196,55 @@ export default function SearchScreen() {
           </View>
         )}
 
-        {previewArtists.length > 0 && (
+        {showArtistSection && (
           <View>
             <SectionLabel text="Artists" colorSubtle={colors.subtle} />
-            {previewArtists.map((artist) => (
-              <SearchPreviewRow
-                key={`artist-${artist.id}`}
-                icon="person-outline"
-                label={artist.name}
-                onPress={() => handleArtistPress(artist)}
-                trailing={
-                  <>
-                    {isInLibrary(artist.id) && (
-                      <Text
-                        variant="caption"
-                        style={{ color: colors.brandStrong }}
-                      >
-                        In Library
-                      </Text>
-                    )}
-                    <Ionicons
-                      name="arrow-forward-outline"
-                      size={16}
-                      color={colors.subtle}
-                    />
-                  </>
-                }
-              />
-            ))}
-            {hasMoreArtists && (
-              <SeeAllRow
-                label="See all artists"
-                color={colors.brand}
-                onPress={() => pushResults(query.trim(), "artist")}
-              />
+            {showArtistSkeleton ? (
+              <SkeletonRows count={ARTIST_PREVIEW_LIMIT} variant="artist" />
+            ) : (
+              <>
+                {previewArtists.map((artist) => (
+                  <SearchArtistRow
+                    key={`artist-${artist.id}`}
+                    artist={artist}
+                    isInLibrary={isInLibrary(artist.id)}
+                    onPress={() => handleArtistPress(artist)}
+                  />
+                ))}
+                {hasMoreArtists && (
+                  <SeeAllRow
+                    label="See all artists"
+                    color={colors.brand}
+                    onPress={() => pushResults(query.trim(), "artist")}
+                  />
+                )}
+              </>
             )}
           </View>
         )}
 
-        {previewAlbums.length > 0 && (
+        {showAlbumSection && (
           <View>
             <SectionLabel text="Albums" colorSubtle={colors.subtle} />
-            {previewAlbums.map((album) => (
-              <SearchAlbumRow
-                key={`album-${album.id}`}
-                album={album}
-                onPress={() => handleAlbumPress(album)}
-              />
-            ))}
-            {hasMoreAlbums && (
-              <SeeAllRow
-                label="See all albums"
-                color={colors.brand}
-                onPress={() => pushResults(query.trim(), "album")}
-              />
+            {showAlbumSkeleton ? (
+              <SkeletonRows count={ALBUM_PREVIEW_LIMIT} variant="album" />
+            ) : (
+              <>
+                {previewAlbums.map((album) => (
+                  <SearchAlbumRow
+                    key={`album-${album.id}`}
+                    album={album}
+                    onPress={() => handleAlbumPress(album)}
+                  />
+                ))}
+                {hasMoreAlbums && (
+                  <SeeAllRow
+                    label="See all albums"
+                    color={colors.brand}
+                    onPress={() => pushResults(query.trim(), "album")}
+                  />
+                )}
+              </>
             )}
           </View>
         )}
@@ -258,13 +257,6 @@ export default function SearchScreen() {
           />
         )}
       </View>
-    );
-  } else if (hasQuery) {
-    content = (
-      <EmptyState
-        icon="search-outline"
-        message={`No results for \u201C${query.trim()}\u201D`}
-      />
     );
   } else if (recentSearches.searches.length > 0) {
     content = (
