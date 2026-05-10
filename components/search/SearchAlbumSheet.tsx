@@ -6,6 +6,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import * as Burnt from "burnt";
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetScrollView,
@@ -132,16 +133,21 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       invalidateAfterMutation();
       sheetRef.current?.close();
-      if (createdArtist) {
-        Alert.alert(
-          "Album added",
-          `${album?.artistName} was also added to your library.`,
-        );
+      if (createdArtist && album?.artistName) {
+        Burnt.toast({
+          title: `Added ${album.artistName}`,
+          message: "Now in your library",
+          preset: "done",
+        });
       }
     },
     onError: (error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Couldn't add album", describeError(error));
+      Burnt.toast({
+        title: "Couldn't add album",
+        message: describeError(error),
+        preset: "error",
+      });
     },
   });
 
