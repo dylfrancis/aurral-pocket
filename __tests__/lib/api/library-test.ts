@@ -17,6 +17,7 @@ import {
   getAlbumCover,
   triggerAlbumSearch,
   deleteAlbum,
+  requestAlbumFromSearch,
 } from "@/lib/api/library";
 
 const mockApi = api as unknown as {
@@ -133,5 +134,36 @@ describe("deleteAlbum", () => {
     expect(mockApi.delete).toHaveBeenCalledWith("/library/albums/99", {
       params: { deleteFiles: true },
     });
+  });
+});
+
+describe("requestAlbumFromSearch", () => {
+  const payload = {
+    albumMbid: "rg-1",
+    albumName: "Abbey Road",
+    artistMbid: "artist-1",
+    artistName: "The Beatles",
+  };
+
+  it("posts to /library/albums/request with the payload", async () => {
+    mockApi.post.mockResolvedValue({ data: { createdArtist: false } });
+
+    await requestAlbumFromSearch(payload);
+    expect(mockApi.post).toHaveBeenCalledWith(
+      "/library/albums/request",
+      payload,
+    );
+  });
+
+  it("returns the response data", async () => {
+    mockApi.post.mockResolvedValue({ data: { createdArtist: true } });
+
+    const result = await requestAlbumFromSearch(payload);
+    expect(result).toEqual({ createdArtist: true });
+  });
+
+  it("propagates errors", async () => {
+    mockApi.post.mockRejectedValue(new Error("409"));
+    await expect(requestAlbumFromSearch(payload)).rejects.toThrow("409");
   });
 });

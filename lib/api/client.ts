@@ -40,6 +40,17 @@ export function setBaseUrl(url: string) {
   baseURL = url ? `${url}/api` : "";
 }
 
+export function absolutizeImageUrl(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null;
+  if (raw.startsWith("/")) {
+    const origin = baseURL.replace(/\/api\/?$/, "");
+    return origin ? `${origin}${raw}` : raw;
+  }
+  return raw.replace(/^http:\/\//, "https://");
+}
+
 export function setAuthToken(token: string | null) {
   authToken = token;
 }

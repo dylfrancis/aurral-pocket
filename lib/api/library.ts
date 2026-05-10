@@ -172,3 +172,24 @@ export async function addLibraryAlbum(
   });
   return r.data;
 }
+
+export type RequestAlbumPayload = {
+  albumMbid: string;
+  albumName: string;
+  artistMbid: string;
+  artistName: string;
+  triggerSearch?: boolean;
+};
+
+export type RequestAlbumResponse = {
+  album?: Album;
+  createdArtist?: boolean;
+} & Record<string, unknown>;
+
+export async function requestAlbumFromSearch(payload: RequestAlbumPayload) {
+  const r = await api.post<RequestAlbumResponse>(
+    "/library/albums/request",
+    payload,
+  );
+  return r.data;
+}

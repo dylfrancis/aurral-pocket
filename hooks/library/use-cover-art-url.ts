@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { absolutizeImageUrl } from "@/lib/api/client";
 import { getArtistCover, getAlbumCover } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import type { CoverArtType } from "@/lib/types/library";
@@ -25,7 +26,7 @@ export function useCoverArtUrl({ type, mbid }: CoverArtOptions) {
   const images = query.data?.images;
   const raw =
     images?.find((img) => img.front)?.image ?? images?.[0]?.image ?? null;
-  const url = raw?.replace(/^http:\/\//, "https://") ?? null;
+  const url = absolutizeImageUrl(raw);
 
   return { url, isLoading: query.isLoading };
 }
