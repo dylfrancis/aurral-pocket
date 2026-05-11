@@ -37,6 +37,11 @@ export function AlbumsGridScreen() {
       sortMode={grid.sortMode}
       onSortChange={grid.setSortMode}
       sortOptions={grid.sortOptions}
+      searchQuery={grid.searchQuery}
+      onSearchChange={grid.setSearchQuery}
+      searchPlaceholder="Search albums"
+      hasUnderlyingItems={grid.hasUnderlyingItems}
+      emptyMessage="No albums to show"
       renderItem={(item) => (
         <AlbumCard
           album={item}
