@@ -2,7 +2,7 @@
   "expo": {
     "name": "Aurral",
     "slug": "aurral-pocket",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "orientation": "portrait",
     "icon": "./assets/images/aurral-logo-dark.png",
     "scheme": "aurralpocket",
