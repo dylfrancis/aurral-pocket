@@ -102,6 +102,8 @@ export function useReleaseGrid<T>(config: ReleaseGridConfig<T>) {
     setRawSortMode(mode);
   }, []);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const sortOptions = useMemo(
     () =>
       config.supportsMissing
@@ -121,10 +123,20 @@ export function useReleaseGrid<T>(config: ReleaseGridConfig<T>) {
     ) ?? []) as T[];
   }, [config.variant, typedAlbums, otherReleases, albumType]);
 
+  const filteredItems = useMemo(() => {
+    const trimmed = searchQuery.trim().toLowerCase();
+    if (!trimmed) return sourceItems;
+    return sourceItems.filter((item) =>
+      config.getName(item).toLowerCase().includes(trimmed),
+    );
+  }, [sourceItems, searchQuery, config]);
+
   const items = useMemo(
-    () => sortItems(sourceItems, sortMode, config),
-    [sourceItems, sortMode, config],
+    () => sortItems(filteredItems, sortMode, config),
+    [filteredItems, sortMode, config],
   );
+
+  const hasUnderlyingItems = sourceItems.length > 0;
 
   const isLoading =
     config.variant === "albums"
@@ -139,6 +151,9 @@ export function useReleaseGrid<T>(config: ReleaseGridConfig<T>) {
     sortMode,
     setSortMode,
     sortOptions,
+    searchQuery,
+    setSearchQuery,
+    hasUnderlyingItems,
     artistId,
     artistName: artistName ?? "",
     rawAlbums,

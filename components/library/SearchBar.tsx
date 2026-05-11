@@ -13,6 +13,7 @@ type SearchBarProps = {
   onSortChange: (mode: SortMode) => void;
   showSort?: boolean;
   onSubmit?: () => void;
+  placeholder?: string;
 };
 
 const sortOptions: { key: SortMode; label: string }[] = [
@@ -28,6 +29,7 @@ export function SearchBar({
   onSortChange,
   showSort = true,
   onSubmit,
+  placeholder = "Search artists...",
 }: SearchBarProps) {
   const colors = Colors[useColorScheme()];
 
@@ -48,7 +50,7 @@ export function SearchBar({
             styles.input,
             { color: colors.inputText, fontFamily: Fonts.regular },
           ]}
-          placeholder="Search artists..."
+          placeholder={placeholder}
           placeholderTextColor={colors.placeholder}
           value={value}
           onChangeText={onChangeText}

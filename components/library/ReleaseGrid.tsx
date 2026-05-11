@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -7,13 +7,15 @@ import {
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import BottomSheet from "@gorhom/bottom-sheet";
-import { Stack } from "expo-router";
+import { Stack, useNavigation } from "expo-router";
 import {
   AlbumSortTrigger,
   AlbumSortSheet,
   type AlbumSortMode,
   type SortOption,
 } from "@/components/library/AlbumSortPicker";
+import { SearchBar } from "@/components/library/SearchBar";
+import { EmptyState } from "@/components/library/EmptyState";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
@@ -30,6 +32,12 @@ type ReleaseGridProps<T> = {
   sortMode: AlbumSortMode;
   onSortChange: (mode: AlbumSortMode) => void;
   sortOptions: SortOption[];
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  searchPlaceholder: string;
+  hasUnderlyingItems: boolean;
+  emptyMessage: string;
+  noMatchesIcon?: "search-outline";
   renderItem: (item: T) => React.ReactElement;
   keyExtractor: (item: T) => string;
   bottomSheet?: React.ReactNode;
@@ -43,12 +51,33 @@ export function ReleaseGrid<T>({
   sortMode,
   onSortChange,
   sortOptions,
+  searchQuery,
+  onSearchChange,
+  searchPlaceholder,
+  hasUnderlyingItems,
+  emptyMessage,
   renderItem,
   keyExtractor,
   bottomSheet,
 }: ReleaseGridProps<T>) {
   const colors = Colors[useColorScheme()];
   const sortSheetRef = useRef<BottomSheet>(null);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    if (!IS_IOS) return;
+    navigation.setOptions({
+      headerSearchBarOptions: {
+        placeholder: searchPlaceholder,
+        hideWhenScrolling: false,
+        autoCapitalize: "none",
+        onChangeText: (e: { nativeEvent: { text: string } }) => {
+          onSearchChange(e.nativeEvent.text);
+        },
+        onCancelButtonPress: () => onSearchChange(""),
+      },
+    });
+  }, [navigation, searchPlaceholder, onSearchChange]);
 
   if (isLoading) {
     return (
@@ -66,6 +95,20 @@ export function ReleaseGrid<T>({
       </View>
     );
   }
+
+  const trimmedQuery = searchQuery.trim();
+  const hasQuery = trimmedQuery.length > 0;
+  const showNoMatches = hasUnderlyingItems && hasQuery && items.length === 0;
+  const showNoUnderlying = !hasUnderlyingItems && items.length === 0;
+
+  const emptyComponent = showNoMatches ? (
+    <EmptyState
+      icon="search-outline"
+      message={`No results matching “${trimmedQuery}”`}
+    />
+  ) : showNoUnderlying ? (
+    <EmptyState icon="disc-outline" message={emptyMessage} />
+  ) : null;
 
   return (
     <>
@@ -95,15 +138,27 @@ export function ReleaseGrid<T>({
         numColumns={NUM_COLUMNS}
         ListHeaderComponent={
           IS_IOS ? undefined : (
-            <View style={styles.sortRow}>
-              <AlbumSortTrigger
-                selected={sortMode}
-                onPress={() => sortSheetRef.current?.snapToIndex(0)}
+            <View style={styles.androidHeader}>
+              <SearchBar
+                value={searchQuery}
+                onChangeText={onSearchChange}
+                sortMode="alpha"
+                onSortChange={() => {}}
+                showSort={false}
+                placeholder={searchPlaceholder}
               />
+              <View style={styles.sortRow}>
+                <AlbumSortTrigger
+                  selected={sortMode}
+                  onPress={() => sortSheetRef.current?.snapToIndex(0)}
+                />
+              </View>
             </View>
           )
         }
+        ListEmptyComponent={emptyComponent}
         contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -136,6 +191,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: CARD_GAP / 2,
     paddingBottom: CARD_GAP,
+  },
+  androidHeader: {
+    paddingHorizontal: CARD_GAP / 2,
   },
   sortRow: {
     paddingBottom: 12,

@@ -33,6 +33,11 @@ export function ReleasesGridScreen() {
       sortMode={grid.sortMode}
       onSortChange={grid.setSortMode}
       sortOptions={grid.sortOptions}
+      searchQuery={grid.searchQuery}
+      onSearchChange={grid.setSearchQuery}
+      searchPlaceholder="Search releases"
+      hasUnderlyingItems={grid.hasUnderlyingItems}
+      emptyMessage="No releases to show"
       renderItem={(item) => (
         <ReleaseGroupCard
           releaseGroup={item}
