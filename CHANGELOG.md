@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.5.0...v0.6.0) (2026-05-11)
+
+
+### Features
+
+* **artist:** add album search in view all albums view ([#97](https://github.com/dylfrancis/aurral-pocket/issues/97)) ([d8e3870](https://github.com/dylfrancis/aurral-pocket/commit/d8e38705e9b25859cbd8d6283e3cb0450212f814))
+* **search:** add album search ([#92](https://github.com/dylfrancis/aurral-pocket/issues/92)) ([c83b8b2](https://github.com/dylfrancis/aurral-pocket/commit/c83b8b2ea201fda5378c148316a43cb90e4b808e))
+
+
+### Bug Fixes
+
+* **artist:** album art loading refresh and styling updates ([94c17df](https://github.com/dylfrancis/aurral-pocket/commit/94c17dfd8945023ecf4db49536823b76a1e2deed))
+
 ## [0.5.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.4.0...v0.5.0) (2026-05-05)
 
 
