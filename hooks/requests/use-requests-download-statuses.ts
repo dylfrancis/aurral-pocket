@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "expo-router/react-navigation";
 import { getDownloadStatuses } from "@/lib/api/library";
 import { requestsKeys } from "@/lib/query-keys";
 import type { DownloadStatusMap } from "@/lib/types/library";
