@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "expo-router/react-navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { getRequests } from "@/lib/api/requests";
 import { requestsKeys } from "@/lib/query-keys";

@@ -62,13 +62,13 @@ export function CoverArtImage({
           width="100%"
           height={0}
           borderRadius={borderRadius}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
       )}
       {url && (
         <Image
           source={{ uri: url }}
-          style={[StyleSheet.absoluteFillObject, { borderRadius }]}
+          style={[StyleSheet.absoluteFill, { borderRadius }]}
           contentFit="cover"
           transition={200}
           blurRadius={blurRadius}
