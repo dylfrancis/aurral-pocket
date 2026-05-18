@@ -28,7 +28,7 @@
     "@react-native-picker/picker": "2.11.4",
     "@react-native-segmented-control/segmented-control": "2.5.7",
     "@react-navigation/bottom-tabs": "^7.15.5",
-    "@react-navigation/elements": "^2.9.15",
+    "@react-navigation/elements": "^2.9.18",
     "@react-navigation/native": "^7.1.8",
     "@shopify/flash-list": "2.0.2",
     "@tanstack/react-query": "^5.100.5",
