@@ -120,21 +120,18 @@ export function removeArtistFromBlocklist(
   blocklist: Blocklist,
   entry: BlockedArtist,
 ): Blocklist {
-  return toggleArtistInBlocklist(
-    {
-      ...blocklist,
-      artists: blocklist.artists.filter((a) => {
-        const aMbid = a.mbid?.toLowerCase() ?? null;
-        const eMbid = entry.mbid?.toLowerCase() ?? null;
-        const aName = a.name?.trim().toLowerCase() ?? "";
-        const eName = entry.name?.trim().toLowerCase() ?? "";
-        if (eMbid && aMbid) return aMbid !== eMbid;
-        if (!eMbid && eName) return aName !== eName;
-        return true;
-      }),
-    },
-    entry,
-  );
+  const targetMbid = entry.mbid?.toLowerCase() ?? null;
+  const targetName = entry.name?.trim().toLowerCase() ?? "";
+  return {
+    ...blocklist,
+    artists: blocklist.artists.filter((a) => {
+      const aMbid = a.mbid?.toLowerCase() ?? null;
+      const aName = a.name?.trim().toLowerCase() ?? "";
+      if (targetMbid && aMbid) return aMbid !== targetMbid;
+      if (!targetMbid && targetName) return aName !== targetName;
+      return true;
+    }),
+  };
 }
 
 export function addTagToBlocklist(
