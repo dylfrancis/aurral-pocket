@@ -4,6 +4,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
@@ -12,36 +15,56 @@ import { useLogout } from "@/hooks/auth/use-logout";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Required"),
+    newPassword: z.string().min(1, "Required"),
+    confirmPassword: z.string().min(1, "Required"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "New password and confirmation must match.",
+    path: ["confirmPassword"],
+  });
+
+type PasswordForm = z.infer<typeof passwordSchema>;
+
+const defaultValues: PasswordForm = {
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+};
+
 export function PasswordSection() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const [expanded, setExpanded] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   const changePassword = useChangePassword();
   const logoutMutation = useLogout();
 
-  const reset = () => {
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-  };
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useForm<PasswordForm>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues,
+    mode: "onChange",
+  });
 
   const toggle = () => {
     Haptics.selectionAsync();
-    if (expanded) reset();
+    if (expanded) reset(defaultValues);
     setExpanded((v) => !v);
   };
 
-  const matches = newPassword.length > 0 && newPassword === confirmPassword;
-  const canSave =
-    currentPassword.length > 0 && matches && !changePassword.isPending;
-
-  const handleSave = () => {
+  const onSubmit = (values: PasswordForm) => {
     changePassword.mutate(
-      { currentPassword, newPassword },
+      {
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      },
       {
         onSuccess: () => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -50,7 +73,7 @@ export function PasswordSection() {
             message: "Sign in again to continue.",
             preset: "done",
           });
-          reset();
+          reset(defaultValues);
           setExpanded(false);
           logoutMutation.mutate();
         },
@@ -97,51 +120,72 @@ export function PasswordSection() {
 
       {expanded ? (
         <View style={styles.form}>
-          <BottomSheetTextInput
-            style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
-            placeholder="Current password"
-            placeholderTextColor={colors.placeholder}
-            value={currentPassword}
-            onChangeText={setCurrentPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            textContentType="password"
-            editable={!changePassword.isPending}
+          <Controller
+            control={control}
+            name="currentPassword"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <BottomSheetTextInput
+                style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
+                placeholder="Current password"
+                placeholderTextColor={colors.placeholder}
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="password"
+                editable={!changePassword.isPending}
+              />
+            )}
           />
-          <BottomSheetTextInput
-            style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
-            placeholder="New password"
-            placeholderTextColor={colors.placeholder}
-            value={newPassword}
-            onChangeText={setNewPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            textContentType="newPassword"
-            editable={!changePassword.isPending}
+          <Controller
+            control={control}
+            name="newPassword"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <BottomSheetTextInput
+                style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
+                placeholder="New password"
+                placeholderTextColor={colors.placeholder}
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="newPassword"
+                editable={!changePassword.isPending}
+              />
+            )}
           />
-          <BottomSheetTextInput
-            style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
-            placeholder="Confirm new password"
-            placeholderTextColor={colors.placeholder}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            textContentType="newPassword"
-            editable={!changePassword.isPending}
+          <Controller
+            control={control}
+            name="confirmPassword"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <BottomSheetTextInput
+                style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
+                placeholder="Confirm new password"
+                placeholderTextColor={colors.placeholder}
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="newPassword"
+                editable={!changePassword.isPending}
+              />
+            )}
           />
-          {confirmPassword.length > 0 && !matches ? (
+          {errors.confirmPassword?.message ? (
             <Text variant="error" style={styles.mismatch}>
-              New password and confirmation must match.
+              {errors.confirmPassword.message}
             </Text>
           ) : null}
           <Button
             title="Update password"
-            onPress={handleSave}
-            disabled={!canSave}
+            onPress={handleSubmit(onSubmit)}
+            disabled={!isValid}
             loading={changePassword.isPending}
           />
         </View>

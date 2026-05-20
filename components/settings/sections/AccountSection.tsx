@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -16,6 +16,11 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { ListenHistoryProvider } from "@/lib/types/me";
 
+type AccountForm = {
+  provider: ListenHistoryProvider;
+  username: string;
+};
+
 const providerOptions: { value: ListenHistoryProvider; label: string }[] = [
   { value: "lastfm", label: "Last.fm" },
   { value: "listenbrainz", label: "ListenBrainz" },
@@ -27,36 +32,35 @@ export function AccountSection() {
   const { data, isPending, isError, refetch } = useListeningHistory();
   const updateMutation = useUpdateListeningHistory();
 
-  const savedProvider: ListenHistoryProvider =
-    data?.listenHistoryProvider ?? "lastfm";
-  const savedUsername = data?.listenHistoryUsername ?? "";
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isDirty },
+  } = useForm<AccountForm>({
+    defaultValues: { provider: "lastfm", username: "" },
+    values: data
+      ? {
+          provider: data.listenHistoryProvider ?? "lastfm",
+          username: data.listenHistoryUsername ?? "",
+        }
+      : undefined,
+    resetOptions: { keepDirtyValues: true },
+  });
 
-  const [provider, setProvider] =
-    useState<ListenHistoryProvider>(savedProvider);
-  const [username, setUsername] = useState(savedUsername);
+  const provider = useWatch({ control, name: "provider" });
 
-  useEffect(() => {
-    setProvider(savedProvider);
-    setUsername(savedUsername);
-  }, [savedProvider, savedUsername]);
-
-  const trimmedUsername = username.trim();
-  const isDirty = useMemo(
-    () =>
-      provider !== savedProvider || trimmedUsername !== (savedUsername ?? ""),
-    [provider, savedProvider, trimmedUsername, savedUsername],
-  );
-
-  const handleSave = () => {
+  const onSubmit = (values: AccountForm) => {
+    const trimmed = values.username.trim();
     updateMutation.mutate(
       {
-        listenHistoryProvider: provider,
-        listenHistoryUsername: trimmedUsername || null,
+        listenHistoryProvider: values.provider,
+        listenHistoryUsername: trimmed || null,
       },
       {
         onSuccess: () => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          setUsername(trimmedUsername);
+          reset({ provider: values.provider, username: trimmed });
           Burnt.toast({
             title: "Listening preferences saved",
             preset: "done",
@@ -118,39 +122,52 @@ export function AccountSection() {
         >
           Provider
         </Text>
-        <SegmentedRow
-          value={provider}
-          options={providerOptions}
-          onChange={setProvider}
+        <Controller
+          control={control}
+          name="provider"
+          render={({ field: { value, onChange } }) => (
+            <SegmentedRow
+              value={value}
+              options={providerOptions}
+              onChange={onChange}
+            />
+          )}
         />
       </View>
 
-      <View style={styles.field}>
-        <Text
-          variant="caption"
-          style={[styles.fieldLabel, { color: colors.subtle }]}
-        >
-          Username
-        </Text>
-        <BottomSheetTextInput
-          style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
-          placeholder={
-            provider === "listenbrainz"
-              ? "Your ListenBrainz username"
-              : "Your Last.fm username"
-          }
-          placeholderTextColor={colors.placeholder}
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!updateMutation.isPending}
-        />
-      </View>
+      <Controller
+        control={control}
+        name="username"
+        render={({ field: { value, onChange, onBlur } }) => (
+          <View style={styles.field}>
+            <Text
+              variant="caption"
+              style={[styles.fieldLabel, { color: colors.subtle }]}
+            >
+              Username
+            </Text>
+            <BottomSheetTextInput
+              style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
+              placeholder={
+                provider === "listenbrainz"
+                  ? "Your ListenBrainz username"
+                  : "Your Last.fm username"
+              }
+              placeholderTextColor={colors.placeholder}
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!updateMutation.isPending}
+            />
+          </View>
+        )}
+      />
 
       <Button
         title="Save"
-        onPress={handleSave}
+        onPress={handleSubmit(onSubmit)}
         loading={updateMutation.isPending}
         disabled={!isDirty}
         style={styles.saveButton}
