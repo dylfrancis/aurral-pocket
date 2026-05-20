@@ -113,6 +113,13 @@ export default function LibraryScreen() {
   return (
     <>
       <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon="nosign"
+          accessibilityLabel="Blocklist"
+          onPress={() => router.push("/blocklist")}
+        >
+          Blocklist
+        </Stack.Toolbar.Button>
         <Stack.Toolbar.Menu icon="arrow.up.arrow.down" title="Sort By">
           {SORT_OPTIONS.map((option) => (
             <Stack.Toolbar.MenuAction

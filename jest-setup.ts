@@ -2,6 +2,12 @@ jest.mock("expo/fetch", () => ({
   fetch: jest.fn(),
 }));
 
+jest.mock("burnt", () => ({
+  toast: jest.fn(),
+  alert: jest.fn(),
+  dismissAllAlerts: jest.fn(),
+}));
+
 jest.mock("@expo/vector-icons", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
