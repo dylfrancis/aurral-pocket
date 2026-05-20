@@ -225,6 +225,8 @@ export const api = {
     request<T>("POST", path, body, config),
   put: <T>(path: string, body?: unknown, config?: RequestConfig) =>
     request<T>("PUT", path, body, config),
+  patch: <T>(path: string, body?: unknown, config?: RequestConfig) =>
+    request<T>("PATCH", path, body, config),
   delete: <T>(path: string, config?: RequestConfig) =>
     request<T>("DELETE", path, undefined, config),
   get defaults() {

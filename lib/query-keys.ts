@@ -48,3 +48,7 @@ export const flowKeys = {
   status: () => ["flow", "status"] as const,
   workerSettings: () => ["flow", "worker", "settings"] as const,
 };
+
+export const meKeys = {
+  listeningHistory: () => ["me", "listeningHistory"] as const,
+};
