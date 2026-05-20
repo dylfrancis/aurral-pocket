@@ -41,6 +41,13 @@ export default function LibraryLayout() {
           headerBackButtonDisplayMode: "minimal",
         })}
       />
+      <Stack.Screen
+        name="blocklist"
+        options={{
+          title: "Blocklist",
+          headerBackButtonDisplayMode: "minimal",
+        }}
+      />
     </Stack>
   );
 }

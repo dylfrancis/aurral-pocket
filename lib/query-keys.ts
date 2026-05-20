@@ -42,6 +42,7 @@ export const discoverKeys = {
   nearbyShowsAll: () => ["discover", "nearbyShows"] as const,
   nearbyShows: (zipCode?: string, limit?: number) =>
     ["discover", "nearbyShows", zipCode ?? "", limit ?? null] as const,
+  blocklist: () => ["discover", "blocklist"] as const,
 };
 
 export const flowKeys = {

@@ -1,4 +1,5 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
+import { BlockHeaderButton } from "@/components/blocklist/BlockHeaderButton";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
@@ -280,6 +281,9 @@ export function ArtistDetailLayout({
         options={{
           headerTitle: () => (
             <ScrollHeaderTitle name={artistName} scrollY={scrollY} />
+          ),
+          headerRight: () => (
+            <BlockHeaderButton mbid={mbid} artistName={artistName} />
           ),
         }}
       />
