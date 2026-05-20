@@ -1,5 +1,5 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
-import { BlockHeaderButton } from "@/components/blocklist/BlockHeaderButton";
+import { BlockArtistChip } from "@/components/blocklist/BlockArtistChip";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
@@ -282,9 +282,6 @@ export function ArtistDetailLayout({
           headerTitle: () => (
             <ScrollHeaderTitle name={artistName} scrollY={scrollY} />
           ),
-          headerRight: () => (
-            <BlockHeaderButton mbid={mbid} artistName={artistName} />
-          ),
         }}
       />
       <Animated.ScrollView
@@ -358,8 +355,8 @@ export function ArtistDetailLayout({
           mbid={mbid}
         />
 
-        {inLibrary && (
-          <View style={styles.refreshRow}>
+        <View style={styles.footerRow}>
+          {inLibrary && (
             <Pressable
               onPress={() => refreshMutation.mutate()}
               disabled={refreshMutation.isPending}
@@ -377,8 +374,9 @@ export function ArtistDetailLayout({
                 {refreshMutation.isSuccess ? "Refreshed" : "Refresh"}
               </Text>
             </Pressable>
-          </View>
-        )}
+          )}
+          <BlockArtistChip mbid={mbid} artistName={artistName} />
+        </View>
       </Animated.ScrollView>
 
       <ReleaseGroupSheet
@@ -419,7 +417,10 @@ export function ArtistDetailLayout({
 }
 
 const styles = StyleSheet.create({
-  refreshRow: {
+  footerRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
     paddingHorizontal: 16,
     paddingTop: 16,
   },

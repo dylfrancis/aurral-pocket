@@ -112,7 +112,7 @@ export default function LibraryScreen() {
 
   return (
     <>
-      <Stack.Toolbar placement="left">
+      <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon="nosign"
           accessibilityLabel="Blocklist"
@@ -120,8 +120,6 @@ export default function LibraryScreen() {
         >
           Blocklist
         </Stack.Toolbar.Button>
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu icon="arrow.up.arrow.down" title="Sort By">
           {SORT_OPTIONS.map((option) => (
             <Stack.Toolbar.MenuAction

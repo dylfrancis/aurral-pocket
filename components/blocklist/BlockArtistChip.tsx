@@ -7,24 +7,21 @@ import {
   useIsArtistBlocked,
 } from "@/hooks/discover/use-blocklist";
 import { isValidMbid } from "@/lib/blocklist";
+import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 
-type BlockHeaderButtonProps = {
+type BlockArtistChipProps = {
   mbid: string;
   artistName: string;
 };
 
-export function BlockHeaderButton({
-  mbid,
-  artistName,
-}: BlockHeaderButtonProps) {
+export function BlockArtistChip({ mbid, artistName }: BlockArtistChipProps) {
   const colors = Colors[useColorScheme()];
   const { blocked, loaded } = useIsArtistBlocked(mbid, artistName);
   const { toggleArtist, isPending } = useBlocklistMutations();
 
-  const onConfirmBlock = useCallback(() => {
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+  const doToggle = useCallback(() => {
     toggleArtist({
       mbid: isValidMbid(mbid) ? mbid : null,
       name: artistName || null,
@@ -35,10 +32,7 @@ export function BlockHeaderButton({
     if (!loaded || isPending) return;
     if (blocked) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      toggleArtist({
-        mbid: isValidMbid(mbid) ? mbid : null,
-        name: artistName || null,
-      });
+      doToggle();
       return;
     }
     Alert.alert(
@@ -46,54 +40,65 @@ export function BlockHeaderButton({
       "They'll be hidden from Discover, Flow, and nearby shows.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Block", style: "destructive", onPress: onConfirmBlock },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: () => {
+            void Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Warning,
+            );
+            doToggle();
+          },
+        },
       ],
     );
-  }, [
-    loaded,
-    isPending,
-    blocked,
-    toggleArtist,
-    mbid,
-    artistName,
-    onConfirmBlock,
-  ]);
+  }, [loaded, isPending, blocked, artistName, doToggle]);
 
   const iconName: keyof typeof Ionicons.glyphMap = blocked
     ? "ban"
     : "ban-outline";
-  const tint = !loaded ? colors.subtle : blocked ? colors.error : colors.text;
+  const tint = !loaded ? colors.subtle : blocked ? colors.error : colors.brand;
+  const label = blocked ? "Unblock artist" : "Block artist";
 
   return (
     <Pressable
       onPress={onPress}
       disabled={!loaded || isPending}
-      hitSlop={10}
       accessibilityRole="button"
-      accessibilityLabel={blocked ? "Unblock artist" : "Block artist"}
+      accessibilityLabel={label}
       style={({ pressed }) => [
-        styles.button,
+        styles.chip,
+        { backgroundColor: colors.card },
         (!loaded || isPending) && styles.disabled,
         pressed && styles.pressed,
       ]}
     >
       {isPending ? (
-        <ActivityIndicator size="small" color={tint} />
+        <ActivityIndicator size={16} color={tint} />
       ) : (
-        <Ionicons name={iconName} size={22} color={tint} />
+        <Ionicons name={iconName} size={18} color={tint} />
       )}
+      <Text variant="caption" style={{ color: colors.text }}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
-    padding: 6,
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignSelf: "flex-start",
   },
   pressed: {
-    opacity: 0.5,
+    opacity: 0.7,
   },
   disabled: {
-    opacity: 0.4,
+    opacity: 0.5,
   },
 });
