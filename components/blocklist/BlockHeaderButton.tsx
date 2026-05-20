@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 import {
   useBlocklistMutations,
@@ -30,7 +29,6 @@ export function BlockHeaderButton({
       mbid: isValidMbid(mbid) ? mbid : null,
       name: artistName || null,
     });
-    Burnt.toast({ title: `Blocked ${artistName}`, preset: "done" });
   }, [toggleArtist, mbid, artistName]);
 
   const onPress = useCallback(() => {
@@ -41,7 +39,6 @@ export function BlockHeaderButton({
         mbid: isValidMbid(mbid) ? mbid : null,
         name: artistName || null,
       });
-      Burnt.toast({ title: `Unblocked ${artistName}`, preset: "done" });
       return;
     }
     Alert.alert(

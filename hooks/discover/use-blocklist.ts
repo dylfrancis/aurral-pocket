@@ -1,5 +1,3 @@
-import { useCallback } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBlocklist, updateBlocklist } from "@/lib/api/discover";
 import {
   addTagToBlocklist,
@@ -11,6 +9,9 @@ import {
 } from "@/lib/blocklist";
 import { discoverKeys } from "@/lib/query-keys";
 import type { BlockedArtist, Blocklist } from "@/lib/types/discover";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as Burnt from "burnt";
+import { useCallback } from "react";
 
 const EMPTY: Blocklist = { artists: [], tags: [] };
 
@@ -47,10 +48,12 @@ export function useBlocklistMutations() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation<Blocklist, Error, Variables, MutationContext>({
-    mutationFn: async (vars) => {
-      const current =
+    // onMutate has already written the desired state to the cache. Read it
+    // back and PUT. Applying `vars` again here would double-toggle (e.g.
+    // toggleArtist would invert the optimistic change before sending).
+    mutationFn: async () => {
+      const next =
         queryClient.getQueryData<Blocklist>(discoverKeys.blocklist()) ?? EMPTY;
-      const next = applyVariables(current, vars);
       return updateBlocklist(next);
     },
     onMutate: async (vars) => {
@@ -65,10 +68,15 @@ export function useBlocklistMutations() {
       );
       return { previous };
     },
-    onError: (_err, _vars, context) => {
+    onError: (err, _vars, context) => {
       if (context?.previous !== undefined) {
         queryClient.setQueryData(discoverKeys.blocklist(), context.previous);
       }
+      Burnt.toast({
+        title: "Couldn't update blocklist",
+        message: err instanceof Error ? err.message : "Please try again.",
+        preset: "error",
+      });
     },
     onSuccess: (server) => {
       queryClient.setQueryData(discoverKeys.blocklist(), server);

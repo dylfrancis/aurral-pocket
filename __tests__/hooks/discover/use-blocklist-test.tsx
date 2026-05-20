@@ -118,6 +118,56 @@ describe("useBlocklistMutations — optimistic update", () => {
     await waitFor(() => expect(result.current.isPending).toBe(false));
   });
 
+  it("toggleArtist add persists after the network round-trip", async () => {
+    // Regression: previously the mutationFn re-applied `vars` to the
+    // already-optimistic cache, double-toggling and PUTing the un-toggled
+    // state. Server then echoed the wrong value back into the cache.
+    const initial: Blocklist = { artists: [], tags: [] };
+    const { wrapper, client } = makeWrapper(initial);
+
+    mockUpdateBlocklist.mockImplementation(async (next: Blocklist) => next);
+
+    const { result } = renderHook(() => useBlocklistMutations(), { wrapper });
+
+    act(() => result.current.toggleArtist({ mbid: MBID_A, name: "Foo" }));
+
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+
+    expect(mockUpdateBlocklist).toHaveBeenCalledWith({
+      artists: [{ mbid: MBID_A, name: "Foo" }],
+      tags: [],
+    });
+    expect(client.getQueryData<Blocklist>(discoverKeys.blocklist())).toEqual({
+      artists: [{ mbid: MBID_A, name: "Foo" }],
+      tags: [],
+    });
+  });
+
+  it("toggleArtist remove persists after the network round-trip", async () => {
+    const initial: Blocklist = {
+      artists: [{ mbid: MBID_A, name: "Foo" }],
+      tags: [],
+    };
+    const { wrapper, client } = makeWrapper(initial);
+
+    mockUpdateBlocklist.mockImplementation(async (next: Blocklist) => next);
+
+    const { result } = renderHook(() => useBlocklistMutations(), { wrapper });
+
+    act(() => result.current.toggleArtist({ mbid: MBID_A, name: "Foo" }));
+
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+
+    expect(mockUpdateBlocklist).toHaveBeenCalledWith({
+      artists: [],
+      tags: [],
+    });
+    expect(client.getQueryData<Blocklist>(discoverKeys.blocklist())).toEqual({
+      artists: [],
+      tags: [],
+    });
+  });
+
   it("rolls back the cache when updateBlocklist rejects", async () => {
     const initial: Blocklist = {
       artists: [{ mbid: MBID_A, name: "Foo" }],

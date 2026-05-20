@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
@@ -76,16 +75,11 @@ export function BlocklistManager() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     toggleArtist(payload);
     setArtistQuery("");
-    Burnt.toast({ title: `Blocked ${artist.name}`, preset: "done" });
   };
 
   const handleRemoveArtist = (artist: BlockedArtist) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     removeArtist(artist);
-    Burnt.toast({
-      title: `Unblocked ${artist.name ?? artist.mbid ?? "artist"}`,
-      preset: "done",
-    });
   };
 
   const handleSelectTag = (tag: string) => {
@@ -94,7 +88,6 @@ export function BlocklistManager() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     addTag(normalized);
     setTagQuery("");
-    Burnt.toast({ title: `Blocked #${normalized}`, preset: "done" });
   };
 
   const handleSubmitTag = () => {
@@ -110,7 +103,6 @@ export function BlocklistManager() {
   const handleRemoveTag = (tag: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     removeTag(tag);
-    Burnt.toast({ title: `Unblocked #${tag}`, preset: "done" });
   };
 
   if (isLoading) return <ScreenCenter loading />;
