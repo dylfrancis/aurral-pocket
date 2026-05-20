@@ -153,25 +153,6 @@ export function SuggestionRow({
   );
 }
 
-export function BlockedPill() {
-  const colors = Colors[useColorScheme()];
-  return (
-    <View
-      style={[
-        styles.pill,
-        { backgroundColor: colors.brandMuted, borderColor: colors.separator },
-      ]}
-    >
-      <Text
-        variant="caption"
-        style={{ color: colors.subtle, fontFamily: Fonts.medium }}
-      >
-        Blocked
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
@@ -205,11 +186,5 @@ const styles = StyleSheet.create({
   rowLabels: {
     flex: 1,
     gap: 2,
-  },
-  pill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
   },
 });

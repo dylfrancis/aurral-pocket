@@ -1,15 +1,12 @@
 import { useCallback } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Alert } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Chip } from "@/components/ui/Chip";
 import {
   useBlocklistMutations,
   useIsArtistBlocked,
 } from "@/hooks/discover/use-blocklist";
 import { isValidMbid } from "@/lib/blocklist";
-import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 
 type BlockArtistChipProps = {
   mbid: string;
@@ -17,7 +14,6 @@ type BlockArtistChipProps = {
 };
 
 export function BlockArtistChip({ mbid, artistName }: BlockArtistChipProps) {
-  const colors = Colors[useColorScheme()];
   const { blocked, loaded } = useIsArtistBlocked(mbid, artistName);
   const { toggleArtist, isPending } = useBlocklistMutations();
 
@@ -54,51 +50,15 @@ export function BlockArtistChip({ mbid, artistName }: BlockArtistChipProps) {
     );
   }, [loaded, isPending, blocked, artistName, doToggle]);
 
-  const iconName: keyof typeof Ionicons.glyphMap = blocked
-    ? "ban"
-    : "ban-outline";
-  const tint = !loaded ? colors.subtle : blocked ? colors.error : colors.brand;
-  const label = blocked ? "Unblock artist" : "Block artist";
-
   return (
-    <Pressable
+    <Chip
+      label={blocked ? "Unblock artist" : "Block artist"}
+      icon={blocked ? "ban" : "ban-outline"}
+      variant={blocked ? "error" : "neutral"}
+      size="md"
       onPress={onPress}
-      disabled={!loaded || isPending}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [
-        styles.chip,
-        { backgroundColor: colors.card },
-        (!loaded || isPending) && styles.disabled,
-        pressed && styles.pressed,
-      ]}
-    >
-      {isPending ? (
-        <ActivityIndicator size={16} color={tint} />
-      ) : (
-        <Ionicons name={iconName} size={18} color={tint} />
-      )}
-      <Text variant="caption" style={{ color: colors.text }}>
-        {label}
-      </Text>
-    </Pressable>
+      loading={isPending}
+      disabled={!loaded}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    alignSelf: "flex-start",
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});
