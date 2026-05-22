@@ -112,19 +112,24 @@ describe("useNearbyShows", () => {
     const { result } = renderHook(() => useNearbyShows(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockGetNearbyShows).toHaveBeenCalledWith(undefined, undefined);
+    expect(mockGetNearbyShows).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      undefined,
+    );
   });
 
-  it("forwards zipCode and limit to the API", async () => {
+  it("forwards zipCode, limit and radius to the API", async () => {
     mockGetNearbyShows.mockResolvedValue(emptyResponse);
 
     const { wrapper } = makeWrapper();
-    renderHook(() => useNearbyShows({ zipCode: "10001", limit: 5 }), {
-      wrapper,
-    });
+    renderHook(
+      () => useNearbyShows({ zipCode: "10001", limit: 5, radiusMiles: 100 }),
+      { wrapper },
+    );
 
     await waitFor(() =>
-      expect(mockGetNearbyShows).toHaveBeenCalledWith("10001", 5),
+      expect(mockGetNearbyShows).toHaveBeenCalledWith("10001", 5, 100),
     );
   });
 

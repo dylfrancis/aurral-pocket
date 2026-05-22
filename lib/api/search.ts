@@ -74,12 +74,19 @@ export async function getRecentReleases() {
   return r.data;
 }
 
-export async function getNearbyShows(zipCode?: string, limit?: number) {
+export async function getNearbyShows(
+  zipCode?: string,
+  limit?: number,
+  radiusMiles?: number,
+) {
   const params: Record<string, string | number> = {};
   const trimmed = zipCode?.trim();
   if (trimmed) params.zip = trimmed;
   if (Number.isFinite(limit) && (limit as number) > 0) {
     params.limit = Math.floor(limit as number);
+  }
+  if (Number.isFinite(radiusMiles) && (radiusMiles as number) > 0) {
+    params.radius = Math.floor(radiusMiles as number);
   }
   const r = await api.get<NearbyShowsResponse>("/discover/nearby-shows", {
     params: Object.keys(params).length > 0 ? params : undefined,

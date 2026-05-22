@@ -5,14 +5,15 @@ import { discoverKeys } from "@/lib/query-keys";
 type UseNearbyShowsOptions = {
   zipCode?: string;
   limit?: number;
+  radiusMiles?: number;
   enabled?: boolean;
 };
 
 export function useNearbyShows(options: UseNearbyShowsOptions = {}) {
-  const { zipCode, limit, enabled = true } = options;
+  const { zipCode, limit, radiusMiles, enabled = true } = options;
   return useQuery({
-    queryKey: discoverKeys.nearbyShows(zipCode, limit),
-    queryFn: () => getNearbyShows(zipCode, limit),
+    queryKey: discoverKeys.nearbyShows(zipCode, limit, radiusMiles),
+    queryFn: () => getNearbyShows(zipCode, limit, radiusMiles),
     enabled,
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,

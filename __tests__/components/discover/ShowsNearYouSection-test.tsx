@@ -1,5 +1,6 @@
 jest.mock("@/hooks/discover", () => ({
   useNearbyShows: jest.fn(),
+  useNearbyLocationPref: jest.fn(),
 }));
 
 jest.mock("@/hooks/use-color-scheme", () => ({
@@ -21,51 +22,28 @@ jest.mock("@/components/ui/Skeleton", () => {
   };
 });
 
-jest.mock("@react-native-segmented-control/segmented-control", () => {
-  const React = require("react");
-  const { Pressable, Text, View } = require("react-native");
-  type MockProps = {
-    values: string[];
-    selectedIndex: number;
-    onChange: (event: {
-      nativeEvent: { selectedSegmentIndex: number };
-    }) => void;
-  };
-  return {
-    __esModule: true,
-    default: ({ values, onChange }: MockProps) =>
-      React.createElement(
-        View,
-        { testID: "mock-segmented-control" },
-        values.map((value, index) =>
-          React.createElement(
-            Pressable,
-            {
-              key: value,
-              onPress: () =>
-                onChange({ nativeEvent: { selectedSegmentIndex: index } }),
-            },
-            React.createElement(Text, null, value),
-          ),
-        ),
-      ),
-  };
-});
-
 import { render, fireEvent } from "@testing-library/react-native";
 import { ShowsNearYouSection } from "@/components/discover/ShowsNearYouSection";
-import { useNearbyShows } from "@/hooks/discover";
+import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import type { ConcertEvent } from "@/lib/types/search";
 
 const mockUseNearbyShows = useNearbyShows as unknown as jest.Mock;
+const mockUseNearbyLocationPref = useNearbyLocationPref as unknown as jest.Mock;
 
 const baseProps = {
   onShowPress: jest.fn(),
   onOpenSettings: jest.fn(),
+  onViewAll: jest.fn(),
+};
+
+const defaultPref = {
   mode: "ip" as const,
   appliedZip: "",
-  onModeChange: jest.fn(),
-  onEditZip: jest.fn(),
+  radiusMiles: 50,
+  hydrated: true,
+  setMode: jest.fn(),
+  setAppliedZip: jest.fn(),
+  setRadiusMiles: jest.fn(),
 };
 
 const show = (
@@ -83,6 +61,7 @@ const show = (
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseNearbyLocationPref.mockReturnValue(defaultPref);
 });
 
 describe("ShowsNearYouSection", () => {
@@ -122,16 +101,21 @@ describe("ShowsNearYouSection", () => {
     expect(baseProps.onOpenSettings).toHaveBeenCalled();
   });
 
-  it("renders 'ZIP not set' when mode is zip and appliedZip is empty", () => {
+  it("renders 'ZIP not set' when mode is zip and appliedZip is empty, routes to full page", () => {
+    mockUseNearbyLocationPref.mockReturnValue({
+      ...defaultPref,
+      mode: "zip",
+      appliedZip: "",
+    });
     mockUseNearbyShows.mockReturnValue({ data: undefined, isLoading: false });
 
     const { queryByText, getByText } = render(
-      <ShowsNearYouSection {...baseProps} mode="zip" appliedZip="" />,
+      <ShowsNearYouSection {...baseProps} />,
     );
 
     expect(queryByText("ZIP not set")).toBeTruthy();
-    fireEvent.press(getByText("Set ZIP"));
-    expect(baseProps.onEditZip).toHaveBeenCalled();
+    fireEvent.press(getByText("Open Shows Near You"));
+    expect(baseProps.onViewAll).toHaveBeenCalled();
   });
 
   it("renders 'No upcoming nearby matches' when shows is empty", () => {
@@ -166,29 +150,15 @@ describe("ShowsNearYouSection", () => {
     expect(baseProps.onShowPress).toHaveBeenCalledWith(s);
   });
 
-  it("calls onModeChange('zip') when ZIP segment is tapped", () => {
+  it("invokes onViewAll when the header chevron is pressed", () => {
     mockUseNearbyShows.mockReturnValue({
       data: { configured: true, location: null, shows: [show({ id: "s1" })] },
       isLoading: false,
     });
 
     const { getByText } = render(<ShowsNearYouSection {...baseProps} />);
-    fireEvent.press(getByText("ZIP"));
+    fireEvent.press(getByText("Shows Near You"));
 
-    expect(baseProps.onModeChange).toHaveBeenCalledWith("zip");
-  });
-
-  it("calls onModeChange('ip') when Your Area segment is tapped", () => {
-    mockUseNearbyShows.mockReturnValue({
-      data: { configured: true, location: null, shows: [show({ id: "s1" })] },
-      isLoading: false,
-    });
-
-    const { getByText } = render(
-      <ShowsNearYouSection {...baseProps} mode="zip" appliedZip="10001" />,
-    );
-    fireEvent.press(getByText("Your Area"));
-
-    expect(baseProps.onModeChange).toHaveBeenCalledWith("ip");
+    expect(baseProps.onViewAll).toHaveBeenCalled();
   });
 });

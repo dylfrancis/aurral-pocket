@@ -336,6 +336,27 @@ describe("getNearbyShows", () => {
     }
   });
 
+  it("includes radius when it is a positive finite number", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await getNearbyShows("10001", 15, 100);
+    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
+      params: { zip: "10001", limit: 15, radius: 100 },
+    });
+  });
+
+  it("omits radius when zero, negative, or non-finite", async () => {
+    mockApi.get.mockResolvedValue({ data: emptyResponse });
+
+    await getNearbyShows("10001", undefined, 0);
+    await getNearbyShows("10001", undefined, -5);
+    await getNearbyShows("10001", undefined, Number.NaN);
+
+    for (const call of mockApi.get.mock.calls) {
+      expect(call[1].params).not.toHaveProperty("radius");
+    }
+  });
+
   it("propagates errors", async () => {
     mockApi.get.mockRejectedValue(new Error("503"));
     await expect(getNearbyShows()).rejects.toThrow("503");
