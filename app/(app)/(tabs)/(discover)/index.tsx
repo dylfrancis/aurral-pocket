@@ -8,14 +8,12 @@ import {
   RecommendedForYouSection,
   ShowsNearYouSection,
 } from "@/components/discover";
-import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
 import { SettingsSheet } from "@/components/settings/SettingsSheet";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
   useDiscovery,
-  useNearbyLocationPref,
   useRecentlyAdded,
   useRecentReleases,
 } from "@/hooks/discover";
@@ -51,28 +49,9 @@ export default function DiscoverScreen() {
   const { data: discovery, refetch: refetchDiscovery } = useDiscovery();
   const { refetch: refetchRecentlyAdded } = useRecentlyAdded();
   const { refetch: refetchRecentReleases } = useRecentReleases();
-  const { mode, appliedZip, setMode, setAppliedZip } = useNearbyLocationPref();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [zipEditorVisible, setZipEditorVisible] = useState(false);
   const settingsSheetRef = useRef<BottomSheetModal>(null);
-
-  const openZipEditor = useCallback(() => {
-    setZipEditorVisible(true);
-  }, []);
-
-  const closeZipEditor = useCallback(() => {
-    setZipEditorVisible(false);
-  }, []);
-
-  const handleZipSave = useCallback(
-    (zip: string) => {
-      setAppliedZip(zip);
-      setMode("zip");
-      setZipEditorVisible(false);
-    },
-    [setAppliedZip, setMode],
-  );
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -183,6 +162,9 @@ export default function DiscoverScreen() {
     () => pushDiscoverList("recent-releases"),
     [pushDiscoverList],
   );
+  const handleViewAllNearbyShows = useCallback(() => {
+    router.push("/(app)/(tabs)/(discover)/nearby-shows");
+  }, [router]);
 
   const notConfigured =
     discovery?.configured === false &&
@@ -273,10 +255,7 @@ export default function DiscoverScreen() {
             <ShowsNearYouSection
               onShowPress={handleShowPress}
               onOpenSettings={handleOpenSettings}
-              mode={mode}
-              appliedZip={appliedZip}
-              onModeChange={setMode}
-              onEditZip={openZipEditor}
+              onViewAll={handleViewAllNearbyShows}
             />
             <RecentReleasesSection
               onAlbumPress={handleAlbumPress}
@@ -298,12 +277,6 @@ export default function DiscoverScreen() {
           </>
         )}
       </ScrollView>
-      <NearbyZipEditorSheet
-        visible={zipEditorVisible}
-        currentZip={appliedZip}
-        onSave={handleZipSave}
-        onClose={closeZipEditor}
-      />
       <SettingsSheet sheetRef={settingsSheetRef} />
     </>
   );

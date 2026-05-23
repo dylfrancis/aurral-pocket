@@ -6,5 +6,11 @@ export { GenreSectionsPanel } from "./GenreSectionsPanel";
 export { ExploreByTagSection } from "./ExploreByTagSection";
 export { RecentReleasesSection } from "./RecentReleasesSection";
 export { ShowsNearYouSection } from "./ShowsNearYouSection";
+export { NearbyShowRow } from "./NearbyShowRow";
+export {
+  NearbyShowsFilterSheet,
+  type NearbyShowsDateRange,
+  type NearbyShowsSort,
+} from "./NearbyShowsFilterSheet";
 export { HorizontalArtistCard } from "./HorizontalArtistCard";
 export { DiscoverReleaseCard } from "./DiscoverReleaseCard";

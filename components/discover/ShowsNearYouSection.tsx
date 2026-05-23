@@ -3,39 +3,24 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
-import type { NearbyLocationMode } from "@/hooks/discover";
-import { useNearbyShows } from "@/hooks/discover";
+import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { formatShowDateLabel } from "@/lib/discover/show-dates";
 import type { ConcertEvent } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
-import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
 import { useCallback } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ViewAllCard } from "./ViewAllCard";
 
 type Props = {
   onShowPress: (show: ConcertEvent) => void;
   onOpenSettings: () => void;
-  mode: NearbyLocationMode;
-  appliedZip: string;
-  onModeChange: (mode: NearbyLocationMode) => void;
-  onEditZip: () => void;
+  onViewAll: () => void;
 };
 
 const CARD_WIDTH = 240;
-
-function formatShowDate(show: ConcertEvent) {
-  if (!show.date && !show.dateTime) return null;
-  const raw = show.dateTime || show.date || "";
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return show.date || null;
-  const dateLabel = parsed.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  return show.time ? `${dateLabel} at ${show.time}` : dateLabel;
-}
+const PREVIEW_LIMIT = 8;
 
 function formatShowLocation(show: ConcertEvent) {
   return [show.venueName, [show.city, show.region].filter(Boolean).join(", ")]
@@ -46,12 +31,10 @@ function formatShowLocation(show: ConcertEvent) {
 export function ShowsNearYouSection({
   onShowPress,
   onOpenSettings,
-  mode,
-  appliedZip,
-  onModeChange,
-  onEditZip,
+  onViewAll,
 }: Props) {
   const colors = Colors[useColorScheme()];
+  const { mode, appliedZip } = useNearbyLocationPref();
 
   const zipModeActive = mode === "zip";
   const zipQueryValue =
@@ -61,21 +44,6 @@ export function ShowsNearYouSection({
     zipCode: zipQueryValue,
     enabled: !zipModeActive || !!appliedZip.trim(),
   });
-
-  const handleSelectIp = useCallback(() => {
-    void Haptics.selectionAsync();
-    onModeChange("ip");
-  }, [onModeChange]);
-
-  const handleSelectZip = useCallback(() => {
-    void Haptics.selectionAsync();
-    onModeChange("zip");
-  }, [onModeChange]);
-
-  const handleEditZip = useCallback(() => {
-    void Haptics.selectionAsync();
-    onEditZip();
-  }, [onEditZip]);
 
   const handleShowPress = useCallback(
     (show: ConcertEvent) => {
@@ -90,24 +58,19 @@ export function ShowsNearYouSection({
     onOpenSettings();
   }, [onOpenSettings]);
 
+  const handleViewAll = useCallback(() => {
+    onViewAll();
+  }, [onViewAll]);
+
   const locationLabel =
     data?.location?.label || data?.location?.postalCode || "";
 
   const header = (
-    <SectionHeader
-      title="Shows Near You"
-      trailing={
-        <ModeToggle
-          mode={mode}
-          onSelectIp={handleSelectIp}
-          onSelectZip={handleSelectZip}
-        />
-      }
-    />
+    <SectionHeader title="Shows Near You" onNavigate={handleViewAll} />
   );
 
-  const locationInner = (
-    <>
+  const locationRow = data?.configured !== false && (
+    <View style={styles.locationRow}>
       <Text
         variant="body"
         style={[styles.locationText, { color: colors.subtle }]}
@@ -115,36 +78,8 @@ export function ShowsNearYouSection({
       >
         {locationLabel}
       </Text>
-      {zipModeActive && (
-        <View
-          style={[
-            styles.editButton,
-            { backgroundColor: colors.card, borderColor: colors.separator },
-          ]}
-        >
-          <Ionicons name="pencil" size={11} color={colors.subtle} />
-        </View>
-      )}
-    </>
+    </View>
   );
-
-  const locationRow =
-    data?.configured !== false &&
-    (zipModeActive ? (
-      <Pressable
-        onPress={handleEditZip}
-        accessibilityLabel="Edit ZIP"
-        hitSlop={{ top: 8, bottom: 8 }}
-        style={({ pressed }) => [
-          styles.locationRow,
-          pressed && { opacity: 0.6 },
-        ]}
-      >
-        {locationInner}
-      </Pressable>
-    ) : (
-      <View style={styles.locationRow}>{locationInner}</View>
-    ));
 
   if (isLoading) {
     return (
@@ -219,9 +154,9 @@ export function ShowsNearYouSection({
             variant="caption"
             style={[styles.emptyBody, { color: colors.subtle }]}
           >
-            Enter a ZIP code to search for shows in that area.
+            Enter a ZIP code on the Shows Near You page to search that area.
           </Text>
-          <Button title="Set ZIP" onPress={handleEditZip} />
+          <Button title="Open Shows Near You" onPress={handleViewAll} />
         </View>
       </View>
     );
@@ -261,6 +196,8 @@ export function ShowsNearYouSection({
     );
   }
 
+  const hasMore = shows.length > PREVIEW_LIMIT;
+
   return (
     <View style={styles.container}>
       {header}
@@ -270,8 +207,8 @@ export function ShowsNearYouSection({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.list}
       >
-        {shows.slice(0, 8).map((show) => {
-          const date = formatShowDate(show);
+        {shows.slice(0, PREVIEW_LIMIT).map((show) => {
+          const date = formatShowDateLabel(show);
           const where = formatShowLocation(show);
           return (
             <Pressable
@@ -348,63 +285,17 @@ export function ShowsNearYouSection({
             </Pressable>
           );
         })}
+        {hasMore ? (
+          <ViewAllCard size={CARD_WIDTH * 0.6} onPress={handleViewAll} />
+        ) : null}
       </ScrollView>
     </View>
-  );
-}
-
-type ModeToggleProps = {
-  mode: NearbyLocationMode;
-  onSelectIp: () => void;
-  onSelectZip: () => void;
-};
-
-const MODE_VALUES = ["Your Area", "ZIP"] as const;
-
-function ModeToggle({ mode, onSelectIp, onSelectZip }: ModeToggleProps) {
-  const colors = Colors[useColorScheme()];
-  const zipActive = mode === "zip";
-
-  return (
-    <SegmentedControl
-      values={MODE_VALUES as unknown as string[]}
-      selectedIndex={zipActive ? 1 : 0}
-      onChange={(event) => {
-        const index = event.nativeEvent.selectedSegmentIndex;
-        if (index === 0) onSelectIp();
-        else onSelectZip();
-      }}
-      fontStyle={{
-        fontFamily: Fonts.medium,
-        fontSize: 12,
-        color: colors.text,
-      }}
-      activeFontStyle={{
-        fontFamily: Fonts.semiBold,
-        fontSize: 12,
-        color: colors.background,
-      }}
-      tintColor={colors.brand}
-      backgroundColor={colors.background}
-      style={styles.segmentedControl}
-    />
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     paddingTop: 12,
-  },
-  segmentedControl: {
-    width: 160,
-  },
-  editButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
   },
   locationRow: {
     flexDirection: "row",

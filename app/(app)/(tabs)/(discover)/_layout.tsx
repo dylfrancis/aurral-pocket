@@ -40,6 +40,14 @@ export default function DiscoverLayout() {
         })}
       />
       <Stack.Screen
+        name="nearby-shows"
+        options={{
+          title: "Shows Near You",
+          headerLargeTitleEnabled: true,
+          headerBackButtonDisplayMode: "minimal",
+        }}
+      />
+      <Stack.Screen
         name="artist/albums"
         options={({ route }) => ({
           title: (route.params as { title?: string })?.title ?? "Albums",
