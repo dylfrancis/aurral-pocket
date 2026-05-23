@@ -39,11 +39,9 @@ const baseProps = {
 const defaultPref = {
   mode: "ip" as const,
   appliedZip: "",
-  radiusMiles: 50,
   hydrated: true,
   setMode: jest.fn(),
   setAppliedZip: jest.fn(),
-  setRadiusMiles: jest.fn(),
 };
 
 const show = (

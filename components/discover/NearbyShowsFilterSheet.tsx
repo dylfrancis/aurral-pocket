@@ -9,10 +9,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { NEARBY_RADIUS_OPTIONS } from "@/hooks/discover/use-nearby-location-pref";
 
 export type NearbyShowsSort = "date" | "distance" | "artist";
 export type NearbyShowsDateRange = "all" | "weekend" | "next30";
+export type NearbyShowsSource = "all" | "library" | "recommended";
 
 export const SORT_OPTIONS: { value: NearbyShowsSort; label: string }[] = [
   { value: "date", label: "Date" },
@@ -29,14 +29,20 @@ export const DATE_RANGE_OPTIONS: {
   { value: "next30", label: "Next 30 days" },
 ];
 
+export const SOURCE_OPTIONS: { value: NearbyShowsSource; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "library", label: "Library" },
+  { value: "recommended", label: "Recommended" },
+];
+
 type Props = {
   visible: boolean;
   sort: NearbyShowsSort;
   dateRange: NearbyShowsDateRange;
-  radiusMiles: number;
+  source: NearbyShowsSource;
   onChangeSort: (next: NearbyShowsSort) => void;
   onChangeDateRange: (next: NearbyShowsDateRange) => void;
-  onChangeRadius: (next: number) => void;
+  onChangeSource: (next: NearbyShowsSource) => void;
   onClose: () => void;
 };
 
@@ -48,10 +54,10 @@ export function NearbyShowsFilterSheet(props: Props) {
 function NearbyShowsFilterSheetContent({
   sort,
   dateRange,
-  radiusMiles,
+  source,
   onChangeSort,
   onChangeDateRange,
-  onChangeRadius,
+  onChangeSource,
   onClose,
 }: Props) {
   const colors = Colors[useColorScheme()];
@@ -101,6 +107,20 @@ function NearbyShowsFilterSheetContent({
             Filters
           </Text>
 
+          <FilterGroup label="Show">
+            {SOURCE_OPTIONS.map((opt) => (
+              <OptionRow
+                key={opt.value}
+                label={opt.label}
+                selected={source === opt.value}
+                onPress={() => {
+                  void Haptics.selectionAsync();
+                  onChangeSource(opt.value);
+                }}
+              />
+            ))}
+          </FilterGroup>
+
           <FilterGroup label="Sort by">
             {SORT_OPTIONS.map((opt) => (
               <OptionRow
@@ -124,20 +144,6 @@ function NearbyShowsFilterSheetContent({
                 onPress={() => {
                   void Haptics.selectionAsync();
                   onChangeDateRange(opt.value);
-                }}
-              />
-            ))}
-          </FilterGroup>
-
-          <FilterGroup label="Search radius">
-            {NEARBY_RADIUS_OPTIONS.map((miles) => (
-              <OptionRow
-                key={miles}
-                label={`${miles} miles`}
-                selected={radiusMiles === miles}
-                onPress={() => {
-                  void Haptics.selectionAsync();
-                  onChangeRadius(miles);
                 }}
               />
             ))}

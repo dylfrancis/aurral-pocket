@@ -19,9 +19,13 @@ import { SearchBar } from "@/components/library/SearchBar";
 import { NearbyShowRow } from "@/components/discover/NearbyShowRow";
 import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
 import {
+  DATE_RANGE_OPTIONS,
   NearbyShowsFilterSheet,
+  SORT_OPTIONS,
+  SOURCE_OPTIONS,
   type NearbyShowsDateRange,
   type NearbyShowsSort,
+  type NearbyShowsSource,
 } from "@/components/discover/NearbyShowsFilterSheet";
 import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -36,13 +40,6 @@ import type { ConcertEvent } from "@/lib/types/search";
 
 const PAGE_LIMIT = 60;
 
-type SourceFilter = "all" | "library" | "recommended";
-const SOURCE_OPTIONS: { value: SourceFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "library", label: "Library" },
-  { value: "recommended", label: "Recommended" },
-];
-
 function withinDateRange(
   show: ConcertEvent,
   range: NearbyShowsDateRange,
@@ -53,7 +50,7 @@ function withinDateRange(
   return range === "weekend" ? isInThisWeekend(date) : isInNext30Days(date);
 }
 
-function matchesSource(show: ConcertEvent, source: SourceFilter): boolean {
+function matchesSource(show: ConcertEvent, source: NearbyShowsSource): boolean {
   if (source === "all") return true;
   return show.matchType === source;
 }
@@ -103,17 +100,10 @@ function compareShows(a: ConcertEvent, b: ConcertEvent, sort: NearbyShowsSort) {
 
 export default function NearbyShowsScreen() {
   const colors = Colors[useColorScheme()];
-  const {
-    mode,
-    appliedZip,
-    radiusMiles,
-    setMode,
-    setAppliedZip,
-    setRadiusMiles,
-  } = useNearbyLocationPref();
+  const { mode, appliedZip, setMode, setAppliedZip } = useNearbyLocationPref();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [sourceFilter, setSourceFilter] = useState<NearbyShowsSource>("all");
   const [sort, setSort] = useState<NearbyShowsSort>("date");
   const [dateRange, setDateRange] = useState<NearbyShowsDateRange>("all");
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
@@ -128,7 +118,6 @@ export default function NearbyShowsScreen() {
   const { data, isLoading, refetch } = useNearbyShows({
     zipCode: zipQueryValue,
     limit: PAGE_LIMIT,
-    radiusMiles,
     enabled: queryEnabled,
   });
 
@@ -275,42 +264,6 @@ export default function NearbyShowsScreen() {
           </Text>
         </Pressable>
       )}
-      {data?.configured !== false && (
-        <View style={styles.sourceChipRow}>
-          {SOURCE_OPTIONS.map((option) => {
-            const active = sourceFilter === option.value;
-            return (
-              <Pressable
-                key={option.value}
-                onPress={() => {
-                  void Haptics.selectionAsync();
-                  setSourceFilter(option.value);
-                }}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: active ? `${colors.brand}20` : colors.card,
-                    borderColor: active ? colors.brand : colors.separator,
-                  },
-                ]}
-              >
-                <Text
-                  variant="caption"
-                  style={[
-                    styles.chipLabel,
-                    {
-                      color: active ? colors.brand : colors.subtle,
-                      fontFamily: active ? Fonts.semiBold : Fonts.medium,
-                    },
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
     </View>
   );
 
@@ -402,19 +355,6 @@ export default function NearbyShowsScreen() {
       <Stack.Screen
         options={{
           title: "Shows Near You",
-          headerRight: () => (
-            <Pressable
-              onPress={openFilters}
-              accessibilityLabel="Filters"
-              style={({ pressed }) => [
-                styles.headerButton,
-                { opacity: pressed ? 0.6 : 1 },
-              ]}
-              hitSlop={8}
-            >
-              <Ionicons name="options-outline" size={22} color={colors.text} />
-            </Pressable>
-          ),
           ...(IS_IOS
             ? {
                 headerSearchBarOptions: {
@@ -427,9 +367,69 @@ export default function NearbyShowsScreen() {
                   onCancelButtonPress: () => setSearchQuery(""),
                 },
               }
-            : {}),
+            : {
+                headerRight: () => (
+                  <Pressable
+                    onPress={openFilters}
+                    accessibilityLabel="Filters"
+                    style={({ pressed }) => [
+                      styles.headerButton,
+                      { opacity: pressed ? 0.6 : 1 },
+                    ]}
+                    hitSlop={8}
+                  >
+                    <Ionicons
+                      name="options-outline"
+                      size={22}
+                      color={colors.text}
+                    />
+                  </Pressable>
+                ),
+              }),
         }}
       />
+      {IS_IOS && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu
+            icon="line.3.horizontal.decrease.circle"
+            title="Filters"
+          >
+            <Stack.Toolbar.Menu inline title="Sort by">
+              {SORT_OPTIONS.map((option) => (
+                <Stack.Toolbar.MenuAction
+                  key={option.value}
+                  isOn={sort === option.value}
+                  onPress={() => setSort(option.value)}
+                >
+                  {option.label}
+                </Stack.Toolbar.MenuAction>
+              ))}
+            </Stack.Toolbar.Menu>
+            <Stack.Toolbar.Menu inline title="Date range">
+              {DATE_RANGE_OPTIONS.map((option) => (
+                <Stack.Toolbar.MenuAction
+                  key={option.value}
+                  isOn={dateRange === option.value}
+                  onPress={() => setDateRange(option.value)}
+                >
+                  {option.label}
+                </Stack.Toolbar.MenuAction>
+              ))}
+            </Stack.Toolbar.Menu>
+            <Stack.Toolbar.Menu inline title="Show">
+              {SOURCE_OPTIONS.map((option) => (
+                <Stack.Toolbar.MenuAction
+                  key={option.value}
+                  isOn={sourceFilter === option.value}
+                  onPress={() => setSourceFilter(option.value)}
+                >
+                  {option.label}
+                </Stack.Toolbar.MenuAction>
+              ))}
+            </Stack.Toolbar.Menu>
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      )}
       <FlatList
         data={visibleShows}
         renderItem={renderItem}
@@ -451,16 +451,18 @@ export default function NearbyShowsScreen() {
           />
         }
       />
-      <NearbyShowsFilterSheet
-        visible={filterSheetVisible}
-        sort={sort}
-        dateRange={dateRange}
-        radiusMiles={radiusMiles}
-        onChangeSort={setSort}
-        onChangeDateRange={setDateRange}
-        onChangeRadius={setRadiusMiles}
-        onClose={closeFilters}
-      />
+      {!IS_IOS && (
+        <NearbyShowsFilterSheet
+          visible={filterSheetVisible}
+          sort={sort}
+          dateRange={dateRange}
+          source={sourceFilter}
+          onChangeSort={setSort}
+          onChangeDateRange={setDateRange}
+          onChangeSource={setSourceFilter}
+          onClose={closeFilters}
+        />
+      )}
       <NearbyZipEditorSheet
         visible={zipEditorVisible}
         currentZip={appliedZip}
@@ -500,19 +502,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   zipEditText: {
-    fontSize: 12,
-  },
-  sourceChipRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  chipLabel: {
     fontSize: 12,
   },
   rowWrapper: {

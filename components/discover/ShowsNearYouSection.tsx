@@ -34,7 +34,7 @@ export function ShowsNearYouSection({
   onViewAll,
 }: Props) {
   const colors = Colors[useColorScheme()];
-  const { mode, appliedZip, radiusMiles } = useNearbyLocationPref();
+  const { mode, appliedZip } = useNearbyLocationPref();
 
   const zipModeActive = mode === "zip";
   const zipQueryValue =
@@ -42,7 +42,6 @@ export function ShowsNearYouSection({
 
   const { data, isLoading } = useNearbyShows({
     zipCode: zipQueryValue,
-    radiusMiles,
     enabled: !zipModeActive || !!appliedZip.trim(),
   });
 
@@ -60,7 +59,6 @@ export function ShowsNearYouSection({
   }, [onOpenSettings]);
 
   const handleViewAll = useCallback(() => {
-    void Haptics.selectionAsync();
     onViewAll();
   }, [onViewAll]);
 

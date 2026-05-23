@@ -40,14 +40,8 @@ export const discoverKeys = {
   recentlyAdded: () => ["discover", "recentlyAdded"] as const,
   recentReleases: () => ["discover", "recentReleases"] as const,
   nearbyShowsAll: () => ["discover", "nearbyShows"] as const,
-  nearbyShows: (zipCode?: string, limit?: number, radiusMiles?: number) =>
-    [
-      "discover",
-      "nearbyShows",
-      zipCode ?? "",
-      limit ?? null,
-      radiusMiles ?? null,
-    ] as const,
+  nearbyShows: (zipCode?: string, limit?: number) =>
+    ["discover", "nearbyShows", zipCode ?? "", limit ?? null] as const,
   blocklist: () => ["discover", "blocklist"] as const,
 };
 

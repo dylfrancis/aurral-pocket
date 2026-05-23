@@ -1,13 +1,12 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
+import { Chip } from "@/components/ui/Chip";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import {
-  formatCalendarTile,
-  formatShowTime,
-  parseShowDate,
-} from "@/lib/discover/show-dates";
+import { formatShowDateLabel } from "@/lib/discover/show-dates";
 import type { ConcertEvent } from "@/lib/types/search";
 
 type Props = {
@@ -15,104 +14,50 @@ type Props = {
   onPress: () => void;
 };
 
-const TILE_SIZE = 64;
-
-function CalendarTile({ show }: { show: ConcertEvent }) {
-  const colors = Colors[useColorScheme()];
-  const date = parseShowDate(show);
-
-  if (!date) {
-    return (
-      <View
-        style={[
-          styles.tile,
-          { backgroundColor: colors.card, borderColor: colors.separator },
-        ]}
-      >
-        <Text
-          variant="caption"
-          style={[styles.tileMonth, { color: colors.subtle }]}
-        >
-          TBA
-        </Text>
-      </View>
-    );
-  }
-
-  const { month, day, weekday } = formatCalendarTile(date);
-
+function DistancePill({ distance }: { distance: number }) {
   return (
-    <View
-      style={[
-        styles.tile,
-        { backgroundColor: colors.card, borderColor: colors.separator },
-      ]}
-    >
-      <Text
-        variant="caption"
-        style={[
-          styles.tileMonth,
-          { color: colors.brand, fontFamily: Fonts.semiBold },
-        ]}
-      >
-        {month}
-      </Text>
-      <Text
-        variant="title"
-        style={[
-          styles.tileDay,
-          { color: colors.text, fontFamily: Fonts.semiBold },
-        ]}
-      >
-        {day}
-      </Text>
-      <Text
-        variant="caption"
-        style={[styles.tileWeekday, { color: colors.subtle }]}
-      >
-        {weekday}
+    <View style={styles.distancePill}>
+      <Text variant="caption" style={styles.distancePillText}>
+        {`${Math.round(distance)} MI`}
       </Text>
     </View>
   );
 }
 
 function SourceBadge({ sourceType }: { sourceType?: string }) {
-  const colors = Colors[useColorScheme()];
   if (sourceType !== "library" && sourceType !== "recommended") return null;
-  const label = sourceType === "library" ? "Library" : "Recommended";
-  const tint = sourceType === "library" ? colors.brand : colors.subtle;
   return (
-    <View style={[styles.badge, { borderColor: tint }]}>
-      <Text variant="caption" style={[styles.badgeText, { color: tint }]}>
-        {label}
-      </Text>
+    <View style={styles.sourceBadgeWrap}>
+      <Chip
+        label={sourceType === "library" ? "Library" : "Recommended"}
+        variant={sourceType === "library" ? "brand" : "subtle"}
+        size="sm"
+      />
     </View>
   );
 }
 
 function NearbyShowRowComponent({ show, onPress }: Props) {
   const colors = Colors[useColorScheme()];
-  const time = formatShowTime(show);
-  const venue = show.venueName || "";
-  const cityRegion = [show.city, show.region].filter(Boolean).join(", ");
-  const distance = Number.isFinite(show.distance)
-    ? `${Math.round(show.distance as number)} mi`
-    : "";
 
+  const dateLabel = formatShowDateLabel(show);
+  const venueLine = [
+    show.venueName,
+    [show.city, show.region].filter(Boolean).join(", "),
+  ]
+    .filter(Boolean)
+    .join(" – ");
+
+  const hasDistance = Number.isFinite(show.distance);
+  const hasArtistSubtitle =
+    !!show.eventName && show.eventName !== show.artistName;
   const title = show.eventName || show.artistName;
-  const subtitle =
-    show.eventName && show.eventName !== show.artistName
-      ? show.artistName
-      : null;
-
-  const metaParts = [time, venue].filter(Boolean);
-  const locationParts = [cityRegion, distance].filter(Boolean);
 
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.row,
+        styles.card,
         {
           backgroundColor: colors.card,
           borderColor: colors.separator,
@@ -120,8 +65,37 @@ function NearbyShowRowComponent({ show, onPress }: Props) {
         },
       ]}
     >
-      <CalendarTile show={show} />
+      <View style={[styles.imageWrap, { backgroundColor: colors.background }]}>
+        {show.image ? (
+          <Image
+            source={{ uri: show.image }}
+            style={styles.image}
+            contentFit="cover"
+            transition={150}
+          />
+        ) : (
+          <View
+            style={[styles.imageFallback, { borderColor: colors.separator }]}
+          >
+            <Ionicons
+              name="musical-notes-outline"
+              size={28}
+              color={colors.subtle}
+            />
+          </View>
+        )}
+        {hasDistance && <DistancePill distance={show.distance as number} />}
+      </View>
       <View style={styles.content}>
+        {hasArtistSubtitle && (
+          <Text
+            variant="caption"
+            style={[styles.artist, { color: colors.subtle }]}
+            numberOfLines={1}
+          >
+            {show.artistName}
+          </Text>
+        )}
         <Text
           variant="body"
           style={[
@@ -132,36 +106,31 @@ function NearbyShowRowComponent({ show, onPress }: Props) {
         >
           {title}
         </Text>
-        {!!subtitle && (
-          <Text
-            variant="caption"
-            style={[styles.subtitle, { color: colors.subtle }]}
-            numberOfLines={1}
-          >
-            {subtitle}
-          </Text>
-        )}
-        {metaParts.length > 0 && (
-          <Text
-            variant="caption"
-            style={[styles.meta, { color: colors.subtle }]}
-            numberOfLines={1}
-          >
-            {metaParts.join(" · ")}
-          </Text>
-        )}
-        <View style={styles.footer}>
-          {locationParts.length > 0 && (
+        {!!dateLabel && (
+          <View style={styles.metaRow}>
+            <Ionicons name="time-outline" size={14} color={colors.subtle} />
             <Text
               variant="caption"
-              style={[styles.meta, { color: colors.subtle }]}
+              style={[styles.metaText, { color: colors.subtle }]}
               numberOfLines={1}
             >
-              {locationParts.join(" · ")}
+              {dateLabel}
             </Text>
-          )}
-          <SourceBadge sourceType={show.matchType} />
-        </View>
+          </View>
+        )}
+        {!!venueLine && (
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={14} color={colors.subtle} />
+            <Text
+              variant="caption"
+              style={[styles.metaText, { color: colors.subtle }]}
+              numberOfLines={1}
+            >
+              {venueLine}
+            </Text>
+          </View>
+        )}
+        <SourceBadge sourceType={show.matchType} />
       </View>
     </Pressable>
   );
@@ -170,65 +139,67 @@ function NearbyShowRowComponent({ show, onPress }: Props) {
 export const NearbyShowRow = memo(NearbyShowRowComponent);
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 12,
+  card: {
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
   },
-  tile: {
-    width: TILE_SIZE,
-    height: TILE_SIZE,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
+  imageWrap: {
+    position: "relative",
+    width: "100%",
+    aspectRatio: 16 / 9,
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  imageFallback: {
+    width: "100%",
+    height: "100%",
+    borderBottomWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 4,
   },
-  tileMonth: {
-    fontSize: 10,
+  distancePill: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  distancePillText: {
+    fontSize: 11,
     letterSpacing: 0.5,
-  },
-  tileDay: {
-    fontSize: 22,
-    lineHeight: 26,
-  },
-  tileWeekday: {
-    fontSize: 10,
-    letterSpacing: 0.5,
+    color: "#FFFFFF",
+    fontFamily: Fonts.semiBold,
   },
   content: {
-    flex: 1,
-    gap: 2,
-    minWidth: 0,
+    padding: 14,
+    gap: 6,
+  },
+  artist: {
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    fontFamily: Fonts.medium,
   },
   title: {
-    fontSize: 15,
-    lineHeight: 19,
+    fontSize: 16,
+    lineHeight: 21,
   },
-  subtitle: {
-    fontSize: 12,
-  },
-  meta: {
-    fontSize: 12,
-  },
-  footer: {
+  metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+  },
+  metaText: {
+    flex: 1,
+    fontSize: 12,
+  },
+  sourceBadgeWrap: {
+    flexDirection: "row",
     marginTop: 2,
-    flexWrap: "wrap",
-  },
-  badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  badgeText: {
-    fontSize: 10,
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
   },
 });

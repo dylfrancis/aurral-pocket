@@ -265,7 +265,10 @@ export default function SearchResultsScreen() {
     <>
       {IS_IOS && isTagSearch && (
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu icon="line.3.horizontal.decrease" title="Scope">
+          <Stack.Toolbar.Menu
+            icon="line.3.horizontal.decrease.circle"
+            title="Scope"
+          >
             {TAG_SCOPE_OPTIONS.map((option) => (
               <Stack.Toolbar.MenuAction
                 key={option.key}
@@ -282,7 +285,10 @@ export default function SearchResultsScreen() {
 
       {IS_IOS && !isTagSearch && (
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu icon="line.3.horizontal.decrease" title="Scope">
+          <Stack.Toolbar.Menu
+            icon="line.3.horizontal.decrease.circle"
+            title="Scope"
+          >
             {SCOPE_OPTIONS.map((option) => (
               <Stack.Toolbar.MenuAction
                 key={option.key}

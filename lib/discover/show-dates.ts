@@ -24,21 +24,6 @@ export function formatShowDateLabel(show: ConcertEvent): string | null {
   return show.time ? `${dateLabel} at ${show.time}` : dateLabel;
 }
 
-export function formatShowTime(show: ConcertEvent): string | null {
-  if (show.time) return show.time;
-  if (!show.dateTime) return null;
-  const parsed = parseShowDate(show);
-  return parsed ? format(parsed, "p") : null;
-}
-
-export function formatCalendarTile(date: Date) {
-  return {
-    month: format(date, "MMM").toUpperCase(),
-    day: format(date, "d"),
-    weekday: format(date, "EEE").toUpperCase(),
-  };
-}
-
 export function isInThisWeekend(date: Date, now: Date = new Date()): boolean {
   const dow = getDay(date);
   if (dow !== 0 && dow !== 6) return false;
