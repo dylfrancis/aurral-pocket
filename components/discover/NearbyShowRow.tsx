@@ -3,6 +3,11 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import {
+  formatCalendarTile,
+  formatShowTime,
+  parseShowDate,
+} from "@/lib/discover/show-dates";
 import type { ConcertEvent } from "@/lib/types/search";
 
 type Props = {
@@ -11,24 +16,6 @@ type Props = {
 };
 
 const TILE_SIZE = 64;
-
-function parseShowDate(show: ConcertEvent): Date | null {
-  const raw = show.dateTime || show.date || "";
-  if (!raw) return null;
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function formatTime(show: ConcertEvent): string | null {
-  if (show.time) return show.time;
-  const parsed = parseShowDate(show);
-  if (!parsed) return null;
-  if (!show.dateTime) return null;
-  return parsed.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function CalendarTile({ show }: { show: ConcertEvent }) {
   const colors = Colors[useColorScheme()];
@@ -52,13 +39,7 @@ function CalendarTile({ show }: { show: ConcertEvent }) {
     );
   }
 
-  const month = date
-    .toLocaleString(undefined, { month: "short" })
-    .toUpperCase();
-  const day = date.getDate();
-  const weekday = date
-    .toLocaleString(undefined, { weekday: "short" })
-    .toUpperCase();
+  const { month, day, weekday } = formatCalendarTile(date);
 
   return (
     <View
@@ -111,7 +92,7 @@ function SourceBadge({ sourceType }: { sourceType?: string }) {
 
 function NearbyShowRowComponent({ show, onPress }: Props) {
   const colors = Colors[useColorScheme()];
-  const time = formatTime(show);
+  const time = formatShowTime(show);
   const venue = show.venueName || "";
   const cityRegion = [show.city, show.region].filter(Boolean).join(", ");
   const distance = Number.isFinite(show.distance)

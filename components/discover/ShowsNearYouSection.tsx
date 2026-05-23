@@ -5,6 +5,7 @@ import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { formatShowDateLabel } from "@/lib/discover/show-dates";
 import type { ConcertEvent } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -20,19 +21,6 @@ type Props = {
 
 const CARD_WIDTH = 240;
 const PREVIEW_LIMIT = 8;
-
-function formatShowDate(show: ConcertEvent) {
-  if (!show.date && !show.dateTime) return null;
-  const raw = show.dateTime || show.date || "";
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return show.date || null;
-  const dateLabel = parsed.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  return show.time ? `${dateLabel} at ${show.time}` : dateLabel;
-}
 
 function formatShowLocation(show: ConcertEvent) {
   return [show.venueName, [show.city, show.region].filter(Boolean).join(", ")]
@@ -222,7 +210,7 @@ export function ShowsNearYouSection({
         contentContainerStyle={styles.list}
       >
         {shows.slice(0, PREVIEW_LIMIT).map((show) => {
-          const date = formatShowDate(show);
+          const date = formatShowDateLabel(show);
           const where = formatShowLocation(show);
           return (
             <Pressable

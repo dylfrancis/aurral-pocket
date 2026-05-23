@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   FlatList,
   Linking,
@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Stack, useNavigation } from "expo-router";
+import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
@@ -27,6 +27,11 @@ import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
+import {
+  isInNext30Days,
+  isInThisWeekend,
+  parseShowDate,
+} from "@/lib/discover/show-dates";
 import type { ConcertEvent } from "@/lib/types/search";
 
 const PAGE_LIMIT = 60;
@@ -38,42 +43,6 @@ const SOURCE_OPTIONS: { value: SourceFilter; label: string }[] = [
   { value: "recommended", label: "Recommended" },
 ];
 
-function startOfDay(d: Date) {
-  const copy = new Date(d);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}
-
-function endOfDay(d: Date) {
-  const copy = new Date(d);
-  copy.setHours(23, 59, 59, 999);
-  return copy;
-}
-
-function getWeekendRange(now: Date) {
-  const day = now.getDay();
-  const daysUntilSaturday = (6 - day + 7) % 7;
-  const start = new Date(now);
-  start.setDate(now.getDate() + daysUntilSaturday);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 1);
-  return { start: startOfDay(start), end: endOfDay(end) };
-}
-
-function getNext30Range(now: Date) {
-  const start = startOfDay(now);
-  const end = new Date(now);
-  end.setDate(now.getDate() + 30);
-  return { start, end: endOfDay(end) };
-}
-
-function parseShowDate(show: ConcertEvent): Date | null {
-  const raw = show.dateTime || show.date || "";
-  if (!raw) return null;
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
 function withinDateRange(
   show: ConcertEvent,
   range: NearbyShowsDateRange,
@@ -81,10 +50,7 @@ function withinDateRange(
   if (range === "all") return true;
   const date = parseShowDate(show);
   if (!date) return false;
-  const now = new Date();
-  const { start, end } =
-    range === "weekend" ? getWeekendRange(now) : getNext30Range(now);
-  return date >= start && date <= end;
+  return range === "weekend" ? isInThisWeekend(date) : isInNext30Days(date);
 }
 
 function matchesSource(show: ConcertEvent, source: SourceFilter): boolean {
@@ -137,7 +103,6 @@ function compareShows(a: ConcertEvent, b: ConcertEvent, sort: NearbyShowsSort) {
 
 export default function NearbyShowsScreen() {
   const colors = Colors[useColorScheme()];
-  const navigation = useNavigation();
   const {
     mode,
     appliedZip,
@@ -215,37 +180,6 @@ export default function NearbyShowsScreen() {
       Linking.openURL(show.url).catch(() => {});
     }
   }, []);
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable
-          onPress={openFilters}
-          accessibilityLabel="Filters"
-          style={({ pressed }) => [
-            styles.headerButton,
-            { opacity: pressed ? 0.6 : 1 },
-          ]}
-          hitSlop={8}
-        >
-          <Ionicons name="options-outline" size={22} color={colors.text} />
-        </Pressable>
-      ),
-      ...(IS_IOS
-        ? {
-            headerSearchBarOptions: {
-              placeholder: "Search artists or events",
-              hideWhenScrolling: false,
-              autoCapitalize: "none" as const,
-              onChangeText: (e: { nativeEvent: { text: string } }) => {
-                setSearchQuery(e.nativeEvent.text);
-              },
-              onCancelButtonPress: () => setSearchQuery(""),
-            },
-          }
-        : {}),
-    });
-  }, [navigation, openFilters, colors.text]);
 
   const shows = useMemo(() => data?.shows ?? [], [data?.shows]);
 
@@ -465,7 +399,37 @@ export default function NearbyShowsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Shows Near You" }} />
+      <Stack.Screen
+        options={{
+          title: "Shows Near You",
+          headerRight: () => (
+            <Pressable
+              onPress={openFilters}
+              accessibilityLabel="Filters"
+              style={({ pressed }) => [
+                styles.headerButton,
+                { opacity: pressed ? 0.6 : 1 },
+              ]}
+              hitSlop={8}
+            >
+              <Ionicons name="options-outline" size={22} color={colors.text} />
+            </Pressable>
+          ),
+          ...(IS_IOS
+            ? {
+                headerSearchBarOptions: {
+                  placeholder: "Search artists or events",
+                  hideWhenScrolling: false,
+                  autoCapitalize: "none" as const,
+                  onChangeText: (e: { nativeEvent: { text: string } }) => {
+                    setSearchQuery(e.nativeEvent.text);
+                  },
+                  onCancelButtonPress: () => setSearchQuery(""),
+                },
+              }
+            : {}),
+        }}
+      />
       <FlatList
         data={visibleShows}
         renderItem={renderItem}
