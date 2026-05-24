@@ -7,8 +7,9 @@ import {
   View,
 } from "react-native";
 import * as Burnt from "burnt";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,7 +38,7 @@ import type { SearchAlbum } from "@/lib/types/search";
 
 type Props = {
   album: SearchAlbum | null;
-  sheetRef: React.RefObject<BottomSheet | null>;
+  sheetRef: React.RefObject<BottomSheetModal | null>;
 };
 
 const ACTIVE_STATUSES: ReadonlySet<SearchAlbum["status"]> = new Set([
@@ -132,7 +133,7 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
     onSuccess: ({ createdArtist }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       invalidateAfterMutation();
-      sheetRef.current?.close();
+      sheetRef.current?.dismiss();
       if (createdArtist && album?.artistName) {
         Burnt.toast({
           title: `Added ${album.artistName}`,
@@ -161,19 +162,16 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       invalidateAfterMutation();
-      sheetRef.current?.close();
+      sheetRef.current?.dismiss();
     },
     onError: (error) => {
       Alert.alert("Couldn't trigger search", describeError(error));
     },
   });
 
-  const handleSheetChange = useCallback(
-    (index: number) => {
-      if (index === -1) stopPreview();
-    },
-    [stopPreview],
-  );
+  const handleDismiss = useCallback(() => {
+    stopPreview();
+  }, [stopPreview]);
 
   const togglePreview = useCallback(
     (track: ReleaseGroupTrack) => {
@@ -223,13 +221,12 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
   };
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={sheetRef}
-      index={-1}
       snapPoints={["60%", "90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
-      onChange={handleSheetChange}
+      onDismiss={handleDismiss}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
@@ -328,7 +325,7 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
           </>
         )}
       </BottomSheetScrollView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

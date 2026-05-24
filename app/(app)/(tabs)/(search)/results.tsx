@@ -7,7 +7,7 @@ import {
   useNavigation,
   useRouter,
 } from "expo-router";
-import type BottomSheet from "@gorhom/bottom-sheet";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumSheet } from "@/components/search/SearchAlbumSheet";
@@ -177,11 +177,11 @@ export default function SearchResultsScreen() {
     [router],
   );
 
-  const sheetRef = useRef<BottomSheet | null>(null);
+  const sheetRef = useRef<BottomSheetModal | null>(null);
   const [activeAlbum, setActiveAlbum] = useState<SearchAlbum | null>(null);
   const handleAlbumPress = useCallback((album: SearchAlbum) => {
     setActiveAlbum(album);
-    sheetRef.current?.snapToIndex(0);
+    sheetRef.current?.present();
   }, []);
 
   const renderArtistItem = useCallback(

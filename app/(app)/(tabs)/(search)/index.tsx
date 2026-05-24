@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useNavigation, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import type BottomSheet from "@gorhom/bottom-sheet";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { SearchBar } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
@@ -156,11 +156,11 @@ export default function SearchScreen() {
 
   const noTagResults = hasQuery && isTagSearch && previewTags.length === 0;
 
-  const sheetRef = useRef<BottomSheet | null>(null);
+  const sheetRef = useRef<BottomSheetModal | null>(null);
   const [activeAlbum, setActiveAlbum] = useState<SearchAlbum | null>(null);
   const handleAlbumPress = useCallback((album: SearchAlbum) => {
     setActiveAlbum(album);
-    sheetRef.current?.snapToIndex(0);
+    sheetRef.current?.present();
   }, []);
 
   let content;

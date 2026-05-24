@@ -7,8 +7,9 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,7 +30,7 @@ import type { Album, DownloadStatusValue } from "@/lib/types/library";
 type AlbumSheetProps = {
   album: Album | null;
   artistName?: string;
-  sheetRef: React.RefObject<BottomSheet | null>;
+  sheetRef: React.RefObject<BottomSheetModal | null>;
   onDeleted?: () => void;
   downloadStatus?: DownloadStatusValue;
 };
@@ -79,7 +80,7 @@ export function AlbumSheet({
       queryClient.invalidateQueries({
         queryKey: libraryKeys.albums(album!.artistId),
       });
-      sheetRef.current?.close();
+      sheetRef.current?.dismiss();
       onDeleted?.();
     },
   });
@@ -123,9 +124,8 @@ export function AlbumSheet({
   );
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={sheetRef}
-      index={-1}
       snapPoints={["60%", "90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
@@ -242,7 +242,7 @@ export function AlbumSheet({
           </>
         )}
       </BottomSheetScrollView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

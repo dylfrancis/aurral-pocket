@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -62,6 +63,11 @@ function NearbyShowsFilterSheetContent({
 }: Props) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
+  const sheetRef = useRef<BottomSheetModal>(null);
+
+  useEffect(() => {
+    sheetRef.current?.present();
+  }, []);
 
   const renderBackdrop = useCallback(
     (backdropProps: React.ComponentProps<typeof BottomSheetBackdrop>) => (
@@ -76,19 +82,12 @@ function NearbyShowsFilterSheetContent({
     [],
   );
 
-  const handleSheetChange = useCallback(
-    (index: number) => {
-      if (index === -1) onClose();
-    },
-    [onClose],
-  );
-
   return (
-    <BottomSheet
-      index={0}
+    <BottomSheetModal
+      ref={sheetRef}
       enableDynamicSizing
       enablePanDownToClose
-      onChange={handleSheetChange}
+      onDismiss={onClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.card }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
@@ -150,7 +149,7 @@ function NearbyShowsFilterSheetContent({
           </FilterGroup>
         </ScrollView>
       </BottomSheetView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

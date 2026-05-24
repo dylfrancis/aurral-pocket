@@ -1,7 +1,8 @@
 import React, { useCallback } from "react";
 import { Pressable, StyleSheet } from "react-native";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -91,7 +92,7 @@ export function AlbumSortTrigger({ selected, onPress }: AlbumSortTriggerProps) {
 }
 
 type AlbumSortSheetProps = {
-  sheetRef: React.RefObject<BottomSheet | null>;
+  sheetRef: React.RefObject<BottomSheetModal | null>;
   selected: AlbumSortMode;
   onChange: (mode: AlbumSortMode) => void;
   options?: typeof ALBUM_SORT_OPTIONS;
@@ -109,7 +110,7 @@ export function AlbumSortSheet({
   const selectOption = useCallback(
     (key: AlbumSortMode) => {
       onChange(key);
-      sheetRef.current?.close();
+      sheetRef.current?.dismiss();
     },
     [onChange, sheetRef],
   );
@@ -126,9 +127,8 @@ export function AlbumSortSheet({
   );
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={sheetRef}
-      index={-1}
       enablePanDownToClose
       enableDynamicSizing
       backdropComponent={renderBackdrop}
@@ -181,7 +181,7 @@ export function AlbumSortSheet({
           );
         })}
       </BottomSheetView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Keyboard, StyleSheet, TextInput, View } from "react-native";
 import * as Haptics from "expo-haptics";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
@@ -49,7 +50,12 @@ function NearbyZipEditorSheetContent({
   const colors = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
+  const sheetRef = useRef<BottomSheetModal>(null);
   const [draft, setDraft] = useState(currentZip);
+
+  useEffect(() => {
+    sheetRef.current?.present();
+  }, []);
 
   const renderBackdrop = useCallback(
     (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
@@ -64,17 +70,16 @@ function NearbyZipEditorSheetContent({
     [],
   );
 
-  const handleSheetChange = useCallback(
-    (index: number) => {
-      if (index === -1) {
-        Keyboard.dismiss();
-        onClose();
-      } else if (index === 0) {
-        setTimeout(() => inputRef.current?.focus(), 150);
-      }
-    },
-    [onClose],
-  );
+  const handleDismiss = useCallback(() => {
+    Keyboard.dismiss();
+    onClose();
+  }, [onClose]);
+
+  const handleAnimate = useCallback((_fromIndex: number, toIndex: number) => {
+    if (toIndex === 0) {
+      setTimeout(() => inputRef.current?.focus(), 150);
+    }
+  }, []);
 
   const handleSave = useCallback(() => {
     const trimmed = draft.trim();
@@ -84,13 +89,14 @@ function NearbyZipEditorSheetContent({
   }, [draft, onSave]);
 
   return (
-    <BottomSheet
-      index={0}
+    <BottomSheetModal
+      ref={sheetRef}
       enableDynamicSizing
       enablePanDownToClose
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
-      onChange={handleSheetChange}
+      onAnimate={handleAnimate}
+      onDismiss={handleDismiss}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.card }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
@@ -129,7 +135,7 @@ function NearbyZipEditorSheetContent({
           <Button title="Save" onPress={handleSave} disabled={!draft.trim()} />
         </View>
       </BottomSheetView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

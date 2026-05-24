@@ -1,8 +1,9 @@
 import React, { forwardRef, useCallback, useRef } from "react";
 import { Keyboard, Linking, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
@@ -42,7 +43,7 @@ function getErrorMessage(error: Error | null): string | null {
   return error.message;
 }
 
-export const ConnectSheet = forwardRef<BottomSheet>(
+export const ConnectSheet = forwardRef<BottomSheetModal>(
   function ConnectSheet(_, ref) {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme];
@@ -66,16 +67,11 @@ export const ConnectSheet = forwardRef<BottomSheet>(
       connectMutation.mutate(data.url.trim());
     };
 
-    const handleSheetChange = useCallback(
-      (index: number) => {
-        if (index === -1) {
-          Keyboard.dismiss();
-          resetRef.current();
-          reset();
-        }
-      },
-      [reset],
-    );
+    const handleDismiss = useCallback(() => {
+      Keyboard.dismiss();
+      resetRef.current();
+      reset();
+    }, [reset]);
 
     const renderBackdrop = useCallback(
       (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
@@ -94,14 +90,13 @@ export const ConnectSheet = forwardRef<BottomSheet>(
       errors.url?.message ?? getErrorMessage(connectMutation.error);
 
     return (
-      <BottomSheet
+      <BottomSheetModal
         ref={ref}
-        index={-1}
         enableDynamicSizing
         enablePanDownToClose
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
-        onChange={handleSheetChange}
+        onDismiss={handleDismiss}
         backdropComponent={renderBackdrop}
         backgroundStyle={{ backgroundColor: colors.card }}
         handleIndicatorStyle={{ backgroundColor: colors.subtle }}
@@ -165,7 +160,7 @@ export const ConnectSheet = forwardRef<BottomSheet>(
             loading={connectMutation.isPending}
           />
         </BottomSheetView>
-      </BottomSheet>
+      </BottomSheetModal>
     );
   },
 );

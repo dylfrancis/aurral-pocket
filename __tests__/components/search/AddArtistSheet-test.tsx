@@ -27,12 +27,15 @@ jest.mock("@gorhom/bottom-sheet", () => {
     React.useImperativeHandle(ref, () => ({
       close: jest.fn(),
       snapToIndex: jest.fn(),
+      present: jest.fn(),
+      dismiss: jest.fn(),
     }));
     return <View {...props}>{children}</View>;
   });
   return {
     __esModule: true,
     default: BottomSheet,
+    BottomSheetModal: BottomSheet,
     BottomSheetBackdrop: (props: any) => <View {...props} />,
     BottomSheetScrollView: ({ children, ...props }: any) => (
       <View {...props}>{children}</View>
@@ -45,7 +48,12 @@ import { render, fireEvent } from "@testing-library/react-native";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 
 const sheetRef = {
-  current: { close: jest.fn(), snapToIndex: jest.fn() },
+  current: {
+    close: jest.fn(),
+    snapToIndex: jest.fn(),
+    present: jest.fn(),
+    dismiss: jest.fn(),
+  },
 } as any;
 
 beforeEach(() => {

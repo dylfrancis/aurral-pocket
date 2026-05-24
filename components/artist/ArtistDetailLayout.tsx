@@ -29,7 +29,7 @@ import type {
 } from "@/lib/types/library";
 import type { SimilarArtist } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
-import BottomSheet from "@gorhom/bottom-sheet";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -194,25 +194,25 @@ export function ArtistDetailLayout({
     return map;
   }, [typedAlbums]);
 
-  const releaseGroupSheetRef = useRef<BottomSheet>(null);
+  const releaseGroupSheetRef = useRef<BottomSheetModal>(null);
   const [selectedReleaseGroup, setSelectedReleaseGroup] =
     useState<ReleaseGroup | null>(null);
-  const albumSheetRef = useRef<BottomSheet>(null);
+  const albumSheetRef = useRef<BottomSheetModal>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
-  const addArtistSheetRef = useRef<BottomSheet>(null);
+  const addArtistSheetRef = useRef<BottomSheetModal>(null);
 
   const openReleaseGroup = useCallback(
     (rg: ReleaseGroup) => {
       stopPreview();
       setSelectedReleaseGroup(rg);
-      releaseGroupSheetRef.current?.snapToIndex(0);
+      releaseGroupSheetRef.current?.present();
     },
     [stopPreview],
   );
 
   const openAlbum = useCallback((album: Album) => {
     setSelectedAlbum(album);
-    albumSheetRef.current?.snapToIndex(0);
+    albumSheetRef.current?.present();
   }, []);
 
   const deleteMutation = useMutation({
@@ -306,7 +306,7 @@ export function ArtistDetailLayout({
           onBadgePress={handleBadgePress}
           onAddPress={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            addArtistSheetRef.current?.snapToIndex(0);
+            addArtistSheetRef.current?.present();
           }}
         />
 

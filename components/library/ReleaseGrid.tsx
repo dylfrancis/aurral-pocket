@@ -6,7 +6,7 @@ import {
   View,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import BottomSheet from "@gorhom/bottom-sheet";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Stack, useNavigation } from "expo-router";
 import {
   AlbumSortTrigger,
@@ -61,7 +61,7 @@ export function ReleaseGrid<T>({
   bottomSheet,
 }: ReleaseGridProps<T>) {
   const colors = Colors[useColorScheme()];
-  const sortSheetRef = useRef<BottomSheet>(null);
+  const sortSheetRef = useRef<BottomSheetModal>(null);
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -150,7 +150,7 @@ export function ReleaseGrid<T>({
               <View style={styles.sortRow}>
                 <AlbumSortTrigger
                   selected={sortMode}
-                  onPress={() => sortSheetRef.current?.snapToIndex(0)}
+                  onPress={() => sortSheetRef.current?.present()}
                 />
               </View>
             </View>
