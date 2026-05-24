@@ -27,7 +27,7 @@ export function BlockArtistChip({ mbid, artistName }: BlockArtistChipProps) {
   const onPress = useCallback(() => {
     if (!loaded || isPending) return;
     if (blocked) {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       doToggle();
       return;
     }

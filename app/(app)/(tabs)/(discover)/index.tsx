@@ -1,4 +1,5 @@
 import {
+  CustomizeDiscoverSheet,
   DiscoverHeaderSection,
   ExploreByTagSection,
   GenreSectionsPanel,
@@ -14,11 +15,13 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
   useDiscovery,
+  useDiscoverLayout,
   useRecentlyAdded,
   useRecentReleases,
 } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { discoverKeys } from "@/lib/query-keys";
+import type { DiscoverSection } from "@/lib/types/me";
 import type {
   ConcertEvent,
   DiscoveryArtist,
@@ -31,6 +34,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
+  Alert,
   Linking,
   Pressable,
   RefreshControl,
@@ -49,9 +53,15 @@ export default function DiscoverScreen() {
   const { data: discovery, refetch: refetchDiscovery } = useDiscovery();
   const { refetch: refetchRecentlyAdded } = useRecentlyAdded();
   const { refetch: refetchRecentReleases } = useRecentReleases();
+  const {
+    sections,
+    hydrated: layoutHydrated,
+    saveLayout,
+  } = useDiscoverLayout();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const settingsSheetRef = useRef<BottomSheetModal>(null);
+  const customizeSheetRef = useRef<BottomSheetModal>(null);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -132,6 +142,23 @@ export default function DiscoverScreen() {
 
   const handleOpenSettings = useCallback(() => {
     settingsSheetRef.current?.present();
+  }, []);
+
+  const handleOpenCustomize = useCallback(() => {
+    customizeSheetRef.current?.present();
+  }, []);
+
+  const handleSaveLayout = useCallback(
+    async (next: DiscoverSection[]) => {
+      await saveLayout(next);
+    },
+    [saveLayout],
+  );
+
+  const handleSaveLayoutError = useCallback((err: unknown) => {
+    const message =
+      err instanceof Error && err.message ? err.message : "Please try again.";
+    Alert.alert("Could not save layout", message);
   }, []);
 
   const pushDiscoverList = useCallback(
@@ -247,37 +274,86 @@ export default function DiscoverScreen() {
           </View>
         ) : (
           <>
-            <DiscoverHeaderSection onTagPress={handleTagPress} />
-            <RecentlyAddedSection
-              onArtistPress={handleRecentlyAddedPress}
-              onViewAll={handleViewAllRecentlyAdded}
+            <DiscoverHeaderSection
+              onTagPress={handleTagPress}
+              onCustomize={handleOpenCustomize}
             />
-            <ShowsNearYouSection
-              onShowPress={handleShowPress}
-              onOpenSettings={handleOpenSettings}
-              onViewAll={handleViewAllNearbyShows}
-            />
-            <RecentReleasesSection
-              onAlbumPress={handleAlbumPress}
-              onViewAll={handleViewAllRecentReleases}
-            />
-            <RecommendedForYouSection
-              onArtistPress={handleDiscoveryArtistPress}
-              onViewAll={handleViewAllRecommended}
-            />
-            <GlobalTrendingSection
-              onArtistPress={handleDiscoveryArtistPress}
-              onViewAll={handleViewAllTrending}
-            />
-            <GenreSectionsPanel
-              onArtistPress={handleGenreArtistPress}
-              onViewAllGenre={handleTagPress}
-            />
-            <ExploreByTagSection onTagPress={handleTagPress} />
+            {layoutHydrated
+              ? sections
+                  .filter((section) => section.enabled)
+                  .map((section) => {
+                    switch (section.id) {
+                      case "recentlyAdded":
+                        return (
+                          <RecentlyAddedSection
+                            key={section.id}
+                            onArtistPress={handleRecentlyAddedPress}
+                            onViewAll={handleViewAllRecentlyAdded}
+                          />
+                        );
+                      case "recommendedShows":
+                        return (
+                          <ShowsNearYouSection
+                            key={section.id}
+                            onShowPress={handleShowPress}
+                            onOpenSettings={handleOpenSettings}
+                            onViewAll={handleViewAllNearbyShows}
+                          />
+                        );
+                      case "recentReleases":
+                        return (
+                          <RecentReleasesSection
+                            key={section.id}
+                            onAlbumPress={handleAlbumPress}
+                            onViewAll={handleViewAllRecentReleases}
+                          />
+                        );
+                      case "recommended":
+                        return (
+                          <RecommendedForYouSection
+                            key={section.id}
+                            onArtistPress={handleDiscoveryArtistPress}
+                            onViewAll={handleViewAllRecommended}
+                          />
+                        );
+                      case "globalTop":
+                        return (
+                          <GlobalTrendingSection
+                            key={section.id}
+                            onArtistPress={handleDiscoveryArtistPress}
+                            onViewAll={handleViewAllTrending}
+                          />
+                        );
+                      case "genreSections":
+                        return (
+                          <GenreSectionsPanel
+                            key={section.id}
+                            onArtistPress={handleGenreArtistPress}
+                            onViewAllGenre={handleTagPress}
+                          />
+                        );
+                      case "topTags":
+                        return (
+                          <ExploreByTagSection
+                            key={section.id}
+                            onTagPress={handleTagPress}
+                          />
+                        );
+                      default:
+                        return null;
+                    }
+                  })
+              : null}
           </>
         )}
       </ScrollView>
       <SettingsSheet sheetRef={settingsSheetRef} />
+      <CustomizeDiscoverSheet
+        sheetRef={customizeSheetRef}
+        sections={sections}
+        onSave={handleSaveLayout}
+        onSaveError={handleSaveLayoutError}
+      />
     </>
   );
 }
