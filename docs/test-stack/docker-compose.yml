@@ -1,0 +1,30 @@
+services:
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: aurral-pocket-test-lidarr
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Etc/UTC}
+    volumes:
+      - ./data/lidarr/config:/config
+      - ./data/lidarr/music:/music
+      - ./data/lidarr/downloads:/downloads
+    ports:
+      - "${LIDARR_PORT:-8686}:8686"
+    restart: unless-stopped
+
+  aurral:
+    image: ghcr.io/lklynet/aurral:latest
+    container_name: aurral-pocket-test-aurral
+    environment:
+      - DOWNLOAD_FOLDER=/app/downloads
+      - TRUST_PROXY=${TRUST_PROXY:-false}
+    volumes:
+      - ./data/aurral/downloads:/app/downloads
+      - ./data/aurral/storage:/app/backend/data
+    ports:
+      - "${AURRAL_PORT:-3001}:3001"
+    depends_on:
+      - lidarr
+    restart: unless-stopped
