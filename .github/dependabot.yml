@@ -41,6 +41,8 @@ updates:
       # Expo SDK packages - managed by `npx expo install --fix`
       - dependency-name: "expo-*"
         versions: ["*"]
+      - dependency-name: "@expo/*"
+        versions: ["*"]
 
       # ESLint - must be upgraded alongside eslint-config-expo via `npx expo install eslint eslint-config-expo`
       - dependency-name: "eslint"
