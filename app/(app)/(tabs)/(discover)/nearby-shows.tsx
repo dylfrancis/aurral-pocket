@@ -122,14 +122,14 @@ export default function NearbyShowsScreen() {
   });
 
   const openFilters = useCallback(() => {
-    void Haptics.selectionAsync();
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setFilterSheetVisible(true);
   }, []);
 
   const closeFilters = useCallback(() => setFilterSheetVisible(false), []);
 
   const openZipEditor = useCallback(() => {
-    void Haptics.selectionAsync();
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setZipEditorVisible(true);
   }, []);
 

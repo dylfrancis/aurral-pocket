@@ -14,3 +14,4 @@ export {
 } from "./NearbyShowsFilterSheet";
 export { HorizontalArtistCard } from "./HorizontalArtistCard";
 export { DiscoverReleaseCard } from "./DiscoverReleaseCard";
+export { CustomizeDiscoverSheet } from "./CustomizeDiscoverSheet";

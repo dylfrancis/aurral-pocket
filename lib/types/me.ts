@@ -15,3 +15,22 @@ export type ChangePasswordPayload = {
   currentPassword: string;
   newPassword: string;
 };
+
+export type DiscoverSectionId =
+  | "recentlyAdded"
+  | "recommendedShows"
+  | "recentReleases"
+  | "recommended"
+  | "globalTop"
+  | "genreSections"
+  | "topTags";
+
+export type DiscoverSection = {
+  id: DiscoverSectionId;
+  label: string;
+  enabled: boolean;
+};
+
+export type DiscoverLayoutResponse = {
+  layout: DiscoverSection[];
+};

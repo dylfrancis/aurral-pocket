@@ -1,18 +1,21 @@
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TagPill } from "@/components/ui/TagPill";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { Colors, Fonts } from "@/constants/theme";
 import { useDiscovery } from "@/hooks/discover";
 import { formatBasedOn, formatUpdatedAt } from "@/lib/discover/format";
 
 type Props = {
   onTagPress: (tag: string) => void;
+  onCustomize?: () => void;
 };
 
-export function DiscoverHeaderSection({ onTagPress }: Props) {
+export function DiscoverHeaderSection({ onTagPress, onCustomize }: Props) {
   const colors = Colors[useColorScheme()];
   const { data, isLoading } = useDiscovery();
 
@@ -23,12 +26,15 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
     return (
       <View style={styles.container}>
         <View style={styles.intro}>
-          <Text
-            variant="body"
-            style={[styles.subtitle, { color: colors.subtle }]}
-          >
-            Your daily mix, curated from your library.
-          </Text>
+          <View style={styles.introText}>
+            <Text
+              variant="body"
+              style={[styles.subtitle, { color: colors.subtle }]}
+            >
+              Your daily mix, curated from your library.
+            </Text>
+          </View>
+          {onCustomize ? <CustomizeButton onPress={onCustomize} /> : null}
         </View>
         <View style={styles.tagsBlock}>
           <SectionHeader title="Top Tags" />
@@ -56,20 +62,23 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.intro}>
-        <Text
-          variant="body"
-          style={[styles.subtitle, { color: colors.subtle }]}
-        >
-          Your daily mix, curated from your library.
-        </Text>
-        {updatedLabel ? (
+        <View style={styles.introText}>
           <Text
-            variant="caption"
-            style={[styles.meta, { color: colors.subtle }]}
+            variant="body"
+            style={[styles.subtitle, { color: colors.subtle }]}
           >
-            Updated {updatedLabel}
+            Your daily mix, curated from your library.
           </Text>
-        ) : null}
+          {updatedLabel ? (
+            <Text
+              variant="caption"
+              style={[styles.meta, { color: colors.subtle }]}
+            >
+              Updated {updatedLabel}
+            </Text>
+          ) : null}
+        </View>
+        {onCustomize ? <CustomizeButton onPress={onCustomize} /> : null}
       </View>
 
       {tags.length > 0 ? (
@@ -99,13 +108,61 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
   );
 }
 
+function CustomizeButton({ onPress }: { onPress: () => void }) {
+  const colors = Colors[useColorScheme()];
+  const handlePress = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onPress();
+  };
+  return (
+    <Pressable
+      onPress={handlePress}
+      accessibilityLabel="Customize discover sections"
+      hitSlop={6}
+      style={({ pressed }) => [
+        styles.customizeButton,
+        { borderColor: colors.separator, opacity: pressed ? 0.6 : 1 },
+      ]}
+    >
+      <Ionicons name="options-outline" size={14} color={colors.subtle} />
+      <Text
+        variant="caption"
+        style={[
+          styles.customizeLabel,
+          { color: colors.subtle, fontFamily: Fonts.medium },
+        ]}
+      >
+        Customize
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     gap: 12,
   },
   intro: {
     paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  introText: {
+    flex: 1,
     gap: 2,
+  },
+  customizeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  customizeLabel: {
+    fontSize: 12,
   },
   subtitle: {
     fontSize: 15,

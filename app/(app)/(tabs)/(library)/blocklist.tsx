@@ -71,20 +71,20 @@ export default function BlocklistScreen() {
       mbid: isValidMbid(artist.id) ? artist.id : null,
       name: artist.name,
     };
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.selectionAsync();
     toggleArtist(payload);
     setArtistQuery("");
   };
 
   const handleRemoveArtist = (artist: BlockedArtist) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     removeArtist(artist);
   };
 
   const handleSelectTag = (tag: string) => {
     const normalized = tag.trim().toLowerCase();
     if (!normalized) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.selectionAsync();
     addTag(normalized);
     setTagQuery("");
   };
@@ -100,7 +100,7 @@ export default function BlocklistScreen() {
   };
 
   const handleRemoveTag = (tag: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     removeTag(tag);
   };
 
