@@ -1,23 +1,24 @@
-import React, { useCallback } from "react";
-import { StyleSheet, View } from "react-native";
+import { AboutSection } from "@/components/settings/sections/AboutSection";
+import { AccountSection } from "@/components/settings/sections/AccountSection";
+import { LinksSection } from "@/components/settings/sections/LinksSection";
+import { PasswordSection } from "@/components/settings/sections/PasswordSection";
+import { Button } from "@/components/ui/Button";
+import { CloseButton } from "@/components/ui/CloseButton";
+import { Text } from "@/components/ui/Text";
+import { Colors, Fonts } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
+import { useLogout } from "@/hooks/auth/use-logout";
+import { useSession } from "@/hooks/auth/use-session";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { setAuthToken } from "@/lib/api/client";
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
+import React, { useCallback } from "react";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
-import { AccountSection } from "@/components/settings/sections/AccountSection";
-import { PasswordSection } from "@/components/settings/sections/PasswordSection";
-import { AboutSection } from "@/components/settings/sections/AboutSection";
-import { LinksSection } from "@/components/settings/sections/LinksSection";
-import { useAuth } from "@/contexts/auth-context";
-import { useLogout } from "@/hooks/auth/use-logout";
-import { useSession } from "@/hooks/auth/use-session";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
-import { setAuthToken } from "@/lib/api/client";
 
 type Props = {
   sheetRef: React.RefObject<BottomSheetModal | null>;
@@ -68,20 +69,26 @@ export function SettingsSheet({ sheetRef, onClose }: Props) {
         ]}
       >
         <View style={styles.header}>
-          <Text
-            variant="title"
-            style={[
-              styles.welcome,
-              { color: colors.text, fontFamily: Fonts.bold },
-            ]}
-          >
-            Welcome, {user?.username}
-          </Text>
-          {user?.role ? (
-            <Text variant="caption" style={{ color: colors.subtle }}>
-              Role: {user.role}
+          <View style={styles.headerTextWrap}>
+            <Text
+              variant="title"
+              style={[
+                styles.welcome,
+                { color: colors.text, fontFamily: Fonts.bold },
+              ]}
+            >
+              Welcome, {user?.username}
             </Text>
-          ) : null}
+            {user?.role ? (
+              <Text variant="caption" style={{ color: colors.subtle }}>
+                Role: {user.role}
+              </Text>
+            ) : null}
+          </View>
+          <CloseButton
+            onPress={() => sheetRef.current?.dismiss()}
+            fallbackBackground={colors.inputBackground}
+          />
         </View>
 
         <SectionHeading title="Account" />
@@ -136,8 +143,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    gap: 4,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
     paddingBottom: 16,
+    gap: 12,
+  },
+  headerTextWrap: {
+    flex: 1,
+    gap: 4,
   },
   welcome: {
     fontSize: 22,
