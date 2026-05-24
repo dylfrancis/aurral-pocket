@@ -74,6 +74,8 @@ jest.mock("@gorhom/bottom-sheet", () => {
     React.useImperativeHandle(ref, () => ({
       expand: jest.fn(),
       close: jest.fn(),
+      present: jest.fn(),
+      dismiss: jest.fn(),
     }));
     return React.createElement(View, { testID: "bottom-sheet" }, children);
   });
@@ -88,6 +90,7 @@ jest.mock("@gorhom/bottom-sheet", () => {
   return {
     __esModule: true,
     default: BottomSheet,
+    BottomSheetModal: BottomSheet,
     BottomSheetBackdrop: function BottomSheetBackdrop(props: any) {
       return React.createElement(View, props);
     },
@@ -110,6 +113,8 @@ jest.mock("@/components/auth/ConnectSheet", () => {
         snapToPosition: jest.fn(),
         collapse: jest.fn(),
         forceClose: jest.fn(),
+        present: jest.fn(),
+        dismiss: jest.fn(),
       }));
       return React.createElement(View, { testID: "connect-sheet" });
     }),

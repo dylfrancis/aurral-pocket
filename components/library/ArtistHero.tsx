@@ -16,6 +16,7 @@ import { CoverArtImage } from "./CoverArtImage";
 import { LibraryBadge } from "./LibraryBadge";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import type { Artist } from "@/lib/types/library";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -69,7 +70,7 @@ export function ArtistHero({
         style={styles.gradient}
       />
       <View style={styles.foreground}>
-        <View style={styles.spacer} />
+        <View style={IS_IOS ? styles.spacer : styles.spacerAndroid} />
         <CoverArtImage
           type="artist"
           mbid={artist.mbid}
@@ -125,6 +126,9 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: SCREEN_WIDTH - 300,
+  },
+  spacerAndroid: {
+    height: 16,
   },
   refreshIndicator: {
     position: "absolute",

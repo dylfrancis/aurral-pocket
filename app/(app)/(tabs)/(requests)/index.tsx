@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useFocusEffect, useRouter } from "expo-router";
-import BottomSheet from "@gorhom/bottom-sheet";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { RequestRow } from "@/components/requests/RequestRow";
 import { RequestActionsSheet } from "@/components/requests/RequestActionsSheet";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
@@ -21,7 +21,7 @@ export default function RequestsScreen() {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
   const hasPermission = useHasPermission();
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<BottomSheetModal>(null);
   const [selected, setSelected] = useState<Request | null>(null);
 
   const { data: requests, isLoading, error, refetch } = useRequests();
@@ -68,7 +68,7 @@ export default function RequestsScreen() {
 
   const handleLongPress = useCallback((request: Request) => {
     setSelected(request);
-    sheetRef.current?.expand();
+    sheetRef.current?.present();
   }, []);
 
   const renderItem = useCallback(

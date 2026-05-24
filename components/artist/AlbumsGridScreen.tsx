@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import BottomSheet from "@gorhom/bottom-sheet";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { AlbumSheet } from "@/components/library/AlbumSheet";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
@@ -20,12 +20,12 @@ export function AlbumsGridScreen() {
   const grid = useReleaseGrid<Album>(albumConfig);
   const { data: downloadStatuses } = useDownloadStatuses(grid.rawAlbums);
 
-  const albumSheetRef = useRef<BottomSheet>(null);
+  const albumSheetRef = useRef<BottomSheetModal>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
 
   const openAlbum = useCallback((album: Album) => {
     setSelectedAlbum(album);
-    albumSheetRef.current?.snapToIndex(0);
+    albumSheetRef.current?.present();
   }, []);
 
   return (

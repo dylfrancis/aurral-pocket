@@ -32,20 +32,22 @@ jest.mock("@/lib/api/client", () => ({
   },
 }));
 
-let capturedOnChange: ((index: number) => void) | undefined;
+let capturedOnDismiss: (() => void) | undefined;
 
 jest.mock("@gorhom/bottom-sheet", () => {
   const React = require("react");
   const { View, TextInput } = require("react-native");
 
   const BottomSheet = React.forwardRef(function BottomSheet(
-    { children, onChange }: any,
+    { children, onDismiss }: any,
     ref: any,
   ) {
-    capturedOnChange = onChange;
+    capturedOnDismiss = onDismiss;
     React.useImperativeHandle(ref, () => ({
       expand: jest.fn(),
       close: jest.fn(),
+      present: jest.fn(),
+      dismiss: jest.fn(),
     }));
     return React.createElement(View, { testID: "bottom-sheet" }, children);
   });
@@ -53,6 +55,7 @@ jest.mock("@gorhom/bottom-sheet", () => {
   return {
     __esModule: true,
     default: BottomSheet,
+    BottomSheetModal: BottomSheet,
     BottomSheetBackdrop: (props: any) => React.createElement(View, props),
     BottomSheetTextInput: (props: any) => React.createElement(TextInput, props),
     BottomSheetView: ({ children, ...props }: any) =>
@@ -199,7 +202,7 @@ describe("ConnectSheet", () => {
     render(<ConnectSheet />);
 
     act(() => {
-      capturedOnChange?.(-1);
+      capturedOnDismiss?.();
     });
 
     expect(dismissSpy).toHaveBeenCalled();

@@ -11,16 +11,15 @@ import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
+import FilterList from "@expo/material-symbols/filter_list.xml";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/library/EmptyState";
-import { SearchBar } from "@/components/library/SearchBar";
 import { NearbyShowRow } from "@/components/discover/NearbyShowRow";
 import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
 import {
   DATE_RANGE_OPTIONS,
-  NearbyShowsFilterSheet,
   SORT_OPTIONS,
   SOURCE_OPTIONS,
   type NearbyShowsDateRange,
@@ -30,7 +29,6 @@ import {
 import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
 import {
   isInNext30Days,
   isInThisWeekend,
@@ -106,7 +104,6 @@ export default function NearbyShowsScreen() {
   const [sourceFilter, setSourceFilter] = useState<NearbyShowsSource>("all");
   const [sort, setSort] = useState<NearbyShowsSort>("date");
   const [dateRange, setDateRange] = useState<NearbyShowsDateRange>("all");
-  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [zipEditorVisible, setZipEditorVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -120,13 +117,6 @@ export default function NearbyShowsScreen() {
     limit: PAGE_LIMIT,
     enabled: queryEnabled,
   });
-
-  const openFilters = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setFilterSheetVisible(true);
-  }, []);
-
-  const closeFilters = useCallback(() => setFilterSheetVisible(false), []);
 
   const openZipEditor = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -200,16 +190,6 @@ export default function NearbyShowsScreen() {
 
   const renderListHeader = () => (
     <View style={styles.listHeader}>
-      {!IS_IOS && (
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          sortMode="alpha"
-          onSortChange={() => {}}
-          showSort={false}
-          placeholder="Search artists or events"
-        />
-      )}
       {data?.configured !== false && (
         <View style={styles.locationRow}>
           <Text
@@ -352,84 +332,58 @@ export default function NearbyShowsScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: "Shows Near You",
-          ...(IS_IOS
-            ? {
-                headerSearchBarOptions: {
-                  placeholder: "Search artists or events",
-                  hideWhenScrolling: false,
-                  autoCapitalize: "none" as const,
-                  onChangeText: (e: { nativeEvent: { text: string } }) => {
-                    setSearchQuery(e.nativeEvent.text);
-                  },
-                  onCancelButtonPress: () => setSearchQuery(""),
-                },
-              }
-            : {
-                headerRight: () => (
-                  <Pressable
-                    onPress={openFilters}
-                    accessibilityLabel="Filters"
-                    style={({ pressed }) => [
-                      styles.headerButton,
-                      { opacity: pressed ? 0.6 : 1 },
-                    ]}
-                    hitSlop={8}
-                  >
-                    <Ionicons
-                      name="options-outline"
-                      size={22}
-                      color={colors.text}
-                    />
-                  </Pressable>
-                ),
-              }),
-        }}
+      <Stack.Screen options={{ title: "Shows Near You" }} />
+      <Stack.SearchBar
+        placeholder="Search artists or events"
+        hideWhenScrolling={false}
+        autoCapitalize="none"
+        onChangeText={(e) => setSearchQuery(e.nativeEvent.text)}
+        onCancelButtonPress={() => setSearchQuery("")}
       />
-      {IS_IOS && (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu
-            icon="line.3.horizontal.decrease.circle"
-            title="Filters"
-          >
-            <Stack.Toolbar.Menu inline title="Sort by">
-              {SORT_OPTIONS.map((option) => (
-                <Stack.Toolbar.MenuAction
-                  key={option.value}
-                  isOn={sort === option.value}
-                  onPress={() => setSort(option.value)}
-                >
-                  {option.label}
-                </Stack.Toolbar.MenuAction>
-              ))}
-            </Stack.Toolbar.Menu>
-            <Stack.Toolbar.Menu inline title="Date range">
-              {DATE_RANGE_OPTIONS.map((option) => (
-                <Stack.Toolbar.MenuAction
-                  key={option.value}
-                  isOn={dateRange === option.value}
-                  onPress={() => setDateRange(option.value)}
-                >
-                  {option.label}
-                </Stack.Toolbar.MenuAction>
-              ))}
-            </Stack.Toolbar.Menu>
-            <Stack.Toolbar.Menu inline title="Show">
-              {SOURCE_OPTIONS.map((option) => (
-                <Stack.Toolbar.MenuAction
-                  key={option.value}
-                  isOn={sourceFilter === option.value}
-                  onPress={() => setSourceFilter(option.value)}
-                >
-                  {option.label}
-                </Stack.Toolbar.MenuAction>
-              ))}
-            </Stack.Toolbar.Menu>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "line.3.horizontal.decrease.circle"
+              : FilterList
+          }
+          title="Filters"
+        >
+          <Stack.Toolbar.Menu inline title="Sort by">
+            {SORT_OPTIONS.map((option) => (
+              <Stack.Toolbar.MenuAction
+                key={option.value}
+                isOn={sort === option.value}
+                onPress={() => setSort(option.value)}
+              >
+                {option.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
           </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
-      )}
+          <Stack.Toolbar.Menu inline title="Date range">
+            {DATE_RANGE_OPTIONS.map((option) => (
+              <Stack.Toolbar.MenuAction
+                key={option.value}
+                isOn={dateRange === option.value}
+                onPress={() => setDateRange(option.value)}
+              >
+                {option.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu inline title="Show">
+            {SOURCE_OPTIONS.map((option) => (
+              <Stack.Toolbar.MenuAction
+                key={option.value}
+                isOn={sourceFilter === option.value}
+                onPress={() => setSourceFilter(option.value)}
+              >
+                {option.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       <FlatList
         data={visibleShows}
         renderItem={renderItem}
@@ -451,18 +405,6 @@ export default function NearbyShowsScreen() {
           />
         }
       />
-      {!IS_IOS && (
-        <NearbyShowsFilterSheet
-          visible={filterSheetVisible}
-          sort={sort}
-          dateRange={dateRange}
-          source={sourceFilter}
-          onChangeSort={setSort}
-          onChangeDateRange={setDateRange}
-          onChangeSource={setSourceFilter}
-          onClose={closeFilters}
-        />
-      )}
       <NearbyZipEditorSheet
         visible={zipEditorVisible}
         currentZip={appliedZip}
@@ -522,9 +464,5 @@ const styles = StyleSheet.create({
   emptyBody: {
     fontSize: 12,
     lineHeight: 16,
-  },
-  headerButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
   },
 });

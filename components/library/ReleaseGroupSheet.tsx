@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,7 +27,7 @@ type ReleaseGroupSheetProps = {
   releaseGroup: ReleaseGroup | null;
   artistId?: string;
   artistName: string;
-  sheetRef: React.RefObject<BottomSheet | null>;
+  sheetRef: React.RefObject<BottomSheetModal | null>;
 };
 
 function formatDuration(ms: number | null) {
@@ -66,7 +67,7 @@ export function ReleaseGroupSheet({
           queryKey: libraryKeys.albums(artistId),
         });
       }
-      sheetRef.current?.close();
+      sheetRef.current?.dismiss();
     },
   });
 
@@ -92,14 +93,9 @@ export function ReleaseGroupSheet({
     [toggleAudio],
   );
 
-  const handleSheetChange = useCallback(
-    (index: number) => {
-      if (index === -1) {
-        stopPreview();
-      }
-    },
-    [stopPreview],
-  );
+  const handleDismiss = useCallback(() => {
+    stopPreview();
+  }, [stopPreview]);
 
   const year = releaseGroup?.["first-release-date"]
     ? new Date(releaseGroup["first-release-date"]).getFullYear()
@@ -124,13 +120,12 @@ export function ReleaseGroupSheet({
   );
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={sheetRef}
-      index={-1}
       snapPoints={["60%", "90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
-      onChange={handleSheetChange}
+      onDismiss={handleDismiss}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
       handleIndicatorStyle={{ backgroundColor: colors.subtle }}
@@ -222,7 +217,7 @@ export function ReleaseGroupSheet({
           </>
         )}
       </BottomSheetScrollView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

@@ -128,12 +128,15 @@ jest.mock("@gorhom/bottom-sheet", () => {
     React.useImperativeHandle(ref, () => ({
       close: jest.fn(),
       snapToIndex: jest.fn(),
+      present: jest.fn(),
+      dismiss: jest.fn(),
     }));
     return React.createElement(View, props, children);
   });
   return {
     __esModule: true,
     default: BottomSheet,
+    BottomSheetModal: BottomSheet,
     BottomSheetBackdrop: (props: any) => React.createElement(View, props),
     BottomSheetScrollView: ({ children, ...props }: any) =>
       React.createElement(View, props, children),

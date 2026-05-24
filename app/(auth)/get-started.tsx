@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import BottomSheet from "@gorhom/bottom-sheet";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -143,7 +143,7 @@ export default function GetStartedScreen() {
   const colors = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const bottomSheetRef = useRef<BottomSheet>(null);
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
 
   const cardSize = (screenWidth - 48) / 3;
   const cardTotal = cardSize + CARD_GAP;
@@ -152,7 +152,7 @@ export default function GetStartedScreen() {
 
   const handleGetStarted = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    bottomSheetRef.current?.expand();
+    bottomSheetRef.current?.present();
   };
 
   return (

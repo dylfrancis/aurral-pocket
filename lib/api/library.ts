@@ -113,15 +113,58 @@ export type ReleaseGroupTrack = {
   preview_url?: string;
 };
 
+type DeezerAlbumTrack = {
+  id: number;
+  title: string;
+  track_position?: number;
+  duration?: number;
+  preview?: string | null;
+};
+
+async function fetchDeezerAlbumTracks(
+  deezerAlbumId: string,
+): Promise<ReleaseGroupTrack[]> {
+  const id = deezerAlbumId.replace(/^dz-/, "");
+  if (!id) return [];
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const response = await fetch(
+      `https://api.deezer.com/album/${id}/tracks?limit=200`,
+      { signal: controller.signal },
+    );
+    clearTimeout(timeout);
+    if (!response.ok) return [];
+    const body = (await response.json()) as { data?: DeezerAlbumTrack[] };
+    const raw = body.data ?? [];
+    return raw.map((t, i) => ({
+      id: String(t.id),
+      mbid: String(t.id),
+      title: t.title || "",
+      number: t.track_position || i + 1,
+      trackNumber: t.track_position || i + 1,
+      position: t.track_position || i + 1,
+      length: t.duration ? t.duration * 1000 : null,
+      preview_url: t.preview ?? undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function getReleaseGroupTracks(
   mbid: string,
   deezerAlbumId?: string,
 ) {
+  // When we have a Deezer album ID, fetch tracks directly from Deezer to get
+  // preview URLs. The backend release-group endpoint only returns MusicBrainz
+  // tracks (no previews) since aurral dropped the Deezer fallback there.
+  if (deezerAlbumId) {
+    const dzTracks = await fetchDeezerAlbumTracks(deezerAlbumId);
+    if (dzTracks.length > 0) return dzTracks;
+  }
   const r = await api.get<ReleaseGroupTrack[]>(
     `/artists/release-group/${mbid}/tracks`,
-    {
-      params: deezerAlbumId ? { deezerAlbumId } : undefined,
-    },
   );
   return r.data;
 }

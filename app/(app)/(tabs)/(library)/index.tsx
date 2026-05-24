@@ -1,17 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import { Stack, useNavigation, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
+import Block from "@expo/material-symbols/block.xml";
+import SwapVert from "@expo/material-symbols/swap_vert.xml";
+import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
+import Schedule from "@expo/material-symbols/schedule.xml";
+import LibraryMusic from "@expo/material-symbols/library_music.xml";
 import { ArtistCard } from "@/components/library/ArtistCard";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
-import { SearchBar, type SortMode } from "@/components/library/SearchBar";
+import { type SortMode } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { useLibraryArtists } from "@/hooks/library/use-library-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
 import { stripArticle } from "@/lib/strings";
 import type { Artist } from "@/lib/types/library";
+
+const SORT_ICONS = {
+  alpha: SortByAlpha,
+  recent: Schedule,
+  albums: LibraryMusic,
+} satisfies Record<SortMode, unknown>;
 
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
@@ -25,7 +35,6 @@ const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const colors = Colors[useColorScheme()];
   const {
     data: artists,
@@ -37,21 +46,6 @@ export default function LibraryScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("alpha");
-
-  useEffect(() => {
-    if (IS_IOS) {
-      navigation.setOptions({
-        headerSearchBarOptions: {
-          placeholder: "Search artists...",
-          hideWhenScrolling: false,
-          autoCapitalize: "none",
-          onChangeText: (e: { nativeEvent: { text: string } }) => {
-            setSearchQuery(e.nativeEvent.text);
-          },
-        },
-      });
-    }
-  }, [navigation]);
 
   const filtered = useMemo(() => {
     if (!artists) return [];
@@ -112,19 +106,34 @@ export default function LibraryScreen() {
 
   return (
     <>
+      <Stack.SearchBar
+        placeholder="Search artists..."
+        hideWhenScrolling={false}
+        autoCapitalize="none"
+        onChangeText={(e) => setSearchQuery(e.nativeEvent.text)}
+      />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          icon="nosign"
+          icon={process.env.EXPO_OS === "ios" ? "nosign" : Block}
           accessibilityLabel="Blocklist"
           onPress={() => router.push("/blocklist")}
         >
           Blocklist
         </Stack.Toolbar.Button>
-        <Stack.Toolbar.Menu icon="arrow.up.arrow.down" title="Sort By">
+        <Stack.Toolbar.Menu
+          icon={
+            process.env.EXPO_OS === "ios" ? "arrow.up.arrow.down" : SwapVert
+          }
+          title="Sort By"
+        >
           {SORT_OPTIONS.map((option) => (
             <Stack.Toolbar.MenuAction
               key={option.key}
-              icon={option.icon as any}
+              icon={
+                process.env.EXPO_OS === "ios"
+                  ? (option.icon as any)
+                  : SORT_ICONS[option.key]
+              }
               isOn={sortMode === option.key}
               onPress={() => setSortMode(option.key)}
             >
@@ -139,18 +148,6 @@ export default function LibraryScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         numColumns={NUM_COLUMNS}
-        ListHeaderComponent={
-          IS_IOS ? undefined : (
-            <View style={{ paddingHorizontal: CARD_GAP / 2 }}>
-              <SearchBar
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                sortMode={sortMode}
-                onSortChange={setSortMode}
-              />
-            </View>
-          )
-        }
         ListEmptyComponent={<EmptyState message="Your library is empty" />}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{

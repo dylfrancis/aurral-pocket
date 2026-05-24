@@ -45,12 +45,15 @@ jest.mock("@gorhom/bottom-sheet", () => {
       close: jest.fn(),
       expand: jest.fn(),
       snapToIndex: jest.fn(),
+      present: jest.fn(),
+      dismiss: jest.fn(),
     }));
     return React.createElement(View, props, children);
   });
   return {
     __esModule: true,
     default: BottomSheet,
+    BottomSheetModal: BottomSheet,
     BottomSheetBackdrop: (props: any) => React.createElement(View, props),
     BottomSheetView: ({ children, ...props }: any) =>
       React.createElement(View, props, children),

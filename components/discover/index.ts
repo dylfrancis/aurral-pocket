@@ -8,7 +8,6 @@ export { RecentReleasesSection } from "./RecentReleasesSection";
 export { ShowsNearYouSection } from "./ShowsNearYouSection";
 export { NearbyShowRow } from "./NearbyShowRow";
 export {
-  NearbyShowsFilterSheet,
   type NearbyShowsDateRange,
   type NearbyShowsSort,
 } from "./NearbyShowsFilterSheet";

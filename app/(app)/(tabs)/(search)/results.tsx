@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import {
   Stack,
@@ -7,7 +7,12 @@ import {
   useNavigation,
   useRouter,
 } from "expo-router";
-import type BottomSheet from "@gorhom/bottom-sheet";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
+import Public from "@expo/material-symbols/public.xml";
+import Star from "@expo/material-symbols/star.xml";
+import Group from "@expo/material-symbols/group.xml";
+import Album from "@expo/material-symbols/album.xml";
+import FilterList from "@expo/material-symbols/filter_list.xml";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumSheet } from "@/components/search/SearchAlbumSheet";
@@ -21,7 +26,6 @@ import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import type {
   SearchAlbum,
   SearchArtist,
@@ -31,62 +35,32 @@ import type {
 
 type ResultScope = "artist" | "album";
 
-const SCOPE_OPTIONS: { key: ResultScope; label: string; icon: string }[] = [
-  { key: "artist", label: "Artists", icon: "person.2" },
-  { key: "album", label: "Albums", icon: "opticaldisc" },
-];
-
-const TAG_SCOPE_OPTIONS: {
-  key: TagSearchScope;
+type ScopeOption<T> = {
+  key: T;
   label: string;
-  icon: string;
-}[] = [
-  { key: "all", label: "All Artists", icon: "globe" },
-  { key: "recommended", label: "Recommended", icon: "star" },
+  iosIcon: string;
+  androidIcon: number;
+};
+
+const SCOPE_OPTIONS: ScopeOption<ResultScope>[] = [
+  { key: "artist", label: "Artists", iosIcon: "person.2", androidIcon: Group },
+  {
+    key: "album",
+    label: "Albums",
+    iosIcon: "opticaldisc",
+    androidIcon: Album,
+  },
 ];
 
-function ScopePills<T extends string>({
-  options,
-  scope,
-  onChange,
-}: {
-  options: { key: T; label: string }[];
-  scope: T;
-  onChange: (s: T) => void;
-}) {
-  const colors = Colors[useColorScheme()];
-
-  return (
-    <View style={styles.scopeRow}>
-      {options.map((option) => {
-        const active = scope === option.key;
-        return (
-          <Pressable
-            key={option.key}
-            onPress={() => onChange(option.key)}
-            style={[
-              styles.scopePill,
-              {
-                backgroundColor: active ? `${colors.brand}20` : colors.card,
-                borderColor: active ? colors.brand : colors.separator,
-              },
-            ]}
-          >
-            <Text
-              variant="caption"
-              style={[
-                styles.scopeLabel,
-                { color: active ? colors.brand : colors.subtle },
-              ]}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
+const TAG_SCOPE_OPTIONS: ScopeOption<TagSearchScope>[] = [
+  { key: "all", label: "All Artists", iosIcon: "globe", androidIcon: Public },
+  {
+    key: "recommended",
+    label: "Recommended",
+    iosIcon: "star",
+    androidIcon: Star,
+  },
+];
 
 export default function SearchResultsScreen() {
   const { q, scope: scopeParam } = useLocalSearchParams<{
@@ -177,11 +151,11 @@ export default function SearchResultsScreen() {
     [router],
   );
 
-  const sheetRef = useRef<BottomSheet | null>(null);
+  const sheetRef = useRef<BottomSheetModal | null>(null);
   const [activeAlbum, setActiveAlbum] = useState<SearchAlbum | null>(null);
   const handleAlbumPress = useCallback((album: SearchAlbum) => {
     setActiveAlbum(album);
-    sheetRef.current?.snapToIndex(0);
+    sheetRef.current?.present();
   }, []);
 
   const renderArtistItem = useCallback(
@@ -222,23 +196,8 @@ export default function SearchResultsScreen() {
       >
         {tagScopeLabel} artists for tag {`“${tagQuery}”`}
       </Text>
-      {IS_ANDROID && (
-        <ScopePills
-          options={TAG_SCOPE_OPTIONS}
-          scope={tagScope}
-          onChange={setTagScope}
-        />
-      )}
     </View>
   );
-
-  const resultsListHeader = IS_ANDROID ? (
-    <ScopePills
-      options={SCOPE_OPTIONS}
-      scope={resultScope}
-      onChange={setResultScope}
-    />
-  ) : null;
 
   const canBroadenToAll =
     isTagSearch && tagScope === "recommended" && showNoResults;
@@ -263,45 +222,42 @@ export default function SearchResultsScreen() {
 
   return (
     <>
-      {IS_IOS && isTagSearch && (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu
-            icon="line.3.horizontal.decrease.circle"
-            title="Scope"
-          >
-            {TAG_SCOPE_OPTIONS.map((option) => (
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "line.3.horizontal.decrease.circle"
+              : FilterList
+          }
+          title="Scope"
+        >
+          {(isTagSearch ? TAG_SCOPE_OPTIONS : SCOPE_OPTIONS).map((option) => {
+            const active = isTagSearch
+              ? tagScope === option.key
+              : resultScope === option.key;
+            return (
               <Stack.Toolbar.MenuAction
                 key={option.key}
-                icon={option.icon as any}
-                isOn={tagScope === option.key}
-                onPress={() => setTagScope(option.key)}
+                icon={
+                  process.env.EXPO_OS === "ios"
+                    ? (option.iosIcon as any)
+                    : option.androidIcon
+                }
+                isOn={active}
+                onPress={() => {
+                  if (isTagSearch) {
+                    setTagScope(option.key as TagSearchScope);
+                  } else {
+                    setResultScope(option.key as ResultScope);
+                  }
+                }}
               >
                 {option.label}
               </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
-      )}
-
-      {IS_IOS && !isTagSearch && (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu
-            icon="line.3.horizontal.decrease.circle"
-            title="Scope"
-          >
-            {SCOPE_OPTIONS.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.key}
-                icon={option.icon as any}
-                isOn={resultScope === option.key}
-                onPress={() => setResultScope(option.key)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
-      )}
+            );
+          })}
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
 
       {isTagSearch ? (
         <FlashList
@@ -321,7 +277,6 @@ export default function SearchResultsScreen() {
           renderItem={renderAlbumItem}
           keyExtractor={albumKeyExtractor}
           contentInsetAdjustmentBehavior="automatic"
-          ListHeaderComponent={resultsListHeader}
           ListEmptyComponent={emptyComponent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -333,7 +288,6 @@ export default function SearchResultsScreen() {
           renderItem={renderArtistItem}
           keyExtractor={artistKeyExtractor}
           contentInsetAdjustmentBehavior="automatic"
-          ListHeaderComponent={resultsListHeader}
           ListEmptyComponent={emptyComponent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -347,21 +301,6 @@ export default function SearchResultsScreen() {
 }
 
 const styles = StyleSheet.create({
-  scopeRow: {
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  scopePill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  scopeLabel: {
-    fontFamily: Fonts.medium,
-  },
   subtitle: {
     paddingHorizontal: 16,
     paddingTop: 12,

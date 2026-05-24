@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,7 +16,7 @@ import type { MonitorOption } from "@/lib/types/search";
 type AddArtistSheetProps = {
   mbid: string;
   artistName: string;
-  sheetRef: React.RefObject<BottomSheet | null>;
+  sheetRef: React.RefObject<BottomSheetModal | null>;
   onAdded?: () => void;
 };
 
@@ -55,7 +56,7 @@ export function AddArtistSheet({
   const [selectedOption, setSelectedOption] = useState<MonitorOption>("all");
 
   const addArtist = useAddArtist(() => {
-    sheetRef.current?.close();
+    sheetRef.current?.dismiss();
     onAdded?.();
   });
 
@@ -79,9 +80,8 @@ export function AddArtistSheet({
   );
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={sheetRef}
-      index={-1}
       snapPoints={["85%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
@@ -172,7 +172,7 @@ export function AddArtistSheet({
           </Pressable>
         </View>
       </BottomSheetScrollView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

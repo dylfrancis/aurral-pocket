@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -6,19 +6,27 @@ import {
   View,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import BottomSheet from "@gorhom/bottom-sheet";
-import { Stack, useNavigation } from "expo-router";
+import { Stack } from "expo-router";
+import SwapVert from "@expo/material-symbols/swap_vert.xml";
+import Event from "@expo/material-symbols/event.xml";
+import CalendarToday from "@expo/material-symbols/calendar_today.xml";
+import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
+import CloudDownload from "@expo/material-symbols/cloud_download.xml";
 import {
-  AlbumSortTrigger,
-  AlbumSortSheet,
   type AlbumSortMode,
   type SortOption,
 } from "@/components/library/AlbumSortPicker";
-import { SearchBar } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
-import { IS_ANDROID, IS_IOS } from "@/constants/platform";
+
+const ANDROID_SORT_ICONS: Record<AlbumSortMode, number> = {
+  "date-desc": Event,
+  "date-asc": CalendarToday,
+  "name-asc": SortByAlpha,
+  "name-desc": SortByAlpha,
+  missing: CloudDownload,
+};
 
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
@@ -61,23 +69,6 @@ export function ReleaseGrid<T>({
   bottomSheet,
 }: ReleaseGridProps<T>) {
   const colors = Colors[useColorScheme()];
-  const sortSheetRef = useRef<BottomSheet>(null);
-  const navigation = useNavigation();
-
-  useEffect(() => {
-    if (!IS_IOS) return;
-    navigation.setOptions({
-      headerSearchBarOptions: {
-        placeholder: searchPlaceholder,
-        hideWhenScrolling: false,
-        autoCapitalize: "none",
-        onChangeText: (e: { nativeEvent: { text: string } }) => {
-          onSearchChange(e.nativeEvent.text);
-        },
-        onCancelButtonPress: () => onSearchChange(""),
-      },
-    });
-  }, [navigation, searchPlaceholder, onSearchChange]);
 
   if (isLoading) {
     return (
@@ -112,22 +103,36 @@ export function ReleaseGrid<T>({
 
   return (
     <>
-      {IS_IOS && (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu icon="arrow.up.arrow.down" title="Sort By">
-            {sortOptions.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.key}
-                icon={option.iosIcon as any}
-                isOn={sortMode === option.key}
-                onPress={() => onSortChange(option.key)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
-      )}
+      <Stack.SearchBar
+        placeholder={searchPlaceholder}
+        hideWhenScrolling={false}
+        autoCapitalize="none"
+        onChangeText={(e) => onSearchChange(e.nativeEvent.text)}
+        onCancelButtonPress={() => onSearchChange("")}
+      />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={
+            process.env.EXPO_OS === "ios" ? "arrow.up.arrow.down" : SwapVert
+          }
+          title="Sort By"
+        >
+          {sortOptions.map((option) => (
+            <Stack.Toolbar.MenuAction
+              key={option.key}
+              icon={
+                process.env.EXPO_OS === "ios"
+                  ? (option.iosIcon as any)
+                  : ANDROID_SORT_ICONS[option.key]
+              }
+              isOn={sortMode === option.key}
+              onPress={() => onSortChange(option.key)}
+            >
+              {option.label}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       <FlashList
         key={sortMode}
         data={items}
@@ -136,26 +141,6 @@ export function ReleaseGrid<T>({
         )}
         keyExtractor={keyExtractor}
         numColumns={NUM_COLUMNS}
-        ListHeaderComponent={
-          IS_IOS ? undefined : (
-            <View style={styles.androidHeader}>
-              <SearchBar
-                value={searchQuery}
-                onChangeText={onSearchChange}
-                sortMode="alpha"
-                onSortChange={() => {}}
-                showSort={false}
-                placeholder={searchPlaceholder}
-              />
-              <View style={styles.sortRow}>
-                <AlbumSortTrigger
-                  selected={sortMode}
-                  onPress={() => sortSheetRef.current?.snapToIndex(0)}
-                />
-              </View>
-            </View>
-          )
-        }
         ListEmptyComponent={emptyComponent}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
@@ -167,15 +152,6 @@ export function ReleaseGrid<T>({
           backgroundColor: colors.background,
         }}
       />
-
-      {IS_ANDROID && (
-        <AlbumSortSheet
-          sheetRef={sortSheetRef}
-          selected={sortMode}
-          onChange={onSortChange}
-          options={sortOptions}
-        />
-      )}
 
       {bottomSheet}
     </>
@@ -191,11 +167,5 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: CARD_GAP / 2,
     paddingBottom: CARD_GAP,
-  },
-  androidHeader: {
-    paddingHorizontal: CARD_GAP / 2,
-  },
-  sortRow: {
-    paddingBottom: 12,
   },
 });

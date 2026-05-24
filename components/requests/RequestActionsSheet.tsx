@@ -6,8 +6,9 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,7 +24,7 @@ import type { DownloadStatusValue } from "@/lib/types/library";
 import type { Request } from "@/lib/types/requests";
 
 type RequestActionsSheetProps = {
-  sheetRef: React.RefObject<BottomSheet | null>;
+  sheetRef: React.RefObject<BottomSheetModal | null>;
   request: Request | null;
   downloadStatus?: DownloadStatusValue;
 };
@@ -55,7 +56,7 @@ export function RequestActionsSheet({
   const isFailed = downloadStatus === "failed" || request?.status === "failed";
   const canResearch = !!request?.albumId && isFailed;
 
-  const close = () => sheetRef.current?.close();
+  const close = () => sheetRef.current?.dismiss();
 
   const handleStop = () => {
     if (!request?.albumId) return;
@@ -79,9 +80,8 @@ export function RequestActionsSheet({
   };
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={sheetRef}
-      index={-1}
       enablePanDownToClose
       enableDynamicSizing
       backdropComponent={renderBackdrop}
@@ -150,7 +150,7 @@ export function RequestActionsSheet({
           </Pressable>
         )}
       </BottomSheetView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 
