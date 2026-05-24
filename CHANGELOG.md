@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.6.0...v0.7.0) (2026-05-24)
+
+
+### Features
+
+* **blocklist:** add blocklist ([#108](https://github.com/dylfrancis/aurral-pocket/issues/108)) ([2b7f33a](https://github.com/dylfrancis/aurral-pocket/commit/2b7f33a7d6c1681f624bb9ac50395c66bbb2c7a3))
+* **discover:** add customizable discover page sections ([#111](https://github.com/dylfrancis/aurral-pocket/issues/111)) ([1526383](https://github.com/dylfrancis/aurral-pocket/commit/1526383f32f57d5978fb2403d2a73dfd166c02bb))
+* **settings:** add x button ([466a150](https://github.com/dylfrancis/aurral-pocket/commit/466a15073939d4aec770553efee1a6c499cae712))
+* **settings:** flesh out settings page ([#106](https://github.com/dylfrancis/aurral-pocket/issues/106)) ([558c032](https://github.com/dylfrancis/aurral-pocket/commit/558c032c48072baa24950cfa14744d5c03180b9e))
+* **shows-near-you:** add full shows near you page ([#110](https://github.com/dylfrancis/aurral-pocket/issues/110)) ([172a44a](https://github.com/dylfrancis/aurral-pocket/commit/172a44acbf329bbbbe90ff9c78973a90d4ba13f6))
+
+
+### Bug Fixes
+
+* **artist:** android image hero style reduction ([3cb34bd](https://github.com/dylfrancis/aurral-pocket/commit/3cb34bda3036394157c5c148793243a913a664b6))
+* **artist:** restore deezer preview on release groups ([802ea2c](https://github.com/dylfrancis/aurral-pocket/commit/802ea2c14d05d1799516e7ba4ac9ea4031640bb1))
+
 ## [0.6.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.5.0...v0.6.0) (2026-05-11)
 
 
