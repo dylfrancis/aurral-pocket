@@ -43,6 +43,7 @@ jest.mock("@/hooks/search/use-library-lookup", () => ({
 jest.mock("expo-router", () => ({
   useNavigation: jest.fn(() => ({ setOptions: jest.fn() })),
   useRouter: jest.fn(() => ({ push: jest.fn() })),
+  Stack: { SearchBar: () => null },
 }));
 
 jest.mock("@shopify/flash-list", () => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Keyboard,
   Pressable,
@@ -6,10 +6,9 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { useNavigation, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { SearchBar } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
@@ -25,7 +24,6 @@ import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import type { SearchAlbum, SearchArtist } from "@/lib/types/search";
 
@@ -34,7 +32,6 @@ const ALBUM_PREVIEW_LIMIT = 3;
 const TAG_PREVIEW_LIMIT = 5;
 
 export default function SearchScreen() {
-  const navigation = useNavigation();
   const router = useRouter();
   const colors = Colors[useColorScheme()];
 
@@ -106,23 +103,6 @@ export default function SearchScreen() {
     },
     [router, recentSearches],
   );
-
-  useEffect(() => {
-    if (IS_IOS) {
-      navigation.setOptions({
-        headerSearchBarOptions: {
-          placeholder: "Artists, bands, #tags...",
-          hideWhenScrolling: false,
-          autoCapitalize: "none",
-          onChangeText: (e: { nativeEvent: { text: string } }) => {
-            setQuery(e.nativeEvent.text);
-          },
-          onCancelButtonPress: () => setQuery(""),
-          onSearchButtonPress: handleSubmit,
-        },
-      });
-    }
-  }, [navigation, handleSubmit]);
 
   const previewTags = hasQuery
     ? (tags ?? []).slice(0, isTagSearch ? TAG_PREVIEW_LIMIT : 3)
@@ -289,24 +269,20 @@ export default function SearchScreen() {
 
   return (
     <>
+      <Stack.SearchBar
+        placeholder="Artists, bands, #tags..."
+        hideWhenScrolling={false}
+        autoCapitalize="none"
+        onChangeText={(e) => setQuery(e.nativeEvent.text)}
+        onCancelButtonPress={() => setQuery("")}
+        onSearchButtonPress={handleSubmit}
+      />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={Keyboard.dismiss}
       >
-        {IS_ANDROID && (
-          <View style={styles.androidSearchBar}>
-            <SearchBar
-              value={query}
-              onChangeText={setQuery}
-              sortMode="alpha"
-              onSortChange={() => {}}
-              showSort={false}
-              onSubmit={handleSubmit}
-            />
-          </View>
-        )}
         {content}
       </ScrollView>
       <SearchAlbumSheet album={activeAlbum} sheetRef={sheetRef} />
@@ -357,10 +333,6 @@ function SeeAllRow({
 }
 
 const styles = StyleSheet.create({
-  androidSearchBar: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-  },
   previewSection: {
     paddingTop: 4,
   },

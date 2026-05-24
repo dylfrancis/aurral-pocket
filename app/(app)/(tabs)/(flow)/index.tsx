@@ -3,6 +3,8 @@ import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter } from "expo-router";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import Settings from "@expo/material-symbols/settings.xml";
+import Add from "@expo/material-symbols/add.xml";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
 import { EmptyState } from "@/components/library/EmptyState";
@@ -179,14 +181,14 @@ export default function FlowScreen() {
     <>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          icon="gearshape"
+          icon={process.env.EXPO_OS === "ios" ? "gearshape" : Settings}
           accessibilityLabel="Worker settings"
           onPress={openWorkerSettings}
         >
           Worker settings
         </Stack.Toolbar.Button>
         <Stack.Toolbar.Button
-          icon="plus"
+          icon={process.env.EXPO_OS === "ios" ? "plus" : Add}
           accessibilityLabel="Create flow"
           onPress={openCreateFlow}
         >
