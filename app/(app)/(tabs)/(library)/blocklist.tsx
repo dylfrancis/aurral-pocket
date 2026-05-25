@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
+import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import type { ErrorBoundaryProps } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
@@ -12,8 +14,8 @@ import {
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
 import {
-  useBlocklist,
   useBlocklistMutations,
+  useBlocklistSuspense,
 } from "@/hooks/discover/use-blocklist";
 import { isArtistBlocked, isValidMbid } from "@/lib/blocklist";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -23,7 +25,7 @@ import type { SearchArtist } from "@/lib/types/search";
 
 export default function BlocklistScreen() {
   const colors = Colors[useColorScheme()];
-  const { data: blocklist, isLoading, error, refetch } = useBlocklist();
+  const { data: blocklist } = useBlocklistSuspense();
   const { toggleArtist, removeArtist, addTag, removeTag } =
     useBlocklistMutations();
 
@@ -51,7 +53,7 @@ export default function BlocklistScreen() {
 
   const tagSuggestions: string[] = useMemo(() => {
     const list = tagResults ?? [];
-    const blocked = new Set(blocklist?.tags ?? []);
+    const blocked = new Set(blocklist.tags);
     const seen = new Set<string>();
     const out: string[] = [];
     for (const raw of list) {
@@ -63,7 +65,7 @@ export default function BlocklistScreen() {
       out.push(t);
     }
     return out.slice(0, 8);
-  }, [tagResults, blocklist?.tags]);
+  }, [tagResults, blocklist.tags]);
 
   const handleSelectArtist = (artist: SearchArtist) => {
     if (isArtistBlocked(artist.id, artist.name, blocklist)) return;
@@ -92,7 +94,7 @@ export default function BlocklistScreen() {
   const handleSubmitTag = () => {
     const trimmed = tagQuery.trim().toLowerCase();
     if (trimmed.length < 1) return;
-    if (blocklist?.tags.includes(trimmed)) {
+    if (blocklist.tags.includes(trimmed)) {
       setTagQuery("");
       return;
     }
@@ -104,23 +106,7 @@ export default function BlocklistScreen() {
     removeTag(tag);
   };
 
-  if (isLoading) return <ScreenCenter loading />;
-
-  if (error) {
-    return (
-      <ScreenCenter>
-        <EmptyState
-          icon="cloud-offline-outline"
-          message="Failed to load blocklist"
-          actionLabel="Try Again"
-          onAction={() => refetch()}
-        />
-      </ScreenCenter>
-    );
-  }
-
-  const artists = blocklist?.artists ?? [];
-  const tags = blocklist?.tags ?? [];
+  const { artists, tags } = blocklist;
 
   return (
     <ScrollView
@@ -235,6 +221,23 @@ export default function BlocklistScreen() {
         )}
       </View>
     </ScrollView>
+  );
+}
+
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  const { reset } = useQueryErrorResetBoundary();
+  return (
+    <ScreenCenter>
+      <EmptyState
+        icon="cloud-offline-outline"
+        message="Failed to load blocklist"
+        actionLabel="Try Again"
+        onAction={() => {
+          reset();
+          retry();
+        }}
+      />
+    </ScreenCenter>
   );
 }
 
