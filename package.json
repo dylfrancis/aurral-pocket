@@ -29,7 +29,7 @@
     "@react-native-picker/picker": "2.11.4",
     "@react-native-segmented-control/segmented-control": "2.5.7",
     "@shopify/flash-list": "2.0.2",
-    "@tanstack/react-query": "^5.100.5",
+    "@tanstack/react-query": "^5.100.14",
     "burnt": "^0.13.0",
     "date-fns": "^4.3.0",
     "expo": "^56.0.0-preview.8",
