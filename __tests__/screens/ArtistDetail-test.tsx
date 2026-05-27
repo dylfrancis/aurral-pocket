@@ -236,6 +236,10 @@ jest.mock("@/hooks/library/use-download-statuses", () => ({
   useDownloadStatuses: jest.fn(() => ({ data: undefined })),
 }));
 
+jest.mock("@/hooks/auth/use-has-permission", () => ({
+  useHasPermission: jest.fn(() => () => true),
+}));
+
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

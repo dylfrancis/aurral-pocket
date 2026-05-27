@@ -16,6 +16,7 @@ import {
   getArtistCover,
   getAlbumCover,
   triggerAlbumSearch,
+  updateLibraryAlbum,
   deleteAlbum,
   requestAlbumFromSearch,
 } from "@/lib/api/library";
@@ -113,6 +114,19 @@ describe("triggerAlbumSearch", () => {
       { albumId: "99" },
     );
     expect(result).toEqual({ success: true });
+  });
+});
+
+describe("updateLibraryAlbum", () => {
+  it("calls PUT /library/albums/:id with the body and returns data", async () => {
+    const album = { id: "99", albumName: "Album", monitored: true };
+    mockApi.put.mockResolvedValue({ data: album });
+
+    const result = await updateLibraryAlbum("99", { monitored: true });
+    expect(mockApi.put).toHaveBeenCalledWith("/library/albums/99", {
+      monitored: true,
+    });
+    expect(result).toEqual(album);
   });
 });
 

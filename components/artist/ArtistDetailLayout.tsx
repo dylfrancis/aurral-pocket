@@ -17,6 +17,8 @@ import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { useLibraryArtist } from "@/hooks/library/use-library-artist";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
+import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -124,6 +126,11 @@ export function ArtistDetailLayout({
     { releaseGroups: allReleaseGroups },
   );
   const { data: downloadStatuses } = useDownloadStatuses(rawAlbums);
+
+  const hasPermission = useHasPermission();
+  const canResearchMissing = hasPermission("addAlbum");
+  const { missingCount, researchMissing, isResearching } =
+    useResearchMissingAlbums(rawAlbums, downloadStatuses);
 
   const pollCount = useRef(0);
   useEffect(() => {
@@ -329,6 +336,11 @@ export function ArtistDetailLayout({
             onAlbumPress={openAlbum}
             onNavigate={onNavigateToAlbums}
             onRetry={() => refetchAlbums()}
+            missingCount={missingCount}
+            isResearching={isResearching}
+            onResearchMissing={
+              canResearchMissing ? () => researchMissing() : undefined
+            }
           />
         )}
 

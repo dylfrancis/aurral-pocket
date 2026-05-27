@@ -1,4 +1,5 @@
-import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { AlbumCategoryList } from "@/components/artist/AlbumCategoryList";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
@@ -28,6 +29,9 @@ type LibraryAlbumsSectionProps = {
   onAlbumPress: (album: Album) => void;
   onNavigate?: (type: PrimaryReleaseType, label: string) => void;
   onRetry: () => void;
+  missingCount?: number;
+  isResearching?: boolean;
+  onResearchMissing?: () => void;
 };
 
 export function LibraryAlbumsSection({
@@ -38,8 +42,13 @@ export function LibraryAlbumsSection({
   onAlbumPress,
   onNavigate,
   onRetry,
+  missingCount = 0,
+  isResearching = false,
+  onResearchMissing,
 }: LibraryAlbumsSectionProps) {
   const colors = Colors[useColorScheme()];
+
+  const showResearch = missingCount > 0 && !!onResearchMissing;
 
   return (
     <View style={styles.container}>
@@ -62,12 +71,37 @@ export function LibraryAlbumsSection({
         />
       ) : grouped && grouped.size > 0 ? (
         <>
-          <Text
-            variant="caption"
-            style={[styles.label, { color: colors.subtle }]}
-          >
-            In Your Library
-          </Text>
+          <View style={styles.headerRow}>
+            <Text
+              variant="caption"
+              style={[styles.label, { color: colors.subtle }]}
+            >
+              In Your Library
+            </Text>
+            {showResearch && (
+              <Pressable
+                onPress={onResearchMissing}
+                disabled={isResearching}
+                accessibilityRole="button"
+                accessibilityLabel={`Re-search ${missingCount} missing ${
+                  missingCount === 1 ? "album" : "albums"
+                }`}
+                style={({ pressed }) => [
+                  styles.researchButton,
+                  { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                {isResearching ? (
+                  <ActivityIndicator size={14} color={colors.brand} />
+                ) : (
+                  <Ionicons name="search" size={14} color={colors.brand} />
+                )}
+                <Text variant="caption" style={{ color: colors.text }}>
+                  Re-search Missing ({missingCount})
+                </Text>
+              </Pressable>
+            )}
+          </View>
           {CATEGORIES.map(({ type, label }) => {
             const list = grouped.get(type);
             if (!list || list.length === 0) return null;
@@ -101,6 +135,11 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 8,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   label: {
     fontFamily: Fonts.semiBold,
     textTransform: "uppercase",
@@ -109,5 +148,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     marginBottom: 4,
+  },
+  researchButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginRight: 16,
   },
 });
