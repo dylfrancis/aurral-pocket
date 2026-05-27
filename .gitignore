@@ -48,6 +48,7 @@ modules/shazam/android/libs/*.aar
 
 # Local module native build outputs
 modules/*/android/build/
+modules/*/android/.gradle/
 modules/*/ios/build/
 modules/*/android/.cxx/
 
