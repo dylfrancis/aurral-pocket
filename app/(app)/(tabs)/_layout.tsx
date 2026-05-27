@@ -1,3 +1,4 @@
+import { TAB_BAR_BACKGROUND } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -14,6 +15,7 @@ export default function TabsLayout() {
       backgroundColor={colors.card}
       indicatorColor={`${colors.brand}33`}
       labelStyle={{ fontFamily: Fonts.medium, color: colors.tabIconDefault }}
+      {...TAB_BAR_BACKGROUND}
     >
       <NativeTabs.Trigger name="(discover)">
         <NativeTabs.Trigger.Icon sf="sparkles" md="explore" />
