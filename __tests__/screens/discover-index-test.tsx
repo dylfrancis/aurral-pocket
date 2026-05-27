@@ -65,6 +65,11 @@ jest.mock("@/components/settings/SettingsSheet", () => ({
   SettingsSheet: () => null,
 }));
 
+jest.mock("@/components/shazam", () => ({
+  ShazamSheet: () => null,
+  ShazamTriggerButton: () => null,
+}));
+
 jest.mock("@gorhom/bottom-sheet", () => {
   const React = require("react");
   const { View } = require("react-native");

@@ -15,6 +15,7 @@ import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumSheet } from "@/components/search/SearchAlbumSheet";
+import { ShazamSheet, ShazamTriggerButton } from "@/components/shazam";
 import { RecentSearches } from "@/components/search/RecentSearches";
 import { Text } from "@/components/ui/Text";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
@@ -143,6 +144,14 @@ export default function SearchScreen() {
     sheetRef.current?.present();
   }, []);
 
+  const shazamSheetRef = useRef<BottomSheetModal | null>(null);
+  const handleShazamArtist = useCallback(
+    (mbid: string, name: string) => {
+      router.push({ pathname: "/artist/[mbid]", params: { mbid, name } });
+    },
+    [router],
+  );
+
   let content;
 
   if (noResults || noTagResults) {
@@ -269,6 +278,15 @@ export default function SearchScreen() {
 
   return (
     <>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <ShazamTriggerButton
+              onPress={() => shazamSheetRef.current?.present()}
+            />
+          ),
+        }}
+      />
       <Stack.SearchBar
         placeholder="Artists, bands, #tags..."
         hideWhenScrolling={false}
@@ -286,6 +304,11 @@ export default function SearchScreen() {
         {content}
       </ScrollView>
       <SearchAlbumSheet album={activeAlbum} sheetRef={sheetRef} />
+      <ShazamSheet
+        sheetRef={shazamSheetRef}
+        onViewArtist={handleShazamArtist}
+        onSearchManually={(q) => pushResults(q, "artist")}
+      />
     </>
   );
 }

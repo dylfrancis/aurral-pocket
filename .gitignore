@@ -42,5 +42,9 @@ app-example
 /ios
 /android
 
+# ShazamKit for Android SDK — downloaded from Apple, not committed (see
+# modules/shazam/android/libs/README.md)
+modules/shazam/android/libs/*.aar
+
 .idea
 .claude

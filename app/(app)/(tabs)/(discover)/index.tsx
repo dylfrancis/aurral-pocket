@@ -10,6 +10,7 @@ import {
   ShowsNearYouSection,
 } from "@/components/discover";
 import { SettingsSheet } from "@/components/settings/SettingsSheet";
+import { ShazamSheet, ShazamTriggerButton } from "@/components/shazam";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -144,6 +145,8 @@ export default function DiscoverScreen() {
     settingsSheetRef.current?.present();
   }, []);
 
+  const shazamSheetRef = useRef<BottomSheetModal>(null);
+
   const handleOpenCustomize = useCallback(() => {
     customizeSheetRef.current?.present();
   }, []);
@@ -203,8 +206,12 @@ export default function DiscoverScreen() {
     <>
       <Stack.Screen
         options={{
-          headerRight: canAccessSettings
-            ? () => (
+          headerRight: () => (
+            <View style={styles.headerActions}>
+              <ShazamTriggerButton
+                onPress={() => shazamSheetRef.current?.present()}
+              />
+              {canAccessSettings && (
                 <Pressable
                   onPress={handleOpenSettings}
                   style={({ pressed }) => [
@@ -219,8 +226,9 @@ export default function DiscoverScreen() {
                     color={colors.text}
                   />
                 </Pressable>
-              )
-            : undefined,
+              )}
+            </View>
+          ),
         }}
       />
       <ScrollView
@@ -354,6 +362,13 @@ export default function DiscoverScreen() {
         onSave={handleSaveLayout}
         onSaveError={handleSaveLayoutError}
       />
+      <ShazamSheet
+        sheetRef={shazamSheetRef}
+        onViewArtist={(mbid, name) => pushArtist(mbid, name)}
+        onSearchManually={(q) =>
+          router.push({ pathname: "/results", params: { q, scope: "artist" } })
+        }
+      />
     </>
   );
 }
@@ -386,5 +401,10 @@ const styles = StyleSheet.create({
   headerButton: {
     paddingHorizontal: 6,
     paddingVertical: 4,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 });

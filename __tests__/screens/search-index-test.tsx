@@ -33,6 +33,11 @@ jest.mock("@/components/search/SearchAlbumSheet", () => ({
   SearchAlbumSheet: () => null,
 }));
 
+jest.mock("@/components/shazam", () => ({
+  ShazamSheet: () => null,
+  ShazamTriggerButton: () => null,
+}));
+
 jest.mock("@/hooks/search/use-library-lookup", () => ({
   useLibraryLookup: jest.fn(() => ({
     isInLibrary: jest.fn(() => false),
@@ -43,7 +48,7 @@ jest.mock("@/hooks/search/use-library-lookup", () => ({
 jest.mock("expo-router", () => ({
   useNavigation: jest.fn(() => ({ setOptions: jest.fn() })),
   useRouter: jest.fn(() => ({ push: jest.fn() })),
-  Stack: { SearchBar: () => null },
+  Stack: { SearchBar: () => null, Screen: () => null },
 }));
 
 jest.mock("@shopify/flash-list", () => {

@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["ShazamModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.shazam.ShazamModule"]
+  }
+}

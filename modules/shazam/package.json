@@ -1,0 +1,9 @@
+{
+  "name": "shazam",
+  "version": "0.1.0",
+  "description": "Local Expo module wrapping ShazamKit (iOS + Android) for song identification.",
+  "main": "index.ts",
+  "author": "Dylan Francis",
+  "license": "MIT",
+  "homepage": "https://github.com/dylfrancis/aurral-pocket"
+}
