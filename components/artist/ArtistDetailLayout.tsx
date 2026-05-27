@@ -1,5 +1,4 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
-import { BlockArtistChip } from "@/components/blocklist/BlockArtistChip";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
@@ -9,7 +8,6 @@ import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
 import { ReleaseGroupSheet } from "@/components/library/ReleaseGroupSheet";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
-import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
@@ -17,9 +15,16 @@ import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { useLibraryArtist } from "@/hooks/library/use-library-artist";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
+import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import {
+  useBlocklistMutations,
+  useIsArtistBlocked,
+} from "@/hooks/discover/use-blocklist";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { isValidMbid } from "@/lib/blocklist";
 import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import type {
@@ -28,17 +33,18 @@ import type {
   ReleaseGroup,
 } from "@/lib/types/library";
 import type { SimilarArtist } from "@/lib/types/search";
-import { Ionicons } from "@expo/vector-icons";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as Haptics from "expo-haptics";
+import MoreVert from "@expo/material-symbols/more_vert.xml";
+import Sync from "@expo/material-symbols/sync.xml";
+import SearchIcon from "@expo/material-symbols/search.xml";
+import BlockIcon from "@expo/material-symbols/block.xml";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
-  Pressable,
   RefreshControl,
   StyleSheet,
   View,
@@ -124,6 +130,17 @@ export function ArtistDetailLayout({
     { releaseGroups: allReleaseGroups },
   );
   const { data: downloadStatuses } = useDownloadStatuses(rawAlbums);
+
+  const hasPermission = useHasPermission();
+  const canResearchMissing = hasPermission("addAlbum");
+  const { missingCount, researchMissing, isResearching } =
+    useResearchMissingAlbums(rawAlbums, downloadStatuses);
+
+  const { blocked, loaded: blocklistLoaded } = useIsArtistBlocked(
+    mbid,
+    artistName,
+  );
+  const { toggleArtist, isPending: isTogglingBlock } = useBlocklistMutations();
 
   const pollCount = useRef(0);
   useEffect(() => {
@@ -253,6 +270,44 @@ export function ArtistDetailLayout({
     );
   }, [libraryArtist, deleteMutation]);
 
+  const handleToggleBlock = useCallback(() => {
+    if (!blocklistLoaded || isTogglingBlock) return;
+    const doToggle = () =>
+      toggleArtist({
+        mbid: isValidMbid(mbid) ? mbid : null,
+        name: artistName || null,
+      });
+    if (blocked) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      doToggle();
+      return;
+    }
+    Alert.alert(
+      `Block ${artistName}?`,
+      "They'll be hidden from Discover, Flow, and nearby shows.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: () => {
+            void Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Warning,
+            );
+            doToggle();
+          },
+        },
+      ],
+    );
+  }, [
+    blocklistLoaded,
+    isTogglingBlock,
+    blocked,
+    mbid,
+    artistName,
+    toggleArtist,
+  ]);
+
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -284,6 +339,45 @@ export function ArtistDetailLayout({
           ),
         }}
       />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={process.env.EXPO_OS === "ios" ? "ellipsis" : MoreVert}
+          accessibilityLabel="More actions"
+        >
+          {inLibrary && (
+            <Stack.Toolbar.MenuAction
+              icon={process.env.EXPO_OS === "ios" ? "arrow.clockwise" : Sync}
+              disabled={refreshMutation.isPending}
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                refreshMutation.mutate();
+              }}
+            >
+              {refreshMutation.isPending ? "Refreshing…" : "Refresh"}
+            </Stack.Toolbar.MenuAction>
+          )}
+          {inLibrary && canResearchMissing && (
+            <Stack.Toolbar.MenuAction
+              icon={
+                process.env.EXPO_OS === "ios" ? "magnifyingglass" : SearchIcon
+              }
+              hidden={missingCount === 0}
+              disabled={isResearching}
+              onPress={() => researchMissing()}
+            >
+              {`Re-search Missing (${missingCount})`}
+            </Stack.Toolbar.MenuAction>
+          )}
+          <Stack.Toolbar.MenuAction
+            icon={process.env.EXPO_OS === "ios" ? "nosign" : BlockIcon}
+            destructive={!blocked}
+            disabled={!blocklistLoaded || isTogglingBlock}
+            onPress={handleToggleBlock}
+          >
+            {blocked ? "Unblock artist" : "Block artist"}
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       <Animated.ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         onScroll={scrollHandler}
@@ -354,29 +448,6 @@ export function ArtistDetailLayout({
           artistName={artistName}
           mbid={mbid}
         />
-
-        <View style={styles.footerRow}>
-          {inLibrary && (
-            <Pressable
-              onPress={() => refreshMutation.mutate()}
-              disabled={refreshMutation.isPending}
-              style={({ pressed }) => [
-                styles.refreshButton,
-                { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              {refreshMutation.isPending ? (
-                <ActivityIndicator size={16} color={colors.brand} />
-              ) : (
-                <Ionicons name="sync-outline" size={18} color={colors.brand} />
-              )}
-              <Text variant="caption" style={{ color: colors.text }}>
-                {refreshMutation.isSuccess ? "Refreshed" : "Refresh"}
-              </Text>
-            </Pressable>
-          )}
-          <BlockArtistChip mbid={mbid} artistName={artistName} />
-        </View>
       </Animated.ScrollView>
 
       <ReleaseGroupSheet
@@ -417,22 +488,6 @@ export function ArtistDetailLayout({
 }
 
 const styles = StyleSheet.create({
-  footerRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  refreshButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    alignSelf: "flex-start",
-  },
   headerTitle: {
     fontSize: 17,
     fontFamily: Fonts.semiBold,

@@ -95,6 +95,14 @@ export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {
   return r.data;
 }
 
+export async function updateLibraryAlbum(
+  albumId: string,
+  data: Partial<Album> & Record<string, unknown>,
+) {
+  const r = await api.put<Album>(`/library/albums/${albumId}`, data);
+  return r.data;
+}
+
 export async function deleteAlbum(albumId: string, deleteFiles = false) {
   const r = await api.delete(`/library/albums/${albumId}`, {
     params: { deleteFiles },
