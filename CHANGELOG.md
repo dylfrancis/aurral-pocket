@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.7.0...v0.8.0) (2026-05-27)
+
+
+### Features
+
+* **artist:** add refresh all missing album mechanic ([ef28e0a](https://github.com/dylfrancis/aurral-pocket/commit/ef28e0a227731d2b225293d69c083ae7e06c5ef9))
+* **artist:** add refresh all missing albums ([81de7e0](https://github.com/dylfrancis/aurral-pocket/commit/81de7e0fd73dc35d6f91a982431320fe9aff476d))
+* **artist:** move action buttons to toolbar ([0419940](https://github.com/dylfrancis/aurral-pocket/commit/041994096caa27e6855c21e053abaca000a6a7b2))
+* **shazam:** add shazam integration ([#122](https://github.com/dylfrancis/aurral-pocket/issues/122)) ([1c00e7d](https://github.com/dylfrancis/aurral-pocket/commit/1c00e7dc58b747a5df0ee6ff20b92b1376d66c8d))
+
+
+### Bug Fixes
+
+* **discover:** correct close button on customize discover sheet ([3b38c4b](https://github.com/dylfrancis/aurral-pocket/commit/3b38c4b94834c03d49e772b1a85fdf171c812269))
+* **ios:** add proper navbar background on ios 18 or below ([fa2361b](https://github.com/dylfrancis/aurral-pocket/commit/fa2361b2f927b3ab4892986ac45a77d6d501d6b1))
+* **ios:** ios 18 proper background material rendering fix ([c6c2d8c](https://github.com/dylfrancis/aurral-pocket/commit/c6c2d8c12954485cc16675c70452635224b2b38e))
+
 ## [0.7.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.6.0...v0.7.0) (2026-05-24)
 
 
