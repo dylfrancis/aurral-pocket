@@ -14,13 +14,16 @@ jobs:
       profile: production
       message: ${{ github.ref_name }}
 
-  submit_ios:
-    name: Submit to TestFlight
+  testflight_ios:
+    name: Distribute to TestFlight (internal + external)
     needs: [build_ios]
-    type: submit
+    type: testflight
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
-      profile: production
+      profile: ios-testflight
+      external_groups: ["Aurral Beta Users"]
+      submit_beta_review: true
+      changelog: ${{ github.ref_name }}
 
   build_android:
     name: Build Android (production)
@@ -30,10 +33,18 @@ jobs:
       profile: production
       message: ${{ github.ref_name }}
 
-  submit_android:
+  submit_android_internal:
     name: Submit to Play Internal
     needs: [build_android]
     type: submit
     params:
       build_id: ${{ needs.build_android.outputs.build_id }}
-      profile: production
+      profile: android-internal
+
+  submit_android_closed:
+    name: Submit to Play Closed (alpha)
+    needs: [build_android]
+    type: submit
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
+      profile: android-closed

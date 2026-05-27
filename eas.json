@@ -25,13 +25,21 @@
     }
   },
   "submit": {
-    "production": {
+    "ios-testflight": {
       "ios": {
         "ascAppId": "6761888587"
-      },
+      }
+    },
+    "android-internal": {
       "android": {
         "track": "internal",
-        "releaseStatus": "draft"
+        "releaseStatus": "completed"
+      }
+    },
+    "android-closed": {
+      "android": {
+        "track": "alpha",
+        "releaseStatus": "completed"
       }
     }
   }
