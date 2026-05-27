@@ -2,6 +2,18 @@ jest.mock("expo/fetch", () => ({
   fetch: jest.fn(),
 }));
 
+// The native ShazamKit module isn't linked under Jest; default to "unavailable"
+// so importers are safe. The hook test overrides this with a controllable mock.
+jest.mock("@/modules/shazam", () => ({
+  isShazamAvailable: false,
+  startListening: jest.fn(() => Promise.resolve()),
+  stopListening: jest.fn(() => Promise.resolve()),
+  addMatchListener: jest.fn(() => null),
+  addNoMatchListener: jest.fn(() => null),
+  addErrorListener: jest.fn(() => null),
+  addLevelListener: jest.fn(() => null),
+}));
+
 jest.mock("burnt", () => ({
   toast: jest.fn(),
   alert: jest.fn(),

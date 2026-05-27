@@ -10,7 +10,11 @@ import {
   ShowsNearYouSection,
 } from "@/components/discover";
 import { SettingsSheet } from "@/components/settings/SettingsSheet";
+import { ShazamSheet } from "@/components/shazam";
+import { isShazamAvailable } from "@/modules/shazam";
 import { Text } from "@/components/ui/Text";
+import Mic from "@expo/material-symbols/mic.xml";
+import Settings from "@expo/material-symbols/settings.xml";
 import { Colors, Fonts } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
@@ -144,6 +148,8 @@ export default function DiscoverScreen() {
     settingsSheetRef.current?.present();
   }, []);
 
+  const shazamSheetRef = useRef<BottomSheetModal>(null);
+
   const handleOpenCustomize = useCallback(() => {
     customizeSheetRef.current?.present();
   }, []);
@@ -201,28 +207,26 @@ export default function DiscoverScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerRight: canAccessSettings
-            ? () => (
-                <Pressable
-                  onPress={handleOpenSettings}
-                  style={({ pressed }) => [
-                    styles.headerButton,
-                    { opacity: pressed ? 0.6 : 1 },
-                  ]}
-                  accessibilityLabel="Settings"
-                >
-                  <Ionicons
-                    name="settings-outline"
-                    size={22}
-                    color={colors.text}
-                  />
-                </Pressable>
-              )
-            : undefined,
-        }}
-      />
+      <Stack.Toolbar placement="right">
+        {isShazamAvailable && (
+          <Stack.Toolbar.Button
+            icon={process.env.EXPO_OS === "ios" ? "mic" : Mic}
+            accessibilityLabel="Identify song"
+            onPress={() => shazamSheetRef.current?.present()}
+          >
+            Identify song
+          </Stack.Toolbar.Button>
+        )}
+        {canAccessSettings && (
+          <Stack.Toolbar.Button
+            icon={process.env.EXPO_OS === "ios" ? "gearshape" : Settings}
+            accessibilityLabel="Settings"
+            onPress={handleOpenSettings}
+          >
+            Settings
+          </Stack.Toolbar.Button>
+        )}
+      </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
@@ -354,6 +358,13 @@ export default function DiscoverScreen() {
         onSave={handleSaveLayout}
         onSaveError={handleSaveLayoutError}
       />
+      <ShazamSheet
+        sheetRef={shazamSheetRef}
+        onViewArtist={(mbid, name) => pushArtist(mbid, name)}
+        onSearchManually={(q) =>
+          router.push({ pathname: "/results", params: { q, scope: "artist" } })
+        }
+      />
     </>
   );
 }
@@ -382,9 +393,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 8,
-  },
-  headerButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
   },
 });

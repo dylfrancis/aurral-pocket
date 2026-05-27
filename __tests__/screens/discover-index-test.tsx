@@ -11,8 +11,14 @@ jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
 
+jest.mock("@expo/material-symbols/mic.xml", () => "Mic");
+jest.mock("@expo/material-symbols/settings.xml", () => "Settings");
+
 jest.mock("expo-router", () => ({
-  Stack: { Screen: () => null },
+  Stack: {
+    Screen: () => null,
+    Toolbar: Object.assign(() => null, { Button: () => null }),
+  },
   useRouter: jest.fn(() => ({ push: jest.fn() })),
 }));
 
@@ -63,6 +69,11 @@ jest.mock("@/components/discover", () => {
 
 jest.mock("@/components/settings/SettingsSheet", () => ({
   SettingsSheet: () => null,
+}));
+
+jest.mock("@/components/shazam", () => ({
+  ShazamSheet: () => null,
+  ShazamTriggerButton: () => null,
 }));
 
 jest.mock("@gorhom/bottom-sheet", () => {

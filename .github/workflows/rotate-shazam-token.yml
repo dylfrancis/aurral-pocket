@@ -1,0 +1,49 @@
+name: Rotate Shazam developer token
+
+# Apple media-identifier tokens expire after ~6 months. Mint a fresh one each
+# month and store it as an EAS environment variable so the next Android build
+# embeds a valid token. iOS does not use it (it relies on the app entitlement).
+on:
+  schedule:
+    - cron: "0 6 1 * *" # 06:00 UTC on the 1st of each month
+  workflow_dispatch:
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Mint token
+        id: mint
+        env:
+          SHAZAM_KEY_ID: ${{ secrets.SHAZAM_KEY_ID }}
+          SHAZAM_TEAM_ID: ${{ secrets.SHAZAM_TEAM_ID }}
+          SHAZAM_PRIVATE_KEY: ${{ secrets.SHAZAM_PRIVATE_KEY }}
+        run: |
+          TOKEN="$(node scripts/mint-shazam-token.mjs)"
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Update EAS environment variable
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas env:create \
+            --name SHAZAM_DEVELOPER_TOKEN \
+            --value "${{ steps.mint.outputs.token }}" \
+            --environment production \
+            --environment preview \
+            --visibility secret \
+            --non-interactive \
+            --force
