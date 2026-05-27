@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
+import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import * as Burnt from "burnt";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import Settings from "@expo/material-symbols/settings.xml";
 import Add from "@expo/material-symbols/add.xml";
@@ -12,7 +14,7 @@ import { FlowCard } from "@/components/flow/FlowCard";
 import { PlaylistCard } from "@/components/flow/PlaylistCard";
 import { FlowDetailSheet } from "@/components/flow/FlowDetailSheet";
 import { PlaylistDetailSheet } from "@/components/flow/PlaylistDetailSheet";
-import { useFlowStatus, useSetFlowEnabled } from "@/hooks/flow";
+import { useFlowStatusSuspense, useSetFlowEnabled } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { Flow, PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
@@ -31,14 +33,20 @@ type SectionRow =
 export default function FlowScreen() {
   const colors = Colors[useColorScheme()];
   const router = useRouter();
-  const { data, isLoading, error, refetch } = useFlowStatus();
+  const { data, refetch } = useFlowStatusSuspense();
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const setEnabled = useSetFlowEnabled();
 
   const handlePullRefresh = useCallback(async () => {
     setIsPullRefreshing(true);
     try {
-      await refetch();
+      const result = await refetch();
+      if (result.isError) {
+        Burnt.toast({
+          title: "Couldn't refresh flows",
+          preset: "error",
+        });
+      }
     } finally {
       setIsPullRefreshing(false);
     }
@@ -54,7 +62,6 @@ export default function FlowScreen() {
   );
 
   const rows = useMemo<SectionRow[]>(() => {
-    if (!data) return [];
     const out: SectionRow[] = [];
     if (data.flows.length > 0) {
       for (const flow of data.flows) {
@@ -160,23 +167,6 @@ export default function FlowScreen() {
     [router],
   );
 
-  if (isLoading && !data) {
-    return <ScreenCenter loading />;
-  }
-
-  if (error && !data) {
-    return (
-      <ScreenCenter>
-        <EmptyState
-          icon="cloud-offline-outline"
-          message="Failed to load flows"
-          actionLabel="Try Again"
-          onAction={() => refetch()}
-        />
-      </ScreenCenter>
-    );
-  }
-
   return (
     <>
       <Stack.Toolbar placement="right">
@@ -238,6 +228,23 @@ export default function FlowScreen() {
         onDeleting={setDeletingPlaylistId}
       />
     </>
+  );
+}
+
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  const { reset } = useQueryErrorResetBoundary();
+  return (
+    <ScreenCenter>
+      <EmptyState
+        icon="cloud-offline-outline"
+        message="Failed to load flows"
+        actionLabel="Try Again"
+        onAction={() => {
+          reset();
+          retry();
+        }}
+      />
+    </ScreenCenter>
   );
 }
 

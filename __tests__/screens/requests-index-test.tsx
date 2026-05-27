@@ -12,7 +12,7 @@ jest.mock("@/hooks/use-color-scheme", () => ({
 }));
 
 jest.mock("@/hooks/requests/use-requests", () => ({
-  useRequests: jest.fn(),
+  useRequestsSuspense: jest.fn(),
 }));
 
 jest.mock("@/hooks/requests/use-requests-download-statuses", () => ({
@@ -82,17 +82,28 @@ jest.mock("@/components/library/CoverArtImage", () => {
 
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
-import RequestsScreen from "@/app/(app)/(tabs)/(requests)/index";
-import { useRequests } from "@/hooks/requests/use-requests";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import RequestsScreen, {
+  ErrorBoundary,
+} from "@/app/(app)/(tabs)/(requests)/index";
+import { useRequestsSuspense } from "@/hooks/requests/use-requests";
 import type { Request } from "@/lib/types/requests";
 
-const mockUseRequests = useRequests as jest.Mock;
+const mockUseRequestsSuspense = useRequestsSuspense as jest.Mock;
 
-const defaultRequestsHook = {
-  data: undefined,
-  isLoading: false,
-  error: null,
-  refetch: jest.fn().mockResolvedValue({}),
+function renderWithClient(node: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>{node}</QueryClientProvider>,
+  );
+}
+
+const defaultHook = {
+  data: [] as Request[],
+  refetch: jest.fn().mockResolvedValue({ isError: false }),
+  isRefetching: false,
 };
 
 function makeRequest(overrides: Partial<Request> & { id: string }): Request {
@@ -116,62 +127,51 @@ function makeRequest(overrides: Partial<Request> & { id: string }): Request {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockUseRequests.mockReturnValue({ ...defaultRequestsHook });
+  mockUseRequestsSuspense.mockReturnValue({ ...defaultHook });
 });
 
 describe("RequestsScreen", () => {
-  it("shows loading indicator while requests are loading", () => {
-    mockUseRequests.mockReturnValue({
-      ...defaultRequestsHook,
-      isLoading: true,
-    });
-    const { UNSAFE_getByType } = render(<RequestsScreen />);
-    const { ActivityIndicator } = require("react-native");
-    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
-  });
-
-  it("shows error state with retry button when requests fail to load", () => {
-    const refetch = jest.fn();
-    mockUseRequests.mockReturnValue({
-      ...defaultRequestsHook,
-      error: new Error("fail"),
-      refetch,
-    });
-    const { getByText } = render(<RequestsScreen />);
-    expect(getByText("Failed to load requests")).toBeTruthy();
-    fireEvent.press(getByText("Try Again"));
-    expect(refetch).toHaveBeenCalledTimes(1);
-  });
-
   it("shows empty state when no requests exist", () => {
-    mockUseRequests.mockReturnValue({
-      ...defaultRequestsHook,
-      data: [],
-    });
-    const { getByText } = render(<RequestsScreen />);
+    mockUseRequestsSuspense.mockReturnValue({ ...defaultHook, data: [] });
+    const { getByText } = renderWithClient(<RequestsScreen />);
     expect(getByText("No requests yet")).toBeTruthy();
   });
 
   it("navigates to discover when empty state action is pressed", () => {
-    mockUseRequests.mockReturnValue({
-      ...defaultRequestsHook,
-      data: [],
-    });
-    const { getByText } = render(<RequestsScreen />);
+    mockUseRequestsSuspense.mockReturnValue({ ...defaultHook, data: [] });
+    const { getByText } = renderWithClient(<RequestsScreen />);
     fireEvent.press(getByText("Start Discovering"));
     expect(mockPush).toHaveBeenCalledWith("/(app)/(tabs)/(discover)");
   });
 
   it("renders requests list when data is loaded", () => {
-    mockUseRequests.mockReturnValue({
-      ...defaultRequestsHook,
+    mockUseRequestsSuspense.mockReturnValue({
+      ...defaultHook,
       data: [
         makeRequest({ id: "1", albumName: "First Album" }),
         makeRequest({ id: "2", albumName: "Second Album" }),
       ],
     });
-    const { getByText } = render(<RequestsScreen />);
+    const { getByText } = renderWithClient(<RequestsScreen />);
     expect(getByText("First Album")).toBeTruthy();
     expect(getByText("Second Album")).toBeTruthy();
+  });
+});
+
+describe("RequestsScreen ErrorBoundary", () => {
+  it("renders the failure message", () => {
+    const { getByText } = renderWithClient(
+      <ErrorBoundary error={new Error("fail")} retry={jest.fn()} />,
+    );
+    expect(getByText("Failed to load requests")).toBeTruthy();
+  });
+
+  it("calls retry when Try Again is pressed", () => {
+    const retry = jest.fn();
+    const { getByText } = renderWithClient(
+      <ErrorBoundary error={new Error("fail")} retry={retry} />,
+    );
+    fireEvent.press(getByText("Try Again"));
+    expect(retry).toHaveBeenCalledTimes(1);
   });
 });

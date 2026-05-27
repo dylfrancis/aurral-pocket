@@ -213,6 +213,7 @@ jest.mock("@/components/library/ArtistTags", () => {
 
 jest.mock("@/hooks/library/use-library-artist", () => ({
   useLibraryArtist: jest.fn(),
+  useLibraryArtistSuspense: jest.fn(),
 }));
 
 jest.mock("@/hooks/library/use-library-albums", () => ({
@@ -238,13 +239,20 @@ jest.mock("@/hooks/library/use-download-statuses", () => ({
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import ArtistDetailScreen from "@/app/(app)/(tabs)/(library)/artist/[mbid]";
-import { useLibraryArtist } from "@/hooks/library/use-library-artist";
+import ArtistDetailScreen, {
+  ErrorBoundary,
+} from "@/app/(app)/(tabs)/(library)/artist/[mbid]";
+import {
+  useLibraryArtist,
+  useLibraryArtistSuspense,
+} from "@/hooks/library/use-library-artist";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
+import { ApiError } from "@/lib/api/client";
 import type { Artist, Album } from "@/lib/types/library";
 
 const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
+const mockUseLibraryArtistSuspense = useLibraryArtistSuspense as jest.Mock;
 
 function renderScreen() {
   const queryClient = new QueryClient({
@@ -300,78 +308,68 @@ const defaultArtistHook = {
   isRefetching: false,
 };
 
+const defaultSuspenseHook = {
+  data: baseArtist,
+  refetch: jest.fn().mockResolvedValue({ isError: false }),
+  isRefetching: false,
+};
+
+let consoleErrorSpy: jest.SpyInstance | undefined;
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook });
   mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook });
+  mockUseLibraryArtistSuspense.mockReturnValue({ ...defaultSuspenseHook });
+  consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+});
+afterEach(() => {
+  consoleErrorSpy?.mockRestore();
+});
+
+function renderErrorBoundary(error: Error, retry = jest.fn()) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return {
+    retry,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <ErrorBoundary error={error} retry={retry} />
+      </QueryClientProvider>,
+    ),
+  };
+}
+
+describe("ArtistDetailScreen ErrorBoundary", () => {
+  it("shows generic failure message for non-404 errors", () => {
+    const { getByText } = renderErrorBoundary(new Error("fail"));
+    expect(getByText("Failed to load artist")).toBeTruthy();
+  });
+
+  it("calls retry when Try Again is pressed", () => {
+    const { getByText, retry } = renderErrorBoundary(new Error("fail"));
+    fireEvent.press(getByText("Try Again"));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows not found message when the API returns 404", () => {
+    const { getByText, queryByText } = renderErrorBoundary(
+      new ApiError(404, "Not Found"),
+    );
+    expect(getByText("Artist not found")).toBeTruthy();
+    // No retry button on 404 — re-fetching won't bring the artist back.
+    expect(queryByText("Try Again")).toBeNull();
+  });
 });
 
 describe("ArtistDetailScreen", () => {
-  describe("loading state", () => {
-    it("shows loading indicator while artist is loading", () => {
-      mockUseLibraryArtist.mockReturnValue({
-        ...defaultArtistHook,
-        isLoading: true,
-      });
-      const { getByTestId, UNSAFE_getByType } = renderScreen();
-      expect(getByTestId("screen-center")).toBeTruthy();
-      const { ActivityIndicator } = require("react-native");
-      expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
-    });
-  });
-
-  describe("error state", () => {
-    it("shows error message when artist fails to load", () => {
-      mockUseLibraryArtist.mockReturnValue({
-        ...defaultArtistHook,
-        error: new Error("fail"),
-      });
-      const { getByText } = renderScreen();
-      expect(getByText("Failed to load artist")).toBeTruthy();
-    });
-
-    it("shows retry button on artist error", () => {
-      const refetch = jest.fn();
-      mockUseLibraryArtist.mockReturnValue({
-        ...defaultArtistHook,
-        error: new Error("fail"),
-        refetch,
-      });
-      const { getByText } = renderScreen();
-      fireEvent.press(getByText("Try Again"));
-      expect(refetch).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe("not found state", () => {
-    it("shows not found when artist is null", () => {
-      mockUseLibraryArtist.mockReturnValue({
-        ...defaultArtistHook,
-        data: null,
-      });
-      const { getByText } = renderScreen();
-      expect(getByText("Artist not found")).toBeTruthy();
-    });
-  });
-
   describe("with artist loaded", () => {
-    beforeEach(() => {
-      mockUseLibraryArtist.mockReturnValue({
-        ...defaultArtistHook,
-        data: baseArtist,
-      });
-    });
-
     it("renders artist name", () => {
       const { getByText } = renderScreen();
       expect(getByText("Test Artist")).toBeTruthy();
     });
 
     it("shows albums section header", () => {
-      mockUseLibraryArtist.mockReturnValue({
-        ...defaultArtistHook,
-        data: baseArtist,
-      });
       const albums = [makeAlbum({ id: "1" })];
       mockUseLibraryAlbums.mockReturnValue({
         ...defaultAlbumHook,

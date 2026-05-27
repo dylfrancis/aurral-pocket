@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
+import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import * as Burnt from "burnt";
 import Block from "@expo/material-symbols/block.xml";
 import SwapVert from "@expo/material-symbols/swap_vert.xml";
 import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
@@ -11,7 +13,7 @@ import { ArtistCard } from "@/components/library/ArtistCard";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { type SortMode } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
-import { useLibraryArtists } from "@/hooks/library/use-library-artists";
+import { useLibraryArtistsSuspense } from "@/hooks/library/use-library-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { stripArticle } from "@/lib/strings";
@@ -36,19 +38,12 @@ const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
 export default function LibraryScreen() {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
-  const {
-    data: artists,
-    isLoading,
-    error,
-    refetch,
-    isRefetching,
-  } = useLibraryArtists();
+  const { data: artists, refetch, isRefetching } = useLibraryArtistsSuspense();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("alpha");
 
   const filtered = useMemo(() => {
-    if (!artists) return [];
     if (!searchQuery) return artists;
     const query = searchQuery.toLowerCase();
     return artists.filter((a) => a.artistName.toLowerCase().includes(query));
@@ -73,6 +68,16 @@ export default function LibraryScreen() {
     }
   }, [filtered, sortMode]);
 
+  const handleRefresh = useCallback(async () => {
+    const result = await refetch();
+    if (result.isError) {
+      Burnt.toast({
+        title: "Couldn't refresh library",
+        preset: "error",
+      });
+    }
+  }, [refetch]);
+
   const renderItem = useCallback(
     ({ item }: { item: Artist }) => {
       return (
@@ -86,23 +91,6 @@ export default function LibraryScreen() {
     },
     [router],
   );
-
-  if (isLoading) {
-    return <ScreenCenter loading />;
-  }
-
-  if (error) {
-    return (
-      <ScreenCenter>
-        <EmptyState
-          icon="cloud-offline-outline"
-          message="Failed to load library"
-          actionLabel="Try Again"
-          onAction={() => refetch()}
-        />
-      </ScreenCenter>
-    );
-  }
 
   return (
     <>
@@ -157,12 +145,29 @@ export default function LibraryScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={refetch}
+            onRefresh={handleRefresh}
             tintColor={colors.brand}
           />
         }
       />
     </>
+  );
+}
+
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  const { reset } = useQueryErrorResetBoundary();
+  return (
+    <ScreenCenter>
+      <EmptyState
+        icon="cloud-offline-outline"
+        message="Failed to load library"
+        actionLabel="Try Again"
+        onAction={() => {
+          reset();
+          retry();
+        }}
+      />
+    </ScreenCenter>
   );
 }
 

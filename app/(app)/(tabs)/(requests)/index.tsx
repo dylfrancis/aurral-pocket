@@ -1,13 +1,19 @@
 import { useCallback, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import { useFocusEffect, useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useRouter,
+  type ErrorBoundaryProps,
+} from "expo-router";
+import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import * as Burnt from "burnt";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { RequestRow } from "@/components/requests/RequestRow";
 import { RequestActionsSheet } from "@/components/requests/RequestActionsSheet";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { EmptyState } from "@/components/library/EmptyState";
-import { useRequests } from "@/hooks/requests/use-requests";
+import { useRequestsSuspense } from "@/hooks/requests/use-requests";
 import { useRequestsDownloadStatuses } from "@/hooks/requests/use-requests-download-statuses";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -24,7 +30,7 @@ export default function RequestsScreen() {
   const sheetRef = useRef<BottomSheetModal>(null);
   const [selected, setSelected] = useState<Request | null>(null);
 
-  const { data: requests, isLoading, error, refetch } = useRequests();
+  const { data: requests, refetch } = useRequestsSuspense();
   const { data: downloadStatuses } = useRequestsDownloadStatuses(requests);
 
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
@@ -38,7 +44,13 @@ export default function RequestsScreen() {
   const handlePullRefresh = useCallback(async () => {
     setIsPullRefreshing(true);
     try {
-      await refetch();
+      const result = await refetch();
+      if (result.isError) {
+        Burnt.toast({
+          title: "Couldn't refresh requests",
+          preset: "error",
+        });
+      }
     } finally {
       setIsPullRefreshing(false);
     }
@@ -88,23 +100,6 @@ export default function RequestsScreen() {
     [downloadStatuses, rowHasActions, handleRowPress, handleLongPress],
   );
 
-  if (isLoading) {
-    return <ScreenCenter loading />;
-  }
-
-  if (error) {
-    return (
-      <ScreenCenter>
-        <EmptyState
-          icon="cloud-offline-outline"
-          message="Failed to load requests"
-          actionLabel="Try Again"
-          onAction={() => refetch()}
-        />
-      </ScreenCenter>
-    );
-  }
-
   const activeStatus = selected?.albumId
     ? downloadStatuses?.[String(selected.albumId)]?.status
     : undefined;
@@ -112,7 +107,7 @@ export default function RequestsScreen() {
   return (
     <>
       <FlashList
-        data={requests ?? []}
+        data={requests}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         ItemSeparatorComponent={ItemSeparator}
@@ -143,6 +138,23 @@ export default function RequestsScreen() {
         downloadStatus={activeStatus}
       />
     </>
+  );
+}
+
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  const { reset } = useQueryErrorResetBoundary();
+  return (
+    <ScreenCenter>
+      <EmptyState
+        icon="cloud-offline-outline"
+        message="Failed to load requests"
+        actionLabel="Try Again"
+        onAction={() => {
+          reset();
+          retry();
+        }}
+      />
+    </ScreenCenter>
   );
 }
 

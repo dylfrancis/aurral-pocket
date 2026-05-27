@@ -1,12 +1,10 @@
 import { useEffect, useRef } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Switch, View } from "react-native";
+import type { ErrorBoundaryProps } from "expo-router";
+import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { Text } from "@/components/ui/Text";
+import { ScreenCenter } from "@/components/ui/ScreenCenter";
+import { EmptyState } from "@/components/library/EmptyState";
 import { SegmentedRow } from "@/components/flow/SegmentedRow";
 import { useUpdateWorkerSettings, useWorkerSettings } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -40,7 +38,7 @@ const RETRY_OPTIONS = RETRY_CYCLE_OPTIONS_MINUTES.map((minutes) => ({
 
 export default function WorkerSettingsScreen() {
   const colors = Colors[useColorScheme()];
-  const { data, isLoading } = useWorkerSettings();
+  const { data } = useWorkerSettings();
   const update = useUpdateWorkerSettings();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -56,14 +54,6 @@ export default function WorkerSettingsScreen() {
       update.mutate(next);
     }, 300);
   };
-
-  if (isLoading || !data) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.brand} />
-      </View>
-    );
-  }
 
   return (
     <ScrollView
@@ -125,6 +115,23 @@ export default function WorkerSettingsScreen() {
         />
       </Section>
     </ScrollView>
+  );
+}
+
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  const { reset } = useQueryErrorResetBoundary();
+  return (
+    <ScreenCenter>
+      <EmptyState
+        icon="cloud-offline-outline"
+        message="Failed to load worker settings"
+        actionLabel="Try Again"
+        onAction={() => {
+          reset();
+          retry();
+        }}
+      />
+    </ScreenCenter>
   );
 }
 
@@ -194,10 +201,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     gap: 12,
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

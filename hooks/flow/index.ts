@@ -1,4 +1,4 @@
-export { useFlowStatus } from "./use-flow-status";
+export { useFlowStatus, useFlowStatusSuspense } from "./use-flow-status";
 export {
   useFlow,
   useFlows,

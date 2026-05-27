@@ -9,18 +9,37 @@ import {
 } from "@/lib/blocklist";
 import { discoverKeys } from "@/lib/query-keys";
 import type { BlockedArtist, Blocklist } from "@/lib/types/discover";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { useCallback } from "react";
 
 const EMPTY: Blocklist = { artists: [], tags: [] };
 
-export function useBlocklist() {
-  return useQuery({
+export function blocklistQueryOptions() {
+  return queryOptions({
     queryKey: discoverKeys.blocklist(),
     queryFn: getBlocklist,
     staleTime: 5 * 60 * 1000,
+    throwOnError: (_error, query) => query.state.data === undefined,
   });
+}
+
+export function useBlocklist() {
+  return useQuery(blocklistQueryOptions());
+}
+
+/**
+ * Suspense variant. Caller must be inside a Suspense + ErrorBoundary, and
+ * inside the `(app)` route group (auth is guaranteed there).
+ */
+export function useBlocklistSuspense() {
+  return useSuspenseQuery(blocklistQueryOptions());
 }
 
 type Variables =

@@ -1,18 +1,29 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/auth-context";
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { getWorkerSettings, updateWorkerSettings } from "@/lib/api/flow";
 import { flowKeys } from "@/lib/query-keys";
 import type { WorkerSettings } from "@/lib/types/flow";
 
-export function useWorkerSettings() {
-  const { serverUrl, token } = useAuth();
-
-  return useQuery({
+export function workerSettingsQueryOptions() {
+  return queryOptions({
     queryKey: flowKeys.workerSettings(),
     queryFn: getWorkerSettings,
-    enabled: !!serverUrl && !!token,
     staleTime: 60 * 1000,
+    throwOnError: (_error, query) => query.state.data === undefined,
   });
+}
+
+/**
+ * Suspense variant. Caller must be inside a Suspense + ErrorBoundary (Expo
+ * Router wraps every route automatically), and inside the `(app)` route group
+ * (auth is guaranteed there).
+ */
+export function useWorkerSettings() {
+  return useSuspenseQuery(workerSettingsQueryOptions());
 }
 
 export function useUpdateWorkerSettings() {
