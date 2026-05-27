@@ -54,7 +54,7 @@ export function BlockArtistChip({ mbid, artistName }: BlockArtistChipProps) {
     <Chip
       label={blocked ? "Unblock artist" : "Block artist"}
       icon={blocked ? "ban" : "ban-outline"}
-      variant={blocked ? "error" : "neutral"}
+      variant="error"
       size="md"
       onPress={onPress}
       loading={isPending}
