@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { CloseButton } from "@/components/ui/CloseButton";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { DEFAULT_DISCOVER_SECTIONS } from "@/hooks/discover/use-discover-layout";
@@ -10,7 +11,7 @@ import {
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import React, { memo, useCallback, useEffect, useState } from "react";
+import React, { memo, useCallback, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -147,17 +148,10 @@ export function CustomizeDiscoverSheet({
               Toggle sections on or off. Hold and drag a row to reorder.
             </Text>
           </View>
-          <Pressable
+          <CloseButton
             onPress={handleClose}
-            accessibilityLabel="Close"
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.closeButton,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Ionicons name="close" size={22} color={colors.text} />
-          </Pressable>
+            fallbackBackground={colors.inputBackground}
+          />
         </View>
 
         <ReorderableList
@@ -214,13 +208,6 @@ const Row = memo(function Row({
   switchThumb,
 }: RowProps) {
   const drag = useReorderableDrag();
-  // Workaround for facebook/react-native#53856: <Switch> can lose its visual
-  // state when its row is re-rendered. Forcing a key bump on toggle is the
-  // accepted dance — see also FlowDetailSheet for the same pattern.
-  const [switchKey, setSwitchKey] = useState(0);
-  useEffect(() => {
-    setSwitchKey((k) => k + 1);
-  }, [section.enabled]);
 
   return (
     <Pressable
@@ -239,8 +226,11 @@ const Row = memo(function Row({
       >
         {section.label}
       </Text>
+      {/* Keying on `enabled` remounts the Switch on toggle, working around
+          facebook/react-native#53856 where it can lose its visual state on
+          re-render — see also FlowDetailSheet for the same pattern. */}
       <Switch
-        key={`section-${section.id}-${switchKey}`}
+        key={`section-${section.id}-${section.enabled}`}
         value={section.enabled}
         onValueChange={() => onToggle(section.id)}
         trackColor={{ false: switchTrackOff, true: switchTrackOn }}
@@ -270,9 +260,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     lineHeight: 26,
-  },
-  closeButton: {
-    padding: 4,
   },
   listContent: {
     paddingVertical: 4,
