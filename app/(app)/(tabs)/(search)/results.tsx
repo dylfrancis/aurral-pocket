@@ -226,7 +226,7 @@ export default function SearchResultsScreen() {
         <Stack.Toolbar.Menu
           icon={
             process.env.EXPO_OS === "ios"
-              ? "line.3.horizontal.decrease.circle"
+              ? "line.3.horizontal.decrease"
               : FilterList
           }
           title="Scope"

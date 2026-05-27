@@ -61,11 +61,18 @@ jest.mock("@/hooks/library/use-cover-art-url", () => ({
 }));
 
 const mockPush = jest.fn();
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: jest.fn(() => ({ mbid: "abc-123" })),
-  useRouter: jest.fn(() => ({ back: jest.fn(), push: mockPush })),
-  Stack: { Screen: () => null },
-}));
+jest.mock("expo-router", () => {
+  const Toolbar = Object.assign(() => null, {
+    Menu: () => null,
+    MenuAction: () => null,
+    Button: () => null,
+  });
+  return {
+    useLocalSearchParams: jest.fn(() => ({ mbid: "abc-123" })),
+    useRouter: jest.fn(() => ({ back: jest.fn(), push: mockPush })),
+    Stack: { Screen: () => null, Toolbar },
+  };
+});
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: jest.fn(() => ({ top: 0, bottom: 0, left: 0, right: 0 })),
