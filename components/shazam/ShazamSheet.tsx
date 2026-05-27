@@ -40,11 +40,11 @@ export function ShazamSheet({
     }
   }, [status, sheetRef]);
 
-  // A single ISRC-confirmed artist stays compact (55%); the top-N fallback list
-  // needs room, so grow to 90%.
+  // A single-row result (ISRC best match, or a lone name match) stays compact
+  // at 55%; a multi-row fallback list needs room, so grow to 90%.
   const handleResolved = useCallback(
-    (hasBestMatch: boolean) => {
-      sheetRef.current?.snapToIndex(hasBestMatch ? 0 : 1);
+    (needsExpandedSheet: boolean) => {
+      sheetRef.current?.snapToIndex(needsExpandedSheet ? 1 : 0);
     },
     [sheetRef],
   );

@@ -68,3 +68,11 @@ export function addErrorListener(
 ): EventSubscription | null {
   return ShazamModule?.addListener("onError", listener) ?? null;
 }
+
+export function addLevelListener(
+  listener: (level: number) => void,
+): EventSubscription | null {
+  return (
+    ShazamModule?.addListener("onLevel", ({ level }) => listener(level)) ?? null
+  );
+}

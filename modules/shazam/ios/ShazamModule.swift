@@ -11,7 +11,7 @@ public final class ShazamModule: Module {
   public func definition() -> ModuleDefinition {
     Name("Shazam")
 
-    Events("onMatch", "onNoMatch", "onError")
+    Events("onMatch", "onNoMatch", "onError", "onLevel")
 
     AsyncFunction("startListening") { (_: String?, promise: Promise) in
       // The developer token is iOS-irrelevant: catalog access rides the app's
@@ -85,10 +85,28 @@ public final class ShazamModule: Module {
     inputNode.installTap(onBus: 0, bufferSize: 2048, format: format) {
       [weak self] buffer, time in
       self?.session?.matchStreamingBuffer(buffer, at: time)
+      self?.emitLevel(from: buffer)
     }
 
     audioEngine.prepare()
     try audioEngine.start()
+  }
+
+  /// RMS of the buffer mapped from ~-50 dBFS…0 dBFS onto 0…1 for the UI.
+  private func emitLevel(from buffer: AVAudioPCMBuffer) {
+    guard let channel = buffer.floatChannelData?[0] else { return }
+    let frames = Int(buffer.frameLength)
+    guard frames > 0 else { return }
+
+    var sumSquares: Float = 0
+    for i in 0..<frames {
+      let sample = channel[i]
+      sumSquares += sample * sample
+    }
+    let rms = sqrt(sumSquares / Float(frames))
+    let db = 20 * log10(max(rms, 1e-7))
+    let level = max(0, min(1, (db + 50) / 50))
+    sendEvent("onLevel", ["level": Double(level)])
   }
 
   private func stopListening() {

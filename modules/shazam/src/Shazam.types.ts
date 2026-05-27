@@ -29,4 +29,6 @@ export type ShazamModuleEvents = {
   onMatch: (event: { match: ShazamMatch }) => void;
   onNoMatch: () => void;
   onError: (event: ShazamError) => void;
+  /** Normalised (0–1) microphone level, emitted periodically while listening. */
+  onLevel: (event: { level: number }) => void;
 };

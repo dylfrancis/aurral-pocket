@@ -1,37 +1,53 @@
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { addLevelListener } from "@/modules/shazam";
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
-  Easing,
   cancelAnimation,
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const SIZE = 96;
 
-/** Pulsing ring + mic icon shown while a listening session is active. */
+/**
+ * Ring + mic icon shown while listening. The ring scale/opacity track the live
+ * microphone level (via the native `onLevel` events); a gentle idle breathing
+ * animation keeps it alive when it's quiet.
+ */
 export function ShazamListeningIndicator() {
   const colors = Colors[useColorScheme()];
-  const pulse = useSharedValue(0);
+  const level = useSharedValue(0);
+  const idle = useSharedValue(0);
 
   useEffect(() => {
-    pulse.value = withRepeat(
-      withTiming(1, { duration: 1600, easing: Easing.out(Easing.ease) }),
+    idle.value = withRepeat(
+      withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
       -1,
-      false,
+      true,
     );
-    return () => cancelAnimation(pulse);
-  }, [pulse]);
+    return () => cancelAnimation(idle);
+  }, [idle]);
 
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + pulse.value * 0.6 }],
-    opacity: 0.5 * (1 - pulse.value),
-  }));
+  useEffect(() => {
+    const sub = addLevelListener((value) => {
+      level.value = withTiming(value, { duration: 90 });
+    });
+    return () => sub?.remove();
+  }, [level]);
+
+  const ringStyle = useAnimatedStyle(() => {
+    const energy = idle.value * 0.2 + level.value * 0.8;
+    return {
+      transform: [{ scale: 1 + energy * 0.7 }],
+      opacity: 0.12 + energy * 0.4,
+    };
+  });
 
   return (
     <View style={styles.container}>

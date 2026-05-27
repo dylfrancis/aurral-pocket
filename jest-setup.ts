@@ -11,6 +11,7 @@ jest.mock("@/modules/shazam", () => ({
   addMatchListener: jest.fn(() => null),
   addNoMatchListener: jest.fn(() => null),
   addErrorListener: jest.fn(() => null),
+  addLevelListener: jest.fn(() => null),
 }));
 
 jest.mock("burnt", () => ({

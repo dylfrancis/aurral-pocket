@@ -36,7 +36,7 @@ class ShazamModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("Shazam")
 
-    Events("onMatch", "onNoMatch", "onError")
+    Events("onMatch", "onNoMatch", "onError", "onLevel")
 
     AsyncFunction("startListening") { developerToken: String? ->
       startListening(developerToken)
@@ -165,9 +165,29 @@ class ShazamModule : Module() {
         val read = recorder.read(buffer, 0, buffer.size)
         if (read > 0) {
           session.matchStream(buffer, read, System.currentTimeMillis())
+          emitLevel(buffer, read)
         }
       }
     }
+  }
+
+  /** RMS of the PCM16 buffer mapped from ~-50 dBFS…0 dBFS onto 0…1 for the UI. */
+  private fun emitLevel(buffer: ByteArray, bytesRead: Int) {
+    val sampleCount = bytesRead / 2
+    if (sampleCount <= 0) return
+
+    var sumSquares = 0.0
+    var i = 0
+    while (i < bytesRead - 1) {
+      // little-endian 16-bit sample → normalised to [-1, 1]
+      val sample = (buffer[i].toInt() and 0xFF or (buffer[i + 1].toInt() shl 8)) / 32768.0
+      sumSquares += sample * sample
+      i += 2
+    }
+    val rms = kotlin.math.sqrt(sumSquares / sampleCount)
+    val db = 20 * kotlin.math.log10(maxOf(rms, 1e-7))
+    val level = ((db + 50) / 50).coerceIn(0.0, 1.0)
+    sendEvent("onLevel", mapOf("level" to level))
   }
 
   private fun stopListening() {

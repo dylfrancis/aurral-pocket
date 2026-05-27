@@ -1,37 +1,31 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
-import { Image } from "expo-image";
+import { EmptyState } from "@/components/library/EmptyState";
+import { Chip } from "@/components/ui/Chip";
+import { Text } from "@/components/ui/Text";
+import { Colors, Fonts } from "@/constants/theme";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import { useAddArtist } from "@/hooks/search/use-add-artist";
+import { useArtistSearch } from "@/hooks/search/use-artist-search";
+import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { useIsrcArtist } from "@/hooks/shazam/use-isrc-artist";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { absolutizeImageUrl } from "@/lib/api/client";
+import { rankCandidates } from "@/lib/shazam/rank-candidates";
+import type { SearchArtist } from "@/lib/types/search";
+import type { ShazamMatch } from "@/modules/shazam";
 import { Ionicons } from "@expo/vector-icons";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
-import { Text } from "@/components/ui/Text";
-import { Chip } from "@/components/ui/Chip";
-import { EmptyState } from "@/components/library/EmptyState";
-import { useArtistSearch } from "@/hooks/search/use-artist-search";
-import { useAddArtist } from "@/hooks/search/use-add-artist";
-import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
-import { useIsrcArtist } from "@/hooks/shazam/use-isrc-artist";
-import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
-import { absolutizeImageUrl } from "@/lib/api/client";
-import { rankCandidates } from "@/lib/shazam/rank-candidates";
-import type { ShazamMatch } from "@/modules/shazam";
-import type { SearchArtist } from "@/lib/types/search";
+import { Image } from "expo-image";
+import { useCallback, useEffect, useMemo } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
 const CANDIDATE_LIMIT = 5;
 
 type Props = {
   match: ShazamMatch;
-  /** Open the artist detail screen within the host tab's stack. */
   onViewArtist: (mbid: string, name: string) => void;
-  /** Fall back to a manual search prefilled with the artist name. */
   onSearchManually: (query: string) => void;
-  /**
-   * Fires once resolution settles: `true` when an ISRC pinned a single best
-   * match (compact result), `false` when showing the top-N fallback list.
-   */
-  onResolved?: (hasBestMatch: boolean) => void;
+  onResolved?: (needsExpandedSheet: boolean) => void;
 };
 
 export function ShazamMatchResult({
@@ -57,12 +51,11 @@ export function ShazamMatchResult({
     [data?.artists, isrcArtist],
   );
 
-  // Tell the sheet how tall to be, but only once both lookups have settled so
-  // we don't expand to the fallback height and then snap back on a late ISRC.
   const settled = !isLoading && !isrcLoading;
+  const needsExpandedSheet = candidates.length > 1;
   useEffect(() => {
-    if (settled) onResolved?.(hasBestMatch);
-  }, [settled, hasBestMatch, onResolved]);
+    if (settled) onResolved?.(needsExpandedSheet);
+  }, [settled, needsExpandedSheet, onResolved]);
 
   const addArtist = useAddArtist();
 
