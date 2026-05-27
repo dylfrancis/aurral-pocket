@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest",
-    "prepare": "husky"
+    "prepare": "husky",
+    "shazam:aar": "node scripts/setup-shazam-aar.mjs",
+    "eas-build-pre-install": "node scripts/setup-shazam-aar.mjs"
   },
   "jest": {
     "preset": "jest-expo",

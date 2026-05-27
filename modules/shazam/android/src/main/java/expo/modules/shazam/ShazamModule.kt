@@ -75,22 +75,29 @@ class ShazamModule : Module() {
       override fun provideDeveloperToken() = DeveloperToken(developerToken)
     }
 
-    val catalog = ShazamKit.createShazamCatalog(tokenProvider)
-    val sessionResult = ShazamKit.createStreamingSession(
-      catalog,
-      AudioSampleRateInHz.SAMPLE_RATE_44100,
-      READ_BUFFER_SIZE,
-    )
-
-    when (sessionResult) {
-      is ShazamKitResult.Success -> {
-        streamingSession = sessionResult.data
-        isListening = true
-        observeResults(sessionResult.data)
-        startRecording(sessionResult.data)
-      }
-      is ShazamKitResult.Failure -> {
-        emitError("unavailable", sessionResult.reason.message ?: "Could not start ShazamKit")
+    // createStreamingSession is a suspend function, so build the session inside
+    // a coroutine, then wire up recognition + recording.
+    scope.launch {
+      val catalog = ShazamKit.createShazamCatalog(tokenProvider)
+      when (
+        val sessionResult = ShazamKit.createStreamingSession(
+          catalog,
+          AudioSampleRateInHz.SAMPLE_RATE_44100,
+          READ_BUFFER_SIZE,
+        )
+      ) {
+        is ShazamKitResult.Success -> {
+          streamingSession = sessionResult.data
+          isListening = true
+          observeResults(sessionResult.data)
+          startRecording(sessionResult.data)
+        }
+        is ShazamKitResult.Failure -> {
+          emitError(
+            "unavailable",
+            sessionResult.reason.message ?: "Could not start ShazamKit",
+          )
+        }
       }
     }
   }

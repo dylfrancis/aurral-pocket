@@ -33,13 +33,21 @@ export function ShazamSheet({
   const shazam = useShazam();
   const { status, start, cancel, reset } = shazam;
 
-  // Grow to the larger snap point once a song is identified so the resolved
-  // artists have room; the listening/empty states stay compact at 55%.
+  // Keep listening / no-match / error states compact at 55%.
   useEffect(() => {
-    if (status === "matched") {
-      sheetRef.current?.snapToIndex(1);
+    if (status === "listening") {
+      sheetRef.current?.snapToIndex(0);
     }
   }, [status, sheetRef]);
+
+  // A single ISRC-confirmed artist stays compact (55%); the top-N fallback list
+  // needs room, so grow to 90%.
+  const handleResolved = useCallback(
+    (hasBestMatch: boolean) => {
+      sheetRef.current?.snapToIndex(hasBestMatch ? 0 : 1);
+    },
+    [sheetRef],
+  );
 
   const handleChange = useCallback(
     (index: number) => {
@@ -114,6 +122,7 @@ export function ShazamSheet({
             match={shazam.match}
             onViewArtist={handleViewArtist}
             onSearchManually={handleSearchManually}
+            onResolved={handleResolved}
           />
         ) : status === "permission_denied" ? (
           <CenteredState

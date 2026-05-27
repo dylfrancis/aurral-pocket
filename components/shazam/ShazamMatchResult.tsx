@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,10 +10,12 @@ import { EmptyState } from "@/components/library/EmptyState";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useAddArtist } from "@/hooks/search/use-add-artist";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { useIsrcArtist } from "@/hooks/shazam/use-isrc-artist";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { absolutizeImageUrl } from "@/lib/api/client";
+import { rankCandidates } from "@/lib/shazam/rank-candidates";
 import type { ShazamMatch } from "@/modules/shazam";
 import type { SearchArtist } from "@/lib/types/search";
 
@@ -25,12 +27,18 @@ type Props = {
   onViewArtist: (mbid: string, name: string) => void;
   /** Fall back to a manual search prefilled with the artist name. */
   onSearchManually: (query: string) => void;
+  /**
+   * Fires once resolution settles: `true` when an ISRC pinned a single best
+   * match (compact result), `false` when showing the top-N fallback list.
+   */
+  onResolved?: (hasBestMatch: boolean) => void;
 };
 
 export function ShazamMatchResult({
   match,
   onViewArtist,
   onSearchManually,
+  onResolved,
 }: Props) {
   const colors = Colors[useColorScheme()];
   const hasPermission = useHasPermission();
@@ -39,7 +47,22 @@ export function ShazamMatchResult({
 
   const artistName = match.artist ?? "";
   const { data, isLoading } = useArtistSearch(artistName);
-  const candidates = (data?.artists ?? []).slice(0, CANDIDATE_LIMIT);
+  const { data: isrcArtist, isLoading: isrcLoading } = useIsrcArtist(
+    match.isrc,
+  );
+
+  const { candidates, hasBestMatch } = useMemo(
+    () =>
+      rankCandidates(data?.artists ?? [], isrcArtist ?? null, CANDIDATE_LIMIT),
+    [data?.artists, isrcArtist],
+  );
+
+  // Tell the sheet how tall to be, but only once both lookups have settled so
+  // we don't expand to the fallback height and then snap back on a late ISRC.
+  const settled = !isLoading && !isrcLoading;
+  useEffect(() => {
+    if (settled) onResolved?.(hasBestMatch);
+  }, [settled, hasBestMatch, onResolved]);
 
   const addArtist = useAddArtist();
 
@@ -138,7 +161,9 @@ export function ShazamMatchResult({
             variant="caption"
             style={[styles.sectionCaption, { color: colors.subtle }]}
           >
-            {`Top matches for “${artistName}” — tap a row to view, or Add to your library.`}
+            {hasBestMatch
+              ? `Identified from the recording. Tap to view, or Add to your library.`
+              : `Top matches for “${artistName}” — tap a row to view, or Add to your library.`}
           </Text>
           {candidates.map((artist) => (
             <ArtistCandidateRow
@@ -232,11 +257,13 @@ function ArtistCandidateRow({
           {isAdding ? (
             <ActivityIndicator size={14} color="#fff" />
           ) : (
-            <Ionicons name="add" size={16} color="#fff" />
+            <>
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text variant="caption" style={styles.addButtonText}>
+                Add
+              </Text>
+            </>
           )}
-          <Text variant="caption" style={styles.addButtonText}>
-            Add
-          </Text>
         </Pressable>
       ) : (
         <Ionicons name="chevron-forward" size={16} color={colors.subtle} />

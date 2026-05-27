@@ -1,14 +1,34 @@
 // Extends the static app.json. Expo loads app.json and passes it here as
-// `config`; we inject the Shazam developer token from the build environment so
-// the .p8-derived JWT never lives in the committed config or the repo.
+// `config`, with .env / .env.local already merged into process.env.
 //
-// The token is minted at build time (scripts/mint-shazam-token.mjs) and exposed
-// to the build as SHAZAM_DEVELOPER_TOKEN (an EAS secret / CI env var). It is
-// only consumed on Android — iOS reaches the Shazam catalog via its entitlement.
+// Shazam (Android) needs a developer token. In CI/EAS we inject a pre-minted
+// SHAZAM_DEVELOPER_TOKEN; locally you just provide the minting inputs in
+// .env.local (SHAZAM_KEY_ID, SHAZAM_TEAM_ID, SHAZAM_PRIVATE_KEY_PATH) and the
+// token is minted here at config time. The .p8 never lands in the repo/binary.
+// iOS ignores the token (catalog access rides the app entitlement).
+const path = require("path");
+const { mintFromEnv } = require("./scripts/shazam-token.cjs");
+
+function resolveShazamToken() {
+  try {
+    // Resolve a relative .p8 path against the project root, since the native
+    // build evaluates this config from a different working directory than the
+    // CLI — a relative path would otherwise fail to read during the build.
+    const keyPath = process.env.SHAZAM_PRIVATE_KEY_PATH;
+    if (keyPath && !path.isAbsolute(keyPath)) {
+      process.env.SHAZAM_PRIVATE_KEY_PATH = path.resolve(__dirname, keyPath);
+    }
+    return mintFromEnv();
+  } catch (err) {
+    console.warn(`Shazam token unavailable: ${err.message}`);
+    return null;
+  }
+}
+
 module.exports = ({ config }) => {
   config.extra = {
     ...(config.extra ?? {}),
-    shazamDeveloperToken: process.env.SHAZAM_DEVELOPER_TOKEN ?? null,
+    shazamDeveloperToken: resolveShazamToken(),
   };
   return config;
 };

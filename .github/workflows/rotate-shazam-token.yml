@@ -27,7 +27,7 @@ jobs:
       - name: Mint token
         id: mint
         env:
-          SHAZAM_MEDIA_ID: ${{ secrets.SHAZAM_MEDIA_ID }}
+          SHAZAM_KEY_ID: ${{ secrets.SHAZAM_KEY_ID }}
           SHAZAM_TEAM_ID: ${{ secrets.SHAZAM_TEAM_ID }}
           SHAZAM_PRIVATE_KEY: ${{ secrets.SHAZAM_PRIVATE_KEY }}
         run: |
