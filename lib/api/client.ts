@@ -1,5 +1,5 @@
-import { fetch } from "expo/fetch";
 import { SecureStorage } from "@/lib/storage";
+import { fetch } from "expo/fetch";
 
 export class ApiError extends Error {
   constructor(
@@ -190,7 +190,11 @@ async function request<T>(
   }
   clearTimeout(timeoutId);
 
-  if (response.status === 401 && !config._retried) {
+  // Skip the session-expired flow for /auth/login itself — a 401 here means
+  // the user typed the wrong password, not that an existing session expired.
+  // Letting it through would pop the re-auth modal on top of the login screen
+  // with no user context, and the Continue button would no-op.
+  if (response.status === 401 && !config._retried && path !== "/auth/login") {
     const retried = await handle401<T>(method, path, body, config);
     if (retried) return retried;
     throw new ApiError(401, "Session expired");
@@ -198,24 +202,70 @@ async function request<T>(
 
   const text = await response.text();
   let parsed: unknown = undefined;
+  let jsonParseFailed = false;
   if (text) {
     try {
       parsed = JSON.parse(text);
     } catch {
-      parsed = text;
+      jsonParseFailed = true;
     }
   }
 
   if (!response.ok) {
-    const body =
+    const errorBody =
       typeof parsed === "object" && parsed !== null
         ? (parsed as { error?: string; message?: string })
         : undefined;
-    const msg = body?.error || body?.message || response.statusText;
-    throw new ApiError(response.status, msg, parsed);
+    const msg = errorBody?.error || errorBody?.message || response.statusText;
+    throw new ApiError(response.status, msg, parsed ?? text);
+  }
+
+  // 200 with a non-JSON body almost always means a reverse proxy (Cloudflare
+  // challenge page, Nginx error page, captive portal) intercepted the request.
+  // Surface it as an error instead of letting `undefined as T` flow downstream.
+  if (jsonParseFailed) {
+    throw new ApiError(
+      response.status,
+      diagnoseUnexpectedResponse(text, response.headers),
+      text,
+    );
   }
 
   return { data: parsed as T, status: response.status };
+}
+
+// Cloudflare's Bot Fight Mode / Browser Integrity Check / Managed Challenge
+// returns a 200 + HTML challenge page to non-browser clients by default —
+// breaking mobile apps while the web UI continues to work because browsers
+// pass the JS challenge invisibly. Cloudflare's own docs confirm SBFM blocks
+// tunnel traffic unless reconfigured, and Nextcloud's support forum reports
+// the same failure mode for their mobile app. Identifying the cause in the
+// error message saves the user from a forty-tab debugging session.
+//
+// Refs:
+//   https://developers.cloudflare.com/bots/get-started/super-bot-fight-mode/
+//   https://help.nextcloud.com/t/cloudflare-dns-proxy-breaks-mobile-app-login-flow-specifically/227409/2
+function diagnoseUnexpectedResponse(
+  text: string,
+  headers: { get(name: string): string | null },
+): string {
+  const isCloudflare =
+    !!headers.get("cf-ray") ||
+    (headers.get("server")?.toLowerCase().includes("cloudflare") ?? false) ||
+    /\bcloudflare\b/i.test(text);
+
+  if (isCloudflare) {
+    const isChallenge =
+      /just a moment|attention required|checking your browser|managed[_ -]challenge|cf-?chl|turnstile/i.test(
+        text,
+      );
+    if (isChallenge) {
+      return "Cloudflare is challenging the request. In your Cloudflare dashboard, disable Bot Fight Mode or add a WAF Skip rule for /api/*.";
+    }
+    return "Blocked by Cloudflare. Check Security → Events in your Cloudflare dashboard for the rule that fired.";
+  }
+
+  return "Server returned a non-JSON response. Check your reverse proxy logs.";
 }
 
 export const api = {

@@ -14,17 +14,17 @@ jest.mock("expo/fetch", () => ({
   fetch: jest.fn(),
 }));
 
-import { fetch } from "expo/fetch";
-import * as SecureStore from "expo-secure-store";
 import {
   ApiError,
   api,
+  notifyReAuthResult,
   setAuthToken,
   setBaseUrl,
-  setOnSessionExpired,
   setOnAuthRefreshed,
-  notifyReAuthResult,
+  setOnSessionExpired,
 } from "@/lib/api/client";
+import * as SecureStore from "expo-secure-store";
+import { fetch } from "expo/fetch";
 
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
@@ -34,18 +34,31 @@ function mockResponse(init: {
   status?: number;
   statusText?: string;
   body?: unknown;
+  headers?: Record<string, string>;
 }): any {
-  const { ok = true, status = 200, statusText = "OK", body = {} } = init;
+  const {
+    ok = true,
+    status = 200,
+    statusText = "OK",
+    body = {},
+    headers = {},
+  } = init;
   const text =
     typeof body === "string"
       ? body
       : body === undefined
         ? ""
         : JSON.stringify(body);
+  const headerMap = new Map(
+    Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]),
+  );
   return {
     ok,
     status,
     statusText,
+    headers: {
+      get: (name: string) => headerMap.get(name.toLowerCase()) ?? null,
+    },
     text: () => Promise.resolve(text),
     json: () =>
       Promise.resolve(typeof body === "string" ? JSON.parse(body) : body),
@@ -178,6 +191,64 @@ describe("response parsing", () => {
       message: expect.stringContaining("Unable to reach server"),
     });
   });
+
+  it("throws a generic ApiError when a 200 body is HTML with no proxy fingerprint", async () => {
+    // No cf-ray, no Cloudflare strings — could be Nginx, Træfik, captive portal.
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({
+        body: "<html><body>Something went wrong</body></html>",
+      }),
+    );
+
+    await expect(
+      api.post("/auth/login", { username: "u", password: "p" }),
+    ).rejects.toMatchObject({
+      status: 200,
+      message: expect.stringContaining("non-JSON response"),
+    });
+  });
+
+  it("identifies a Cloudflare challenge page from the response body", async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({
+        headers: { "cf-ray": "abc123-DFW", server: "cloudflare" },
+        body: "<html><head><title>Just a moment...</title></head></html>",
+      }),
+    );
+
+    await expect(
+      api.post("/auth/login", { username: "u", password: "p" }),
+    ).rejects.toMatchObject({
+      status: 200,
+      message: expect.stringContaining("Cloudflare is challenging"),
+    });
+  });
+
+  it("identifies a generic Cloudflare block when the body is not a challenge", async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({
+        headers: { "cf-ray": "abc123-DFW" },
+        body: "<html><body>cloudflare error 1020</body></html>",
+      }),
+    );
+
+    await expect(
+      api.post("/auth/login", { username: "u", password: "p" }),
+    ).rejects.toMatchObject({
+      status: 200,
+      message: expect.stringContaining("Blocked by Cloudflare"),
+    });
+  });
+
+  it("allows empty 204-style bodies through", async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({ status: 204, statusText: "No Content", body: "" }),
+    );
+
+    const res = await api.delete("/something");
+    expect(res.status).toBe(204);
+    expect(res.data).toBeUndefined();
+  });
 });
 
 describe("401 handling", () => {
@@ -275,6 +346,31 @@ describe("401 handling", () => {
     await expect(api.get("/me")).rejects.toThrow(ApiError);
 
     expect(onExpired).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces 401 from /auth/login as ApiError without opening re-auth modal", async () => {
+    // A 401 on the login endpoint means wrong credentials, not session expiry.
+    // It must reach the login form's error renderer, not the re-auth modal —
+    // which would render with no user context and a no-op Continue button.
+    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({
+        ok: false,
+        status: 401,
+        body: { error: "Invalid username or password" },
+      }),
+    );
+    const onExpired = jest.fn();
+    setOnSessionExpired(onExpired);
+
+    await expect(
+      api.post("/auth/login", { username: "u", password: "wrong" }),
+    ).rejects.toMatchObject({
+      status: 401,
+      message: "Invalid username or password",
+    });
+    expect(onExpired).not.toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });
