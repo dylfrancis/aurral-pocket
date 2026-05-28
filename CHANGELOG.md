@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.8.0...v0.8.1) (2026-05-28)
+
+
+### Bug Fixes
+
+* **auth:** fix 401 bad path and handling of non-json responses ([70f6911](https://github.com/dylfrancis/aurral-pocket/commit/70f6911464e65ac3df20d2e62b487e469415621e))
+* **ios:** allow self-hosted servers with non-ATS-compliant TLS configurations ([519643d](https://github.com/dylfrancis/aurral-pocket/commit/519643d44f86e17b9ae948e56067749d66a86683))
+
 ## [0.8.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.7.0...v0.8.0) (2026-05-27)
 
 
