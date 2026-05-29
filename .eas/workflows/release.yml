@@ -14,16 +14,13 @@ jobs:
       profile: production
       message: ${{ github.ref_name }}
 
-  testflight_ios:
-    name: Distribute to TestFlight (internal + external)
+  submit_ios:
+    name: Submit to TestFlight
     needs: [build_ios]
-    type: testflight
+    type: submit
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: ios-testflight
-      external_groups: ["Aurral Beta Users"]
-      submit_beta_review: true
-      changelog: ${{ github.ref_name }}
 
   build_android:
     name: Build Android (production)
