@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/dylfrancis/aurral-pocket/compare/v0.8.1...v0.8.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* **android:** allow http traffic on non-local networks ([0246651](https://github.com/dylfrancis/aurral-pocket/commit/02466516bc8a3de2c13b23b1d35a7cfae7fa7ec2))
+
 ## [0.8.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.8.0...v0.8.1) (2026-05-28)
 
 
