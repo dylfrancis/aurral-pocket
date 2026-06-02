@@ -20,14 +20,35 @@ A React Native / [Expo](https://expo.dev) mobile client for [**Aurral**](https:/
 
 > Huge thanks to [@lklynet](https://github.com/lklynet) for building [Aurral](https://github.com/lklynet/aurral), this app wouldn't exist without it.
 
+## Try the app
+
+Want to test a build without setting up the dev environment? Join one of the testing tracks below.
+
+### iOS (TestFlight)
+
+Install [TestFlight](https://apps.apple.com/app/testflight/id899247664) from the App Store, then join via:
+
+- **TestFlight invite:** https://testflight.apple.com/join/wMfHs7zE
+
+### Android (closed testing)
+
+Android requires closed testing before the app can be approved for open testing and production, so testers must be added to the list first.
+
+1. Fill out the closed-testing sign-up form so your Google account email can be added: https://forms.gle/ayexHWDHHA5pYcsM9
+2. Once your email has been added, opt in to the test:
+   - **Web:** https://play.google.com/apps/testing/com.aurral.aurralpocket
+   - **Play Store:** https://play.google.com/store/apps/details?id=com.aurral.aurralpocket
+
+> Note: you must be added as a tester before the Play Store / web links will work.
+
 ## Features
 
 - **Discover** - surface new artists and releases
 - **Library** - browse saved artists, albums, and releases
 - **Search** - look up artists and navigate to their releases
+- **Flows** - build scheduled, auto-generated playlists that mix discovery, trending, tags, and related artists
 - **Requests** - track the status of submitted requests
-- **Settings** - permission-gated, for admin users
-- **Auth** - sign-in flow with Face ID / biometric session re-auth backed by `expo-secure-store`
+- **Shazam** - identify songs playing around you with ShazamKit and jump to the artist
 
 ## Requirements
 
