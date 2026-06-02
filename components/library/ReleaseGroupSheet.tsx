@@ -52,7 +52,14 @@ export function ReleaseGroupSheet({
     queryKey: libraryKeys.releaseGroupTracks(releaseGroup?.id ?? ""),
     queryFn: async () => {
       const deezerId = await searchDeezerAlbum(artistName, releaseGroup!.title);
-      return getReleaseGroupTracks(releaseGroup!.id, deezerId ?? undefined);
+      return getReleaseGroupTracks(releaseGroup!.id, {
+        deezerAlbumId: deezerId ?? undefined,
+        artistMbid: artistId,
+        artistName,
+        albumTitle: releaseGroup!.title,
+        releaseType: releaseGroup!["primary-type"] ?? undefined,
+        releaseDate: releaseGroup!["first-release-date"] ?? undefined,
+      });
     },
     enabled: !!releaseGroup,
     staleTime: 10 * 60 * 1000,

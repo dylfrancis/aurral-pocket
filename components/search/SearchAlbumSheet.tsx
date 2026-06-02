@@ -87,7 +87,14 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
     queryKey: libraryKeys.releaseGroupTracks(album?.id ?? ""),
     queryFn: async () => {
       const deezerId = await searchDeezerAlbum(album!.artistName, album!.title);
-      return getReleaseGroupTracks(album!.id, deezerId ?? undefined);
+      return getReleaseGroupTracks(album!.id, {
+        deezerAlbumId: deezerId ?? undefined,
+        artistMbid: album!.artistMbid ?? undefined,
+        artistName: album!.artistName,
+        albumTitle: album!.title,
+        releaseType: album!.primaryType ?? undefined,
+        releaseDate: album!.releaseDate ?? undefined,
+      });
     },
     enabled: !!album,
     staleTime: 10 * 60 * 1000,

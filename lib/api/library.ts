@@ -160,21 +160,45 @@ async function fetchDeezerAlbumTracks(
   }
 }
 
+export type ReleaseGroupTracksParams = {
+  deezerAlbumId?: string;
+  artistMbid?: string;
+  artistName?: string;
+  albumTitle?: string;
+  releaseType?: string;
+  releaseDate?: string;
+};
+
 export async function getReleaseGroupTracks(
   mbid: string,
-  deezerAlbumId?: string,
+  params: ReleaseGroupTracksParams = {},
 ) {
-  // When we have a Deezer album ID, fetch tracks directly from Deezer to get
-  // preview URLs. The backend release-group endpoint only returns MusicBrainz
-  // tracks (no previews) since aurral dropped the Deezer fallback there.
-  if (deezerAlbumId) {
+  const { deezerAlbumId } = params;
+
+  // Newer aurral backends enrich release-group tracks with Deezer preview URLs
+  // server-side (better matching than we can do client-side). Pass everything
+  // they can use to resolve the album and match tracks.
+  const query: Record<string, string> = {};
+  if (params.deezerAlbumId) query.deezerAlbumId = params.deezerAlbumId;
+  if (params.artistMbid) query.artistMbid = params.artistMbid;
+  if (params.artistName) query.artistName = params.artistName;
+  if (params.albumTitle) query.albumTitle = params.albumTitle;
+  if (params.releaseType) query.releaseType = params.releaseType;
+  if (params.releaseDate) query.releaseDate = params.releaseDate;
+
+  const r = await api.get<ReleaseGroupTrack[]>(
+    `/artists/release-group/${mbid}/tracks`,
+    { params: Object.keys(query).length > 0 ? query : undefined },
+  );
+  const tracks = r.data;
+
+  // Fallback for older self-hosted backends that don't enrich previews: if none
+  // came back and we have a Deezer album, fetch tracks straight from Deezer.
+  if (deezerAlbumId && !tracks.some((t) => t.preview_url)) {
     const dzTracks = await fetchDeezerAlbumTracks(deezerAlbumId);
     if (dzTracks.length > 0) return dzTracks;
   }
-  const r = await api.get<ReleaseGroupTrack[]>(
-    `/artists/release-group/${mbid}/tracks`,
-  );
-  return r.data;
+  return tracks;
 }
 
 export async function searchDeezerAlbum(
