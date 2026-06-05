@@ -38,10 +38,10 @@ jobs:
       build_id: ${{ needs.build_android.outputs.build_id }}
       profile: android-internal
 
-  submit_android_closed:
-    name: Submit to Play Closed (alpha)
-    needs: [build_android]
-    type: submit
-    params:
-      build_id: ${{ needs.build_android.outputs.build_id }}
-      profile: android-closed
+  # submit_android_closed:
+  #   name: Submit to Play Closed (alpha)
+  #   needs: [build_android]
+  #   type: submit
+  #   params:
+  #     build_id: ${{ needs.build_android.outputs.build_id }}
+  #     profile: android-closed
