@@ -96,3 +96,41 @@ describe("AppStorage", () => {
     expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("server_url");
   });
 });
+
+describe("AppStorage.themePreference", () => {
+  it("gets a valid theme preference", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("dark");
+    expect(await AppStorage.getThemePreference()).toBe("dark");
+    expect(mockAsyncStorage.getItem).toHaveBeenCalledWith("theme_preference");
+  });
+
+  it("returns null when nothing stored", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    expect(await AppStorage.getThemePreference()).toBeNull();
+  });
+
+  it("returns null for an unrecognized value", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("solarized");
+    expect(await AppStorage.getThemePreference()).toBeNull();
+  });
+
+  it("returns null on error", async () => {
+    mockAsyncStorage.getItem.mockRejectedValue(new Error("fail"));
+    expect(await AppStorage.getThemePreference()).toBeNull();
+  });
+
+  it("sets the theme preference", async () => {
+    await AppStorage.setThemePreference("light");
+    expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+      "theme_preference",
+      "light",
+    );
+  });
+
+  it("deletes the theme preference", async () => {
+    await AppStorage.deleteThemePreference();
+    expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith(
+      "theme_preference",
+    );
+  });
+});

@@ -16,6 +16,10 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import "react-native-reanimated";
 
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import {
+  ThemeProvider as ThemePreferenceProvider,
+  useThemePreference,
+} from "@/contexts/theme-context";
 import { ReAuthModal } from "@/components/auth/ReAuthModal";
 import { FlowAudioPreviewProvider } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -62,6 +66,7 @@ const AurralLightTheme: Theme = {
 
 function RootLayoutNav() {
   const { serverUrl, token, isRestoring } = useAuth();
+  const { isThemeLoaded } = useThemePreference();
   const colorScheme = useColorScheme();
 
   const [fontsLoaded] = useFonts({
@@ -74,12 +79,12 @@ function RootLayoutNav() {
   const isAuthenticated = !!serverUrl && !!token;
 
   useEffect(() => {
-    if (!isRestoring && fontsLoaded) {
+    if (!isRestoring && fontsLoaded && isThemeLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [isRestoring, fontsLoaded]);
+  }, [isRestoring, fontsLoaded, isThemeLoaded]);
 
-  if (isRestoring || !fontsLoaded) return null;
+  if (isRestoring || !fontsLoaded || !isThemeLoaded) return null;
 
   return (
     <ThemeProvider
@@ -108,12 +113,14 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
-              <FlowAudioPreviewProvider>
-                <BottomSheetModalProvider>
-                  <RootLayoutNav />
-                  <ReAuthModal />
-                </BottomSheetModalProvider>
-              </FlowAudioPreviewProvider>
+              <ThemePreferenceProvider>
+                <FlowAudioPreviewProvider>
+                  <BottomSheetModalProvider>
+                    <RootLayoutNav />
+                    <ReAuthModal />
+                  </BottomSheetModalProvider>
+                </FlowAudioPreviewProvider>
+              </ThemePreferenceProvider>
             </AuthProvider>
           </QueryClientProvider>
         </SafeAreaProvider>

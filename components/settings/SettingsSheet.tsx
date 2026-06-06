@@ -1,5 +1,6 @@
 import { AboutSection } from "@/components/settings/sections/AboutSection";
 import { AccountSection } from "@/components/settings/sections/AccountSection";
+import { AppearanceSection } from "@/components/settings/sections/AppearanceSection";
 import { LinksSection } from "@/components/settings/sections/LinksSection";
 import { PasswordSection } from "@/components/settings/sections/PasswordSection";
 import { Button } from "@/components/ui/Button";
@@ -90,6 +91,9 @@ export function SettingsSheet({ sheetRef, onClose }: Props) {
             fallbackBackground={colors.inputBackground}
           />
         </View>
+
+        <SectionHeading title="Appearance" />
+        <AppearanceSection />
 
         <SectionHeading title="Account" />
         <AccountSection />

@@ -1,8 +1,16 @@
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { ThemePreference } from "@/lib/types/theme";
+
+const THEME_PREFERENCES: readonly ThemePreference[] = [
+  "system",
+  "light",
+  "dark",
+];
 
 const KEYS = {
   SERVER_URL: "server_url",
+  THEME_PREFERENCE: "theme_preference",
   AUTH_TOKEN: "auth_token",
   USER: "user_json",
   SAVED_USERNAME: "saved_username",
@@ -191,6 +199,29 @@ export const AppStorage = {
   async deleteServerUrl(): Promise<void> {
     try {
       await AsyncStorage.removeItem(KEYS.SERVER_URL);
+    } catch {}
+  },
+
+  async getThemePreference(): Promise<ThemePreference | null> {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.THEME_PREFERENCE);
+      return THEME_PREFERENCES.includes(value as ThemePreference)
+        ? (value as ThemePreference)
+        : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async setThemePreference(preference: ThemePreference): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.THEME_PREFERENCE, preference);
+    } catch {}
+  },
+
+  async deleteThemePreference(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.THEME_PREFERENCE);
     } catch {}
   },
 };
