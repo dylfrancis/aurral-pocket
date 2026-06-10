@@ -1,7 +1,9 @@
 import { useEffect } from "react";
+import { AppState, Platform } from "react-native";
+import type { AppStateStatus } from "react-native";
 import { Stack } from "expo-router";
 import { Theme, ThemeProvider } from "expo-router/react-navigation";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { DMSans_400Regular } from "@expo-google-fonts/dm-sans/400Regular";
 import { DMSans_500Medium } from "@expo-google-fonts/dm-sans/500Medium";
@@ -27,6 +29,14 @@ import { Colors } from "@/constants/theme";
 import { queryClient } from "@/lib/query-client";
 
 SplashScreen.preventAutoHideAsync();
+
+// Let React Query see app background/foreground transitions so queries with
+// refetchOnWindowFocus refresh on resume and intervals pause in background.
+function onAppStateChange(status: AppStateStatus) {
+  if (Platform.OS !== "web") {
+    focusManager.setFocused(status === "active");
+  }
+}
 
 const AurralDarkTheme: Theme = {
   dark: true,
@@ -107,6 +117,11 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", onAppStateChange);
+    return () => subscription.remove();
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>

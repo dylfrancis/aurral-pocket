@@ -1,11 +1,12 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import {
   queryOptions,
   useQuery,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useFocusEffect } from "expo-router";
+import { useIsFocused } from "expo-router/react-navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
 import { getFlowStatus } from "@/lib/api/flow";
 import { flowKeys } from "@/lib/query-keys";
 
@@ -16,35 +17,32 @@ export function flowStatusQueryOptions() {
     queryKey: flowKeys.status(),
     queryFn: getFlowStatus,
     staleTime: 1000,
+    refetchOnWindowFocus: "always",
     throwOnError: (_error, query) => query.state.data === undefined,
   });
 }
 
-/**
- * Tracks screen focus so polling only runs while the route is in view.
- * Shared between the query and suspense variants.
- */
-function useFocusPolling() {
-  const [focused, setFocused] = useState(false);
-  useFocusEffect(
-    useCallback(() => {
-      setFocused(true);
-      return () => setFocused(false);
-    }, []),
-  );
-  return focused;
-}
-
 export function useFlowStatus() {
   const { serverUrl, token } = useAuth();
-  const focused = useFocusPolling();
+  const isFocused = useIsFocused();
+  const enabled = !!serverUrl && !!token;
 
-  return useQuery({
+  const query = useQuery({
     ...flowStatusQueryOptions(),
-    enabled: !!serverUrl && !!token,
-    refetchInterval: focused ? POLL_INTERVAL_MS : false,
+    enabled,
+    refetchInterval: isFocused ? POLL_INTERVAL_MS : false,
     refetchIntervalInBackground: false,
   });
+
+  const { refetch } = query;
+  useRefreshOnFocus(
+    useCallback(() => {
+      // refetch() bypasses `enabled`, so guard it ourselves
+      if (enabled) refetch();
+    }, [enabled, refetch]),
+  );
+
+  return query;
 }
 
 /**
@@ -53,11 +51,15 @@ export function useFlowStatus() {
  * (auth is guaranteed there).
  */
 export function useFlowStatusSuspense() {
-  const focused = useFocusPolling();
+  const isFocused = useIsFocused();
 
-  return useSuspenseQuery({
+  const query = useSuspenseQuery({
     ...flowStatusQueryOptions(),
-    refetchInterval: focused ? POLL_INTERVAL_MS : false,
+    refetchInterval: isFocused ? POLL_INTERVAL_MS : false,
     refetchIntervalInBackground: false,
   });
+
+  useRefreshOnFocus(query.refetch);
+
+  return query;
 }
