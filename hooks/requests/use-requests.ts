@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import {
   queryOptions,
   useQuery,
@@ -5,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
 import { getRequests } from "@/lib/api/requests";
 import { requestsKeys } from "@/lib/query-keys";
 
@@ -14,6 +16,7 @@ export function requestsQueryOptions() {
   return queryOptions({
     queryKey: requestsKeys.list(),
     queryFn: getRequests,
+    refetchOnWindowFocus: "always",
     throwOnError: (_error, query) => query.state.data === undefined,
   });
 }
@@ -21,13 +24,24 @@ export function requestsQueryOptions() {
 export function useRequests() {
   const { serverUrl, token } = useAuth();
   const isFocused = useIsFocused();
+  const enabled = !!serverUrl && !!token;
 
-  return useQuery({
+  const query = useQuery({
     ...requestsQueryOptions(),
-    enabled: !!serverUrl && !!token,
+    enabled,
     refetchInterval: isFocused ? ACTIVE_POLL_MS : false,
     refetchIntervalInBackground: false,
   });
+
+  const { refetch } = query;
+  useRefreshOnFocus(
+    useCallback(() => {
+      // refetch() bypasses `enabled`, so guard it ourselves
+      if (enabled) refetch();
+    }, [enabled, refetch]),
+  );
+
+  return query;
 }
 
 /**
@@ -37,9 +51,13 @@ export function useRequests() {
 export function useRequestsSuspense() {
   const isFocused = useIsFocused();
 
-  return useSuspenseQuery({
+  const query = useSuspenseQuery({
     ...requestsQueryOptions(),
     refetchInterval: isFocused ? ACTIVE_POLL_MS : false,
     refetchIntervalInBackground: false,
   });
+
+  useRefreshOnFocus(query.refetch);
+
+  return query;
 }

@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router/react-navigation";
+import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
 import { getDownloadStatuses } from "@/lib/api/library";
 import { requestsKeys } from "@/lib/query-keys";
 import type { DownloadStatusMap } from "@/lib/types/library";
@@ -28,11 +29,22 @@ export function useRequestsDownloadStatuses(requests: Request[] | undefined) {
   const idsKey = activeAlbumIds.join(",");
   const enabled = activeAlbumIds.length > 0;
 
-  return useQuery<DownloadStatusMap>({
+  const query = useQuery<DownloadStatusMap>({
     queryKey: requestsKeys.downloadStatuses(idsKey),
     queryFn: () => getDownloadStatuses(activeAlbumIds),
     enabled,
     refetchInterval: enabled && isFocused ? ACTIVE_POLL_MS : false,
     refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
   });
+
+  const { refetch } = query;
+  useRefreshOnFocus(
+    useCallback(() => {
+      // refetch() bypasses `enabled`, so guard it ourselves
+      if (enabled) refetch();
+    }, [enabled, refetch]),
+  );
+
+  return query;
 }
