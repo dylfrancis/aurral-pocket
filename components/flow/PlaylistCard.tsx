@@ -58,7 +58,6 @@ export function PlaylistCard({
     <Card
       onPress={onPress}
       disabled={isDeleting}
-      radius={14}
       bordered
       pressedOpacity={0.85}
       style={styles.card}

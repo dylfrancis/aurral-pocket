@@ -134,7 +134,7 @@ export function ReAuthModal() {
     >
       <KeyboardAvoidingView style={styles.overlay} behavior="padding">
         <Pressable style={styles.backdrop} onPress={() => {}} />
-        <Card radius={20} style={styles.card}>
+        <Card style={styles.card}>
           <Ionicons
             name="time-outline"
             size={36}

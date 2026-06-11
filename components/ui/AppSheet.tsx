@@ -46,7 +46,7 @@ export const AppSheet = forwardRef<BottomSheetModal, AppSheetProps>(
         backdropComponent={renderBackdrop}
         backgroundStyle={{
           backgroundColor:
-            background === "card" ? colors.card : colors.surfaceElevated,
+            background === "card" ? colors.card : colors.surfaceMid,
         }}
         handleIndicatorStyle={{ backgroundColor: colors.subtle }}
         {...rest}

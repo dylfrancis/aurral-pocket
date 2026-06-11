@@ -274,7 +274,7 @@ function Section({
   const colors = Colors[useColorScheme()];
 
   return (
-    <Card bordered radius={14} style={styles.section}>
+    <Card bordered style={styles.section}>
       <View style={styles.sectionHead}>
         <View style={styles.sectionTitleRow}>
           <Text

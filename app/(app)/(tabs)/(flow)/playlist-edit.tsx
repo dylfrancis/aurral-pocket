@@ -117,7 +117,7 @@ export default function PlaylistEditScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Card bordered radius={14} style={styles.section}>
+        <Card bordered style={styles.section}>
           <Text
             variant="subtitle"
             style={[
@@ -147,7 +147,7 @@ export default function PlaylistEditScreen() {
           ) : null}
         </Card>
 
-        <Card bordered radius={14} style={styles.section}>
+        <Card bordered style={styles.section}>
           <View style={styles.tracksHead}>
             <Text
               variant="subtitle"

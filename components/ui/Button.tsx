@@ -10,7 +10,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors, Fonts, Radius } from "@/constants/theme";
 
 interface ButtonProps extends Omit<PressableProps, "style" | "children"> {
   title: string;
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   primary: {
     width: "100%",
     height: 50,
-    borderRadius: 12,
+    borderRadius: Radius.round,
     alignItems: "center",
     justifyContent: "center",
   },

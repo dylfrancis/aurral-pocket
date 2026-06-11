@@ -1,13 +1,12 @@
 import { TextInput, type TextInputProps, StyleSheet } from "react-native";
 import { forwardRef } from "react";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors, Fonts, Radius } from "@/constants/theme";
 
 export const inputThemedStyle = (colorScheme: "light" | "dark") => {
   const colors = Colors[colorScheme];
   return {
     backgroundColor: colors.inputBackground,
-    borderColor: colors.inputBorder,
     color: colors.inputText,
     fontFamily: Fonts.regular,
   } as const;
@@ -17,8 +16,7 @@ export const inputBaseStyle = StyleSheet.create({
   input: {
     width: "100%",
     height: 50,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: Radius.compact,
     paddingHorizontal: 16,
     fontSize: 16,
   },
