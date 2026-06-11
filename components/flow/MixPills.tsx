@@ -8,12 +8,14 @@ const SOURCE_MIX_COLORS_LIGHT = {
   discover: "#5e7591",
   mix: "#8b6464",
   trending: "#6e8159",
+  focus: "#7d6991",
 } as const;
 
 const SOURCE_MIX_COLORS_DARK = {
   discover: "#8a9eb8",
   mix: "#b78787",
   trending: "#94a578",
+  focus: "#a78fbe",
 } as const;
 
 export function useSourceMixColors() {
@@ -38,11 +40,27 @@ type Props = {
 
 export function MixPills({ mix }: Props) {
   const palette = useSourceMixColors();
+  const pills = [
+    {
+      label: `Discover ${mix.discover}%`,
+      value: mix.discover,
+      color: palette.discover,
+    },
+    { label: `Mix ${mix.mix}%`, value: mix.mix, color: palette.mix },
+    {
+      label: `Trend ${mix.trending}%`,
+      value: mix.trending,
+      color: palette.trending,
+    },
+    { label: `Focus ${mix.focus}%`, value: mix.focus, color: palette.focus },
+  ];
   return (
     <View style={styles.row}>
-      <MixPill label={`Discover ${mix.discover}%`} color={palette.discover} />
-      <MixPill label={`Mix ${mix.mix}%`} color={palette.mix} />
-      <MixPill label={`Trend ${mix.trending}%`} color={palette.trending} />
+      {pills
+        .filter((pill) => pill.value > 0)
+        .map((pill) => (
+          <MixPill key={pill.label} label={pill.label} color={pill.color} />
+        ))}
     </View>
   );
 }

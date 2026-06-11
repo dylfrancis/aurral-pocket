@@ -3,22 +3,16 @@ import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
+import { Chip } from "@/components/ui/Chip";
 import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import type { FocusStrength } from "@/lib/types/flow";
-
-const STRENGTHS: { value: FocusStrength; label: string }[] = [
-  { value: "light", label: "Light" },
-  { value: "medium", label: "Medium" },
-  { value: "heavy", label: "Heavy" },
-];
 
 type Props = {
   label: string;
   placeholder: string;
-  value: Record<string, FocusStrength>;
-  onChange: (next: Record<string, FocusStrength>) => void;
+  value: string[];
+  onChange: (next: string[]) => void;
 };
 
 export function FocusEditor({ label, placeholder, value, onChange }: Props) {
@@ -26,31 +20,21 @@ export function FocusEditor({ label, placeholder, value, onChange }: Props) {
   const colors = Colors[colorScheme];
   const [draft, setDraft] = useState("");
 
-  const entries = Object.entries(value);
-
   const submit = () => {
     const trimmed = draft.trim();
     if (!trimmed) return;
-    if (value[trimmed]) {
+    if (value.includes(trimmed)) {
       setDraft("");
       return;
     }
     Haptics.selectionAsync();
-    onChange({ ...value, [trimmed]: "medium" });
+    onChange([...value, trimmed]);
     setDraft("");
   };
 
-  const remove = (key: string) => {
+  const remove = (entry: string) => {
     Haptics.selectionAsync();
-    const next = { ...value };
-    delete next[key];
-    onChange(next);
-  };
-
-  const setStrength = (key: string, strength: FocusStrength) => {
-    if (value[key] === strength) return;
-    Haptics.selectionAsync();
-    onChange({ ...value, [key]: strength });
+    onChange(value.filter((item) => item !== entry));
   };
 
   return (
@@ -85,74 +69,18 @@ export function FocusEditor({ label, placeholder, value, onChange }: Props) {
           <Ionicons name="add" size={20} color={colors.buttonPrimaryText} />
         </Pressable>
       </View>
-      {entries.length === 0 ? (
+      {value.length === 0 ? (
         <Text variant="caption">No filters added.</Text>
       ) : (
         <View style={styles.entries}>
-          {entries.map(([key, strength]) => (
-            <View
-              key={key}
-              style={[
-                styles.entry,
-                {
-                  backgroundColor: colors.brandMuted,
-                  borderColor: colors.separator,
-                },
-              ]}
-            >
-              <View style={styles.entryHead}>
-                <Text
-                  variant="body"
-                  style={{ color: colors.text, fontFamily: Fonts.semiBold }}
-                  numberOfLines={1}
-                >
-                  {key}
-                </Text>
-                <Pressable
-                  onPress={() => remove(key)}
-                  style={({ pressed }) => [
-                    styles.removeButton,
-                    { opacity: pressed ? 0.6 : 1 },
-                  ]}
-                  accessibilityLabel={`Remove ${key}`}
-                >
-                  <Ionicons name="close" size={16} color={colors.subtle} />
-                </Pressable>
-              </View>
-              <View style={styles.strengthRow}>
-                {STRENGTHS.map((option) => {
-                  const active = option.value === strength;
-                  return (
-                    <Pressable
-                      key={option.value}
-                      onPress={() => setStrength(key, option.value)}
-                      style={({ pressed }) => [
-                        styles.strengthChip,
-                        {
-                          backgroundColor: active
-                            ? colors.brand
-                            : colors.surfaceElevated,
-                          borderColor: active ? colors.brand : colors.separator,
-                          opacity: pressed ? 0.7 : 1,
-                        },
-                      ]}
-                    >
-                      <Text
-                        variant="caption"
-                        style={{
-                          color: active
-                            ? colors.buttonPrimaryText
-                            : colors.text,
-                          fontFamily: Fonts.semiBold,
-                        }}
-                      >
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
+          {value.map((entry) => (
+            <Chip
+              key={entry}
+              label={entry}
+              variant="brand"
+              size="md"
+              onRemove={() => remove(entry)}
+            />
           ))}
         </View>
       )}
@@ -179,33 +107,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   entries: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
-  },
-  entry: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-  },
-  entryHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  removeButton: {
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  strengthRow: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  strengthChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
   },
 });
