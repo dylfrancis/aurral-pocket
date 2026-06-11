@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.8.2...v0.9.0) (2026-06-11)
+
+
+### Features
+
+* **preview-track:** add new preview url from backend with direct call fallback ([b04b923](https://github.com/dylfrancis/aurral-pocket/commit/b04b9232b2da18242101492dc94e629e05658f4e))
+* **settings:** add option to choose between light, dark, and system theme ([352671f](https://github.com/dylfrancis/aurral-pocket/commit/352671f1e2d00267da3c5731cdab1845c88c31b7))
+
+
+### Bug Fixes
+
+* **artist:** filter unmonitored tracked albums out of library ([deb4761](https://github.com/dylfrancis/aurral-pocket/commit/deb4761efcf6906ea2b12111726f6a00d6f0f87b))
+* **artist:** optimistically update recently added artists with new artist ([#134](https://github.com/dylfrancis/aurral-pocket/issues/134)) ([bf9ef6c](https://github.com/dylfrancis/aurral-pocket/commit/bf9ef6c6bbc2e1e5786f0f23422afb6a46ad3c4d))
+* **flow:** align flow editing with the aurral API contract ([#141](https://github.com/dylfrancis/aurral-pocket/issues/141)) ([881db04](https://github.com/dylfrancis/aurral-pocket/commit/881db04ae53f3bced150a618ef0c172042102e71)), closes [#139](https://github.com/dylfrancis/aurral-pocket/issues/139)
+* **flow:** edit a one-time snapshot so the status poll cannot clobber drafts ([#142](https://github.com/dylfrancis/aurral-pocket/issues/142)) ([86fef32](https://github.com/dylfrancis/aurral-pocket/commit/86fef32c6cd0ffda072f37ce03f8aad25711d506)), closes [#138](https://github.com/dylfrancis/aurral-pocket/issues/138)
+* **flow:** refetch status immediately when tab regains focus ([#140](https://github.com/dylfrancis/aurral-pocket/issues/140)) ([fbdecfe](https://github.com/dylfrancis/aurral-pocket/commit/fbdecfe58b2d2e2ffb41355148e3c0b549035ba2)), closes [#131](https://github.com/dylfrancis/aurral-pocket/issues/131)
+
 ## [0.8.2](https://github.com/dylfrancis/aurral-pocket/compare/v0.8.1...v0.8.2) (2026-06-01)
 
 
