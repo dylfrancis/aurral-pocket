@@ -5,6 +5,7 @@ import { LinksSection } from "@/components/settings/sections/LinksSection";
 import { PasswordSection } from "@/components/settings/sections/PasswordSection";
 import { Button } from "@/components/ui/Button";
 import { CloseButton } from "@/components/ui/CloseButton";
+import { Separator } from "@/components/ui/Separator";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -81,7 +82,7 @@ export function SettingsSheet({ sheetRef, onClose }: Props) {
         <SectionHeading title="Account" />
         <AccountSection />
 
-        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+        <Separator style={styles.divider} />
         <PasswordSection />
 
         <SectionHeading title="About" />
@@ -151,7 +152,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
     marginVertical: 4,
   },
   signOut: {
