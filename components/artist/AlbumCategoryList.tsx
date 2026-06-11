@@ -1,4 +1,5 @@
-import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
+import { Card } from "@/components/ui/Card";
 import { Ionicons } from "@expo/vector-icons";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
@@ -49,15 +50,11 @@ export function AlbumCategoryList<T>({
         ListFooterComponent={
           hasMore && onNavigate
             ? () => (
-                <Pressable
+                <Card
                   onPress={() => onNavigate(type, label)}
-                  style={({ pressed }) => [
-                    styles.viewAllCard,
-                    {
-                      backgroundColor: colors.card,
-                      opacity: pressed ? 0.7 : 1,
-                    },
-                  ]}
+                  radius={10}
+                  pressedOpacity={0.7}
+                  style={styles.viewAllCard}
                 >
                   <Ionicons
                     name="grid-outline"
@@ -67,7 +64,7 @@ export function AlbumCategoryList<T>({
                   <Text variant="caption" style={{ color: colors.brand }}>
                     View All
                   </Text>
-                </Pressable>
+                </Card>
               )
             : undefined
         }
@@ -88,7 +85,6 @@ const styles = StyleSheet.create({
   viewAllCard: {
     width: 150,
     height: 150,
-    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,

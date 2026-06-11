@@ -1,7 +1,8 @@
 import { memo } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
@@ -54,17 +55,7 @@ function NearbyShowRowComponent({ show, onPress }: Props) {
   const title = show.eventName || show.artistName;
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.separator,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
-    >
+    <Card onPress={onPress} bordered pressedOpacity={0.85} style={styles.card}>
       <View style={[styles.imageWrap, { backgroundColor: colors.background }]}>
         {show.image ? (
           <Image
@@ -132,7 +123,7 @@ function NearbyShowRowComponent({ show, onPress }: Props) {
         )}
         <SourceBadge sourceType={show.matchType} />
       </View>
-    </Pressable>
+    </Card>
   );
 }
 
@@ -140,8 +131,6 @@ export const NearbyShowRow = memo(NearbyShowRowComponent);
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },
   imageWrap: {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { Modal, Pressable, StyleSheet } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -133,7 +134,7 @@ export function ReAuthModal() {
     >
       <KeyboardAvoidingView style={styles.overlay} behavior="padding">
         <Pressable style={styles.backdrop} onPress={() => {}} />
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
+        <Card radius={20} style={styles.card}>
           <Ionicons
             name="time-outline"
             size={36}
@@ -203,7 +204,7 @@ export function ReAuthModal() {
             onPress={handleSignOut}
             style={styles.signOut}
           />
-        </View>
+        </Card>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -226,7 +227,6 @@ const styles = StyleSheet.create({
   card: {
     width: "85%",
     maxWidth: 360,
-    borderRadius: 20,
     padding: 28,
     alignItems: "center",
   },

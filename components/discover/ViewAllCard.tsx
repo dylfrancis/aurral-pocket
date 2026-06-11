@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -13,29 +14,22 @@ export function ViewAllCard({ size, onPress }: ViewAllCardProps) {
   const colors = Colors[useColorScheme()];
 
   return (
-    <Pressable
+    <Card
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          width: size,
-          height: size,
-          backgroundColor: colors.card,
-          opacity: pressed ? 0.7 : 1,
-        },
-      ]}
+      radius={10}
+      pressedOpacity={0.7}
+      style={[styles.card, { width: size, height: size }]}
     >
       <Ionicons name="grid-outline" size={24} color={colors.brand} />
       <Text variant="caption" style={[styles.label, { color: colors.brand }]}>
         View All
       </Text>
-    </Pressable>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
