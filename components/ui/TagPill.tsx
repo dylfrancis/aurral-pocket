@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
-import { Fonts } from "@/constants/theme";
+import { Fonts, Radius } from "@/constants/theme";
 import { getTagColor } from "@/lib/tag-colors";
 
 export type TagPillProps = {
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   tag: {
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: Radius.compact,
   },
   label: {
     color: "#fff",

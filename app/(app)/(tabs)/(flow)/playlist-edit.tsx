@@ -157,7 +157,7 @@ function PlaylistEditForm({
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Card bordered radius={14} style={styles.section}>
+        <Card bordered style={styles.section}>
           <Text
             variant="subtitle"
             style={[
@@ -187,7 +187,7 @@ function PlaylistEditForm({
           ) : null}
         </Card>
 
-        <Card bordered radius={14} style={styles.section}>
+        <Card bordered style={styles.section}>
           <View style={styles.tracksHead}>
             <Text
               variant="subtitle"

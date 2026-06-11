@@ -70,7 +70,6 @@ export function FlowCard({
     <Card
       onPress={onPress}
       disabled={isDeleting}
-      radius={14}
       bordered
       pressedOpacity={0.85}
       style={styles.card}

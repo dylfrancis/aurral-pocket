@@ -10,7 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors, Fonts, Radius } from "@/constants/theme";
 
 type AutocompleteInputProps<T> = {
   value: string;
@@ -82,7 +82,7 @@ export function AutocompleteInput<T>({
       </View>
 
       {showDropdown ? (
-        <Card bordered radius={10} style={styles.dropdown}>
+        <Card bordered radius={Radius.compact} style={styles.dropdown}>
           {suggestions.map((item) => {
             const disabled = isItemDisabled?.(item) ?? false;
             return (

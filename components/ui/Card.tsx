@@ -7,11 +7,11 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { Colors, Radius } from "@/constants/theme";
 
 type CardProps = Omit<PressableProps, "style" | "children"> & {
   children?: React.ReactNode;
-  /** Corner radius. Defaults to 12, the app-wide card standard. */
+  /** Corner radius. Defaults to the surface radius token. */
   radius?: number;
   /** Hairline outline using the separator color. */
   bordered?: boolean;
@@ -23,7 +23,7 @@ type CardProps = Omit<PressableProps, "style" | "children"> & {
 };
 
 export function Card({
-  radius = 12,
+  radius = Radius.surface,
   bordered = false,
   elevated = false,
   pressedOpacity = 0.8,
