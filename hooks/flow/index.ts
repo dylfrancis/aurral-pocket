@@ -1,4 +1,5 @@
 export { useFlowStatus, useFlowStatusSuspense } from "./use-flow-status";
+export { useEditSnapshot } from "./use-edit-snapshot";
 export {
   useFlow,
   useFlows,

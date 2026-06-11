@@ -1,5 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -16,14 +17,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import {
-  useJobsForPlaylist,
-  useSharedPlaylist,
-  useUpdateSharedPlaylist,
-} from "@/hooks/flow";
+import { useEditSnapshot, useUpdateSharedPlaylist } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import type { SharedPlaylistTrack } from "@/lib/types/flow";
+import type {
+  FlowJob,
+  SharedPlaylist,
+  SharedPlaylistTrack,
+} from "@/lib/types/flow";
 
 const trackSchema = z.object({
   artistName: z.string(),
@@ -38,26 +39,90 @@ const playlistEditSchema = z.object({
   tracks: z.array(trackSchema).min(1, "Add at least one track"),
 });
 
-type PlaylistEditForm = z.infer<typeof playlistEditSchema>;
+type PlaylistEditFormValues = z.infer<typeof playlistEditSchema>;
+
+function toFormValues(
+  playlist: SharedPlaylist,
+  jobs: FlowJob[],
+): PlaylistEditFormValues {
+  const sourceTracks: SharedPlaylistTrack[] =
+    playlist.tracks && playlist.tracks.length > 0
+      ? playlist.tracks
+      : jobs.map((job) => ({
+          artistName: job.artistName,
+          trackName: job.trackName,
+          albumName: job.albumName ?? null,
+          artistMbid: job.artistMbid ?? null,
+          reason: job.reason ?? null,
+        }));
+  return { name: playlist.name, tracks: sourceTracks };
+}
 
 export default function PlaylistEditScreen() {
   const colors = Colors[useColorScheme()];
-  const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const playlistId = typeof params.id === "string" ? params.id : null;
 
-  const playlist = useSharedPlaylist(playlistId ?? undefined);
-  const jobs = useJobsForPlaylist(playlistId ?? undefined);
+  // The form edits a one-time snapshot of the playlist. Subscribing to the
+  // live status poll here would reset in-progress draft edits whenever the
+  // playlist changes server-side (same failure mode as #138).
+  const { snapshot, isLoading } = useEditSnapshot(!!playlistId, (status) => {
+    const playlist = status.sharedPlaylists.find((p) => p.id === playlistId);
+    if (!playlist) return undefined;
+    const jobs = (status.jobs ?? []).filter(
+      (job) => job.playlistType === playlistId && job.status !== "failed",
+    );
+    return { playlist, jobs };
+  });
+
+  if (isLoading) {
+    return (
+      <View style={[styles.empty, { backgroundColor: colors.background }]}>
+        <Stack.Screen options={{ title: "Edit Playlist" }} />
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (!playlistId || !snapshot) {
+    return (
+      <View style={[styles.empty, { backgroundColor: colors.background }]}>
+        <Stack.Screen options={{ title: "Edit Playlist" }} />
+        <Text variant="body">Playlist not found.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <PlaylistEditForm
+      playlistId={playlistId}
+      playlist={snapshot.playlist}
+      jobs={snapshot.jobs}
+    />
+  );
+}
+
+function PlaylistEditForm({
+  playlistId,
+  playlist,
+  jobs,
+}: {
+  playlistId: string;
+  playlist: SharedPlaylist;
+  jobs: FlowJob[];
+}) {
+  const colors = Colors[useColorScheme()];
+  const router = useRouter();
+
   const update = useUpdateSharedPlaylist();
 
   const {
     control,
     handleSubmit,
-    reset,
     formState: { errors },
-  } = useForm<PlaylistEditForm>({
+  } = useForm<PlaylistEditFormValues>({
     resolver: zodResolver(playlistEditSchema),
-    defaultValues: { name: "", tracks: [] },
+    defaultValues: toFormValues(playlist, jobs),
   });
 
   const { fields, move, remove } = useFieldArray({
@@ -65,25 +130,9 @@ export default function PlaylistEditScreen() {
     name: "tracks",
   });
 
-  useEffect(() => {
-    if (!playlist) return;
-    const sourceTracks: SharedPlaylistTrack[] =
-      playlist.tracks && playlist.tracks.length > 0
-        ? playlist.tracks
-        : jobs.map((job) => ({
-            artistName: job.artistName,
-            trackName: job.trackName,
-            albumName: job.albumName ?? null,
-            artistMbid: job.artistMbid ?? null,
-            reason: job.reason ?? null,
-          }));
-    reset({ name: playlist.name, tracks: sourceTracks });
-  }, [playlist, jobs, reset]);
-
   const isPending = update.isPending;
 
-  const onSubmit = (values: PlaylistEditForm) => {
-    if (!playlistId) return;
+  const onSubmit = (values: PlaylistEditFormValues) => {
     update.mutate(
       { playlistId, payload: values },
       {
@@ -101,14 +150,6 @@ export default function PlaylistEditScreen() {
     ],
     [colors.card, colors.separator],
   );
-
-  if (!playlist) {
-    return (
-      <View style={[styles.empty, { backgroundColor: colors.background }]}>
-        <Text variant="body">Playlist not found.</Text>
-      </View>
-    );
-  }
 
   return (
     <KeyboardAvoidingView

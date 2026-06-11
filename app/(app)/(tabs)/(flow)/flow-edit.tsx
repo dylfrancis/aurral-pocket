@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -20,18 +20,76 @@ import { SizeStepper } from "@/components/flow/SizeStepper";
 import { ScheduleDayPicker } from "@/components/flow/ScheduleDayPicker";
 import { ScheduleHourPicker } from "@/components/flow/ScheduleHourPicker";
 import { FocusEditor } from "@/components/flow/FocusEditor";
-import { useCreateFlow, useFlow, useUpdateFlow } from "@/hooks/flow";
+import { useCreateFlow, useEditSnapshot, useUpdateFlow } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { createDefaultFlowForm, type FlowFormValues } from "@/lib/types/flow";
+import {
+  createDefaultFlowForm,
+  type Flow,
+  type FlowFormValues,
+} from "@/lib/types/flow";
 import { flowFormSchema, type FlowFormSchema } from "@/lib/flow-form-schema";
+
+function toFormValues(flow: Flow): FlowFormValues {
+  return {
+    name: flow.name,
+    size: flow.size,
+    mix: { ...flow.mix, focus: flow.mix.focus ?? 0 },
+    deepDive: flow.deepDive,
+    tags: [...(flow.tags ?? [])],
+    relatedArtists: [...(flow.relatedArtists ?? [])],
+    scheduleDays: [...(flow.scheduleDays ?? [])],
+    scheduleTime: flow.scheduleTime || "00:00",
+  };
+}
 
 export default function FlowEditScreen() {
   const colors = Colors[useColorScheme()];
-  const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const editingId = typeof params.id === "string" ? params.id : null;
-  const existingFlow = useFlow(editingId ?? undefined);
+
+  // The form edits a one-time snapshot of the flow. Subscribing to the live
+  // status poll here would re-render every tick, snapping the iOS hour wheel
+  // back mid-gesture and resetting in-progress drafts (#138).
+  const { snapshot: existingFlow, isLoading } = useEditSnapshot(
+    !!editingId,
+    (status) => status.flows.find((flow) => flow.id === editingId),
+  );
+
+  if (editingId && isLoading) {
+    return (
+      <View
+        style={[styles.placeholder, { backgroundColor: colors.background }]}
+      >
+        <Stack.Screen options={{ title: "Edit Flow" }} />
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (editingId && !existingFlow) {
+    return (
+      <View
+        style={[styles.placeholder, { backgroundColor: colors.background }]}
+      >
+        <Stack.Screen options={{ title: "Edit Flow" }} />
+        <Text variant="body">Flow not found.</Text>
+      </View>
+    );
+  }
+
+  return <FlowEditForm editingId={editingId} existingFlow={existingFlow} />;
+}
+
+function FlowEditForm({
+  editingId,
+  existingFlow,
+}: {
+  editingId: string | null;
+  existingFlow: Flow | undefined;
+}) {
+  const colors = Colors[useColorScheme()];
+  const router = useRouter();
 
   const createFlow = useCreateFlow();
   const updateFlow = useUpdateFlow();
@@ -39,26 +97,13 @@ export default function FlowEditScreen() {
   const {
     control,
     handleSubmit,
-    reset,
     formState: { errors },
   } = useForm<FlowFormSchema>({
     resolver: zodResolver(flowFormSchema),
-    defaultValues: createDefaultFlowForm(),
+    defaultValues: existingFlow
+      ? toFormValues(existingFlow)
+      : createDefaultFlowForm(),
   });
-
-  useEffect(() => {
-    if (!editingId || !existingFlow) return;
-    reset({
-      name: existingFlow.name,
-      size: existingFlow.size,
-      mix: { ...existingFlow.mix, focus: existingFlow.mix.focus ?? 0 },
-      deepDive: existingFlow.deepDive,
-      tags: [...(existingFlow.tags ?? [])],
-      relatedArtists: [...(existingFlow.relatedArtists ?? [])],
-      scheduleDays: [...(existingFlow.scheduleDays ?? [])],
-      scheduleTime: existingFlow.scheduleTime || "00:00",
-    });
-  }, [editingId, existingFlow, reset]);
 
   const [watchedTags, watchedArtists, watchedMix] = useWatch({
     control,
@@ -304,6 +349,11 @@ function Section({
 }
 
 const styles = StyleSheet.create({
+  placeholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   content: {
     padding: 16,
     gap: 16,
