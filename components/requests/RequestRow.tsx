@@ -1,7 +1,8 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { RequestStatusBadge } from "./RequestStatusBadge";
@@ -44,15 +45,12 @@ export const RequestRow = React.memo(function RequestRow({
   };
 
   return (
-    <Pressable
+    <Card
       onPress={hasValidMbid ? onPress : undefined}
       onLongPress={hasActions ? handleLongPress : undefined}
       delayLongPress={300}
       disabled={!hasValidMbid && !hasActions}
-      style={({ pressed }) => [
-        styles.row,
-        { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
-      ]}
+      style={styles.row}
     >
       <View style={styles.thumb}>
         {hasValidMbid ? (
@@ -96,7 +94,7 @@ export const RequestRow = React.memo(function RequestRow({
           {requestedLabel}
         </Text>
       </View>
-    </Pressable>
+    </Card>
   );
 });
 
@@ -106,7 +104,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     padding: 10,
-    borderRadius: 12,
   },
   thumb: {
     width: 56,

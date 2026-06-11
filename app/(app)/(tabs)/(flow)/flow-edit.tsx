@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { MixSlider } from "@/components/flow/MixSlider";
 import { MixPresetPicker } from "@/components/flow/MixPresetPicker";
 import { SizeStepper } from "@/components/flow/SizeStepper";
@@ -273,12 +274,7 @@ function Section({
   const colors = Colors[useColorScheme()];
 
   return (
-    <View
-      style={[
-        styles.section,
-        { backgroundColor: colors.card, borderColor: colors.separator },
-      ]}
-    >
+    <Card bordered radius={14} style={styles.section}>
       <View style={styles.sectionHead}>
         <View style={styles.sectionTitleRow}>
           <Text
@@ -299,7 +295,7 @@ function Section({
         ) : null}
       </View>
       {children}
-    </View>
+    </Card>
   );
 }
 
@@ -310,8 +306,6 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   section: {
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     gap: 12,
   },

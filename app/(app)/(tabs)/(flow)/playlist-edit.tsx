@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import {
   useJobsForPlaylist,
   useSharedPlaylist,
@@ -94,14 +95,6 @@ export default function PlaylistEditScreen() {
     );
   };
 
-  const sectionStyle = useMemo(
-    () => [
-      styles.section,
-      { backgroundColor: colors.card, borderColor: colors.separator },
-    ],
-    [colors.card, colors.separator],
-  );
-
   if (!playlist) {
     return (
       <View style={[styles.empty, { backgroundColor: colors.background }]}>
@@ -124,7 +117,7 @@ export default function PlaylistEditScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={sectionStyle}>
+        <Card bordered radius={14} style={styles.section}>
           <Text
             variant="subtitle"
             style={[
@@ -152,9 +145,9 @@ export default function PlaylistEditScreen() {
               {errors.name.message}
             </Text>
           ) : null}
-        </View>
+        </Card>
 
-        <View style={sectionStyle}>
+        <Card bordered radius={14} style={styles.section}>
           <View style={styles.tracksHead}>
             <Text
               variant="subtitle"
@@ -248,7 +241,7 @@ export default function PlaylistEditScreen() {
               {errors.tracks.message}
             </Text>
           ) : null}
-        </View>
+        </Card>
 
         <Button
           title="Save Changes"
@@ -267,8 +260,6 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   section: {
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     gap: 12,
   },

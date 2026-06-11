@@ -14,6 +14,7 @@ import * as Haptics from "expo-haptics";
 import FilterList from "@expo/material-symbols/filter_list.xml";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/library/EmptyState";
 import { NearbyShowRow } from "@/components/discover/NearbyShowRow";
@@ -260,12 +261,7 @@ export default function NearbyShowsScreen() {
 
     if (data?.configured === false) {
       return (
-        <View
-          style={[
-            styles.emptyCard,
-            { backgroundColor: colors.card, borderColor: colors.separator },
-          ]}
-        >
+        <Card bordered style={styles.emptyCard}>
           <Text
             variant="body"
             style={[
@@ -281,18 +277,13 @@ export default function NearbyShowsScreen() {
           >
             Add a Ticketmaster Consumer Key in Settings to see local shows.
           </Text>
-        </View>
+        </Card>
       );
     }
 
     if (zipModeActive && !appliedZip.trim()) {
       return (
-        <View
-          style={[
-            styles.emptyCard,
-            { backgroundColor: colors.card, borderColor: colors.separator },
-          ]}
-        >
+        <Card bordered style={styles.emptyCard}>
           <Text
             variant="body"
             style={[
@@ -309,7 +300,7 @@ export default function NearbyShowsScreen() {
             Enter a ZIP code to search for shows in that area.
           </Text>
           <Button title="Set ZIP" onPress={openZipEditor} />
-        </View>
+        </Card>
       );
     }
 
@@ -454,8 +445,6 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     padding: 16,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
     gap: 10,
   },
   emptyTitle: {

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
@@ -10,7 +11,7 @@ import type { ConcertEvent } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useCallback } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { ViewAllCard } from "./ViewAllCard";
 
 type Props = {
@@ -104,12 +105,7 @@ export function ShowsNearYouSection({
     return (
       <View style={styles.container}>
         {header}
-        <View
-          style={[
-            styles.emptyCard,
-            { backgroundColor: colors.card, borderColor: colors.separator },
-          ]}
-        >
+        <Card bordered style={styles.emptyCard}>
           <Text
             variant="body"
             style={[
@@ -126,7 +122,7 @@ export function ShowsNearYouSection({
             Add a Ticketmaster Consumer Key in Settings to see local shows.
           </Text>
           <Button title="Open Settings" onPress={handleOpenSettings} />
-        </View>
+        </Card>
       </View>
     );
   }
@@ -135,12 +131,7 @@ export function ShowsNearYouSection({
     return (
       <View style={styles.container}>
         {header}
-        <View
-          style={[
-            styles.emptyCard,
-            { backgroundColor: colors.card, borderColor: colors.separator },
-          ]}
-        >
+        <Card bordered style={styles.emptyCard}>
           <Text
             variant="body"
             style={[
@@ -157,7 +148,7 @@ export function ShowsNearYouSection({
             Enter a ZIP code on the Shows Near You page to search that area.
           </Text>
           <Button title="Open Shows Near You" onPress={handleViewAll} />
-        </View>
+        </Card>
       </View>
     );
   }
@@ -169,12 +160,7 @@ export function ShowsNearYouSection({
       <View style={styles.container}>
         {header}
         {locationRow}
-        <View
-          style={[
-            styles.emptyCard,
-            { backgroundColor: colors.card, borderColor: colors.separator },
-          ]}
-        >
+        <Card bordered style={styles.emptyCard}>
           <Text
             variant="body"
             style={[
@@ -191,7 +177,7 @@ export function ShowsNearYouSection({
             We could not find local Ticketmaster shows for artists from your
             library around {locationLabel}.
           </Text>
-        </View>
+        </Card>
       </View>
     );
   }
@@ -211,16 +197,11 @@ export function ShowsNearYouSection({
           const date = formatShowDateLabel(show);
           const where = formatShowLocation(show);
           return (
-            <Pressable
+            <Card
               key={`${show.id}-${show.artistName}`}
-              style={({ pressed }) => [
-                styles.showCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.separator,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
+              bordered
+              pressedOpacity={0.85}
+              style={styles.showCard}
               onPress={() => handleShowPress(show)}
             >
               <View style={styles.showHeader}>
@@ -282,7 +263,7 @@ export function ShowsNearYouSection({
                   </Text>
                 </View>
               )}
-            </Pressable>
+            </Card>
           );
         })}
         {hasMore ? (
@@ -322,8 +303,6 @@ const styles = StyleSheet.create({
   showCard: {
     width: CARD_WIDTH,
     padding: 12,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
     gap: 6,
   },
   showHeader: {
@@ -356,8 +335,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 8,
     padding: 16,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
     gap: 10,
   },
   emptyTitle: {

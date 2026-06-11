@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -81,15 +82,7 @@ export function AutocompleteInput<T>({
       </View>
 
       {showDropdown ? (
-        <View
-          style={[
-            styles.dropdown,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.separator,
-            },
-          ]}
-        >
+        <Card bordered radius={10} style={styles.dropdown}>
           {suggestions.map((item) => {
             const disabled = isItemDisabled?.(item) ?? false;
             return (
@@ -109,7 +102,7 @@ export function AutocompleteInput<T>({
               </Pressable>
             );
           })}
-        </View>
+        </Card>
       ) : null}
     </View>
   );
@@ -170,8 +163,6 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     marginTop: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
     overflow: "hidden",
   },
   suggestion: {

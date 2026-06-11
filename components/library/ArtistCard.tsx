@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -18,13 +19,7 @@ export const ArtistCard = React.memo(function ArtistCard({
   const colors = Colors[useColorScheme()];
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
-      ]}
-    >
+    <Card onPress={onPress} style={styles.card}>
       <CoverArtImage
         type="artist"
         mbid={artist.mbid}
@@ -44,13 +39,12 @@ export const ArtistCard = React.memo(function ArtistCard({
           {artist.statistics.albumCount === 1 ? "album" : "albums"}
         </Text>
       </View>
-    </Pressable>
+    </Card>
   );
 });
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
     overflow: "hidden",
   },
   info: {
