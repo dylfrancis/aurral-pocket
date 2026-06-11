@@ -13,7 +13,7 @@ export default function TabsLayout() {
     <NativeTabs
       tintColor={colors.tabIconSelected}
       backgroundColor={colors.card}
-      indicatorColor={`${colors.brand}33`}
+      indicatorColor={colors.brandMuted}
       labelStyle={{ fontFamily: Fonts.medium, color: colors.tabIconDefault }}
       {...TAB_BAR_BACKGROUND}
     >

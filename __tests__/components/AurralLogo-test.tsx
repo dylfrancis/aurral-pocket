@@ -37,7 +37,7 @@ describe("AurralLogo", () => {
     mockUseColorScheme.mockReturnValue("dark");
     const { root } = render(<AurralLogo />);
     const svg = root.findByProps({ height: 56 });
-    expect(svg.props.xml).toContain('fill="#707e61"');
+    expect(svg.props.xml).toContain('fill="#84cc16"');
     expect(svg.props.xml).not.toContain('fill="currentColor"');
   });
 
@@ -45,7 +45,7 @@ describe("AurralLogo", () => {
     mockUseColorScheme.mockReturnValue("light");
     const { root } = render(<AurralLogo />);
     const svg = root.findByProps({ height: 56 });
-    expect(svg.props.xml).toContain('fill="#4a5840"');
+    expect(svg.props.xml).toContain('fill="#65a30d"');
     expect(svg.props.xml).not.toContain('fill="currentColor"');
   });
 

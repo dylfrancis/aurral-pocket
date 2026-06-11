@@ -20,7 +20,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#050505",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/aurral-logo.png"
       },
       "package": "com.aurral.aurralpocket"
@@ -44,9 +44,9 @@
           "image": "./assets/images/aurral-logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#f5f4f1",
+          "backgroundColor": "#fafafa",
           "dark": {
-            "backgroundColor": "#211f27"
+            "backgroundColor": "#000000"
           }
         }
       ],
