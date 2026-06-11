@@ -13,8 +13,8 @@ describe("Colors", () => {
   });
 
   it("uses the brand color consistently", () => {
-    expect(Colors.light.brand).toBe("#707e61");
-    expect(Colors.dark.brand).toBe("#707e61");
+    expect(Colors.light.brand).toBe("#65a30d");
+    expect(Colors.dark.brand).toBe("#84cc16");
     expect(Colors.light.tint).toBe(Colors.light.brand);
     expect(Colors.dark.tint).toBe(Colors.dark.brand);
     expect(Colors.light.buttonPrimary).toBe(Colors.light.brand);
@@ -22,9 +22,9 @@ describe("Colors", () => {
   });
 
   it("dark theme has darker backgrounds than light theme", () => {
-    // Dark background is near-black, light is off-white
-    expect(Colors.dark.background).toBe("#050505");
-    expect(Colors.light.background).toBe("#f5f4f1");
+    // Dark background is pure black, light is off-white
+    expect(Colors.dark.background).toBe("#000000");
+    expect(Colors.light.background).toBe("#fafafa");
   });
 });
 

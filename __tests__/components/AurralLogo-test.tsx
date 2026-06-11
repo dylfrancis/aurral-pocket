@@ -34,14 +34,14 @@ describe("AurralLogo", () => {
   it("uses dark color in dark mode", async () => {
     mockUseColorScheme.mockReturnValue("dark");
     const { root } = await render(<AurralLogo />);
-    expect(root!.props.xml).toContain('fill="#707e61"');
+    expect(root!.props.xml).toContain('fill="#84cc16"');
     expect(root!.props.xml).not.toContain('fill="currentColor"');
   });
 
   it("uses light color in light mode", async () => {
     mockUseColorScheme.mockReturnValue("light");
     const { root } = await render(<AurralLogo />);
-    expect(root!.props.xml).toContain('fill="#4a5840"');
+    expect(root!.props.xml).toContain('fill="#65a30d"');
     expect(root!.props.xml).not.toContain('fill="currentColor"');
   });
 
