@@ -9,9 +9,8 @@ import {
   View,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -24,35 +23,8 @@ import { FocusEditor } from "@/components/flow/FocusEditor";
 import { useCreateFlow, useFlow, useUpdateFlow } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import {
-  DEFAULT_FLOW_FORM,
-  FLOW_SIZE_MAX,
-  FLOW_SIZE_MIN,
-  type FlowFormValues,
-} from "@/lib/types/flow";
-
-const focusStrength = z.enum(["light", "medium", "heavy"]);
-
-const flowFormSchema = z.object({
-  name: z.string().trim().min(1, "Name is required"),
-  size: z.number().int().min(FLOW_SIZE_MIN).max(FLOW_SIZE_MAX),
-  mix: z
-    .object({
-      discover: z.number().min(0).max(100),
-      mix: z.number().min(0).max(100),
-      trending: z.number().min(0).max(100),
-    })
-    .refine((m) => Math.round(m.discover + m.mix + m.trending) === 100, {
-      message: "Mix must total 100%",
-    }),
-  deepDive: z.boolean(),
-  tags: z.record(z.string(), focusStrength),
-  relatedArtists: z.record(z.string(), focusStrength),
-  scheduleDays: z.array(z.number().int().min(0).max(6)),
-  scheduleTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time"),
-});
-
-type FlowFormSchema = z.infer<typeof flowFormSchema>;
+import { createDefaultFlowForm, type FlowFormValues } from "@/lib/types/flow";
+import { flowFormSchema, type FlowFormSchema } from "@/lib/flow-form-schema";
 
 export default function FlowEditScreen() {
   const colors = Colors[useColorScheme()];
@@ -71,7 +43,7 @@ export default function FlowEditScreen() {
     formState: { errors },
   } = useForm<FlowFormSchema>({
     resolver: zodResolver(flowFormSchema),
-    defaultValues: DEFAULT_FLOW_FORM,
+    defaultValues: createDefaultFlowForm(),
   });
 
   useEffect(() => {
@@ -79,14 +51,22 @@ export default function FlowEditScreen() {
     reset({
       name: existingFlow.name,
       size: existingFlow.size,
-      mix: { ...existingFlow.mix },
+      mix: { ...existingFlow.mix, focus: existingFlow.mix.focus ?? 0 },
       deepDive: existingFlow.deepDive,
-      tags: { ...(existingFlow.tags ?? {}) },
-      relatedArtists: { ...(existingFlow.relatedArtists ?? {}) },
+      tags: [...(existingFlow.tags ?? [])],
+      relatedArtists: [...(existingFlow.relatedArtists ?? [])],
       scheduleDays: [...(existingFlow.scheduleDays ?? [])],
       scheduleTime: existingFlow.scheduleTime || "00:00",
     });
   }, [editingId, existingFlow, reset]);
+
+  const [watchedTags, watchedArtists, watchedMix] = useWatch({
+    control,
+    name: ["tags", "relatedArtists", "mix"],
+  });
+  const hasFocusEntries =
+    (watchedTags?.length ?? 0) > 0 || (watchedArtists?.length ?? 0) > 0;
+  const focusInactive = hasFocusEntries && (watchedMix?.focus ?? 0) === 0;
 
   const isPending = createFlow.isPending || updateFlow.isPending;
 
@@ -233,12 +213,19 @@ export default function FlowEditScreen() {
               />
             )}
           />
+          {focusInactive ? (
+            <Text variant="caption" style={{ color: colors.subtle }}>
+              Set Focus above 0% in the mix for these to take effect.
+            </Text>
+          ) : null}
+          {errors.tags?.message ? (
+            <Text variant="caption" style={{ color: colors.error }}>
+              {errors.tags.message}
+            </Text>
+          ) : null}
         </Section>
 
-        <Section
-          title="Schedule"
-          subtitle="Pick refresh days. Leave empty for manual-only runs."
-        >
+        <Section title="Schedule" subtitle="Pick the days this flow refreshes.">
           <Controller
             control={control}
             name="scheduleDays"
@@ -246,6 +233,11 @@ export default function FlowEditScreen() {
               <ScheduleDayPicker value={value} onChange={onChange} />
             )}
           />
+          {errors.scheduleDays?.message ? (
+            <Text variant="caption" style={{ color: colors.error }}>
+              {errors.scheduleDays.message}
+            </Text>
+          ) : null}
           <Controller
             control={control}
             name="scheduleTime"

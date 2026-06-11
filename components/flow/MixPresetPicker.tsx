@@ -12,7 +12,10 @@ type Props = {
 
 function isSamePreset(a: MixPercent, b: MixPercent): boolean {
   return (
-    a.discover === b.discover && a.mix === b.mix && a.trending === b.trending
+    a.discover === b.discover &&
+    a.mix === b.mix &&
+    a.trending === b.trending &&
+    a.focus === b.focus
   );
 }
 

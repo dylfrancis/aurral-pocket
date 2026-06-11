@@ -2,9 +2,8 @@ export type MixPercent = {
   discover: number;
   mix: number;
   trending: number;
+  focus: number;
 };
-
-export type FocusStrength = "light" | "medium" | "heavy";
 
 export type Flow = {
   id: string;
@@ -14,8 +13,8 @@ export type Flow = {
   mix: MixPercent;
   deepDive: boolean;
   recipe?: string | null;
-  tags: Record<string, FocusStrength>;
-  relatedArtists: Record<string, FocusStrength>;
+  tags: string[];
+  relatedArtists: string[];
   scheduleDays: number[];
   scheduleTime: string;
   nextRunAt: number | null;
@@ -117,8 +116,8 @@ export type FlowFormValues = {
   size: number;
   mix: MixPercent;
   deepDive: boolean;
-  tags: Record<string, FocusStrength>;
-  relatedArtists: Record<string, FocusStrength>;
+  tags: string[];
+  relatedArtists: string[];
   scheduleDays: number[];
   scheduleTime: string;
 };
@@ -127,47 +126,47 @@ export const DEFAULT_MIX: MixPercent = {
   discover: 50,
   mix: 30,
   trending: 20,
+  focus: 0,
 };
 
 export const DEFAULT_FLOW_SIZE = 30;
 
-export const DEFAULT_FLOW_FORM: FlowFormValues = {
+export const createDefaultFlowForm = (): FlowFormValues => ({
   name: "Discover",
   size: DEFAULT_FLOW_SIZE,
   mix: DEFAULT_MIX,
   deepDive: false,
-  tags: {},
-  relatedArtists: {},
-  scheduleDays: [],
+  tags: [],
+  relatedArtists: [],
+  scheduleDays: [new Date().getDay()],
   scheduleTime: "00:00",
-};
-
-export const FOCUS_STRENGTHS: Record<FocusStrength, number> = {
-  light: 20,
-  medium: 35,
-  heavy: 50,
-};
+});
 
 export const MIX_PRESETS: { id: string; label: string; mix: MixPercent }[] = [
   {
     id: "balanced",
     label: "Balanced",
-    mix: { discover: 50, mix: 30, trending: 20 },
+    mix: { discover: 50, mix: 30, trending: 20, focus: 0 },
   },
   {
     id: "discover",
     label: "Discover",
-    mix: { discover: 70, mix: 20, trending: 10 },
+    mix: { discover: 70, mix: 20, trending: 10, focus: 0 },
   },
   {
     id: "library",
     label: "Library",
-    mix: { discover: 25, mix: 65, trending: 10 },
+    mix: { discover: 25, mix: 65, trending: 10, focus: 0 },
   },
   {
     id: "trending",
     label: "Trending",
-    mix: { discover: 35, mix: 20, trending: 45 },
+    mix: { discover: 35, mix: 20, trending: 45, focus: 0 },
+  },
+  {
+    id: "focused",
+    label: "Focused",
+    mix: { discover: 30, mix: 20, trending: 10, focus: 40 },
   },
 ];
 

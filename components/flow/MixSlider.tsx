@@ -11,11 +11,12 @@ const MAX_VALUE = 100;
 
 type Channel = keyof MixPercent;
 
-const CHANNEL_ORDER: Channel[] = ["discover", "mix", "trending"];
+const CHANNEL_ORDER: Channel[] = ["discover", "mix", "trending", "focus"];
 const CHANNEL_LABELS: Record<Channel, string> = {
   discover: "Discover",
   mix: "Library Mix",
   trending: "Trending",
+  focus: "Focus",
 };
 
 type Props = {
@@ -49,7 +50,7 @@ function rebalance(
       assigned += result[c];
     });
   }
-  const sum = result.discover + result.mix + result.trending;
+  const sum = CHANNEL_ORDER.reduce((acc, c) => acc + result[c], 0);
   if (sum !== MAX_VALUE) {
     const diff = MAX_VALUE - sum;
     result[others[0]] = Math.max(0, result[others[0]] + diff);
