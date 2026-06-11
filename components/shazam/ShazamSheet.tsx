@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { AppSheet } from "@/components/ui/AppSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -88,28 +85,14 @@ export function ShazamSheet({
     [dismiss, onSearchManually],
   );
 
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   return (
-    <BottomSheetModal
+    <AppSheet
       ref={sheetRef}
       snapPoints={["55%", "90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
       onChange={handleChange}
       onDismiss={handleDismiss}
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
-      handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       <BottomSheetScrollView
         contentContainerStyle={{
@@ -180,7 +163,7 @@ export function ShazamSheet({
           </View>
         )}
       </BottomSheetScrollView>
-    </BottomSheetModal>
+    </AppSheet>
   );
 }
 

@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Keyboard, StyleSheet, TextInput, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import {
-  BottomSheetBackdrop,
   BottomSheetModal,
   BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import { AppSheet } from "@/components/ui/AppSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -57,19 +57,6 @@ function NearbyZipEditorSheetContent({
     sheetRef.current?.present();
   }, []);
 
-  const renderBackdrop = useCallback(
-    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.5}
-        pressBehavior="close"
-      />
-    ),
-    [],
-  );
-
   const handleDismiss = useCallback(() => {
     Keyboard.dismiss();
     onClose();
@@ -89,17 +76,15 @@ function NearbyZipEditorSheetContent({
   }, [draft, onSave]);
 
   return (
-    <BottomSheetModal
+    <AppSheet
       ref={sheetRef}
+      background="card"
       enableDynamicSizing
       enablePanDownToClose
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       onAnimate={handleAnimate}
       onDismiss={handleDismiss}
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: colors.card }}
-      handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       <BottomSheetView
         style={[styles.content, { paddingBottom: insets.bottom + 16 }]}
@@ -135,7 +120,7 @@ function NearbyZipEditorSheetContent({
           <Button title="Save" onPress={handleSave} disabled={!draft.trim()} />
         </View>
       </BottomSheetView>
-    </BottomSheetModal>
+    </AppSheet>
   );
 }
 

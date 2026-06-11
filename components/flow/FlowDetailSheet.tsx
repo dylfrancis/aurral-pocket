@@ -8,10 +8,10 @@ import {
   View,
 } from "react-native";
 import {
-  BottomSheetBackdrop,
   BottomSheetModal,
   useBottomSheetScrollableCreator,
 } from "@gorhom/bottom-sheet";
+import { AppSheet } from "@/components/ui/AppSheet";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -82,17 +82,6 @@ export function FlowDetailSheet({
   const dismiss = useCallback(() => {
     sheetRef.current?.dismiss();
   }, [sheetRef]);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
 
   const handleEdit = () => {
     if (!flow) return;
@@ -318,16 +307,13 @@ export function FlowDetailSheet({
   );
 
   return (
-    <BottomSheetModal
+    <AppSheet
       ref={sheetRef}
       snapPoints={["90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
       onDismiss={onClose}
       onChange={handleSheetChange}
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
-      handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       {flow ? (
         <FlashList
@@ -340,7 +326,7 @@ export function FlowDetailSheet({
           renderScrollComponent={renderScrollComponent}
         />
       ) : null}
-    </BottomSheetModal>
+    </AppSheet>
   );
 }
 

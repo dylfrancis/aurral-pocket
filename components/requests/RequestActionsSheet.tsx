@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,11 +6,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
+import { AppSheet } from "@/components/ui/AppSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -39,17 +36,6 @@ export function RequestActionsSheet({
   const hasPermission = useHasPermission();
   const deleteMutation = useDeleteAlbumRequest();
   const researchMutation = useResearchAlbum();
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
 
   const canStop =
     !!request?.inQueue && !!request?.albumId && hasPermission("deleteAlbum");
@@ -80,14 +66,7 @@ export function RequestActionsSheet({
   };
 
   return (
-    <BottomSheetModal
-      ref={sheetRef}
-      enablePanDownToClose
-      enableDynamicSizing
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
-      handleIndicatorStyle={{ backgroundColor: colors.subtle }}
-    >
+    <AppSheet ref={sheetRef} enablePanDownToClose enableDynamicSizing>
       <BottomSheetView
         style={[styles.content, { paddingBottom: insets.bottom + 16 }]}
       >
@@ -150,7 +129,7 @@ export function RequestActionsSheet({
           </Pressable>
         )}
       </BottomSheetView>
-    </BottomSheetModal>
+    </AppSheet>
   );
 }
 

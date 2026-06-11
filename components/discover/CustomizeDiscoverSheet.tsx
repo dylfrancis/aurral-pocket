@@ -6,11 +6,8 @@ import { DEFAULT_DISCOVER_SECTIONS } from "@/hooks/discover/use-discover-layout"
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { DiscoverSection } from "@/lib/types/me";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
+import { AppSheet } from "@/components/ui/AppSheet";
 import React, { memo, useCallback, useState } from "react";
 import {
   Pressable,
@@ -43,18 +40,6 @@ export function CustomizeDiscoverSheet({
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<DiscoverSection[]>(sections);
   const [isSaving, setIsSaving] = useState(false);
-
-  const renderBackdrop = useCallback(
-    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        pressBehavior="none"
-      />
-    ),
-    [],
-  );
 
   const handleClose = useCallback(() => {
     sheetRef.current?.dismiss();
@@ -115,9 +100,10 @@ export function CustomizeDiscoverSheet({
   );
 
   return (
-    <BottomSheetModal
+    <AppSheet
       ref={sheetRef}
       snapPoints={["85%"]}
+      backdropPressBehavior="none"
       enableDynamicSizing={false}
       enablePanDownToClose={false}
       enableHandlePanningGesture={false}
@@ -128,9 +114,6 @@ export function CustomizeDiscoverSheet({
           setIsSaving(false);
         }
       }}
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
-      handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       <BottomSheetView style={styles.container}>
         <View style={[styles.header, { borderColor: colors.separator }]}>
@@ -180,7 +163,7 @@ export function CustomizeDiscoverSheet({
           />
         </View>
       </BottomSheetView>
-    </BottomSheetModal>
+    </AppSheet>
   );
 }
 
