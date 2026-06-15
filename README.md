@@ -32,14 +32,14 @@ Install [TestFlight](https://apps.apple.com/app/testflight/id899247664) from the
 
 ### Android (closed testing)
 
-Android requires closed testing before the app can be approved for open testing and production, so testers must be added to the list first.
+Android requires closed testing before the app can be approved for open testing and production, so testers must join the Google Group before getting access to the app.
 
-1. Fill out the closed-testing sign-up form so your Google account email can be added: https://forms.gle/ayexHWDHHA5pYcsM9
-2. Once your email has been added, opt in to the test:
+1. Join the Aurral Closed Testers group: https://groups.google.com/g/aurral-closed-testers
+2. Once you have joined, opt in to the test:
    - **Web:** https://play.google.com/apps/testing/com.aurral.aurralpocket
    - **Play Store:** https://play.google.com/store/apps/details?id=com.aurral.aurralpocket
 
-> Note: you must be added as a tester before the Play Store / web links will work.
+> Note: you must join the group before the Play Store / web links will work.
 
 ## Features
 
