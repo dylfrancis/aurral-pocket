@@ -49,7 +49,7 @@ describe("useBlocklist", () => {
     mockGetBlocklist.mockResolvedValue(data);
 
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useBlocklist(), { wrapper });
+    const { result } = await renderHook(() => useBlocklist(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(data);
@@ -57,12 +57,15 @@ describe("useBlocklist", () => {
 });
 
 describe("useIsArtistBlocked", () => {
-  it("returns blocked=false and loaded=false before data resolves", () => {
+  it("returns blocked=false and loaded=false before data resolves", async () => {
     mockGetBlocklist.mockReturnValue(new Promise(() => {}));
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useIsArtistBlocked(MBID_A, "Foo"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useIsArtistBlocked(MBID_A, "Foo"),
+      {
+        wrapper,
+      },
+    );
     expect(result.current).toEqual({ blocked: false, loaded: false });
   });
 
@@ -76,9 +79,12 @@ describe("useIsArtistBlocked", () => {
       tags: [],
     });
 
-    const { result } = renderHook(() => useIsArtistBlocked(MBID_A, "Foo"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useIsArtistBlocked(MBID_A, "Foo"),
+      {
+        wrapper,
+      },
+    );
     await waitFor(() => expect(result.current.loaded).toBe(true));
     expect(result.current.blocked).toBe(true);
   });
@@ -94,9 +100,11 @@ describe("useBlocklistMutations — optimistic update", () => {
       () => new Promise<Blocklist>((r) => (resolveUpdate = r)),
     );
 
-    const { result } = renderHook(() => useBlocklistMutations(), { wrapper });
+    const { result } = await renderHook(() => useBlocklistMutations(), {
+      wrapper,
+    });
 
-    act(() => {
+    await act(() => {
       result.current.toggleArtist({ mbid: MBID_A, name: "Foo" });
     });
 
@@ -108,7 +116,7 @@ describe("useBlocklistMutations — optimistic update", () => {
       });
     });
 
-    act(() => {
+    await act(() => {
       resolveUpdate?.({
         artists: [{ mbid: MBID_A, name: "Foo" }],
         tags: [],
@@ -127,9 +135,11 @@ describe("useBlocklistMutations — optimistic update", () => {
 
     mockUpdateBlocklist.mockImplementation(async (next: Blocklist) => next);
 
-    const { result } = renderHook(() => useBlocklistMutations(), { wrapper });
+    const { result } = await renderHook(() => useBlocklistMutations(), {
+      wrapper,
+    });
 
-    act(() => result.current.toggleArtist({ mbid: MBID_A, name: "Foo" }));
+    await act(() => result.current.toggleArtist({ mbid: MBID_A, name: "Foo" }));
 
     await waitFor(() => expect(result.current.isPending).toBe(false));
 
@@ -152,9 +162,11 @@ describe("useBlocklistMutations — optimistic update", () => {
 
     mockUpdateBlocklist.mockImplementation(async (next: Blocklist) => next);
 
-    const { result } = renderHook(() => useBlocklistMutations(), { wrapper });
+    const { result } = await renderHook(() => useBlocklistMutations(), {
+      wrapper,
+    });
 
-    act(() => result.current.toggleArtist({ mbid: MBID_A, name: "Foo" }));
+    await act(() => result.current.toggleArtist({ mbid: MBID_A, name: "Foo" }));
 
     await waitFor(() => expect(result.current.isPending).toBe(false));
 
@@ -177,9 +189,11 @@ describe("useBlocklistMutations — optimistic update", () => {
 
     mockUpdateBlocklist.mockRejectedValue(new Error("offline"));
 
-    const { result } = renderHook(() => useBlocklistMutations(), { wrapper });
+    const { result } = await renderHook(() => useBlocklistMutations(), {
+      wrapper,
+    });
 
-    act(() => {
+    await act(() => {
       result.current.toggleArtist({ mbid: MBID_B, name: "Bar" });
     });
 
@@ -196,9 +210,11 @@ describe("useBlocklistMutations — optimistic update", () => {
 
     mockUpdateBlocklist.mockResolvedValue(initial);
 
-    const { result } = renderHook(() => useBlocklistMutations(), { wrapper });
+    const { result } = await renderHook(() => useBlocklistMutations(), {
+      wrapper,
+    });
 
-    act(() => result.current.addTag("POP"));
+    await act(() => result.current.addTag("POP"));
 
     // PUT still fires (mutation runs); the cache stays the same because
     // applyVariables is idempotent for duplicates.
@@ -216,9 +232,11 @@ describe("useBlocklistMutations — optimistic update", () => {
 
     mockUpdateBlocklist.mockResolvedValue({ artists: [], tags: [] });
 
-    const { result } = renderHook(() => useBlocklistMutations(), { wrapper });
+    const { result } = await renderHook(() => useBlocklistMutations(), {
+      wrapper,
+    });
 
-    act(() => result.current.toggleArtist({ mbid: MBID_A, name: "Foo" }));
+    await act(() => result.current.toggleArtist({ mbid: MBID_A, name: "Foo" }));
 
     await waitFor(() => {
       const cache = client.getQueryData<Blocklist>(discoverKeys.blocklist());
@@ -238,9 +256,13 @@ describe("useBlocklistMutations — optimistic update", () => {
 
     mockUpdateBlocklist.mockImplementation(async (next: Blocklist) => next);
 
-    const { result } = renderHook(() => useBlocklistMutations(), { wrapper });
+    const { result } = await renderHook(() => useBlocklistMutations(), {
+      wrapper,
+    });
 
-    act(() => result.current.removeArtist({ mbid: MBID_A, name: "Gone" }));
+    await act(() =>
+      result.current.removeArtist({ mbid: MBID_A, name: "Gone" }),
+    );
 
     await waitFor(() => {
       const cache = client.getQueryData<Blocklist>(discoverKeys.blocklist());

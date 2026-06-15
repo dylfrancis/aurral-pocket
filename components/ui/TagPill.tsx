@@ -20,6 +20,7 @@ export function TagPill({ name, onPress }: TagPillProps) {
   if (onPress) {
     return (
       <Pressable
+        accessibilityRole="button"
         onPress={() => {
           void Haptics.selectionAsync();
           onPress(name);

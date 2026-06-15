@@ -57,48 +57,48 @@ afterEach(() => {
 });
 
 describe("useShazam", () => {
-  it("starts idle and reports availability", () => {
-    const { result } = renderHook(() => useShazam());
+  it("starts idle and reports availability", async () => {
+    const { result } = await renderHook(() => useShazam());
     expect(result.current.status).toBe("idle");
     expect(result.current.available).toBe(true);
   });
 
-  it("start() begins listening and invokes the native module", () => {
-    const { result } = renderHook(() => useShazam());
-    act(() => result.current.start());
+  it("start() begins listening and invokes the native module", async () => {
+    const { result } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
     expect(result.current.status).toBe("listening");
     expect(mockStart).toHaveBeenCalledTimes(1);
   });
 
-  it("a native match transitions to matched and stops the mic", () => {
-    const { result } = renderHook(() => useShazam());
-    act(() => result.current.start());
-    act(() => mockListeners.match?.(MATCH));
+  it("a native match transitions to matched and stops the mic", async () => {
+    const { result } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
+    await act(() => mockListeners.match?.(MATCH));
     expect(result.current.status).toBe("matched");
     expect(result.current.match).toEqual(MATCH);
     expect(mockStop).toHaveBeenCalled();
   });
 
-  it("times out to no_match after 60s of listening", () => {
-    const { result } = renderHook(() => useShazam());
-    act(() => result.current.start());
-    act(() => jest.advanceTimersByTime(60_000));
+  it("times out to no_match after 60s of listening", async () => {
+    const { result } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
+    await act(() => jest.advanceTimersByTime(60_000));
     expect(result.current.status).toBe("no_match");
   });
 
-  it("clears the timeout once a match arrives", () => {
-    const { result } = renderHook(() => useShazam());
-    act(() => result.current.start());
-    act(() => mockListeners.match?.(MATCH));
-    act(() => jest.advanceTimersByTime(60_000));
+  it("clears the timeout once a match arrives", async () => {
+    const { result } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
+    await act(() => mockListeners.match?.(MATCH));
+    await act(() => jest.advanceTimersByTime(60_000));
     // The late timeout must not knock us out of the matched state.
     expect(result.current.status).toBe("matched");
   });
 
-  it("maps a permission error to permission_denied", () => {
-    const { result } = renderHook(() => useShazam());
-    act(() => result.current.start());
-    act(() =>
+  it("maps a permission error to permission_denied", async () => {
+    const { result } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
+    await act(() =>
       mockListeners.error?.({
         code: "permission",
         message: "Microphone permission denied",
@@ -107,10 +107,10 @@ describe("useShazam", () => {
     expect(result.current.status).toBe("permission_denied");
   });
 
-  it("cancel() stops the mic and resets to idle", () => {
-    const { result } = renderHook(() => useShazam());
-    act(() => result.current.start());
-    act(() => result.current.cancel());
+  it("cancel() stops the mic and resets to idle", async () => {
+    const { result } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
+    await act(() => result.current.cancel());
     expect(result.current.status).toBe("idle");
     expect(mockStop).toHaveBeenCalled();
   });

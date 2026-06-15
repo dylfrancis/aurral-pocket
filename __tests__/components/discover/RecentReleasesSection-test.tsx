@@ -56,33 +56,33 @@ beforeEach(() => {
 });
 
 describe("RecentReleasesSection", () => {
-  it("shows skeleton while loading", () => {
+  it("shows skeleton while loading", async () => {
     mockHook.mockReturnValue({ data: undefined, isLoading: true });
-    const { queryByTestId } = render(
+    const { queryByTestId } = await render(
       <RecentReleasesSection onAlbumPress={jest.fn()} />,
     );
     expect(queryByTestId("skeleton")).toBeTruthy();
   });
 
-  it("returns null when data is empty", () => {
+  it("returns null when data is empty", async () => {
     mockHook.mockReturnValue({ data: [], isLoading: false });
-    const { toJSON } = render(
+    const { toJSON } = await render(
       <RecentReleasesSection onAlbumPress={jest.fn()} />,
     );
     expect(toJSON()).toBeNull();
   });
 
-  it("renders albums and fires onAlbumPress", () => {
+  it("renders albums and fires onAlbumPress", async () => {
     const albums = [album({ id: "1" }), album({ id: "2" })];
     mockHook.mockReturnValue({ data: albums, isLoading: false });
     const onPress = jest.fn();
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <RecentReleasesSection onAlbumPress={onPress} />,
     );
 
     expect(getByText("Recent & Upcoming Releases")).toBeTruthy();
-    fireEvent.press(getByText("Album 1"));
+    await fireEvent.press(getByText("Album 1"));
     expect(onPress).toHaveBeenCalledWith(albums[0]);
   });
 });

@@ -91,14 +91,16 @@ beforeEach(() => {
 });
 
 describe("useReleaseGrid search filter", () => {
-  it("returns all items when query is empty", () => {
+  it("returns all items when query is empty", async () => {
     setAlbums([
       makeAlbum("Kid A"),
       makeAlbum("OK Computer"),
       makeAlbum("In Rainbows"),
     ]);
 
-    const { result } = renderHook(() => useReleaseGrid<Album>(albumConfig));
+    const { result } = await renderHook(() =>
+      useReleaseGrid<Album>(albumConfig),
+    );
 
     expect(result.current.items.map((a) => a.albumName)).toEqual(
       expect.arrayContaining(["Kid A", "OK Computer", "In Rainbows"]),
@@ -108,69 +110,79 @@ describe("useReleaseGrid search filter", () => {
     expect(result.current.hasUnderlyingItems).toBe(true);
   });
 
-  it("matches case-insensitive substrings in album name", () => {
+  it("matches case-insensitive substrings in album name", async () => {
     setAlbums([
       makeAlbum("Kid A"),
       makeAlbum("OK Computer"),
       makeAlbum("In Rainbows"),
     ]);
 
-    const { result } = renderHook(() => useReleaseGrid<Album>(albumConfig));
+    const { result } = await renderHook(() =>
+      useReleaseGrid<Album>(albumConfig),
+    );
 
-    act(() => result.current.setSearchQuery("computer"));
+    await act(() => result.current.setSearchQuery("computer"));
     expect(result.current.items.map((a) => a.albumName)).toEqual([
       "OK Computer",
     ]);
 
-    act(() => result.current.setSearchQuery("RAIN"));
+    await act(() => result.current.setSearchQuery("RAIN"));
     expect(result.current.items.map((a) => a.albumName)).toEqual([
       "In Rainbows",
     ]);
   });
 
-  it("trims whitespace and treats whitespace-only query as empty", () => {
+  it("trims whitespace and treats whitespace-only query as empty", async () => {
     setAlbums([makeAlbum("Kid A"), makeAlbum("OK Computer")]);
 
-    const { result } = renderHook(() => useReleaseGrid<Album>(albumConfig));
+    const { result } = await renderHook(() =>
+      useReleaseGrid<Album>(albumConfig),
+    );
 
-    act(() => result.current.setSearchQuery("   "));
+    await act(() => result.current.setSearchQuery("   "));
     expect(result.current.items).toHaveLength(2);
 
-    act(() => result.current.setSearchQuery("  kid  "));
+    await act(() => result.current.setSearchQuery("  kid  "));
     expect(result.current.items.map((a) => a.albumName)).toEqual(["Kid A"]);
   });
 
-  it("returns empty list when query matches nothing", () => {
+  it("returns empty list when query matches nothing", async () => {
     setAlbums([makeAlbum("Kid A"), makeAlbum("OK Computer")]);
 
-    const { result } = renderHook(() => useReleaseGrid<Album>(albumConfig));
+    const { result } = await renderHook(() =>
+      useReleaseGrid<Album>(albumConfig),
+    );
 
-    act(() => result.current.setSearchQuery("zzz"));
+    await act(() => result.current.setSearchQuery("zzz"));
     expect(result.current.items).toEqual([]);
     expect(result.current.hasUnderlyingItems).toBe(true);
   });
 
-  it("reports hasUnderlyingItems=false when source list is empty", () => {
+  it("reports hasUnderlyingItems=false when source list is empty", async () => {
     setAlbums([]);
 
-    const { result } = renderHook(() => useReleaseGrid<Album>(albumConfig));
+    const { result } = await renderHook(() =>
+      useReleaseGrid<Album>(albumConfig),
+    );
 
     expect(result.current.items).toEqual([]);
     expect(result.current.hasUnderlyingItems).toBe(false);
   });
 
-  it("only filters items matching the current albumType", () => {
+  it("only filters items matching the current albumType", async () => {
     setAlbums([
       makeAlbum("Kid A"),
       { ...makeAlbum("Pyramid Song", "ep1"), albumType: "EP" } as Album,
     ]);
 
-    const { result } = renderHook(() => useReleaseGrid<Album>(albumConfig));
+    const { result } = await renderHook(() =>
+      useReleaseGrid<Album>(albumConfig),
+    );
 
     expect(result.current.items.map((a) => a.albumName)).toEqual(["Kid A"]);
     expect(result.current.hasUnderlyingItems).toBe(true);
 
-    act(() => result.current.setSearchQuery("pyramid"));
+    await act(() => result.current.setSearchQuery("pyramid"));
     expect(result.current.items).toEqual([]);
   });
 });

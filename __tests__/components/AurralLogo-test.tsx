@@ -21,45 +21,39 @@ beforeEach(() => {
 });
 
 describe("AurralLogo", () => {
-  it("renders with default size", () => {
-    const { root } = render(<AurralLogo />);
-    const svg = root.findByProps({ height: 56 });
-    expect(svg).toBeTruthy();
+  it("renders with default size", async () => {
+    const { root } = await render(<AurralLogo />);
+    expect(root!.props.height).toBe(56);
   });
 
-  it("renders with custom size", () => {
-    const { root } = render(<AurralLogo size={32} />);
-    const svg = root.findByProps({ height: 32 });
-    expect(svg).toBeTruthy();
+  it("renders with custom size", async () => {
+    const { root } = await render(<AurralLogo size={32} />);
+    expect(root!.props.height).toBe(32);
   });
 
-  it("uses dark color in dark mode", () => {
+  it("uses dark color in dark mode", async () => {
     mockUseColorScheme.mockReturnValue("dark");
-    const { root } = render(<AurralLogo />);
-    const svg = root.findByProps({ height: 56 });
-    expect(svg.props.xml).toContain('fill="#707e61"');
-    expect(svg.props.xml).not.toContain('fill="currentColor"');
+    const { root } = await render(<AurralLogo />);
+    expect(root!.props.xml).toContain('fill="#707e61"');
+    expect(root!.props.xml).not.toContain('fill="currentColor"');
   });
 
-  it("uses light color in light mode", () => {
+  it("uses light color in light mode", async () => {
     mockUseColorScheme.mockReturnValue("light");
-    const { root } = render(<AurralLogo />);
-    const svg = root.findByProps({ height: 56 });
-    expect(svg.props.xml).toContain('fill="#4a5840"');
-    expect(svg.props.xml).not.toContain('fill="currentColor"');
+    const { root } = await render(<AurralLogo />);
+    expect(root!.props.xml).toContain('fill="#4a5840"');
+    expect(root!.props.xml).not.toContain('fill="currentColor"');
   });
 
-  it("uses custom color when provided", () => {
-    const { root } = render(<AurralLogo color="#ff0000" />);
-    const svg = root.findByProps({ height: 56 });
-    expect(svg.props.xml).toContain('fill="#ff0000"');
-    expect(svg.props.xml).not.toContain('fill="currentColor"');
+  it("uses custom color when provided", async () => {
+    const { root } = await render(<AurralLogo color="#ff0000" />);
+    expect(root!.props.xml).toContain('fill="#ff0000"');
+    expect(root!.props.xml).not.toContain('fill="currentColor"');
   });
 
-  it("maintains correct aspect ratio", () => {
-    const { root } = render(<AurralLogo size={100} />);
-    const svg = root.findByProps({ height: 100 });
+  it("maintains correct aspect ratio", async () => {
+    const { root } = await render(<AurralLogo size={100} />);
     // 650/485 ≈ 1.3402
-    expect(svg.props.width).toBeCloseTo(100 * (650 / 485), 1);
+    expect(root!.props.width).toBeCloseTo(100 * (650 / 485), 1);
   });
 });

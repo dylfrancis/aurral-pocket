@@ -72,7 +72,10 @@ export function Button({
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={colors.buttonPrimaryText} />
+        <ActivityIndicator
+          testID="button-loading-indicator"
+          color={colors.buttonPrimaryText}
+        />
       ) : (
         <Text
           variant="body"

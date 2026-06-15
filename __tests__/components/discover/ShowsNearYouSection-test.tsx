@@ -63,43 +63,44 @@ beforeEach(() => {
 });
 
 describe("ShowsNearYouSection", () => {
-  it("shows skeleton while loading", () => {
+  it("shows skeleton while loading", async () => {
     mockUseNearbyShows.mockReturnValue({ data: undefined, isLoading: true });
 
-    const { queryByText, UNSAFE_queryAllByType } = render(
+    const { queryByText, getByTestId } = await render(
       <ShowsNearYouSection {...baseProps} />,
     );
 
     expect(queryByText("Shows Near You")).toBeTruthy();
-    const { View } = require("react-native");
-    expect(UNSAFE_queryAllByType(View).length).toBeGreaterThan(0);
+    expect(getByTestId("shows-near-you-skeleton")).toBeTruthy();
   });
 
-  it("renders 'not configured' empty card when Ticketmaster is not configured", () => {
+  it("renders 'not configured' empty card when Ticketmaster is not configured", async () => {
     mockUseNearbyShows.mockReturnValue({
       data: { configured: false, location: null, shows: [] },
       isLoading: false,
     });
 
-    const { queryByText } = render(<ShowsNearYouSection {...baseProps} />);
+    const { queryByText } = await render(
+      <ShowsNearYouSection {...baseProps} />,
+    );
 
     expect(queryByText("Ticketmaster not configured")).toBeTruthy();
     expect(queryByText("Open Settings")).toBeTruthy();
   });
 
-  it("fires onOpenSettings when 'Open Settings' is pressed", () => {
+  it("fires onOpenSettings when 'Open Settings' is pressed", async () => {
     mockUseNearbyShows.mockReturnValue({
       data: { configured: false, location: null, shows: [] },
       isLoading: false,
     });
 
-    const { getByText } = render(<ShowsNearYouSection {...baseProps} />);
-    fireEvent.press(getByText("Open Settings"));
+    const { getByText } = await render(<ShowsNearYouSection {...baseProps} />);
+    await fireEvent.press(getByText("Open Settings"));
 
     expect(baseProps.onOpenSettings).toHaveBeenCalled();
   });
 
-  it("renders 'ZIP not set' when mode is zip and appliedZip is empty, routes to full page", () => {
+  it("renders 'ZIP not set' when mode is zip and appliedZip is empty, routes to full page", async () => {
     mockUseNearbyLocationPref.mockReturnValue({
       ...defaultPref,
       mode: "zip",
@@ -107,16 +108,16 @@ describe("ShowsNearYouSection", () => {
     });
     mockUseNearbyShows.mockReturnValue({ data: undefined, isLoading: false });
 
-    const { queryByText, getByText } = render(
+    const { queryByText, getByText } = await render(
       <ShowsNearYouSection {...baseProps} />,
     );
 
     expect(queryByText("ZIP not set")).toBeTruthy();
-    fireEvent.press(getByText("Open Shows Near You"));
+    await fireEvent.press(getByText("Open Shows Near You"));
     expect(baseProps.onViewAll).toHaveBeenCalled();
   });
 
-  it("renders 'No upcoming nearby matches' when shows is empty", () => {
+  it("renders 'No upcoming nearby matches' when shows is empty", async () => {
     mockUseNearbyShows.mockReturnValue({
       data: {
         configured: true,
@@ -126,12 +127,14 @@ describe("ShowsNearYouSection", () => {
       isLoading: false,
     });
 
-    const { queryByText } = render(<ShowsNearYouSection {...baseProps} />);
+    const { queryByText } = await render(
+      <ShowsNearYouSection {...baseProps} />,
+    );
 
     expect(queryByText("No upcoming nearby matches")).toBeTruthy();
   });
 
-  it("renders shows and fires onShowPress when tapped", () => {
+  it("renders shows and fires onShowPress when tapped", async () => {
     const s = show({ id: "s1", eventName: "Radiohead Live" });
     mockUseNearbyShows.mockReturnValue({
       data: {
@@ -142,20 +145,20 @@ describe("ShowsNearYouSection", () => {
       isLoading: false,
     });
 
-    const { getByText } = render(<ShowsNearYouSection {...baseProps} />);
-    fireEvent.press(getByText("Radiohead Live"));
+    const { getByText } = await render(<ShowsNearYouSection {...baseProps} />);
+    await fireEvent.press(getByText("Radiohead Live"));
 
     expect(baseProps.onShowPress).toHaveBeenCalledWith(s);
   });
 
-  it("invokes onViewAll when the header chevron is pressed", () => {
+  it("invokes onViewAll when the header chevron is pressed", async () => {
     mockUseNearbyShows.mockReturnValue({
       data: { configured: true, location: null, shows: [show({ id: "s1" })] },
       isLoading: false,
     });
 
-    const { getByText } = render(<ShowsNearYouSection {...baseProps} />);
-    fireEvent.press(getByText("Shows Near You"));
+    const { getByText } = await render(<ShowsNearYouSection {...baseProps} />);
+    await fireEvent.press(getByText("Shows Near You"));
 
     expect(baseProps.onViewAll).toHaveBeenCalled();
   });

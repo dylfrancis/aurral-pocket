@@ -247,6 +247,17 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: jest.fn(() => () => true),
 }));
 
+// Mock the blocklist hooks so the screen doesn't fire the real useQuery (which
+// would hit the network via the api client). v14's async fireEvent flushes that
+// background query, surfacing the otherwise-leaked request as a test failure.
+jest.mock("@/hooks/discover/use-blocklist", () => ({
+  useIsArtistBlocked: jest.fn(() => ({ blocked: false, loaded: true })),
+  useBlocklistMutations: jest.fn(() => ({
+    toggleArtist: jest.fn(),
+    isPending: false,
+  })),
+}));
+
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -265,11 +276,11 @@ import type { Artist, Album } from "@/lib/types/library";
 const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
 const mockUseLibraryArtistSuspense = useLibraryArtistSuspense as jest.Mock;
 
-function renderScreen() {
+async function renderScreen() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  return await render(
     <QueryClientProvider client={queryClient}>
       <ArtistDetailScreen />
     </QueryClientProvider>,
@@ -337,34 +348,34 @@ afterEach(() => {
   consoleErrorSpy?.mockRestore();
 });
 
-function renderErrorBoundary(error: Error, retry = jest.fn()) {
+async function renderErrorBoundary(error: Error, retry = jest.fn()) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return {
     retry,
-    ...render(
+    ...(await render(
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary error={error} retry={retry} />
       </QueryClientProvider>,
-    ),
+    )),
   };
 }
 
 describe("ArtistDetailScreen ErrorBoundary", () => {
-  it("shows generic failure message for non-404 errors", () => {
-    const { getByText } = renderErrorBoundary(new Error("fail"));
+  it("shows generic failure message for non-404 errors", async () => {
+    const { getByText } = await renderErrorBoundary(new Error("fail"));
     expect(getByText("Failed to load artist")).toBeTruthy();
   });
 
-  it("calls retry when Try Again is pressed", () => {
-    const { getByText, retry } = renderErrorBoundary(new Error("fail"));
-    fireEvent.press(getByText("Try Again"));
+  it("calls retry when Try Again is pressed", async () => {
+    const { getByText, retry } = await renderErrorBoundary(new Error("fail"));
+    await fireEvent.press(getByText("Try Again"));
     expect(retry).toHaveBeenCalledTimes(1);
   });
 
-  it("shows not found message when the API returns 404", () => {
-    const { getByText, queryByText } = renderErrorBoundary(
+  it("shows not found message when the API returns 404", async () => {
+    const { getByText, queryByText } = await renderErrorBoundary(
       new ApiError(404, "Not Found"),
     );
     expect(getByText("Artist not found")).toBeTruthy();
@@ -375,49 +386,49 @@ describe("ArtistDetailScreen ErrorBoundary", () => {
 
 describe("ArtistDetailScreen", () => {
   describe("with artist loaded", () => {
-    it("renders artist name", () => {
-      const { getByText } = renderScreen();
+    it("renders artist name", async () => {
+      const { getByText } = await renderScreen();
       expect(getByText("Test Artist")).toBeTruthy();
     });
 
-    it("shows albums section header", () => {
+    it("shows albums section header", async () => {
       const albums = [makeAlbum({ id: "1" })];
       mockUseLibraryAlbums.mockReturnValue({
         ...defaultAlbumHook,
         data: albums,
       });
-      const { getByText } = renderScreen();
+      const { getByText } = await renderScreen();
       expect(getByText("Albums", { exact: false })).toBeTruthy();
     });
 
-    it("shows empty state when no albums", () => {
+    it("shows empty state when no albums", async () => {
       mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook, data: [] });
-      const { getByText } = renderScreen();
+      const { getByText } = await renderScreen();
       expect(getByText("No albums in library")).toBeTruthy();
     });
 
-    it("shows album count in category header", () => {
+    it("shows album count in category header", async () => {
       const albums = [makeAlbum({ id: "1" }), makeAlbum({ id: "2" })];
       mockUseLibraryAlbums.mockReturnValue({
         ...defaultAlbumHook,
         data: albums,
       });
-      const { getByText } = renderScreen();
+      const { getByText } = await renderScreen();
       expect(getByText("Albums", { exact: false })).toBeTruthy();
       expect(getByText("2")).toBeTruthy();
     });
 
-    it("renders album cards in horizontal scroll", () => {
+    it("renders album cards in horizontal scroll", async () => {
       const albums = [makeAlbum({ id: "1", albumName: "First Album" })];
       mockUseLibraryAlbums.mockReturnValue({
         ...defaultAlbumHook,
         data: albums,
       });
-      const { getByText } = renderScreen();
+      const { getByText } = await renderScreen();
       expect(getByText("First Album")).toBeTruthy();
     });
 
-    it("limits visible albums to 10 per category", () => {
+    it("limits visible albums to 10 per category", async () => {
       const albums = Array.from({ length: 15 }, (_, i) =>
         makeAlbum({ id: `${i}`, albumName: `Album ${i}` }),
       );
@@ -425,14 +436,14 @@ describe("ArtistDetailScreen", () => {
         ...defaultAlbumHook,
         data: albums,
       });
-      const { getByText, queryByText } = renderScreen();
+      const { getByText, queryByText } = await renderScreen();
       expect(getByText("Album 0")).toBeTruthy();
       expect(getByText("Album 9")).toBeTruthy();
       expect(queryByText("Album 10")).toBeNull();
       expect(getByText("View All")).toBeTruthy();
     });
 
-    it("does not show View All when 10 or fewer albums", () => {
+    it("does not show View All when 10 or fewer albums", async () => {
       const albums = Array.from({ length: 10 }, (_, i) =>
         makeAlbum({ id: `${i}`, albumName: `Album ${i}` }),
       );
@@ -440,24 +451,24 @@ describe("ArtistDetailScreen", () => {
         ...defaultAlbumHook,
         data: albums,
       });
-      const { queryByText } = renderScreen();
+      const { queryByText } = await renderScreen();
       expect(queryByText("View All")).toBeNull();
     });
 
-    it("navigates to albums grid when category header is pressed", () => {
+    it("navigates to albums grid when category header is pressed", async () => {
       const albums = [makeAlbum({ id: "1" })];
       mockUseLibraryAlbums.mockReturnValue({
         ...defaultAlbumHook,
         data: albums,
       });
-      const { getByText } = renderScreen();
-      fireEvent.press(getByText("Albums", { exact: false }));
+      const { getByText } = await renderScreen();
+      await fireEvent.press(getByText("Albums", { exact: false }));
       expect(mockPush).toHaveBeenCalledWith(
         expect.objectContaining({ pathname: "/artist/albums" }),
       );
     });
 
-    it("sorts albums by release date descending", () => {
+    it("sorts albums by release date descending", async () => {
       const albums = [
         makeAlbum({ id: "1", albumName: "Older", releaseDate: "2020-01-01" }),
         makeAlbum({ id: "2", albumName: "Newer", releaseDate: "2024-06-01" }),
@@ -466,13 +477,13 @@ describe("ArtistDetailScreen", () => {
         ...defaultAlbumHook,
         data: albums,
       });
-      const { getAllByText } = renderScreen();
+      const { getAllByText } = await renderScreen();
       const albumTexts = getAllByText(/Older|Newer/);
       expect(albumTexts[0].props.children).toBe("Newer");
       expect(albumTexts[1].props.children).toBe("Older");
     });
 
-    it("puts albums without release date last", () => {
+    it("puts albums without release date last", async () => {
       const albums = [
         makeAlbum({
           id: "1",
@@ -489,26 +500,26 @@ describe("ArtistDetailScreen", () => {
         ...defaultAlbumHook,
         data: albums,
       });
-      const { getAllByText } = renderScreen();
+      const { getAllByText } = await renderScreen();
       const albumTexts = getAllByText(/No Date|Has Date/);
       expect(albumTexts[0].props.children).toBe("Has Date");
       expect(albumTexts[1].props.children).toBe("No Date");
     });
 
-    it("shows album error with retry", () => {
+    it("shows album error with retry", async () => {
       const refetch = jest.fn();
       mockUseLibraryAlbums.mockReturnValue({
         ...defaultAlbumHook,
         error: new Error("fail"),
         refetch,
       });
-      const { getByText } = renderScreen();
+      const { getByText } = await renderScreen();
       expect(getByText("Failed to load albums")).toBeTruthy();
-      fireEvent.press(getByText("Try Again"));
+      await fireEvent.press(getByText("Try Again"));
       expect(refetch).toHaveBeenCalledTimes(1);
     });
 
-    it("renders top tracks when available", () => {
+    it("renders top tracks when available", async () => {
       mockUsePreviewPlayer.mockReturnValue({
         tracks: [
           {
@@ -524,25 +535,25 @@ describe("ArtistDetailScreen", () => {
         toggle: jest.fn(),
         stop: jest.fn(),
       });
-      const { getByText } = renderScreen();
+      const { getByText } = await renderScreen();
       expect(getByText("Top Tracks")).toBeTruthy();
       expect(getByText("Hit Song")).toBeTruthy();
     });
 
-    it("renders bio and external links", () => {
-      const { getByText } = renderScreen();
+    it("renders bio and external links", async () => {
+      const { getByText } = await renderScreen();
       expect(getByText("A test biography.")).toBeTruthy();
       expect(getByText("Last.fm")).toBeTruthy();
       expect(getByText("MusicBrainz")).toBeTruthy();
     });
 
-    it("shows In Your Library label when albums exist", () => {
+    it("shows In Your Library label when albums exist", async () => {
       const albums = [makeAlbum({ id: "1" })];
       mockUseLibraryAlbums.mockReturnValue({
         ...defaultAlbumHook,
         data: albums,
       });
-      const { getAllByText } = renderScreen();
+      const { getAllByText } = await renderScreen();
       // One from LibraryBadge in hero, one from section label
       expect(getAllByText("In Your Library").length).toBeGreaterThanOrEqual(2);
     });
@@ -569,12 +580,12 @@ describe("ArtistDetailScreen", () => {
         isLoading: false,
         error: null,
       });
-      const { findByText } = renderScreen();
+      const { findByText } = await renderScreen();
       expect(await findByText("Albums & Releases")).toBeTruthy();
       expect(await findByText("Unreleased EP")).toBeTruthy();
     });
 
-    it("does not show Albums & Releases skeleton for in-library artist while stream is still loading", () => {
+    it("does not show Albums & Releases skeleton for in-library artist while stream is still loading", async () => {
       const {
         useArtistDetailsStream,
       } = require("@/hooks/library/use-artist-details-stream");
@@ -593,7 +604,7 @@ describe("ArtistDetailScreen", () => {
         data: [makeAlbum({ id: "1" })],
       });
 
-      const { queryAllByText, queryByText } = renderScreen();
+      const { queryAllByText, queryByText } = await renderScreen();
 
       // Library albums render as usual (label appears in hero and section)
       expect(queryAllByText("In Your Library").length).toBeGreaterThanOrEqual(

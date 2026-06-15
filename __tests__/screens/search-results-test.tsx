@@ -87,14 +87,14 @@ import { render, fireEvent } from "@testing-library/react-native";
 import SearchResultsScreen from "@/app/(app)/(tabs)/(search)/results";
 
 describe("SearchResultsScreen — empty tag results", () => {
-  it('shows "Try searching all" when recommended scope has no results', () => {
-    const { getByText } = render(<SearchResultsScreen />);
+  it('shows "Try searching all" when recommended scope has no results', async () => {
+    const { getByText } = await render(<SearchResultsScreen />);
     expect(getByText("Try searching all")).toBeTruthy();
   });
 
-  it("tapping the button broadens the empty state away", () => {
-    const { getByText, queryByText } = render(<SearchResultsScreen />);
-    fireEvent.press(getByText("Try searching all"));
+  it("tapping the button broadens the empty state away", async () => {
+    const { getByText, queryByText } = await render(<SearchResultsScreen />);
+    await fireEvent.press(getByText("Try searching all"));
     expect(queryByText("Try searching all")).toBeNull();
   });
 });

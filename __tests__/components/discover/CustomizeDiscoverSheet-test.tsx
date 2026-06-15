@@ -60,7 +60,13 @@ jest.mock("react-native-reorderable-list", () => {
 });
 
 import React from "react";
-import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
+import {
+  render,
+  fireEvent,
+  act,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import { CustomizeDiscoverSheet } from "@/components/discover/CustomizeDiscoverSheet";
 import { DEFAULT_DISCOVER_SECTIONS } from "@/hooks/discover/use-discover-layout";
 import type { DiscoverSection } from "@/lib/types/me";
@@ -83,9 +89,9 @@ beforeEach(() => {
 });
 
 describe("CustomizeDiscoverSheet", () => {
-  it("renders every section label", () => {
+  it("renders every section label", async () => {
     const sheetRef = makeSheetRef();
-    const { getByText } = render(
+    const { getByText } = await render(
       <CustomizeDiscoverSheet
         sheetRef={sheetRef}
         sections={defaults()}
@@ -101,7 +107,7 @@ describe("CustomizeDiscoverSheet", () => {
   it("save passes the current draft to onSave and dismisses on success", async () => {
     const sheetRef = makeSheetRef();
     const onSave = jest.fn().mockResolvedValue(undefined);
-    const { getByText } = render(
+    const { getByText } = await render(
       <CustomizeDiscoverSheet
         sheetRef={sheetRef}
         sections={defaults()}
@@ -110,7 +116,7 @@ describe("CustomizeDiscoverSheet", () => {
     );
 
     await act(async () => {
-      fireEvent.press(getByText("Save"));
+      await fireEvent.press(getByText("Save"));
     });
 
     expect(onSave).toHaveBeenCalledTimes(1);
@@ -121,7 +127,7 @@ describe("CustomizeDiscoverSheet", () => {
   it("toggling a section updates the draft sent to onSave", async () => {
     const sheetRef = makeSheetRef();
     const onSave = jest.fn().mockResolvedValue(undefined);
-    const { getByLabelText, getByText } = render(
+    const { getByLabelText, getByText } = await render(
       <CustomizeDiscoverSheet
         sheetRef={sheetRef}
         sections={defaults()}
@@ -130,13 +136,13 @@ describe("CustomizeDiscoverSheet", () => {
     );
 
     const row = getByLabelText("Recently Added, enabled");
-    const switchControl = row.findByType("RCTSwitch" as any);
+    const switchControl = within(row).getByRole("switch");
     await act(async () => {
-      fireEvent(switchControl, "valueChange", false);
+      await fireEvent(switchControl, "valueChange", false);
     });
 
     await act(async () => {
-      fireEvent.press(getByText("Save"));
+      await fireEvent.press(getByText("Save"));
     });
 
     const arg = onSave.mock.calls[0][0] as DiscoverSection[];
@@ -157,7 +163,7 @@ describe("CustomizeDiscoverSheet", () => {
       { id: "genreSections", label: "Because You Like", enabled: false },
     ];
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <CustomizeDiscoverSheet
         sheetRef={sheetRef}
         sections={customSections}
@@ -166,11 +172,11 @@ describe("CustomizeDiscoverSheet", () => {
     );
 
     await act(async () => {
-      fireEvent.press(getByText("Reset to Default"));
+      await fireEvent.press(getByText("Reset to Default"));
     });
 
     await act(async () => {
-      fireEvent.press(getByText("Save"));
+      await fireEvent.press(getByText("Save"));
     });
 
     expect(onSave).toHaveBeenCalledWith(defaults());
@@ -180,7 +186,7 @@ describe("CustomizeDiscoverSheet", () => {
     const sheetRef = makeSheetRef();
     const onSave = jest.fn().mockRejectedValue(new Error("server boom"));
     const onSaveError = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <CustomizeDiscoverSheet
         sheetRef={sheetRef}
         sections={defaults()}
@@ -190,16 +196,16 @@ describe("CustomizeDiscoverSheet", () => {
     );
 
     await act(async () => {
-      fireEvent.press(getByText("Save"));
+      await fireEvent.press(getByText("Save"));
     });
 
     await waitFor(() => expect(onSaveError).toHaveBeenCalledTimes(1));
     expect(sheetRef.current.dismiss).not.toHaveBeenCalled();
   });
 
-  it("close button dismisses the sheet", () => {
+  it("close button dismisses the sheet", async () => {
     const sheetRef = makeSheetRef();
-    const { getByLabelText } = render(
+    const { getByLabelText } = await render(
       <CustomizeDiscoverSheet
         sheetRef={sheetRef}
         sections={defaults()}
@@ -207,7 +213,7 @@ describe("CustomizeDiscoverSheet", () => {
       />,
     );
 
-    fireEvent.press(getByLabelText("Close"));
+    await fireEvent.press(getByLabelText("Close"));
     expect(sheetRef.current.dismiss).toHaveBeenCalledTimes(1);
   });
 });

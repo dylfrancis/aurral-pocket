@@ -22,10 +22,10 @@ beforeEach(() => {
 });
 
 describe("useNearbyLocationPref", () => {
-  it("starts with defaults before hydration resolves", () => {
+  it("starts with defaults before hydration resolves", async () => {
     mockStorage.getItem.mockImplementation(() => new Promise(() => {}));
 
-    const { result } = renderHook(() => useNearbyLocationPref());
+    const { result } = await renderHook(() => useNearbyLocationPref());
 
     expect(result.current.mode).toBe("ip");
     expect(result.current.appliedZip).toBe("");
@@ -35,7 +35,7 @@ describe("useNearbyLocationPref", () => {
   it("flips hydrated to true after AsyncStorage resolves", async () => {
     mockStorage.getItem.mockResolvedValue(null);
 
-    const { result } = renderHook(() => useNearbyLocationPref());
+    const { result } = await renderHook(() => useNearbyLocationPref());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     expect(result.current.mode).toBe("ip");
@@ -49,7 +49,7 @@ describe("useNearbyLocationPref", () => {
       return Promise.resolve(null);
     });
 
-    const { result } = renderHook(() => useNearbyLocationPref());
+    const { result } = await renderHook(() => useNearbyLocationPref());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     expect(result.current.mode).toBe("zip");
@@ -62,7 +62,7 @@ describe("useNearbyLocationPref", () => {
       return Promise.resolve(null);
     });
 
-    const { result } = renderHook(() => useNearbyLocationPref());
+    const { result } = await renderHook(() => useNearbyLocationPref());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     expect(result.current.mode).toBe("ip");
@@ -71,7 +71,7 @@ describe("useNearbyLocationPref", () => {
   it("swallows AsyncStorage rejections and still flips hydrated", async () => {
     mockStorage.getItem.mockRejectedValue(new Error("storage unavailable"));
 
-    const { result } = renderHook(() => useNearbyLocationPref());
+    const { result } = await renderHook(() => useNearbyLocationPref());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     expect(result.current.mode).toBe("ip");
@@ -82,10 +82,10 @@ describe("useNearbyLocationPref", () => {
     mockStorage.getItem.mockResolvedValue(null);
     mockStorage.setItem.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useNearbyLocationPref());
+    const { result } = await renderHook(() => useNearbyLocationPref());
     await waitFor(() => expect(result.current.hydrated).toBe(true));
 
-    act(() => {
+    await act(() => {
       result.current.setMode("zip");
     });
 
@@ -100,10 +100,10 @@ describe("useNearbyLocationPref", () => {
     mockStorage.getItem.mockResolvedValue(null);
     mockStorage.setItem.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useNearbyLocationPref());
+    const { result } = await renderHook(() => useNearbyLocationPref());
     await waitFor(() => expect(result.current.hydrated).toBe(true));
 
-    act(() => {
+    await act(() => {
       result.current.setAppliedZip("94110");
     });
 
@@ -118,14 +118,14 @@ describe("useNearbyLocationPref", () => {
     mockStorage.getItem.mockResolvedValue(null);
     mockStorage.setItem.mockRejectedValue(new Error("disk full"));
 
-    const { result } = renderHook(() => useNearbyLocationPref());
+    const { result } = await renderHook(() => useNearbyLocationPref());
     await waitFor(() => expect(result.current.hydrated).toBe(true));
 
-    expect(() => {
-      act(() => {
-        result.current.setAppliedZip("12345");
-      });
-    }).not.toThrow();
+    // A rejected setItem is swallowed by the hook; awaiting act would reject
+    // (and fail the test) if it surfaced, so reaching the assertion proves it.
+    await act(() => {
+      result.current.setAppliedZip("12345");
+    });
     expect(result.current.appliedZip).toBe("12345");
   });
 });

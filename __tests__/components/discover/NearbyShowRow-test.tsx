@@ -36,22 +36,22 @@ const buildShow = (overrides: Partial<ConcertEvent> = {}): ConcertEvent => ({
 });
 
 describe("NearbyShowRow", () => {
-  it("renders the event image when provided", () => {
-    const { getByTestId } = render(
+  it("renders the event image when provided", async () => {
+    const { getByTestId } = await render(
       <NearbyShowRow show={buildShow()} onPress={jest.fn()} />,
     );
     expect(getByTestId("show-image")).toBeTruthy();
   });
 
-  it("renders distance pill in MI when distance is finite", () => {
-    const { getByText } = render(
+  it("renders distance pill in MI when distance is finite", async () => {
+    const { getByText } = await render(
       <NearbyShowRow show={buildShow()} onPress={jest.fn()} />,
     );
     expect(getByText("7 MI")).toBeTruthy();
   });
 
-  it("omits the distance pill when distance is not finite", () => {
-    const { queryByText } = render(
+  it("omits the distance pill when distance is not finite", async () => {
+    const { queryByText } = await render(
       <NearbyShowRow
         show={buildShow({ distance: undefined })}
         onPress={jest.fn()}
@@ -60,8 +60,8 @@ describe("NearbyShowRow", () => {
     expect(queryByText(/MI$/)).toBeFalsy();
   });
 
-  it("renders the event title and the artist subtitle when they differ", () => {
-    const { getByText } = render(
+  it("renders the event title and the artist subtitle when they differ", async () => {
+    const { getByText } = await render(
       <NearbyShowRow show={buildShow()} onPress={jest.fn()} />,
     );
     expect(
@@ -70,8 +70,8 @@ describe("NearbyShowRow", () => {
     expect(getByText("The Strokes")).toBeTruthy();
   });
 
-  it("omits the artist subtitle when title and artist match", () => {
-    const { queryAllByText } = render(
+  it("omits the artist subtitle when title and artist match", async () => {
+    const { queryAllByText } = await render(
       <NearbyShowRow
         show={buildShow({
           eventName: "The Strokes",
@@ -83,29 +83,29 @@ describe("NearbyShowRow", () => {
     expect(queryAllByText("The Strokes")).toHaveLength(1);
   });
 
-  it("formats the date label as 'MMM d, yyyy at HH:mm:ss'", () => {
-    const { getByText } = render(
+  it("formats the date label as 'MMM d, yyyy at HH:mm:ss'", async () => {
+    const { getByText } = await render(
       <NearbyShowRow show={buildShow()} onPress={jest.fn()} />,
     );
     expect(getByText("Jul 14, 2026 at 19:00:00")).toBeTruthy();
   });
 
-  it("renders the venue and city/region as the location line", () => {
-    const { getByText } = render(
+  it("renders the venue and city/region as the location line", async () => {
+    const { getByText } = await render(
       <NearbyShowRow show={buildShow()} onPress={jest.fn()} />,
     );
     expect(getByText("Riverbend Music Center – Cincinnati, OH")).toBeTruthy();
   });
 
-  it("renders the source badge for library matches", () => {
-    const { getByText } = render(
+  it("renders the source badge for library matches", async () => {
+    const { getByText } = await render(
       <NearbyShowRow show={buildShow()} onPress={jest.fn()} />,
     );
     expect(getByText("Library")).toBeTruthy();
   });
 
-  it("renders the recommended badge for recommended matches", () => {
-    const { getByText } = render(
+  it("renders the recommended badge for recommended matches", async () => {
+    const { getByText } = await render(
       <NearbyShowRow
         show={buildShow({ matchType: "recommended" })}
         onPress={jest.fn()}
@@ -114,12 +114,14 @@ describe("NearbyShowRow", () => {
     expect(getByText("Recommended")).toBeTruthy();
   });
 
-  it("calls onPress when tapped", () => {
+  it("calls onPress when tapped", async () => {
     const onPress = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <NearbyShowRow show={buildShow()} onPress={onPress} />,
     );
-    fireEvent.press(getByText("The Strokes – Reality Awaits North America"));
+    await fireEvent.press(
+      getByText("The Strokes – Reality Awaits North America"),
+    );
     expect(onPress).toHaveBeenCalled();
   });
 });

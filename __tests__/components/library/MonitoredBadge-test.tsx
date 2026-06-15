@@ -11,13 +11,13 @@ beforeEach(() => {
 });
 
 describe("MonitoredBadge", () => {
-  it('shows "Monitored" when monitored is true', () => {
-    const { getByText } = render(<MonitoredBadge monitored />);
+  it('shows "Monitored" when monitored is true', async () => {
+    const { getByText } = await render(<MonitoredBadge monitored />);
     expect(getByText("Monitored")).toBeTruthy();
   });
 
-  it('shows "Unmonitored" when monitored is false', () => {
-    const { getByText } = render(<MonitoredBadge monitored={false} />);
+  it('shows "Unmonitored" when monitored is false', async () => {
+    const { getByText } = await render(<MonitoredBadge monitored={false} />);
     expect(getByText("Unmonitored")).toBeTruthy();
   });
 });

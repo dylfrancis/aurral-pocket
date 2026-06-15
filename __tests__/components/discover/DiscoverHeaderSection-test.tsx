@@ -36,34 +36,38 @@ beforeEach(() => {
 });
 
 describe("DiscoverHeaderSection", () => {
-  it("returns null when data is undefined and not loading", () => {
+  it("returns null when data is undefined and not loading", async () => {
     mockHook.mockReturnValue({ data: undefined, isLoading: false });
-    const { toJSON } = render(<DiscoverHeaderSection onTagPress={jest.fn()} />);
+    const { toJSON } = await render(
+      <DiscoverHeaderSection onTagPress={jest.fn()} />,
+    );
     expect(toJSON()).toBeNull();
   });
 
-  it("renders Top Tags skeleton while loading", () => {
+  it("renders Top Tags skeleton while loading", async () => {
     mockHook.mockReturnValue({ data: undefined, isLoading: true });
-    const { getByText } = render(
+    const { getByText } = await render(
       <DiscoverHeaderSection onTagPress={jest.fn()} />,
     );
     expect(getByText("Top Tags")).toBeTruthy();
   });
 
-  it("returns null when configured is false", () => {
+  it("returns null when configured is false", async () => {
     mockHook.mockReturnValue({
       data: { ...baseData, configured: false },
     });
-    const { toJSON } = render(<DiscoverHeaderSection onTagPress={jest.fn()} />);
+    const { toJSON } = await render(
+      <DiscoverHeaderSection onTagPress={jest.fn()} />,
+    );
     expect(toJSON()).toBeNull();
   });
 
-  it("renders subtitle and 'Updated' when lastUpdated is present", () => {
+  it("renders subtitle and 'Updated' when lastUpdated is present", async () => {
     mockHook.mockReturnValue({
       data: { ...baseData, lastUpdated: "2026-04-20T00:00:00Z" },
     });
 
-    const { queryByText, getByText } = render(
+    const { queryByText, getByText } = await render(
       <DiscoverHeaderSection onTagPress={jest.fn()} />,
     );
 
@@ -73,21 +77,21 @@ describe("DiscoverHeaderSection", () => {
     expect(getByText(/Updated /)).toBeTruthy();
   });
 
-  it("renders top genres as tag pills that fire onTagPress", () => {
+  it("renders top genres as tag pills that fire onTagPress", async () => {
     mockHook.mockReturnValue({
       data: { ...baseData, topGenres: ["rock", "jazz"] },
     });
     const onPress = jest.fn();
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <DiscoverHeaderSection onTagPress={onPress} />,
     );
 
-    fireEvent.press(getByText("#rock"));
+    await fireEvent.press(getByText("#rock"));
     expect(onPress).toHaveBeenCalledWith("rock");
   });
 
-  it("renders basedOn line when basedOn is non-empty", () => {
+  it("renders basedOn line when basedOn is non-empty", async () => {
     mockHook.mockReturnValue({
       data: {
         ...baseData,
@@ -95,16 +99,16 @@ describe("DiscoverHeaderSection", () => {
       },
     });
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <DiscoverHeaderSection onTagPress={jest.fn()} />,
     );
     expect(getByText("Based on Radiohead and Portishead")).toBeTruthy();
   });
 
-  it("omits basedOn line when basedOn is empty", () => {
+  it("omits basedOn line when basedOn is empty", async () => {
     mockHook.mockReturnValue({ data: { ...baseData, basedOn: [] } });
 
-    const { queryByText } = render(
+    const { queryByText } = await render(
       <DiscoverHeaderSection onTagPress={jest.fn()} />,
     );
     expect(queryByText(/Based on /)).toBeNull();

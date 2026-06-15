@@ -80,10 +80,10 @@ describe("normalizeDiscoverLayout", () => {
 });
 
 describe("useDiscoverLayout", () => {
-  it("starts with hydrated=false and defaults", () => {
+  it("starts with hydrated=false and defaults", async () => {
     mockStorage.getItem.mockImplementation(() => new Promise(() => {}));
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
 
     expect(result.current.hydrated).toBe(false);
     expect(result.current.sections.map((s) => s.id)).toEqual(
@@ -94,7 +94,7 @@ describe("useDiscoverLayout", () => {
   it("uses defaults when AsyncStorage is empty", async () => {
     mockStorage.getItem.mockResolvedValue(null);
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     expect(result.current.sections).toHaveLength(
@@ -109,7 +109,7 @@ describe("useDiscoverLayout", () => {
     ];
     mockStorage.getItem.mockResolvedValue(JSON.stringify(stored));
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     expect(result.current.sections[0].id).toBe("globalTop");
@@ -117,7 +117,7 @@ describe("useDiscoverLayout", () => {
   });
 
   it("scopes the storage key per user", async () => {
-    renderHook(() => useDiscoverLayout());
+    await renderHook(() => useDiscoverLayout());
 
     await waitFor(() =>
       expect(mockStorage.getItem).toHaveBeenCalledWith("discoverLayout:42"),
@@ -127,7 +127,7 @@ describe("useDiscoverLayout", () => {
   it("falls back to defaults and stays hydrated when AsyncStorage rejects", async () => {
     mockStorage.getItem.mockRejectedValue(new Error("disk error"));
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     expect(result.current.sections).toHaveLength(
@@ -141,7 +141,7 @@ describe("useDiscoverLayout", () => {
       layout: [{ id: "topTags", enabled: false }],
     });
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     await waitFor(() => expect(result.current.sections[0].id).toBe("topTags"));
@@ -160,7 +160,7 @@ describe("useDiscoverLayout", () => {
     );
     mockGetLayout.mockRejectedValue(new Error("network down"));
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     expect(result.current.sections[0].id).toBe("globalTop");
@@ -171,7 +171,7 @@ describe("useDiscoverLayout", () => {
     mockUseAuth.mockReturnValue({ user: null });
     mockStorage.getItem.mockResolvedValue(null);
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
     expect(mockGetLayout).not.toHaveBeenCalled();
@@ -184,7 +184,7 @@ describe("useDiscoverLayout", () => {
       layout: [{ id: "recommended", enabled: true }],
     });
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
     await waitFor(() => expect(result.current.hydrated).toBe(true));
 
     const next = DEFAULT_DISCOVER_SECTIONS.map((s) => ({
@@ -210,7 +210,7 @@ describe("useDiscoverLayout", () => {
     mockGetLayout.mockImplementation(() => new Promise(() => {}));
     mockUpdateLayout.mockRejectedValue(new Error("server error"));
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
     await waitFor(() => expect(result.current.hydrated).toBe(true));
 
     const previousId = result.current.sections[0].id;
@@ -242,7 +242,7 @@ describe("useDiscoverLayout", () => {
     mockGetLayout.mockImplementation(() => new Promise(() => {}));
     mockUpdateLayout.mockRejectedValue(new Error("offline"));
 
-    const { result } = renderHook(() => useDiscoverLayout());
+    const { result } = await renderHook(() => useDiscoverLayout());
     await waitFor(() => expect(result.current.hydrated).toBe(true));
 
     let caught: unknown;

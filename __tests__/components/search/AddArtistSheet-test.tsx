@@ -63,8 +63,8 @@ beforeEach(() => {
 });
 
 describe("AddArtistSheet", () => {
-  it("renders all monitor option labels", () => {
-    const { getByText } = render(
+  it("renders all monitor option labels", async () => {
+    const { getByText } = await render(
       <AddArtistSheet
         mbid="abc-123"
         artistName="Radiohead"
@@ -79,8 +79,8 @@ describe("AddArtistSheet", () => {
     expect(getByText("First Album")).toBeTruthy();
   });
 
-  it("renders artist name", () => {
-    const { getByText } = render(
+  it("renders artist name", async () => {
+    const { getByText } = await render(
       <AddArtistSheet
         mbid="abc-123"
         artistName="Radiohead"
@@ -90,8 +90,8 @@ describe("AddArtistSheet", () => {
     expect(getByText("Radiohead")).toBeTruthy();
   });
 
-  it("calls mutate with correct params when add button is pressed", () => {
-    const { getAllByText } = render(
+  it("calls mutate with correct params when add button is pressed", async () => {
+    const { getAllByText } = await render(
       <AddArtistSheet
         mbid="abc-123"
         artistName="Radiohead"
@@ -100,7 +100,7 @@ describe("AddArtistSheet", () => {
     );
     // "Add to Library" appears as both header title and button text — press the last one (button)
     const elements = getAllByText("Add to Library");
-    fireEvent.press(elements[elements.length - 1]);
+    await fireEvent.press(elements[elements.length - 1]);
     expect(mockMutate).toHaveBeenCalledWith({
       foreignArtistId: "abc-123",
       artistName: "Radiohead",
@@ -108,17 +108,17 @@ describe("AddArtistSheet", () => {
     });
   });
 
-  it("allows changing monitor option before adding", () => {
-    const { getByText, getAllByText } = render(
+  it("allows changing monitor option before adding", async () => {
+    const { getByText, getAllByText } = await render(
       <AddArtistSheet
         mbid="abc-123"
         artistName="Radiohead"
         sheetRef={sheetRef}
       />,
     );
-    fireEvent.press(getByText("Future Albums"));
+    await fireEvent.press(getByText("Future Albums"));
     const elements = getAllByText("Add to Library");
-    fireEvent.press(elements[elements.length - 1]);
+    await fireEvent.press(elements[elements.length - 1]);
     expect(mockMutate).toHaveBeenCalledWith({
       foreignArtistId: "abc-123",
       artistName: "Radiohead",
@@ -126,9 +126,9 @@ describe("AddArtistSheet", () => {
     });
   });
 
-  it('shows "Added" text on success', () => {
+  it('shows "Added" text on success', async () => {
     mockMutation.isSuccess = true;
-    const { getByText } = render(
+    const { getByText } = await render(
       <AddArtistSheet
         mbid="abc-123"
         artistName="Radiohead"

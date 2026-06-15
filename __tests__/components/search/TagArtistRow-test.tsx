@@ -24,8 +24,8 @@ const baseArtist: TagArtist = {
 };
 
 describe("TagArtistRow", () => {
-  it("renders artist name", () => {
-    const { getByText } = render(
+  it("renders artist name", async () => {
+    const { getByText } = await render(
       <TagArtistRow
         artist={baseArtist}
         isInLibrary={false}
@@ -35,8 +35,8 @@ describe("TagArtistRow", () => {
     expect(getByText("Radiohead")).toBeTruthy();
   });
 
-  it("renders up to 3 tags joined by dots", () => {
-    const { getByText } = render(
+  it("renders up to 3 tags joined by dots", async () => {
+    const { getByText } = await render(
       <TagArtistRow
         artist={baseArtist}
         isInLibrary={false}
@@ -46,8 +46,8 @@ describe("TagArtistRow", () => {
     expect(getByText("rock · alternative · indie")).toBeTruthy();
   });
 
-  it('shows "In Library" chip when isInLibrary is true', () => {
-    const { getByText } = render(
+  it('shows "In Library" chip when isInLibrary is true', async () => {
+    const { getByText } = await render(
       <TagArtistRow
         artist={baseArtist}
         isInLibrary={true}
@@ -57,8 +57,8 @@ describe("TagArtistRow", () => {
     expect(getByText("In Library")).toBeTruthy();
   });
 
-  it("hides the tag line when only the searched tag is present", () => {
-    const { queryByText } = render(
+  it("hides the tag line when only the searched tag is present", async () => {
+    const { queryByText } = await render(
       <TagArtistRow
         artist={{ ...baseArtist, tags: ["rock"] }}
         isInLibrary={false}
@@ -68,16 +68,16 @@ describe("TagArtistRow", () => {
     expect(queryByText("rock")).toBeNull();
   });
 
-  it("calls onPress when pressed", () => {
+  it("calls onPress when pressed", async () => {
     const onPress = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <TagArtistRow
         artist={baseArtist}
         isInLibrary={false}
         onPress={onPress}
       />,
     );
-    fireEvent.press(getByText("Radiohead"));
+    await fireEvent.press(getByText("Radiohead"));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 });

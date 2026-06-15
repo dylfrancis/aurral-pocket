@@ -68,30 +68,30 @@ beforeEach(() => {
 });
 
 describe("RecommendedForYouSection", () => {
-  it("shows skeleton while loading", () => {
+  it("shows skeleton while loading", async () => {
     mockHook.mockReturnValue({ data: undefined, isLoading: true });
 
-    const { queryByTestId } = render(
+    const { queryByTestId } = await render(
       <RecommendedForYouSection onArtistPress={jest.fn()} />,
     );
 
     expect(queryByTestId("skeleton")).toBeTruthy();
   });
 
-  it("returns null when recommendations is empty", () => {
+  it("returns null when recommendations is empty", async () => {
     mockHook.mockReturnValue({
       data: { ...emptyDiscovery },
       isLoading: false,
     });
 
-    const { toJSON } = render(
+    const { toJSON } = await render(
       <RecommendedForYouSection onArtistPress={jest.fn()} />,
     );
 
     expect(toJSON()).toBeNull();
   });
 
-  it("renders recommendations and fires onArtistPress", () => {
+  it("renders recommendations and fires onArtistPress", async () => {
     const artists = [
       { id: "1", name: "Alpha" },
       { id: "2", name: "Beta", sourceArtist: "Source" },
@@ -102,14 +102,14 @@ describe("RecommendedForYouSection", () => {
     });
     const onPress = jest.fn();
 
-    const { getByText, queryByText } = render(
+    const { getByText, queryByText } = await render(
       <RecommendedForYouSection onArtistPress={onPress} />,
     );
 
     expect(getByText("Recommended For You")).toBeTruthy();
     expect(queryByText("Similar to Source")).toBeTruthy();
 
-    fireEvent.press(getByText("Alpha"));
+    await fireEvent.press(getByText("Alpha"));
     expect(onPress).toHaveBeenCalledWith(artists[0]);
   });
 });
