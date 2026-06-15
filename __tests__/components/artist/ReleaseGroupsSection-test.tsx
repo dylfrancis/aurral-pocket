@@ -48,8 +48,8 @@ const rg = (
 });
 
 describe("ReleaseGroupsSection", () => {
-  it("renders skeleton when grouped is null and isLoading is true", () => {
-    const { queryByTestId, queryByText } = render(
+  it("renders skeleton when grouped is null and isLoading is true", async () => {
+    const { queryByTestId, queryByText } = await render(
       <ReleaseGroupsSection
         grouped={null}
         isLoading
@@ -62,8 +62,8 @@ describe("ReleaseGroupsSection", () => {
     expect(queryByText("Albums & Releases")).toBeTruthy();
   });
 
-  it("renders skeleton when grouped is an empty Map and isLoading is true (placeholder case)", () => {
-    const { queryByTestId, queryByText } = render(
+  it("renders skeleton when grouped is an empty Map and isLoading is true (placeholder case)", async () => {
+    const { queryByTestId, queryByText } = await render(
       <ReleaseGroupsSection
         grouped={new Map()}
         isLoading
@@ -76,8 +76,8 @@ describe("ReleaseGroupsSection", () => {
     expect(queryByText("Albums & Releases")).toBeTruthy();
   });
 
-  it("renders nothing when grouped is an empty Map and isLoading is false", () => {
-    const { queryByTestId, queryByText, toJSON } = render(
+  it("renders nothing when grouped is an empty Map and isLoading is false", async () => {
+    const { queryByTestId, queryByText, toJSON } = await render(
       <ReleaseGroupsSection
         grouped={new Map()}
         isLoading={false}
@@ -91,8 +91,8 @@ describe("ReleaseGroupsSection", () => {
     expect(toJSON()).toBeNull();
   });
 
-  it("renders nothing when grouped is null and isLoading is false", () => {
-    const { toJSON } = render(
+  it("renders nothing when grouped is null and isLoading is false", async () => {
+    const { toJSON } = await render(
       <ReleaseGroupsSection
         grouped={null}
         isLoading={false}
@@ -104,13 +104,13 @@ describe("ReleaseGroupsSection", () => {
     expect(toJSON()).toBeNull();
   });
 
-  it("renders categories when populated and isLoading is false", () => {
+  it("renders categories when populated and isLoading is false", async () => {
     const grouped = new Map<PrimaryReleaseType, ReleaseGroup[]>([
       ["Album", [rg("a"), rg("b")]],
       ["EP", [rg("c", "EP")]],
     ]);
 
-    const { queryByTestId, queryByText } = render(
+    const { queryByTestId, queryByText } = await render(
       <ReleaseGroupsSection
         grouped={grouped}
         isLoading={false}
@@ -125,13 +125,13 @@ describe("ReleaseGroupsSection", () => {
     expect(queryByTestId("category-EPs")).toBeTruthy();
   });
 
-  it("skips categories with no items", () => {
+  it("skips categories with no items", async () => {
     const grouped = new Map<PrimaryReleaseType, ReleaseGroup[]>([
       ["Album", [rg("a")]],
       ["EP", []],
     ]);
 
-    const { queryByTestId } = render(
+    const { queryByTestId } = await render(
       <ReleaseGroupsSection
         grouped={grouped}
         isLoading={false}

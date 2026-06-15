@@ -25,10 +25,10 @@ beforeEach(() => {
 });
 
 describe("ExploreByTagSection", () => {
-  it("shows skeleton while loading", () => {
+  it("shows skeleton while loading", async () => {
     mockHook.mockReturnValue({ data: undefined, isLoading: true });
 
-    const { queryAllByTestId, queryByText } = render(
+    const { queryAllByTestId, queryByText } = await render(
       <ExploreByTagSection onTagPress={jest.fn()} />,
     );
 
@@ -36,7 +36,7 @@ describe("ExploreByTagSection", () => {
     expect(queryAllByTestId("skeleton").length).toBeGreaterThan(0);
   });
 
-  it("returns null when topTags is empty", () => {
+  it("returns null when topTags is empty", async () => {
     mockHook.mockReturnValue({
       data: {
         recommendations: [],
@@ -51,11 +51,13 @@ describe("ExploreByTagSection", () => {
       isLoading: false,
     });
 
-    const { toJSON } = render(<ExploreByTagSection onTagPress={jest.fn()} />);
+    const { toJSON } = await render(
+      <ExploreByTagSection onTagPress={jest.fn()} />,
+    );
     expect(toJSON()).toBeNull();
   });
 
-  it("renders tag pills and fires onTagPress with the tag name", () => {
+  it("renders tag pills and fires onTagPress with the tag name", async () => {
     mockHook.mockReturnValue({
       data: {
         recommendations: [],
@@ -71,9 +73,11 @@ describe("ExploreByTagSection", () => {
     });
     const onPress = jest.fn();
 
-    const { getByText } = render(<ExploreByTagSection onTagPress={onPress} />);
+    const { getByText } = await render(
+      <ExploreByTagSection onTagPress={onPress} />,
+    );
 
-    fireEvent.press(getByText("#rock"));
+    await fireEvent.press(getByText("#rock"));
     expect(onPress).toHaveBeenCalledWith("rock");
   });
 });

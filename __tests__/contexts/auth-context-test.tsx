@@ -121,7 +121,7 @@ describe("AuthProvider — restore on mount", () => {
       return null;
     });
 
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("my-token");
@@ -136,7 +136,7 @@ describe("AuthProvider — restore on mount", () => {
   });
 
   it("starts with null state when nothing stored", async () => {
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("null");
@@ -160,7 +160,7 @@ describe("AuthProvider — 30-day inactivity hard expire", () => {
       return null;
     });
 
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("null");
@@ -203,7 +203,7 @@ describe("AuthProvider — 30-day inactivity hard expire", () => {
       return null;
     });
 
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("valid-token");
@@ -222,7 +222,7 @@ describe("AuthProvider — 30-day inactivity hard expire", () => {
       return null;
     });
 
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("fresh-token");
@@ -233,14 +233,14 @@ describe("AuthProvider — 30-day inactivity hard expire", () => {
 
 describe("AuthProvider — setAuth bumps lastActiveAt", () => {
   it("writes lastActiveAt to storage on setAuth", async () => {
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("null");
     });
 
     await act(async () => {
-      fireEvent.press(getByTestId("setAuth"));
+      await fireEvent.press(getByTestId("setAuth"));
     });
 
     await waitFor(() => {
@@ -256,20 +256,20 @@ describe("AuthProvider — setAuth bumps lastActiveAt", () => {
 
 describe("AuthProvider — credential clearing logic", () => {
   it("turning on remember disables biometrics but keeps stored credentials intact", async () => {
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("null");
     });
 
     await act(async () => {
-      fireEvent.press(getByTestId("biometricsOn"));
+      await fireEvent.press(getByTestId("biometricsOn"));
     });
 
     jest.clearAllMocks();
 
     await act(async () => {
-      fireEvent.press(getByTestId("rememberOn"));
+      await fireEvent.press(getByTestId("rememberOn"));
     });
 
     expect(getByTestId("rememberCredentials").props.children).toBe("true");
@@ -287,24 +287,24 @@ describe("AuthProvider — credential clearing logic", () => {
   });
 
   it("does not clear credentials when turning off biometrics if remember is on", async () => {
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("null");
     });
 
     await act(async () => {
-      fireEvent.press(getByTestId("rememberOn"));
+      await fireEvent.press(getByTestId("rememberOn"));
     });
     await act(async () => {
-      fireEvent.press(getByTestId("biometricsOn"));
+      await fireEvent.press(getByTestId("biometricsOn"));
     });
 
     jest.clearAllMocks();
 
     // Turn off biometrics — credentials should NOT be deleted because remember is still on
     await act(async () => {
-      fireEvent.press(getByTestId("biometricsOff"));
+      await fireEvent.press(getByTestId("biometricsOff"));
     });
 
     expect(mockSecureStore.deleteItemAsync).not.toHaveBeenCalledWith(
@@ -316,7 +316,7 @@ describe("AuthProvider — credential clearing logic", () => {
   });
 
   it("clears credentials when both remember and biometrics are off", async () => {
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("null");
@@ -324,13 +324,13 @@ describe("AuthProvider — credential clearing logic", () => {
 
     // Enable remember, then turn it off (biometrics already off)
     await act(async () => {
-      fireEvent.press(getByTestId("rememberOn"));
+      await fireEvent.press(getByTestId("rememberOn"));
     });
 
     jest.clearAllMocks();
 
     await act(async () => {
-      fireEvent.press(getByTestId("rememberOff"));
+      await fireEvent.press(getByTestId("rememberOff"));
     });
 
     expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(
@@ -344,7 +344,7 @@ describe("AuthProvider — credential clearing logic", () => {
 
 describe("AuthProvider — saveCredentials conditional", () => {
   it("does not save when neither remember nor biometrics is enabled", async () => {
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("rememberCredentials").props.children).toBe("false");
@@ -352,7 +352,7 @@ describe("AuthProvider — saveCredentials conditional", () => {
     });
 
     await act(async () => {
-      fireEvent.press(getByTestId("saveCredentials"));
+      await fireEvent.press(getByTestId("saveCredentials"));
     });
 
     expect(mockSecureStore.setItemAsync).not.toHaveBeenCalledWith(
@@ -366,20 +366,20 @@ describe("AuthProvider — saveCredentials conditional", () => {
   });
 
   it("saves when remember is enabled", async () => {
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("null");
     });
 
     await act(async () => {
-      fireEvent.press(getByTestId("rememberOn"));
+      await fireEvent.press(getByTestId("rememberOn"));
     });
 
     jest.clearAllMocks();
 
     await act(async () => {
-      fireEvent.press(getByTestId("saveCredentials"));
+      await fireEvent.press(getByTestId("saveCredentials"));
     });
 
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
@@ -393,20 +393,20 @@ describe("AuthProvider — saveCredentials conditional", () => {
   });
 
   it("saves when biometrics is enabled (even without remember)", async () => {
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("null");
     });
 
     await act(async () => {
-      fireEvent.press(getByTestId("biometricsOn"));
+      await fireEvent.press(getByTestId("biometricsOn"));
     });
 
     jest.clearAllMocks();
 
     await act(async () => {
-      fireEvent.press(getByTestId("saveCredentials"));
+      await fireEvent.press(getByTestId("saveCredentials"));
     });
 
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
@@ -430,7 +430,7 @@ describe("AuthProvider — clearAll", () => {
       return null;
     });
 
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("my-token");
@@ -439,7 +439,7 @@ describe("AuthProvider — clearAll", () => {
     jest.clearAllMocks();
 
     await act(async () => {
-      fireEvent.press(getByTestId("clearAll"));
+      await fireEvent.press(getByTestId("clearAll"));
     });
 
     await waitFor(() => {
@@ -479,7 +479,7 @@ describe("AuthProvider — proactive expiry timer", () => {
       return null;
     });
 
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("my-token");
@@ -523,7 +523,7 @@ describe("AuthProvider — proactive expiry timer", () => {
       user: { id: 1, username: "alice", role: "user" },
     });
 
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("my-token");
@@ -554,7 +554,7 @@ describe("AuthProvider — proactive expiry timer", () => {
       return null;
     });
 
-    const { getByTestId } = renderWithProvider();
+    const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
       expect(getByTestId("token").props.children).toBe("expired-token");

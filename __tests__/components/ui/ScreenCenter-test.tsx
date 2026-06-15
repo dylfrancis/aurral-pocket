@@ -13,15 +13,15 @@ beforeEach(() => {
 });
 
 describe("ScreenCenter", () => {
-  it("renders loading indicator when loading prop is true", () => {
-    const { getByTestId } = render(<ScreenCenter loading />);
+  it("renders loading indicator when loading prop is true", async () => {
+    const { getByTestId } = await render(<ScreenCenter loading />);
     // ActivityIndicator uses the "ActivityIndicator" accessibilityRole
     const indicator = getByTestId("screen-center");
     expect(indicator).toBeTruthy();
   });
 
-  it("renders children when loading is false", () => {
-    const { getByText } = render(
+  it("renders children when loading is false", async () => {
+    const { getByText } = await render(
       <ScreenCenter>
         <Text>Hello</Text>
       </ScreenCenter>,
@@ -29,8 +29,8 @@ describe("ScreenCenter", () => {
     expect(getByText("Hello")).toBeTruthy();
   });
 
-  it("does not render loading indicator when showing children", () => {
-    const { queryByRole } = render(
+  it("does not render loading indicator when showing children", async () => {
+    const { queryByRole } = await render(
       <ScreenCenter>
         <Text>Content</Text>
       </ScreenCenter>,
@@ -39,8 +39,8 @@ describe("ScreenCenter", () => {
     expect(queryByRole("progressbar")).toBeNull();
   });
 
-  it("applies background color from theme", () => {
-    const { getByTestId } = render(<ScreenCenter loading />);
+  it("applies background color from theme", async () => {
+    const { getByTestId } = await render(<ScreenCenter loading />);
     const container = getByTestId("screen-center");
     const flatStyle = Object.assign(
       {},

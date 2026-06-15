@@ -11,21 +11,21 @@ beforeEach(() => {
 });
 
 describe("EmptyState", () => {
-  it("renders message text", () => {
-    const { getByText } = render(
+  it("renders message text", async () => {
+    const { getByText } = await render(
       <EmptyState message="Your library is empty" />,
     );
     expect(getByText("Your library is empty")).toBeTruthy();
   });
 
-  it("does not render button when no action provided", () => {
-    const { queryByText } = render(<EmptyState message="Empty" />);
+  it("does not render button when no action provided", async () => {
+    const { queryByText } = await render(<EmptyState message="Empty" />);
     expect(queryByText("Try Again")).toBeNull();
   });
 
-  it("renders action button when actionLabel and onAction provided", () => {
+  it("renders action button when actionLabel and onAction provided", async () => {
     const onAction = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <EmptyState
         message="Error"
         actionLabel="Try Again"
@@ -35,12 +35,12 @@ describe("EmptyState", () => {
     expect(getByText("Try Again")).toBeTruthy();
   });
 
-  it("calls onAction when button is pressed", () => {
+  it("calls onAction when button is pressed", async () => {
     const onAction = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <EmptyState message="Error" actionLabel="Retry" onAction={onAction} />,
     );
-    fireEvent.press(getByText("Retry"));
+    await fireEvent.press(getByText("Retry"));
     expect(onAction).toHaveBeenCalledTimes(1);
   });
 });

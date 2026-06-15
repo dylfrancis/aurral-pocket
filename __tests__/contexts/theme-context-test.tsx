@@ -48,7 +48,7 @@ function renderProvider() {
 describe("ThemeProvider hydration", () => {
   it("applies a stored 'dark' preference on mount", async () => {
     mockAsyncStorage.getItem.mockResolvedValue("dark");
-    const { getByTestId } = renderProvider();
+    const { getByTestId } = await renderProvider();
 
     await waitFor(() =>
       expect(getByTestId("loaded").props.children).toBe("yes"),
@@ -59,7 +59,7 @@ describe("ThemeProvider hydration", () => {
 
   it("applies a stored 'light' preference on mount", async () => {
     mockAsyncStorage.getItem.mockResolvedValue("light");
-    const { getByTestId } = renderProvider();
+    const { getByTestId } = await renderProvider();
 
     await waitFor(() =>
       expect(getByTestId("loaded").props.children).toBe("yes"),
@@ -69,7 +69,7 @@ describe("ThemeProvider hydration", () => {
 
   it("defaults to 'system' and hands control to the OS when nothing stored", async () => {
     mockAsyncStorage.getItem.mockResolvedValue(null);
-    const { getByTestId } = renderProvider();
+    const { getByTestId } = await renderProvider();
 
     await waitFor(() =>
       expect(getByTestId("loaded").props.children).toBe("yes"),
@@ -81,7 +81,7 @@ describe("ThemeProvider hydration", () => {
   it("falls back to 'system' for a garbage stored value", async () => {
     // AppStorage.getThemePreference validates and returns null for unknown values
     mockAsyncStorage.getItem.mockResolvedValue("neon");
-    const { getByTestId } = renderProvider();
+    const { getByTestId } = await renderProvider();
 
     await waitFor(() =>
       expect(getByTestId("loaded").props.children).toBe("yes"),
@@ -94,13 +94,13 @@ describe("ThemeProvider hydration", () => {
 describe("ThemeProvider.setPreference", () => {
   it("applies and persists a new preference", async () => {
     mockAsyncStorage.getItem.mockResolvedValue(null);
-    const { getByTestId } = renderProvider();
+    const { getByTestId } = await renderProvider();
     await waitFor(() =>
       expect(getByTestId("loaded").props.children).toBe("yes"),
     );
 
     await act(async () => {
-      fireEvent.press(getByTestId("set-dark"));
+      await fireEvent.press(getByTestId("set-dark"));
     });
 
     expect(getByTestId("preference").props.children).toBe("dark");
@@ -113,13 +113,13 @@ describe("ThemeProvider.setPreference", () => {
 
   it("hands control back to the OS when switching to system", async () => {
     mockAsyncStorage.getItem.mockResolvedValue("dark");
-    const { getByTestId } = renderProvider();
+    const { getByTestId } = await renderProvider();
     await waitFor(() =>
       expect(getByTestId("loaded").props.children).toBe("yes"),
     );
 
     await act(async () => {
-      fireEvent.press(getByTestId("set-system"));
+      await fireEvent.press(getByTestId("set-system"));
     });
 
     expect(getByTestId("preference").props.children).toBe("system");

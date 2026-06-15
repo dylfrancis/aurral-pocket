@@ -138,31 +138,31 @@ import * as Haptics from "expo-haptics";
 import GetStartedScreen from "@/app/(auth)/get-started";
 
 describe("GetStartedScreen", () => {
-  it("renders headline text", () => {
-    const { getByText } = render(<GetStartedScreen />);
+  it("renders headline text", async () => {
+    const { getByText } = await render(<GetStartedScreen />);
     expect(getByText(/A new way to/)).toBeTruthy();
     expect(getByText("discover")).toBeTruthy();
     expect(getByText("Powered by your library")).toBeTruthy();
   });
 
-  it("renders the Get Started button", () => {
-    const { getByText } = render(<GetStartedScreen />);
+  it("renders the Get Started button", async () => {
+    const { getByText } = await render(<GetStartedScreen />);
     expect(getByText("Get Started")).toBeTruthy();
   });
 
-  it("renders the Aurral logo", () => {
-    const { getByTestId } = render(<GetStartedScreen />);
+  it("renders the Aurral logo", async () => {
+    const { getByTestId } = await render(<GetStartedScreen />);
     expect(getByTestId("aurral-logo")).toBeTruthy();
   });
 
-  it("renders the ConnectSheet", () => {
-    const { getByTestId } = render(<GetStartedScreen />);
+  it("renders the ConnectSheet", async () => {
+    const { getByTestId } = await render(<GetStartedScreen />);
     expect(getByTestId("connect-sheet")).toBeTruthy();
   });
 
   it("triggers haptic feedback on Get Started press", async () => {
-    const { getByText } = render(<GetStartedScreen />);
-    fireEvent.press(getByText("Get Started"));
+    const { getByText } = await render(<GetStartedScreen />);
+    await fireEvent.press(getByText("Get Started"));
     await waitFor(() => {
       expect(Haptics.impactAsync).toHaveBeenCalledWith(
         Haptics.ImpactFeedbackStyle.Medium,
@@ -170,8 +170,8 @@ describe("GetStartedScreen", () => {
     });
   });
 
-  it("renders gradient overlay", () => {
-    const { getByTestId } = render(<GetStartedScreen />);
+  it("renders gradient overlay", async () => {
+    const { getByTestId } = await render(<GetStartedScreen />);
     expect(getByTestId("gradient")).toBeTruthy();
   });
 });

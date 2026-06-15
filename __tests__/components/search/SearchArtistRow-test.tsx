@@ -26,8 +26,8 @@ const baseArtist: SearchArtist = {
 };
 
 describe("SearchArtistRow", () => {
-  it("renders artist name", () => {
-    const { getByText } = render(
+  it("renders artist name", async () => {
+    const { getByText } = await render(
       <SearchArtistRow
         artist={baseArtist}
         isInLibrary={false}
@@ -37,13 +37,13 @@ describe("SearchArtistRow", () => {
     expect(getByText("Radiohead")).toBeTruthy();
   });
 
-  it("does not render the sort-name as subtext", () => {
+  it("does not render the sort-name as subtext", async () => {
     const artist = {
       ...baseArtist,
       name: "The Beatles",
       "sort-name": "Beatles, The",
     };
-    const { queryByText } = render(
+    const { queryByText } = await render(
       <SearchArtistRow
         artist={artist}
         isInLibrary={false}
@@ -53,8 +53,8 @@ describe("SearchArtistRow", () => {
     expect(queryByText("Beatles, The")).toBeNull();
   });
 
-  it('shows "In Library" chip when isInLibrary is true', () => {
-    const { getByText } = render(
+  it('shows "In Library" chip when isInLibrary is true', async () => {
+    const { getByText } = await render(
       <SearchArtistRow
         artist={baseArtist}
         isInLibrary={true}
@@ -64,8 +64,8 @@ describe("SearchArtistRow", () => {
     expect(getByText("In Library")).toBeTruthy();
   });
 
-  it('does not show "In Library" chip when isInLibrary is false', () => {
-    const { queryByText } = render(
+  it('does not show "In Library" chip when isInLibrary is false', async () => {
+    const { queryByText } = await render(
       <SearchArtistRow
         artist={baseArtist}
         isInLibrary={false}
@@ -75,21 +75,21 @@ describe("SearchArtistRow", () => {
     expect(queryByText("In Library")).toBeNull();
   });
 
-  it("calls onPress when pressed", () => {
+  it("calls onPress when pressed", async () => {
     const onPress = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <SearchArtistRow
         artist={baseArtist}
         isInLibrary={false}
         onPress={onPress}
       />,
     );
-    fireEvent.press(getByText("Radiohead"));
+    await fireEvent.press(getByText("Radiohead"));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it("renders image when available", () => {
-    const { getByTestId } = render(
+  it("renders image when available", async () => {
+    const { getByTestId } = await render(
       <SearchArtistRow
         artist={baseArtist}
         isInLibrary={false}
@@ -99,9 +99,9 @@ describe("SearchArtistRow", () => {
     expect(getByTestId("expo-image")).toBeTruthy();
   });
 
-  it("renders placeholder when no image", () => {
+  it("renders placeholder when no image", async () => {
     const artist = { ...baseArtist, image: null, imageUrl: null };
-    const { queryByTestId } = render(
+    const { queryByTestId } = await render(
       <SearchArtistRow
         artist={artist}
         isInLibrary={false}

@@ -86,7 +86,7 @@ export function ShowsNearYouSection({
       <View style={styles.container}>
         {header}
         {locationRow}
-        <View style={styles.skeletons}>
+        <View style={styles.skeletons} testID="shows-near-you-skeleton">
           {Array.from({ length: 2 }).map((_, i) => (
             <Skeleton
               key={i}
