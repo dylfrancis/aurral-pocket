@@ -66,10 +66,10 @@ beforeEach(() => {
 });
 
 describe("RecentlyAddedSection", () => {
-  it("shows skeleton while loading", () => {
+  it("shows skeleton while loading", async () => {
     mockHook.mockReturnValue({ data: undefined, isLoading: true });
 
-    const { queryByText, queryByTestId } = render(
+    const { queryByText, queryByTestId } = await render(
       <RecentlyAddedSection onArtistPress={jest.fn()} />,
     );
 
@@ -77,10 +77,10 @@ describe("RecentlyAddedSection", () => {
     expect(queryByTestId("skeleton")).toBeTruthy();
   });
 
-  it("returns null when data is empty", () => {
+  it("returns null when data is empty", async () => {
     mockHook.mockReturnValue({ data: [], isLoading: false });
 
-    const { queryByText, toJSON } = render(
+    const { queryByText, toJSON } = await render(
       <RecentlyAddedSection onArtistPress={jest.fn()} />,
     );
 
@@ -88,17 +88,17 @@ describe("RecentlyAddedSection", () => {
     expect(toJSON()).toBeNull();
   });
 
-  it("renders artists and fires onArtistPress", () => {
+  it("renders artists and fires onArtistPress", async () => {
     const artists = [recent("1"), recent("2")];
     mockHook.mockReturnValue({ data: artists, isLoading: false });
     const onPress = jest.fn();
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <RecentlyAddedSection onArtistPress={onPress} />,
     );
 
     expect(getByText("Recently Added")).toBeTruthy();
-    fireEvent.press(getByText("Artist 1"));
+    await fireEvent.press(getByText("Artist 1"));
     expect(onPress).toHaveBeenCalledWith(artists[0]);
   });
 });

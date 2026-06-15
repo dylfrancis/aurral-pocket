@@ -34,15 +34,15 @@ beforeEach(() => {
 });
 
 describe("useRecentSearches", () => {
-  it("starts with empty searches", () => {
-    const { result } = renderHook(() => useRecentSearches());
+  it("starts with empty searches", async () => {
+    const { result } = await renderHook(() => useRecentSearches());
     expect(result.current.searches).toEqual([]);
   });
 
   it("migrates legacy string entries from storage", async () => {
     mockGetItem.mockResolvedValue(JSON.stringify(["radiohead", "#rock"]));
 
-    const { result } = renderHook(() => useRecentSearches());
+    const { result } = await renderHook(() => useRecentSearches());
     await act(async () => {});
 
     expect(result.current.searches).toEqual([q("radiohead"), tag("rock")]);
@@ -52,14 +52,14 @@ describe("useRecentSearches", () => {
     const saved = [q("radiohead"), artist("Thom Yorke", "abc-123")];
     mockGetItem.mockResolvedValue(JSON.stringify(saved));
 
-    const { result } = renderHook(() => useRecentSearches());
+    const { result } = await renderHook(() => useRecentSearches());
     await act(async () => {});
 
     expect(result.current.searches).toEqual(saved);
   });
 
   it("adds a query to the top", async () => {
-    const { result } = renderHook(() => useRecentSearches());
+    const { result } = await renderHook(() => useRecentSearches());
 
     await act(async () => result.current.add(q("radiohead")));
     expect(result.current.searches[0]).toEqual(q("radiohead"));
@@ -67,14 +67,14 @@ describe("useRecentSearches", () => {
   });
 
   it("adds an artist to the top", async () => {
-    const { result } = renderHook(() => useRecentSearches());
+    const { result } = await renderHook(() => useRecentSearches());
 
     await act(async () => result.current.add(artist("Radiohead", "abc-123")));
     expect(result.current.searches[0]).toEqual(artist("Radiohead", "abc-123"));
   });
 
   it("deduplicates artists by mbid", async () => {
-    const { result } = renderHook(() => useRecentSearches());
+    const { result } = await renderHook(() => useRecentSearches());
 
     await act(async () => result.current.add(artist("Radiohead", "abc-123")));
     await act(async () => result.current.add(q("other")));
@@ -85,7 +85,7 @@ describe("useRecentSearches", () => {
   });
 
   it("deduplicates queries by text", async () => {
-    const { result } = renderHook(() => useRecentSearches());
+    const { result } = await renderHook(() => useRecentSearches());
 
     await act(async () => result.current.add(q("first")));
     await act(async () => result.current.add(q("second")));
@@ -95,7 +95,7 @@ describe("useRecentSearches", () => {
   });
 
   it("removes a specific entry", async () => {
-    const { result } = renderHook(() => useRecentSearches());
+    const { result } = await renderHook(() => useRecentSearches());
 
     await act(async () => result.current.add(q("keep")));
     await act(async () => result.current.add(q("remove")));
@@ -105,7 +105,7 @@ describe("useRecentSearches", () => {
   });
 
   it("clears all searches", async () => {
-    const { result } = renderHook(() => useRecentSearches());
+    const { result } = await renderHook(() => useRecentSearches());
 
     await act(async () => result.current.add(q("one")));
     await act(async () => result.current.add(q("two")));
@@ -116,7 +116,7 @@ describe("useRecentSearches", () => {
   });
 
   it("limits to 10 entries", async () => {
-    const { result } = renderHook(() => useRecentSearches());
+    const { result } = await renderHook(() => useRecentSearches());
 
     for (let i = 0; i < 15; i++) {
       await act(async () => result.current.add(q(`search-${i}`)));

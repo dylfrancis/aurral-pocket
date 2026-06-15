@@ -63,29 +63,29 @@ beforeEach(() => {
 });
 
 describe("GlobalTrendingSection", () => {
-  it("shows skeleton while loading", () => {
+  it("shows skeleton while loading", async () => {
     mockHook.mockReturnValue({ data: undefined, isLoading: true });
 
-    const { queryByTestId } = render(
+    const { queryByTestId } = await render(
       <GlobalTrendingSection onArtistPress={jest.fn()} />,
     );
 
     expect(queryByTestId("skeleton")).toBeTruthy();
   });
 
-  it("returns null when globalTop is empty", () => {
+  it("returns null when globalTop is empty", async () => {
     mockHook.mockReturnValue({
       data: { ...emptyDiscovery },
       isLoading: false,
     });
 
-    const { toJSON } = render(
+    const { toJSON } = await render(
       <GlobalTrendingSection onArtistPress={jest.fn()} />,
     );
     expect(toJSON()).toBeNull();
   });
 
-  it("caps rendered artists at 12", () => {
+  it("caps rendered artists at 12", async () => {
     const globalTop = Array.from({ length: 15 }, (_, i) => ({
       id: `${i}`,
       name: `A${i}`,
@@ -95,7 +95,7 @@ describe("GlobalTrendingSection", () => {
       isLoading: false,
     });
 
-    const { queryByTestId } = render(
+    const { queryByTestId } = await render(
       <GlobalTrendingSection onArtistPress={jest.fn()} />,
     );
 
@@ -105,7 +105,7 @@ describe("GlobalTrendingSection", () => {
     expect(queryByTestId("artist-A12")).toBeNull();
   });
 
-  it("fires onArtistPress with the right artist", () => {
+  it("fires onArtistPress with the right artist", async () => {
     const globalTop = [{ id: "1", name: "Alpha" }];
     mockHook.mockReturnValue({
       data: { ...emptyDiscovery, globalTop },
@@ -113,11 +113,11 @@ describe("GlobalTrendingSection", () => {
     });
     const onPress = jest.fn();
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <GlobalTrendingSection onArtistPress={onPress} />,
     );
 
-    fireEvent.press(getByText("Alpha"));
+    await fireEvent.press(getByText("Alpha"));
     expect(onPress).toHaveBeenCalledWith(globalTop[0]);
   });
 });

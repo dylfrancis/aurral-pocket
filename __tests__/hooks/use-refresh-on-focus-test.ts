@@ -18,34 +18,34 @@ beforeEach(() => {
 });
 
 describe("useRefreshOnFocus", () => {
-  it("skips the initial focus", () => {
+  it("skips the initial focus", async () => {
     const refetch = jest.fn();
-    renderHook(() => useRefreshOnFocus(refetch));
+    await renderHook(() => useRefreshOnFocus(refetch));
 
-    act(() => latestFocusEffect()());
+    await act(() => latestFocusEffect()());
 
     expect(refetch).not.toHaveBeenCalled();
   });
 
-  it("refetches on every subsequent focus", () => {
+  it("refetches on every subsequent focus", async () => {
     const refetch = jest.fn();
-    renderHook(() => useRefreshOnFocus(refetch));
+    await renderHook(() => useRefreshOnFocus(refetch));
 
-    act(() => latestFocusEffect()()); // initial focus — skipped
-    act(() => latestFocusEffect()()); // tab regains focus
+    await act(() => latestFocusEffect()()); // initial focus — skipped
+    await act(() => latestFocusEffect()()); // tab regains focus
     expect(refetch).toHaveBeenCalledTimes(1);
 
-    act(() => latestFocusEffect()());
+    await act(() => latestFocusEffect()());
     expect(refetch).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps skipping only the first focus across re-renders", () => {
+  it("keeps skipping only the first focus across re-renders", async () => {
     const refetch = jest.fn();
-    const { rerender } = renderHook(() => useRefreshOnFocus(refetch));
+    const { rerender } = await renderHook(() => useRefreshOnFocus(refetch));
 
-    act(() => latestFocusEffect()()); // initial focus — skipped
-    rerender({});
-    act(() => latestFocusEffect()()); // refocus after re-render
+    await act(() => latestFocusEffect()()); // initial focus — skipped
+    await rerender({});
+    await act(() => latestFocusEffect()()); // refocus after re-render
 
     expect(refetch).toHaveBeenCalledTimes(1);
   });

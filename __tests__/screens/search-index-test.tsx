@@ -99,8 +99,8 @@ beforeEach(() => {
 });
 
 describe("SearchScreen", () => {
-  it("shows empty state by default", () => {
-    const { getByText } = render(<SearchScreen />);
+  it("shows empty state by default", async () => {
+    const { getByText } = await render(<SearchScreen />);
     expect(
       getByText("Search for artists or #tags to discover music"),
     ).toBeTruthy();

@@ -11,8 +11,8 @@ import { fireEvent, render } from "@testing-library/react-native";
 import { FocusEditor } from "@/components/flow/FocusEditor";
 
 describe("FocusEditor", () => {
-  it("renders entry names, not array indices (regression #139)", () => {
-    const { getByText, queryByText } = render(
+  it("renders entry names, not array indices (regression #139)", async () => {
+    const { getByText, queryByText } = await render(
       <FocusEditor
         label="Tags"
         placeholder="Add a tag"
@@ -28,8 +28,8 @@ describe("FocusEditor", () => {
     expect(queryByText("2")).toBeNull();
   });
 
-  it("shows empty state when there are no entries", () => {
-    const { getByText } = render(
+  it("shows empty state when there are no entries", async () => {
+    const { getByText } = await render(
       <FocusEditor
         label="Tags"
         placeholder="Add a tag"
@@ -40,9 +40,9 @@ describe("FocusEditor", () => {
     expect(getByText("No filters added.")).toBeTruthy();
   });
 
-  it("appends a trimmed entry on submit", () => {
+  it("appends a trimmed entry on submit", async () => {
     const onChange = jest.fn();
-    const { getByPlaceholderText } = render(
+    const { getByPlaceholderText } = await render(
       <FocusEditor
         label="Tags"
         placeholder="Add a tag"
@@ -51,14 +51,14 @@ describe("FocusEditor", () => {
       />,
     );
     const input = getByPlaceholderText("Add a tag");
-    fireEvent.changeText(input, "  shoegaze  ");
-    fireEvent(input, "submitEditing");
+    await fireEvent.changeText(input, "  shoegaze  ");
+    await fireEvent(input, "submitEditing");
     expect(onChange).toHaveBeenCalledWith(["ambient", "shoegaze"]);
   });
 
-  it("does not add duplicate entries", () => {
+  it("does not add duplicate entries", async () => {
     const onChange = jest.fn();
-    const { getByPlaceholderText } = render(
+    const { getByPlaceholderText } = await render(
       <FocusEditor
         label="Tags"
         placeholder="Add a tag"
@@ -67,14 +67,14 @@ describe("FocusEditor", () => {
       />,
     );
     const input = getByPlaceholderText("Add a tag");
-    fireEvent.changeText(input, "ambient");
-    fireEvent(input, "submitEditing");
+    await fireEvent.changeText(input, "ambient");
+    await fireEvent(input, "submitEditing");
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("removes an entry via its chip remove button", () => {
+  it("removes an entry via its chip remove button", async () => {
     const onChange = jest.fn();
-    const { getByLabelText } = render(
+    const { getByLabelText } = await render(
       <FocusEditor
         label="Tags"
         placeholder="Add a tag"
@@ -82,7 +82,7 @@ describe("FocusEditor", () => {
         onChange={onChange}
       />,
     );
-    fireEvent.press(getByLabelText("Remove ambient"));
+    await fireEvent.press(getByLabelText("Remove ambient"));
     expect(onChange).toHaveBeenCalledWith(["shoegaze"]);
   });
 });

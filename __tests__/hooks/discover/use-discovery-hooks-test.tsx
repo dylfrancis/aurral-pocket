@@ -66,7 +66,7 @@ describe("useDiscovery", () => {
     mockGetDiscovery.mockResolvedValue(data);
 
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useDiscovery(), { wrapper });
+    const { result } = await renderHook(() => useDiscovery(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(data);
@@ -79,7 +79,7 @@ describe("useRecentlyAdded", () => {
     mockGetRecentlyAdded.mockResolvedValue([]);
 
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useRecentlyAdded(), { wrapper });
+    const { result } = await renderHook(() => useRecentlyAdded(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockGetRecentlyAdded).toHaveBeenCalled();
@@ -91,7 +91,7 @@ describe("useRecentReleases", () => {
     mockGetRecentReleases.mockResolvedValue([]);
 
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useRecentReleases(), { wrapper });
+    const { result } = await renderHook(() => useRecentReleases(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockGetRecentReleases).toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe("useNearbyShows", () => {
     mockGetNearbyShows.mockResolvedValue(emptyResponse);
 
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useNearbyShows(), { wrapper });
+    const { result } = await renderHook(() => useNearbyShows(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockGetNearbyShows).toHaveBeenCalledWith(undefined, undefined);
@@ -119,7 +119,7 @@ describe("useNearbyShows", () => {
     mockGetNearbyShows.mockResolvedValue(emptyResponse);
 
     const { wrapper } = makeWrapper();
-    renderHook(() => useNearbyShows({ zipCode: "10001", limit: 5 }), {
+    await renderHook(() => useNearbyShows({ zipCode: "10001", limit: 5 }), {
       wrapper,
     });
 
@@ -128,11 +128,11 @@ describe("useNearbyShows", () => {
     );
   });
 
-  it("respects enabled: false", () => {
+  it("respects enabled: false", async () => {
     mockGetNearbyShows.mockResolvedValue(emptyResponse);
 
     const { wrapper } = makeWrapper();
-    renderHook(() => useNearbyShows({ enabled: false }), { wrapper });
+    await renderHook(() => useNearbyShows({ enabled: false }), { wrapper });
 
     expect(mockGetNearbyShows).not.toHaveBeenCalled();
   });
@@ -141,10 +141,10 @@ describe("useNearbyShows", () => {
     mockGetNearbyShows.mockResolvedValue(emptyResponse);
     const { wrapper, client } = makeWrapper();
 
-    renderHook(() => useNearbyShows({ zipCode: "10001", limit: 10 }), {
+    await renderHook(() => useNearbyShows({ zipCode: "10001", limit: 10 }), {
       wrapper,
     });
-    renderHook(() => useNearbyShows({ zipCode: "10001", limit: 20 }), {
+    await renderHook(() => useNearbyShows({ zipCode: "10001", limit: 20 }), {
       wrapper,
     });
 

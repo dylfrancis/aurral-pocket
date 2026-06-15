@@ -131,20 +131,20 @@ beforeEach(() => {
 });
 
 describe("RequestsScreen", () => {
-  it("shows empty state when no requests exist", () => {
+  it("shows empty state when no requests exist", async () => {
     mockUseRequestsSuspense.mockReturnValue({ ...defaultHook, data: [] });
-    const { getByText } = renderWithClient(<RequestsScreen />);
+    const { getByText } = await renderWithClient(<RequestsScreen />);
     expect(getByText("No requests yet")).toBeTruthy();
   });
 
-  it("navigates to discover when empty state action is pressed", () => {
+  it("navigates to discover when empty state action is pressed", async () => {
     mockUseRequestsSuspense.mockReturnValue({ ...defaultHook, data: [] });
-    const { getByText } = renderWithClient(<RequestsScreen />);
-    fireEvent.press(getByText("Start Discovering"));
+    const { getByText } = await renderWithClient(<RequestsScreen />);
+    await fireEvent.press(getByText("Start Discovering"));
     expect(mockPush).toHaveBeenCalledWith("/(app)/(tabs)/(discover)");
   });
 
-  it("renders requests list when data is loaded", () => {
+  it("renders requests list when data is loaded", async () => {
     mockUseRequestsSuspense.mockReturnValue({
       ...defaultHook,
       data: [
@@ -152,26 +152,26 @@ describe("RequestsScreen", () => {
         makeRequest({ id: "2", albumName: "Second Album" }),
       ],
     });
-    const { getByText } = renderWithClient(<RequestsScreen />);
+    const { getByText } = await renderWithClient(<RequestsScreen />);
     expect(getByText("First Album")).toBeTruthy();
     expect(getByText("Second Album")).toBeTruthy();
   });
 });
 
 describe("RequestsScreen ErrorBoundary", () => {
-  it("renders the failure message", () => {
-    const { getByText } = renderWithClient(
+  it("renders the failure message", async () => {
+    const { getByText } = await renderWithClient(
       <ErrorBoundary error={new Error("fail")} retry={jest.fn()} />,
     );
     expect(getByText("Failed to load requests")).toBeTruthy();
   });
 
-  it("calls retry when Try Again is pressed", () => {
+  it("calls retry when Try Again is pressed", async () => {
     const retry = jest.fn();
-    const { getByText } = renderWithClient(
+    const { getByText } = await renderWithClient(
       <ErrorBoundary error={new Error("fail")} retry={retry} />,
     );
-    fireEvent.press(getByText("Try Again"));
+    await fireEvent.press(getByText("Try Again"));
     expect(retry).toHaveBeenCalledTimes(1);
   });
 });

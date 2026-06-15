@@ -104,12 +104,12 @@ const status = {
   jobs: [],
 } as unknown as FlowStatusSnapshot;
 
-function renderScreen() {
+async function renderScreen() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
   client.setQueryData(flowKeys.status(), status);
-  const utils = render(
+  const utils = await render(
     <QueryClientProvider client={client}>
       <FlowEditScreen />
     </QueryClientProvider>,
@@ -123,23 +123,23 @@ beforeEach(() => {
 });
 
 describe("FlowEditScreen (editing)", () => {
-  it("hydrates the form from the cached flow", () => {
-    const { getByTestId, getByDisplayValue } = renderScreen();
+  it("hydrates the form from the cached flow", async () => {
+    const { getByTestId, getByDisplayValue } = await renderScreen();
 
     expect(getByTestId("hour-picker").props.selectedValue).toBe(9);
     expect(getByDisplayValue("Morning Mix")).toBeTruthy();
   });
 
-  it("keeps the draft when fresh status data lands in the cache (#138)", () => {
-    const { client, getByTestId, getByDisplayValue } = renderScreen();
+  it("keeps the draft when fresh status data lands in the cache (#138)", async () => {
+    const { client, getByTestId, getByDisplayValue } = await renderScreen();
 
-    act(() => {
+    await act(() => {
       getByTestId("hour-picker").props.onValueChange(14);
     });
     expect(getByTestId("hour-picker").props.selectedValue).toBe(14);
 
     // Simulate a 3s status poll delivering server-side changes mid-edit.
-    act(() => {
+    await act(() => {
       client.setQueryData(flowKeys.status(), {
         ...status,
         flows: [{ ...flow, name: "Renamed Elsewhere", scheduleTime: "07:00" }],
@@ -152,12 +152,12 @@ describe("FlowEditScreen (editing)", () => {
 
   it("saves the edited schedule time", async () => {
     mockUpdateFlow.mockResolvedValue({ ...flow, scheduleTime: "14:00" });
-    const { getByTestId, getByText } = renderScreen();
+    const { getByTestId, getByText } = await renderScreen();
 
-    act(() => {
+    await act(() => {
       getByTestId("hour-picker").props.onValueChange(14);
     });
-    fireEvent.press(getByText("Save Changes"));
+    await fireEvent.press(getByText("Save Changes"));
 
     await waitFor(() =>
       expect(mockUpdateFlow).toHaveBeenCalledWith(
@@ -168,9 +168,9 @@ describe("FlowEditScreen (editing)", () => {
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
   });
 
-  it("shows a not-found state when the flow is missing from the cache", () => {
+  it("shows a not-found state when the flow is missing from the cache", async () => {
     mockUseLocalSearchParams.mockReturnValue({ id: "missing-flow" });
-    const { getByText } = renderScreen();
+    const { getByText } = await renderScreen();
 
     expect(getByText("Flow not found.")).toBeTruthy();
   });

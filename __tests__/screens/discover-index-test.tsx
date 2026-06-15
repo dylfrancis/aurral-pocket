@@ -114,20 +114,20 @@ beforeEach(() => {
 });
 
 describe("DiscoverScreen layout", () => {
-  it("renders no customizable sections until layout is hydrated", () => {
+  it("renders no customizable sections until layout is hydrated", async () => {
     mockUseDiscoverLayout.mockReturnValue({
       sections: [],
       hydrated: false,
       saveLayout: jest.fn(),
     });
 
-    const { queryByTestId } = render(<DiscoverScreen />);
+    const { queryByTestId } = await render(<DiscoverScreen />);
     expect(queryByTestId("section-header")).toBeTruthy();
     expect(queryByTestId("section-recentlyAdded")).toBeNull();
     expect(queryByTestId("section-topTags")).toBeNull();
   });
 
-  it("renders only enabled sections in layout order", () => {
+  it("renders only enabled sections in layout order", async () => {
     mockUseDiscoverLayout.mockReturnValue({
       sections: [
         { id: "topTags", label: "Explore by Tag", enabled: true },
@@ -138,7 +138,7 @@ describe("DiscoverScreen layout", () => {
       saveLayout: jest.fn(),
     });
 
-    const { queryByTestId, getAllByTestId } = render(<DiscoverScreen />);
+    const { queryByTestId, getAllByTestId } = await render(<DiscoverScreen />);
     expect(queryByTestId("section-recentlyAdded")).toBeNull();
     expect(queryByTestId("section-topTags")).toBeTruthy();
     expect(queryByTestId("section-recommended")).toBeTruthy();

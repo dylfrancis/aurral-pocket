@@ -13,7 +13,7 @@ beforeEach(() => {
 });
 
 describe("useLibraryLookup", () => {
-  it("returns isInLibrary that matches known mbids", () => {
+  it("returns isInLibrary that matches known mbids", async () => {
     mockUseLibraryArtists.mockReturnValue({
       data: [
         { id: "1", mbid: "mbid-aaa", artistName: "Artist A" },
@@ -21,35 +21,35 @@ describe("useLibraryLookup", () => {
       ],
     });
 
-    const { result } = renderHook(() => useLibraryLookup());
+    const { result } = await renderHook(() => useLibraryLookup());
 
     expect(result.current.isInLibrary("mbid-aaa")).toBe(true);
     expect(result.current.isInLibrary("mbid-bbb")).toBe(true);
   });
 
-  it("returns false for unknown mbids", () => {
+  it("returns false for unknown mbids", async () => {
     mockUseLibraryArtists.mockReturnValue({
       data: [{ id: "1", mbid: "mbid-aaa", artistName: "Artist A" }],
     });
 
-    const { result } = renderHook(() => useLibraryLookup());
+    const { result } = await renderHook(() => useLibraryLookup());
 
     expect(result.current.isInLibrary("mbid-zzz")).toBe(false);
   });
 
-  it("handles undefined artists data", () => {
+  it("handles undefined artists data", async () => {
     mockUseLibraryArtists.mockReturnValue({ data: undefined });
 
-    const { result } = renderHook(() => useLibraryLookup());
+    const { result } = await renderHook(() => useLibraryLookup());
 
     expect(result.current.isInLibrary("mbid-aaa")).toBe(false);
   });
 
-  it("exposes the raw library artists", () => {
+  it("exposes the raw library artists", async () => {
     const artists = [{ id: "1", mbid: "mbid-aaa", artistName: "Artist A" }];
     mockUseLibraryArtists.mockReturnValue({ data: artists });
 
-    const { result } = renderHook(() => useLibraryLookup());
+    const { result } = await renderHook(() => useLibraryLookup());
 
     expect(result.current.libraryArtists).toBe(artists);
   });

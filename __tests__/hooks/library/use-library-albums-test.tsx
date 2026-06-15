@@ -51,7 +51,9 @@ describe("useLibraryAlbums", () => {
     ]);
 
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useLibraryAlbums("art1"), { wrapper });
+    const { result } = await renderHook(() => useLibraryAlbums("art1"), {
+      wrapper,
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.map((a) => a.id)).toEqual(["monitored"]);
@@ -67,15 +69,17 @@ describe("useLibraryAlbums", () => {
     ]);
 
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useLibraryAlbums("art1"), { wrapper });
+    const { result } = await renderHook(() => useLibraryAlbums("art1"), {
+      wrapper,
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.map((a) => a.id)).toEqual(["downloading"]);
   });
 
-  it("does not fetch when artistId is undefined", () => {
+  it("does not fetch when artistId is undefined", async () => {
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useLibraryAlbums(undefined), {
+    const { result } = await renderHook(() => useLibraryAlbums(undefined), {
       wrapper,
     });
 

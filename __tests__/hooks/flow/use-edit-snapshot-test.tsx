@@ -64,28 +64,34 @@ beforeEach(() => {
 });
 
 describe("useEditSnapshot", () => {
-  it("resolves synchronously from a warm cache without fetching", () => {
+  it("resolves synchronously from a warm cache without fetching", async () => {
     const { client, wrapper } = makeWrapper();
     client.setQueryData(flowKeys.status(), status);
 
-    const { result } = renderHook(() => useEditSnapshot(true, selectFlow), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useEditSnapshot(true, selectFlow),
+      {
+        wrapper,
+      },
+    );
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.snapshot).toEqual(flow);
     expect(mockGetFlowStatus).not.toHaveBeenCalled();
   });
 
-  it("does not update the snapshot when fresh status data lands in the cache", () => {
+  it("does not update the snapshot when fresh status data lands in the cache", async () => {
     const { client, wrapper } = makeWrapper();
     client.setQueryData(flowKeys.status(), status);
 
-    const { result } = renderHook(() => useEditSnapshot(true, selectFlow), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useEditSnapshot(true, selectFlow),
+      {
+        wrapper,
+      },
+    );
 
-    act(() => {
+    await act(() => {
       client.setQueryData(flowKeys.status(), {
         ...status,
         flows: [{ ...flow, name: "Renamed", scheduleTime: "21:00" }],
@@ -99,11 +105,16 @@ describe("useEditSnapshot", () => {
     mockGetFlowStatus.mockResolvedValue(status);
     const { wrapper } = makeWrapper();
 
-    const { result } = renderHook(() => useEditSnapshot(true, selectFlow), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useEditSnapshot(true, selectFlow),
+      {
+        wrapper,
+      },
+    );
 
-    expect(result.current.isLoading).toBe(true);
+    // The transient isLoading === true state is no longer observable: RNTL v14's
+    // async renderHook() flushes the cold fetch before returning. We still prove
+    // the cold path by asserting the fetch happened and the snapshot resolved.
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.snapshot).toEqual(flow);
     expect(mockGetFlowStatus).toHaveBeenCalledTimes(1);
@@ -113,20 +124,26 @@ describe("useEditSnapshot", () => {
     mockGetFlowStatus.mockRejectedValue(new Error("network down"));
     const { wrapper } = makeWrapper();
 
-    const { result } = renderHook(() => useEditSnapshot(true, selectFlow), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useEditSnapshot(true, selectFlow),
+      {
+        wrapper,
+      },
+    );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.snapshot).toBeUndefined();
   });
 
-  it("does nothing when disabled", () => {
+  it("does nothing when disabled", async () => {
     const { wrapper } = makeWrapper();
 
-    const { result } = renderHook(() => useEditSnapshot(false, selectFlow), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useEditSnapshot(false, selectFlow),
+      {
+        wrapper,
+      },
+    );
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.snapshot).toBeUndefined();

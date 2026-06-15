@@ -85,10 +85,13 @@ beforeEach(() => {
 });
 
 describe("useArtistDetailsStream", () => {
-  it("is disabled when mbid is undefined", () => {
-    const { result } = renderHook(() => useArtistDetailsStream(undefined), {
-      wrapper,
-    });
+  it("is disabled when mbid is undefined", async () => {
+    const { result } = await renderHook(
+      () => useArtistDetailsStream(undefined),
+      {
+        wrapper,
+      },
+    );
 
     expect(mockStreamSSE).not.toHaveBeenCalled();
     expect(result.current.data).toBeUndefined();
@@ -97,9 +100,12 @@ describe("useArtistDetailsStream", () => {
   it("starts with isComplete=false before any event", async () => {
     makeControllableStream();
 
-    const { result } = renderHook(() => useArtistDetailsStream("mbid-1"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useArtistDetailsStream("mbid-1"),
+      {
+        wrapper,
+      },
+    );
 
     await waitFor(() => expect(mockStreamSSE).toHaveBeenCalled());
     expect(result.current.data).toBeUndefined();
@@ -108,9 +114,12 @@ describe("useArtistDetailsStream", () => {
   it("exposes tags, bio, release-groups as undefined when no chunks have landed", async () => {
     makeControllableStream();
 
-    const { result } = renderHook(() => useArtistDetailsStream("mbid-1"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useArtistDetailsStream("mbid-1"),
+      {
+        wrapper,
+      },
+    );
 
     await waitFor(() => expect(mockStreamSSE).toHaveBeenCalled());
     expect(result.current.data?.tags).toBeUndefined();
@@ -121,9 +130,12 @@ describe("useArtistDetailsStream", () => {
   it("keeps isComplete=false when backend sends placeholder artist event", async () => {
     const stream = makeControllableStream();
 
-    const { result } = renderHook(() => useArtistDetailsStream("mbid-1"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useArtistDetailsStream("mbid-1"),
+      {
+        wrapper,
+      },
+    );
 
     await act(async () => {
       stream.push({
@@ -144,9 +156,12 @@ describe("useArtistDetailsStream", () => {
   it("flips isComplete to true on the 'complete' event", async () => {
     const stream = makeControllableStream();
 
-    const { result } = renderHook(() => useArtistDetailsStream("mbid-1"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useArtistDetailsStream("mbid-1"),
+      {
+        wrapper,
+      },
+    );
 
     await act(async () => {
       stream.push({
@@ -167,9 +182,12 @@ describe("useArtistDetailsStream", () => {
   it("flips isComplete to true when the stream ends without a complete event", async () => {
     const stream = makeControllableStream();
 
-    const { result } = renderHook(() => useArtistDetailsStream("mbid-1"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useArtistDetailsStream("mbid-1"),
+      {
+        wrapper,
+      },
+    );
 
     await act(async () => {
       stream.push({
@@ -185,9 +203,12 @@ describe("useArtistDetailsStream", () => {
   it("flips isComplete to true when the stream errors", async () => {
     const stream = makeControllableStream();
 
-    const { result } = renderHook(() => useArtistDetailsStream("mbid-1"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useArtistDetailsStream("mbid-1"),
+      {
+        wrapper,
+      },
+    );
 
     await act(async () => {
       stream.error(new Error("network"));
@@ -199,9 +220,12 @@ describe("useArtistDetailsStream", () => {
   it("merges successive artist events", async () => {
     const stream = makeControllableStream();
 
-    const { result } = renderHook(() => useArtistDetailsStream("mbid-1"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useArtistDetailsStream("mbid-1"),
+      {
+        wrapper,
+      },
+    );
 
     await act(async () => {
       stream.push({
@@ -240,9 +264,12 @@ describe("useArtistDetailsStream", () => {
   it("ignores non-artist, non-complete events", async () => {
     const stream = makeControllableStream();
 
-    const { result } = renderHook(() => useArtistDetailsStream("mbid-1"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useArtistDetailsStream("mbid-1"),
+      {
+        wrapper,
+      },
+    );
 
     await act(async () => {
       stream.push({ event: "cover", data: JSON.stringify({ images: [] }) });
@@ -261,9 +288,12 @@ describe("useArtistDetailsStream", () => {
   it("swallows malformed JSON without rejecting the query", async () => {
     const stream = makeControllableStream();
 
-    const { result } = renderHook(() => useArtistDetailsStream("mbid-1"), {
-      wrapper,
-    });
+    const { result } = await renderHook(
+      () => useArtistDetailsStream("mbid-1"),
+      {
+        wrapper,
+      },
+    );
 
     await act(async () => {
       stream.push({ event: "artist", data: "not-json" });
@@ -282,7 +312,7 @@ describe("useArtistDetailsStream", () => {
   it("passes Authorization header when token is set", async () => {
     makeControllableStream();
 
-    renderHook(() => useArtistDetailsStream("mbid-1"), { wrapper });
+    await renderHook(() => useArtistDetailsStream("mbid-1"), { wrapper });
 
     await waitFor(() => expect(mockStreamSSE).toHaveBeenCalled());
     const [, options] = mockStreamSSE.mock.calls[0];
@@ -292,7 +322,7 @@ describe("useArtistDetailsStream", () => {
   it("does not put the token in the URL", async () => {
     makeControllableStream();
 
-    renderHook(() => useArtistDetailsStream("mbid-1"), { wrapper });
+    await renderHook(() => useArtistDetailsStream("mbid-1"), { wrapper });
 
     await waitFor(() => expect(mockStreamSSE).toHaveBeenCalled());
     const [url] = mockStreamSSE.mock.calls[0];

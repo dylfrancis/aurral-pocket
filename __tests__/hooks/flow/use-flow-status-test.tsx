@@ -32,7 +32,14 @@ function latestFocusEffect(): () => void {
 
 function makeWrapper() {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    // notifyOnChangeProps: "all" — useFlowStatus only reads `refetch` during
+    // render, so React Query's tracked-queries would skip the re-render when
+    // data lands. Under RNTL v14 the fetch resolves during the async
+    // renderHook() flush, before the test reads isSuccess, so without this the
+    // observer never re-renders and the query looks stuck pending.
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0, notifyOnChangeProps: "all" },
+    },
   });
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
@@ -51,7 +58,7 @@ beforeEach(() => {
 describe("useFlowStatus", () => {
   it("fetches once on mount", async () => {
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useFlowStatus(), { wrapper });
+    const { result } = await renderHook(() => useFlowStatus(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockGetFlowStatus).toHaveBeenCalledTimes(1);
@@ -59,23 +66,23 @@ describe("useFlowStatus", () => {
 
   it("refetches immediately when the screen regains focus", async () => {
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useFlowStatus(), { wrapper });
+    const { result } = await renderHook(() => useFlowStatus(), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    act(() => latestFocusEffect()()); // initial focus — skipped
+    await act(() => latestFocusEffect()()); // initial focus — skipped
     expect(mockGetFlowStatus).toHaveBeenCalledTimes(1);
 
-    act(() => latestFocusEffect()()); // user returns to the tab
+    await act(() => latestFocusEffect()()); // user returns to the tab
     await waitFor(() => expect(mockGetFlowStatus).toHaveBeenCalledTimes(2));
   });
 
   it("does not refetch on focus while unauthenticated", async () => {
     mockUseAuth.mockReturnValue({ serverUrl: null, token: null });
     const { wrapper } = makeWrapper();
-    renderHook(() => useFlowStatus(), { wrapper });
+    await renderHook(() => useFlowStatus(), { wrapper });
 
-    act(() => latestFocusEffect()()); // initial focus — skipped
-    act(() => latestFocusEffect()()); // refocus, but disabled
+    await act(() => latestFocusEffect()()); // initial focus — skipped
+    await act(() => latestFocusEffect()()); // refocus, but disabled
 
     expect(mockGetFlowStatus).not.toHaveBeenCalled();
   });

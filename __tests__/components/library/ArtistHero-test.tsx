@@ -67,48 +67,48 @@ beforeEach(() => {
 });
 
 describe("ArtistHero", () => {
-  it("renders artist name", () => {
-    const { getByText } = render(
+  it("renders artist name", async () => {
+    const { getByText } = await render(
       <ArtistHero artist={baseArtist} inLibrary={false} />,
     );
     expect(getByText("Test Artist")).toBeTruthy();
   });
 
-  it("renders library badge when inLibrary", () => {
+  it("renders library badge when inLibrary", async () => {
     const onPress = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <ArtistHero artist={baseArtist} inLibrary onBadgePress={onPress} />,
     );
     expect(getByText("In Your Library")).toBeTruthy();
   });
 
-  it("calls onBadgePress when badge is tapped", () => {
+  it("calls onBadgePress when badge is tapped", async () => {
     const onPress = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <ArtistHero artist={baseArtist} inLibrary onBadgePress={onPress} />,
     );
-    fireEvent.press(getByText("In Your Library"));
+    await fireEvent.press(getByText("In Your Library"));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it("renders add button when not in library", () => {
+  it("renders add button when not in library", async () => {
     const onAdd = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <ArtistHero artist={baseArtist} inLibrary={false} onAddPress={onAdd} />,
     );
     expect(getByText("Add to Library")).toBeTruthy();
   });
 
-  it("does not render badge or add button without callbacks", () => {
-    const { queryByText } = render(
+  it("does not render badge or add button without callbacks", async () => {
+    const { queryByText } = await render(
       <ArtistHero artist={baseArtist} inLibrary={false} />,
     );
     expect(queryByText("In Your Library")).toBeNull();
     expect(queryByText("Add to Library")).toBeNull();
   });
 
-  it("renders with minimal artist props (mbid + artistName only)", () => {
-    const { getByText } = render(
+  it("renders with minimal artist props (mbid + artistName only)", async () => {
+    const { getByText } = await render(
       <ArtistHero
         artist={{ mbid: "xyz-456", artistName: "Minimal Artist" }}
         inLibrary={false}

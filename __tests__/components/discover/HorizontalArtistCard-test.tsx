@@ -14,8 +14,8 @@ import { render, fireEvent } from "@testing-library/react-native";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
 
 describe("HorizontalArtistCard", () => {
-  it("renders the artist name and cover art", () => {
-    const { getByText, queryByTestId } = render(
+  it("renders the artist name and cover art", async () => {
+    const { getByText, queryByTestId } = await render(
       <HorizontalArtistCard
         mbid="mbid-1"
         name="Radiohead"
@@ -26,8 +26,8 @@ describe("HorizontalArtistCard", () => {
     expect(queryByTestId("cover-art")).toBeTruthy();
   });
 
-  it("renders the subtitle when provided", () => {
-    const { queryByText } = render(
+  it("renders the subtitle when provided", async () => {
+    const { queryByText } = await render(
       <HorizontalArtistCard
         mbid="mbid-1"
         name="Radiohead"
@@ -38,8 +38,8 @@ describe("HorizontalArtistCard", () => {
     expect(queryByText("Similar to Portishead")).toBeTruthy();
   });
 
-  it("renders the library badge when isInLibrary is true", () => {
-    const { queryByTestId } = render(
+  it("renders the library badge when isInLibrary is true", async () => {
+    const { queryByTestId } = await render(
       <HorizontalArtistCard
         mbid="mbid-1"
         name="Radiohead"
@@ -50,8 +50,8 @@ describe("HorizontalArtistCard", () => {
     expect(queryByTestId("icon-checkmark-circle")).toBeTruthy();
   });
 
-  it("omits the library badge when isInLibrary is false", () => {
-    const { queryByTestId } = render(
+  it("omits the library badge when isInLibrary is false", async () => {
+    const { queryByTestId } = await render(
       <HorizontalArtistCard
         mbid="mbid-1"
         name="Radiohead"
@@ -61,12 +61,12 @@ describe("HorizontalArtistCard", () => {
     expect(queryByTestId("icon-checkmark-circle")).toBeNull();
   });
 
-  it("fires onPress when the card is pressed", () => {
+  it("fires onPress when the card is pressed", async () => {
     const onPress = jest.fn();
-    const { getByText } = render(
+    const { getByText } = await render(
       <HorizontalArtistCard mbid="mbid-1" name="Radiohead" onPress={onPress} />,
     );
-    fireEvent.press(getByText("Radiohead"));
+    await fireEvent.press(getByText("Radiohead"));
     expect(onPress).toHaveBeenCalled();
   });
 });

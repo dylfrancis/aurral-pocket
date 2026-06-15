@@ -16,13 +16,15 @@ beforeEach(() => {
 });
 
 describe("Input", () => {
-  it("renders with placeholder", () => {
-    const { getByPlaceholderText } = render(<Input placeholder="Email" />);
+  it("renders with placeholder", async () => {
+    const { getByPlaceholderText } = await render(
+      <Input placeholder="Email" />,
+    );
     expect(getByPlaceholderText("Email")).toBeTruthy();
   });
 
-  it("applies theme colors", () => {
-    const { getByPlaceholderText } = render(<Input placeholder="Test" />);
+  it("applies theme colors", async () => {
+    const { getByPlaceholderText } = await render(<Input placeholder="Test" />);
     const el = getByPlaceholderText("Test");
     const flatStyle = Object.assign(
       {},
@@ -34,9 +36,9 @@ describe("Input", () => {
     expect(flatStyle.fontFamily).toBe(Fonts.regular);
   });
 
-  it("applies light theme colors", () => {
+  it("applies light theme colors", async () => {
     mockUseColorScheme.mockReturnValue("light");
-    const { getByPlaceholderText } = render(<Input placeholder="Test" />);
+    const { getByPlaceholderText } = await render(<Input placeholder="Test" />);
     const el = getByPlaceholderText("Test");
     const flatStyle = Object.assign(
       {},
@@ -46,41 +48,41 @@ describe("Input", () => {
     expect(flatStyle.borderColor).toBe(Colors.light.inputBorder);
   });
 
-  it("fires onChangeText", () => {
+  it("fires onChangeText", async () => {
     const onChange = jest.fn();
-    const { getByPlaceholderText } = render(
+    const { getByPlaceholderText } = await render(
       <Input placeholder="Type" onChangeText={onChange} />,
     );
-    fireEvent.changeText(getByPlaceholderText("Type"), "hello");
+    await fireEvent.changeText(getByPlaceholderText("Type"), "hello");
     expect(onChange).toHaveBeenCalledWith("hello");
   });
 
-  it("defaults autoCapitalize to none", () => {
-    const { getByPlaceholderText } = render(<Input placeholder="X" />);
+  it("defaults autoCapitalize to none", async () => {
+    const { getByPlaceholderText } = await render(<Input placeholder="X" />);
     expect(getByPlaceholderText("X").props.autoCapitalize).toBe("none");
   });
 
-  it("defaults autoCorrect to false", () => {
-    const { getByPlaceholderText } = render(<Input placeholder="X" />);
+  it("defaults autoCorrect to false", async () => {
+    const { getByPlaceholderText } = await render(<Input placeholder="X" />);
     expect(getByPlaceholderText("X").props.autoCorrect).toBe(false);
   });
 
-  it("allows overriding autoCapitalize", () => {
-    const { getByPlaceholderText } = render(
+  it("allows overriding autoCapitalize", async () => {
+    const { getByPlaceholderText } = await render(
       <Input placeholder="Name" autoCapitalize="words" />,
     );
     expect(getByPlaceholderText("Name").props.autoCapitalize).toBe("words");
   });
 
-  it("respects editable prop", () => {
-    const { getByPlaceholderText } = render(
+  it("respects editable prop", async () => {
+    const { getByPlaceholderText } = await render(
       <Input placeholder="Locked" editable={false} />,
     );
     expect(getByPlaceholderText("Locked").props.editable).toBe(false);
   });
 
-  it("allows style overrides", () => {
-    const { getByPlaceholderText } = render(
+  it("allows style overrides", async () => {
+    const { getByPlaceholderText } = await render(
       <Input placeholder="Custom" style={{ marginBottom: 20 }} />,
     );
     const el = getByPlaceholderText("Custom");

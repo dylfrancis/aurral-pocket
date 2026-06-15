@@ -16,13 +16,15 @@ beforeEach(() => {
 });
 
 describe("Chip", () => {
-  it("renders label text", () => {
-    const { getByText } = render(<Chip label="Complete" />);
+  it("renders label text", async () => {
+    const { getByText } = await render(<Chip label="Complete" />);
     expect(getByText("Complete")).toBeTruthy();
   });
 
-  it("renders with brand variant colors", () => {
-    const { getByText } = render(<Chip label="Monitored" variant="brand" />);
+  it("renders with brand variant colors", async () => {
+    const { getByText } = await render(
+      <Chip label="Monitored" variant="brand" />,
+    );
     const label = getByText("Monitored");
     const flatStyle = Object.assign(
       {},
@@ -31,8 +33,10 @@ describe("Chip", () => {
     expect(flatStyle.color).toBe(Colors.dark.brandStrong);
   });
 
-  it("renders with subtle variant colors", () => {
-    const { getByText } = render(<Chip label="Unmonitored" variant="subtle" />);
+  it("renders with subtle variant colors", async () => {
+    const { getByText } = await render(
+      <Chip label="Unmonitored" variant="subtle" />,
+    );
     const label = getByText("Unmonitored");
     const flatStyle = Object.assign(
       {},
@@ -41,8 +45,8 @@ describe("Chip", () => {
     expect(flatStyle.color).toBe(Colors.dark.subtle);
   });
 
-  it("renders with error variant colors", () => {
-    const { getByText } = render(<Chip label="Failed" variant="error" />);
+  it("renders with error variant colors", async () => {
+    const { getByText } = await render(<Chip label="Failed" variant="error" />);
     const label = getByText("Failed");
     const flatStyle = Object.assign(
       {},
@@ -51,8 +55,8 @@ describe("Chip", () => {
     expect(flatStyle.color).toBe(Colors.dark.error);
   });
 
-  it("defaults to subtle variant", () => {
-    const { getByText } = render(<Chip label="Default" />);
+  it("defaults to subtle variant", async () => {
+    const { getByText } = await render(<Chip label="Default" />);
     const label = getByText("Default");
     const flatStyle = Object.assign(
       {},
@@ -61,15 +65,15 @@ describe("Chip", () => {
     expect(flatStyle.color).toBe(Colors.dark.subtle);
   });
 
-  it("renders without icon when not provided", () => {
-    const { queryByTestId } = render(<Chip label="No Icon" />);
+  it("renders without icon when not provided", async () => {
+    const { queryByTestId } = await render(<Chip label="No Icon" />);
     // No crash, renders fine without icon
     expect(queryByTestId("chip-icon")).toBeNull();
   });
 
-  it("adapts to light color scheme", () => {
+  it("adapts to light color scheme", async () => {
     mockUseColorScheme.mockReturnValue("light");
-    const { getByText } = render(<Chip label="Light" variant="brand" />);
+    const { getByText } = await render(<Chip label="Light" variant="brand" />);
     const label = getByText("Light");
     const flatStyle = Object.assign(
       {},
