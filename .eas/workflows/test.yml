@@ -1,21 +1,21 @@
-name: Production Release
+name: Test Release
 
-# Fires on every release-please tag. Stable tags (e.g. v1.3.0) build here;
-# prerelease tags (e.g. v1.3.0-test.1) are handled by test.yml — the `if`
-# guards below make this workflow a no-op for them.
+# Fires on release-please prerelease tags from the `test` branch
+# (e.g. v1.3.0-test.1). Builds a store binary and ships it to TestFlight
+# (iOS) and the Play internal track (Android), same as production — promote
+# to closed/open/production tracks manually from there.
 on:
   push:
     tags:
-      - "v*"
+      - "v*-test*"
 
 jobs:
   build_ios:
-    name: Build iOS (production)
+    name: Build iOS (test)
     type: build
-    if: ${{ !contains(github.ref_name, '-test') }}
     params:
       platform: ios
-      profile: production
+      profile: test
       message: ${{ github.ref_name }}
 
   submit_ios:
@@ -27,12 +27,11 @@ jobs:
       profile: ios-testflight
 
   build_android:
-    name: Build Android (production)
+    name: Build Android (test)
     type: build
-    if: ${{ !contains(github.ref_name, '-test') }}
     params:
       platform: android
-      profile: production
+      profile: test
       message: ${{ github.ref_name }}
 
   submit_android:

@@ -2,7 +2,7 @@ name: Release Please
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "test"]
 
 permissions:
   contents: write
@@ -22,3 +22,7 @@ jobs:
       - uses: googleapis/release-please-action@v5
         with:
           token: ${{ steps.app-token.outputs.token }}
+          # Reads release-please-config.json + .release-please-manifest.json
+          # from the tip of this same branch, so `test` (prerelease config)
+          # and `main` (stable config) each drive their own versioning.
+          target-branch: ${{ github.ref_name }}

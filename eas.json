@@ -22,6 +22,9 @@
     "production": {
       "autoIncrement": true,
       "environment": "production"
+    },
+    "test": {
+      "extends": "production"
     }
   },
   "submit": {
