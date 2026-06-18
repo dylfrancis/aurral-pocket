@@ -1,8 +1,0 @@
-# release-please keeps its own config + version state per branch:
-#   main → stable releases, test → prerelease (-test.N) releases.
-# Always keep the current branch's copy when merging across main <-> test,
-# so a sync never drags the prerelease config (or version) onto the other
-# branch. Requires the local "ours" merge driver:
-#   git config merge.ours.driver true
-release-please-config.json merge=ours
-.release-please-manifest.json merge=ours

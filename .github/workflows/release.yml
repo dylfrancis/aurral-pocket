@@ -22,7 +22,11 @@ jobs:
       - uses: googleapis/release-please-action@v5
         with:
           token: ${{ steps.app-token.outputs.token }}
-          # Reads release-please-config.json + .release-please-manifest.json
-          # from the tip of this same branch, so `test` (prerelease config)
-          # and `main` (stable config) each drive their own versioning.
           target-branch: ${{ github.ref_name }}
+          # Each branch uses its own config + manifest so the two never share
+          # a divergent file: main cuts stable releases, test cuts -test
+          # prereleases. Both files exist on both branches; release-please only
+          # writes the manifest for the branch it targets, so main <-> test
+          # merges touch disjoint files and never conflict (no merge driver).
+          config-file: ${{ github.ref_name == 'test' && 'release-please-config.test.json' || 'release-please-config.json' }}
+          manifest-file: ${{ github.ref_name == 'test' && '.release-please-manifest.test.json' || '.release-please-manifest.json' }}
