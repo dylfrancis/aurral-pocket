@@ -2,11 +2,11 @@ import React, { forwardRef, useCallback, useRef } from "react";
 import { Keyboard, Linking, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
-  BottomSheetBackdrop,
   BottomSheetModal,
   BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import { AppSheet } from "@/components/ui/AppSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useForm, Controller } from "react-hook-form";
@@ -73,33 +73,18 @@ export const ConnectSheet = forwardRef<BottomSheetModal>(
       reset();
     }, [reset]);
 
-    const renderBackdrop = useCallback(
-      (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-          opacity={0.5}
-          pressBehavior="close"
-        />
-      ),
-      [],
-    );
-
     const errorMessage =
       errors.url?.message ?? getErrorMessage(connectMutation.error);
 
     return (
-      <BottomSheetModal
+      <AppSheet
         ref={ref}
+        background="card"
         enableDynamicSizing
         enablePanDownToClose
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
         onDismiss={handleDismiss}
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.card }}
-        handleIndicatorStyle={{ backgroundColor: colors.subtle }}
       >
         <BottomSheetView
           style={[styles.content, { paddingBottom: insets.bottom + 16 }]}
@@ -160,7 +145,7 @@ export const ConnectSheet = forwardRef<BottomSheetModal>(
             loading={connectMutation.isPending}
           />
         </BottomSheetView>
-      </BottomSheetModal>
+      </AppSheet>
     );
   },
 );

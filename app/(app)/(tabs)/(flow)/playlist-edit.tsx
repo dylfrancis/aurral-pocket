@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { useEditSnapshot, useUpdateSharedPlaylist } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -143,14 +143,6 @@ function PlaylistEditForm({
     );
   };
 
-  const sectionStyle = useMemo(
-    () => [
-      styles.section,
-      { backgroundColor: colors.card, borderColor: colors.separator },
-    ],
-    [colors.card, colors.separator],
-  );
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -165,7 +157,7 @@ function PlaylistEditForm({
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={sectionStyle}>
+        <Card bordered style={styles.section}>
           <Text
             variant="subtitle"
             style={[
@@ -193,9 +185,9 @@ function PlaylistEditForm({
               {errors.name.message}
             </Text>
           ) : null}
-        </View>
+        </Card>
 
-        <View style={sectionStyle}>
+        <Card bordered style={styles.section}>
           <View style={styles.tracksHead}>
             <Text
               variant="subtitle"
@@ -289,7 +281,7 @@ function PlaylistEditForm({
               {errors.tracks.message}
             </Text>
           ) : null}
-        </View>
+        </Card>
 
         <Button
           title="Save Changes"
@@ -308,8 +300,6 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   section: {
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     gap: 12,
   },

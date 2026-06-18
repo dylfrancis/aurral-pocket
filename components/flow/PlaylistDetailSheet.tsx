@@ -7,10 +7,10 @@ import {
   View,
 } from "react-native";
 import {
-  BottomSheetBackdrop,
   BottomSheetModal,
   useBottomSheetScrollableCreator,
 } from "@gorhom/bottom-sheet";
+import { AppSheet } from "@/components/ui/AppSheet";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -64,17 +64,6 @@ export function PlaylistDetailSheet({
   const dismiss = useCallback(() => {
     sheetRef.current?.dismiss();
   }, [sheetRef]);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
 
   const handleEdit = () => {
     if (!playlist) return;
@@ -236,15 +225,12 @@ export function PlaylistDetailSheet({
   );
 
   return (
-    <BottomSheetModal
+    <AppSheet
       ref={sheetRef}
       snapPoints={["90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
       onDismiss={onClose}
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
-      handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       {playlist ? (
         <FlashList
@@ -257,7 +243,7 @@ export function PlaylistDetailSheet({
           renderScrollComponent={renderScrollComponent}
         />
       ) : null}
-    </BottomSheetModal>
+    </AppSheet>
   );
 }
 

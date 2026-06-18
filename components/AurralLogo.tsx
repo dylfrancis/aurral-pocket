@@ -14,7 +14,7 @@ interface AurralLogoProps {
 
 export function AurralLogo({ size = 56, color }: AurralLogoProps) {
   const colorScheme = useColorScheme();
-  const fillColor = color ?? (colorScheme === "dark" ? "#707e61" : "#4a5840");
+  const fillColor = color ?? (colorScheme === "dark" ? "#84cc16" : "#65a30d");
   const xml = LOGO_SVG.replace('fill="currentColor"', `fill="${fillColor}"`);
   const width = size * ASPECT_RATIO;
 

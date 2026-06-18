@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/library/EmptyState";
 import { Chip } from "@/components/ui/Chip";
+import { Separator } from "@/components/ui/Separator";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -131,7 +132,7 @@ export function ShazamMatchResult({
         </View>
       </View>
 
-      <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+      <Separator style={styles.divider} />
 
       {isLoading ? (
         <ActivityIndicator style={styles.loader} color={colors.brand} />
@@ -292,7 +293,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
     marginBottom: 8,
   },
   sectionLabel: {

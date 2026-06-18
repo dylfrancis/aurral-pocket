@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { Card } from "@/components/ui/Card";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
@@ -46,23 +47,20 @@ export function PlaylistCard({
   const statsKey = stats
     ? `${stats.done}-${stats.total}`
     : `count-${playlist.trackCount}`;
-  useEffect(() => {
+  const [prevStatsKey, setPrevStatsKey] = useState(statsKey);
+  if (prevStatsKey !== statsKey) {
+    setPrevStatsKey(statsKey);
     setImageFailed(false);
     setImageLoaded(false);
-  }, [statsKey]);
+  }
 
   return (
-    <Pressable
+    <Card
       onPress={onPress}
       disabled={isDeleting}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.separator,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
+      bordered
+      pressedOpacity={0.85}
+      style={styles.card}
     >
       <View style={[styles.artwork, { borderColor: colors.separator }]}>
         <FlowArtwork
@@ -123,15 +121,13 @@ export function PlaylistCard({
           )}
         </View>
       </View>
-    </Pressable>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: 12,
     gap: 12,
     alignItems: "center",

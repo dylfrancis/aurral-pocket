@@ -5,6 +5,7 @@ import { LinksSection } from "@/components/settings/sections/LinksSection";
 import { PasswordSection } from "@/components/settings/sections/PasswordSection";
 import { Button } from "@/components/ui/Button";
 import { CloseButton } from "@/components/ui/CloseButton";
+import { Separator } from "@/components/ui/Separator";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
@@ -12,12 +13,9 @@ import { useLogout } from "@/hooks/auth/use-logout";
 import { useSession } from "@/hooks/auth/use-session";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { setAuthToken } from "@/lib/api/client";
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
-import React, { useCallback } from "react";
+import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { AppSheet } from "@/components/ui/AppSheet";
+import React from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -34,34 +32,20 @@ export function SettingsSheet({ sheetRef, onClose }: Props) {
 
   useSession();
 
-  const renderBackdrop = useCallback(
-    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   const handleSignOut = () => {
     sheetRef.current?.dismiss();
     logoutMutation.mutate();
   };
 
   return (
-    <BottomSheetModal
+    <AppSheet
       ref={sheetRef}
       snapPoints={["90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
       onDismiss={onClose}
-      backdropComponent={renderBackdrop}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
-      backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
-      handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       <BottomSheetScrollView
         contentContainerStyle={[
@@ -98,7 +82,7 @@ export function SettingsSheet({ sheetRef, onClose }: Props) {
         <SectionHeading title="Account" />
         <AccountSection />
 
-        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+        <Separator style={styles.divider} />
         <PasswordSection />
 
         <SectionHeading title="About" />
@@ -122,7 +106,7 @@ export function SettingsSheet({ sheetRef, onClose }: Props) {
           ) : null}
         </View>
       </BottomSheetScrollView>
-    </BottomSheetModal>
+    </AppSheet>
   );
 }
 
@@ -168,7 +152,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
     marginVertical: 4,
   },
   signOut: {

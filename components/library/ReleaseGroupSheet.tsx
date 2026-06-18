@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { AppSheet } from "@/components/ui/AppSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -115,27 +112,13 @@ export function ReleaseGroupSheet({
       ? `${type} · ${secondary.join(", ")}`
       : type;
 
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   return (
-    <BottomSheetModal
+    <AppSheet
       ref={sheetRef}
       snapPoints={["60%", "90%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
       onDismiss={handleDismiss}
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
-      handleIndicatorStyle={{ backgroundColor: colors.subtle }}
     >
       <BottomSheetScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
@@ -224,7 +207,7 @@ export function ReleaseGroupSheet({
           </>
         )}
       </BottomSheetScrollView>
-    </BottomSheetModal>
+    </AppSheet>
   );
 }
 

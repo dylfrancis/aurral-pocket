@@ -16,7 +16,7 @@ const TAG_COLORS = [
 ];
 
 export function getTagColor(name: string): string {
-  if (!name) return "#211f27";
+  if (!name) return "#212121";
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);

@@ -1,11 +1,6 @@
-import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Switch,
-  View,
-} from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, StyleSheet, Switch, View } from "react-native";
+import { Card } from "@/components/ui/Card";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
@@ -64,23 +59,20 @@ export function FlowCard({
   // artwork PNG when a flow first runs, so a stats change is a good signal
   // that the previously-404'd URL is now valid.
   const statsKey = stats ? `${stats.done}-${stats.total}` : "none";
-  useEffect(() => {
+  const [prevStatsKey, setPrevStatsKey] = useState(statsKey);
+  if (prevStatsKey !== statsKey) {
+    setPrevStatsKey(statsKey);
     setImageFailed(false);
     setImageLoaded(false);
-  }, [statsKey]);
+  }
 
   return (
-    <Pressable
+    <Card
       onPress={onPress}
       disabled={isDeleting}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.separator,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
+      bordered
+      pressedOpacity={0.85}
+      style={styles.card}
     >
       <View style={styles.topRow}>
         <View style={[styles.artwork, { borderColor: colors.separator }]}>
@@ -150,14 +142,12 @@ export function FlowCard({
           </View>
         ) : null}
       </View>
-    </Pressable>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: 14,
     gap: 12,
   },

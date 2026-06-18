@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Switch, View } from "react-native";
 import type { ErrorBoundaryProps } from "expo-router";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { Text } from "@/components/ui/Text";
+import { Card } from "@/components/ui/Card";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SegmentedRow } from "@/components/flow/SegmentedRow";
@@ -147,12 +148,7 @@ function Section({
   const colors = Colors[useColorScheme()];
 
   return (
-    <View
-      style={[
-        styles.section,
-        { backgroundColor: colors.card, borderColor: colors.separator },
-      ]}
-    >
+    <Card bordered style={styles.section}>
       <View style={styles.sectionHead}>
         <Text
           variant="subtitle"
@@ -170,7 +166,7 @@ function Section({
         ) : null}
       </View>
       {children}
-    </View>
+    </Card>
   );
 }
 
@@ -181,8 +177,6 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   section: {
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     gap: 12,
   },

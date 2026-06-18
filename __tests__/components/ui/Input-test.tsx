@@ -6,7 +6,7 @@ import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { Input } from "@/components/ui/Input";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors, Fonts, Radius } from "@/constants/theme";
 
 const mockUseColorScheme = useColorScheme as jest.Mock;
 
@@ -31,9 +31,10 @@ describe("Input", () => {
       ...el.props.style.flat(Infinity).filter(Boolean),
     );
     expect(flatStyle.backgroundColor).toBe(Colors.dark.inputBackground);
-    expect(flatStyle.borderColor).toBe(Colors.dark.inputBorder);
     expect(flatStyle.color).toBe(Colors.dark.inputText);
     expect(flatStyle.fontFamily).toBe(Fonts.regular);
+    // Borderless filled field per the style guide
+    expect(flatStyle.borderWidth).toBeUndefined();
   });
 
   it("applies light theme colors", async () => {
@@ -45,7 +46,6 @@ describe("Input", () => {
       ...el.props.style.flat(Infinity).filter(Boolean),
     );
     expect(flatStyle.backgroundColor).toBe(Colors.light.inputBackground);
-    expect(flatStyle.borderColor).toBe(Colors.light.inputBorder);
   });
 
   it("fires onChangeText", async () => {
@@ -99,7 +99,7 @@ describe("Input", () => {
       inputThemedStyle,
     } = require("@/components/ui/Input");
     expect(inputBaseStyle).toBeDefined();
-    expect(inputBaseStyle.borderRadius).toBe(12);
+    expect(inputBaseStyle.borderRadius).toBe(Radius.compact);
     const themed = inputThemedStyle("dark");
     expect(themed.backgroundColor).toBe(Colors.dark.inputBackground);
     expect(themed.fontFamily).toBe(Fonts.regular);

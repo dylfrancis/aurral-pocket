@@ -12,6 +12,7 @@ import {
 import { SettingsSheet } from "@/components/settings/SettingsSheet";
 import { ShazamSheet } from "@/components/shazam";
 import { isShazamAvailable } from "@/modules/shazam";
+import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
 import Settings from "@expo/material-symbols/settings.xml";
@@ -44,7 +45,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  View,
 } from "react-native";
 
 export default function DiscoverScreen() {
@@ -241,12 +241,7 @@ export default function DiscoverScreen() {
         }
       >
         {notConfigured ? (
-          <View
-            style={[
-              styles.emptyCard,
-              { backgroundColor: colors.card, borderColor: colors.separator },
-            ]}
-          >
+          <Card bordered style={styles.emptyCard}>
             <Ionicons name="sparkles-outline" size={32} color={colors.subtle} />
             <Text
               variant="body"
@@ -275,7 +270,7 @@ export default function DiscoverScreen() {
                 Open Settings
               </Text>
             </Pressable>
-          </View>
+          </Card>
         ) : (
           <>
             <DiscoverHeaderSection
@@ -377,8 +372,6 @@ const styles = StyleSheet.create({
   emptyCard: {
     margin: 16,
     padding: 20,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
     gap: 10,
     alignItems: "flex-start",
   },
