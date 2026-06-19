@@ -1,7 +1,7 @@
 {
   "name": "aurral-pocket",
   "main": "expo-router/entry",
-  "version": "0.10.0-test",
+  "version": "0.10.0-test.1",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
