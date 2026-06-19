@@ -132,12 +132,62 @@ export type BasedOnArtist = {
   source?: string;
 };
 
+export type DiscoverPlaylistType = "flow" | "release_radar" | "focus";
+
+export type DiscoverPlaylistMix = {
+  discover: number;
+  mix: number;
+  trending: number;
+  focus: number;
+};
+
+export type DiscoverPlaylistRecipe = {
+  discover?: number;
+  mix?: number;
+  trending?: number;
+  focus?: number;
+  releaseRadar?: number;
+};
+
+export type DiscoverPlaylistTrack = {
+  artistName: string | null;
+  trackName: string | null;
+  albumName: string | null;
+  artistMbid: string | null;
+  albumMbid: string | null;
+  trackMbid: string | null;
+  releaseYear: number | null;
+  reason: string | null;
+};
+
+export type DiscoverPlaylist = {
+  presetId: string;
+  name: string;
+  description: string | null;
+  type: DiscoverPlaylistType;
+  mix: DiscoverPlaylistMix;
+  size: number;
+  deepDive: boolean;
+  tags: string[];
+  relatedArtists: string[];
+  recipe: DiscoverPlaylistRecipe;
+  tracks: DiscoverPlaylistTrack[];
+  trackCount: number;
+  artworkStyle?: string;
+  hasArtwork?: boolean;
+  adoptedFlowId: string | null;
+  adoptedPlaylistId: string | null;
+};
+
 export type DiscoveryResponse = {
   recommendations: DiscoveryArtist[];
   globalTop: DiscoveryArtist[];
   basedOn: BasedOnArtist[];
   topTags: string[];
   topGenres: string[];
+  discoverPlaylists?: DiscoverPlaylist[];
+  playlistsUpdating?: boolean;
+  playlistsUpdateMessage?: string;
   lastUpdated: string | null;
   isUpdating: boolean;
   stale?: boolean;

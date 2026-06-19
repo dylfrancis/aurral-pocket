@@ -17,14 +17,9 @@ import { useLibraryArtist } from "@/hooks/library/use-library-artist";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import {
-  useBlocklistMutations,
-  useIsArtistBlocked,
-} from "@/hooks/discover/use-blocklist";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { isValidMbid } from "@/lib/blocklist";
 import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import type {
@@ -40,7 +35,6 @@ import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
 import Sync from "@expo/material-symbols/sync.xml";
 import SearchIcon from "@expo/material-symbols/search.xml";
-import BlockIcon from "@expo/material-symbols/block.xml";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -135,12 +129,6 @@ export function ArtistDetailLayout({
   const canResearchMissing = hasPermission("addAlbum");
   const { missingCount, researchMissing, isResearching } =
     useResearchMissingAlbums(rawAlbums, downloadStatuses);
-
-  const { blocked, loaded: blocklistLoaded } = useIsArtistBlocked(
-    mbid,
-    artistName,
-  );
-  const { toggleArtist, isPending: isTogglingBlock } = useBlocklistMutations();
 
   const pollCount = useRef(0);
   useEffect(() => {
@@ -270,44 +258,6 @@ export function ArtistDetailLayout({
     );
   }, [libraryArtist, deleteMutation]);
 
-  const handleToggleBlock = useCallback(() => {
-    if (!blocklistLoaded || isTogglingBlock) return;
-    const doToggle = () =>
-      toggleArtist({
-        mbid: isValidMbid(mbid) ? mbid : null,
-        name: artistName || null,
-      });
-    if (blocked) {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      doToggle();
-      return;
-    }
-    Alert.alert(
-      `Block ${artistName}?`,
-      "They'll be hidden from Discover, Flow, and nearby shows.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Block",
-          style: "destructive",
-          onPress: () => {
-            void Haptics.notificationAsync(
-              Haptics.NotificationFeedbackType.Warning,
-            );
-            doToggle();
-          },
-        },
-      ],
-    );
-  }, [
-    blocklistLoaded,
-    isTogglingBlock,
-    blocked,
-    mbid,
-    artistName,
-    toggleArtist,
-  ]);
-
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -339,12 +289,12 @@ export function ArtistDetailLayout({
           ),
         }}
       />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon={process.env.EXPO_OS === "ios" ? "ellipsis" : MoreVert}
-          accessibilityLabel="More actions"
-        >
-          {inLibrary && (
+      {inLibrary && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu
+            icon={process.env.EXPO_OS === "ios" ? "ellipsis" : MoreVert}
+            accessibilityLabel="More actions"
+          >
             <Stack.Toolbar.MenuAction
               icon={process.env.EXPO_OS === "ios" ? "arrow.clockwise" : Sync}
               disabled={refreshMutation.isPending}
@@ -355,29 +305,21 @@ export function ArtistDetailLayout({
             >
               {refreshMutation.isPending ? "Refreshing…" : "Refresh"}
             </Stack.Toolbar.MenuAction>
-          )}
-          {inLibrary && canResearchMissing && (
-            <Stack.Toolbar.MenuAction
-              icon={
-                process.env.EXPO_OS === "ios" ? "magnifyingglass" : SearchIcon
-              }
-              hidden={missingCount === 0}
-              disabled={isResearching}
-              onPress={() => researchMissing()}
-            >
-              {`Re-search Missing (${missingCount})`}
-            </Stack.Toolbar.MenuAction>
-          )}
-          <Stack.Toolbar.MenuAction
-            icon={process.env.EXPO_OS === "ios" ? "nosign" : BlockIcon}
-            destructive={!blocked}
-            disabled={!blocklistLoaded || isTogglingBlock}
-            onPress={handleToggleBlock}
-          >
-            {blocked ? "Unblock artist" : "Block artist"}
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+            {canResearchMissing && (
+              <Stack.Toolbar.MenuAction
+                icon={
+                  process.env.EXPO_OS === "ios" ? "magnifyingglass" : SearchIcon
+                }
+                hidden={missingCount === 0}
+                disabled={isResearching}
+                onPress={() => researchMissing()}
+              >
+                {`Re-search Missing (${missingCount})`}
+              </Stack.Toolbar.MenuAction>
+            )}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      )}
       <Animated.ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         onScroll={scrollHandler}

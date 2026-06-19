@@ -8,12 +8,12 @@ const STORAGE_KEY_PREFIX = "discoverLayout";
 
 export const DEFAULT_DISCOVER_SECTIONS: readonly DiscoverSection[] = [
   { id: "recentlyAdded", label: "Recently Added", enabled: true },
+  { id: "playlists", label: "Playlists for You", enabled: true },
   { id: "recommendedShows", label: "Shows Near You", enabled: true },
   { id: "recentReleases", label: "Recent Releases", enabled: true },
   { id: "recommended", label: "Recommended for You", enabled: true },
   { id: "globalTop", label: "Global Trending", enabled: true },
   { id: "genreSections", label: "Because You Like", enabled: true },
-  { id: "topTags", label: "Explore by Tag", enabled: true },
 ];
 
 const cloneDefaults = (): DiscoverSection[] =>
@@ -77,7 +77,14 @@ export function useDiscoverLayout(): UseDiscoverLayoutResult {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const [sections, setSections] = useState<DiscoverSection[]>(cloneDefaults);
-  const [hydrated, setHydrated] = useState(false);
+  // Holds the userId whose layout we've finished loading; `undefined` until the
+  // first load completes. Deriving `hydrated` from it (rather than resetting a
+  // boolean synchronously in the effect) keeps it correct across user changes
+  // without a setState in the effect body.
+  const [hydratedUserId, setHydratedUserId] = useState<
+    number | null | undefined
+  >(undefined);
+  const hydrated = hydratedUserId === userId;
   const sectionsRef = useRef(sections);
 
   useEffect(() => {
@@ -86,12 +93,11 @@ export function useDiscoverLayout(): UseDiscoverLayoutResult {
 
   useEffect(() => {
     let cancelled = false;
-    setHydrated(false);
     (async () => {
       const local = await readStoredLayout(userId);
       if (cancelled) return;
       setSections(local ?? cloneDefaults());
-      setHydrated(true);
+      setHydratedUserId(userId);
       if (!userId) return;
       try {
         const response = await getMyDiscoverLayout();

@@ -78,9 +78,11 @@ export type WorkerStatus = {
   stats: PlaylistStats;
 };
 
-export type SoulseekStatus = {
+export type SlskdStatus = {
   configured: boolean;
   connected: boolean;
+  downloadPath?: string | null;
+  serverState?: string | null;
 };
 
 export type OperationQueueStatus = {
@@ -90,7 +92,7 @@ export type OperationQueueStatus = {
 
 export type FlowStatusSnapshot = {
   worker: WorkerStatus;
-  soulseek: SoulseekStatus;
+  slskd: SlskdStatus;
   stats: PlaylistStats;
   flowStats: Record<string, PlaylistStats>;
   sharedStats: PlaylistStats;
@@ -104,11 +106,15 @@ export type FlowStatusSnapshot = {
   hint: StatusHint;
 };
 
+export type ExistingFileMode = "download" | "reuse";
+
 export type WorkerSettings = {
   concurrency: 1 | 2 | 3;
-  preferredFormat: "flac" | "mp3";
-  preferredFormatStrict: boolean;
-  retryCycleMinutes: 15 | 30 | 60 | 360 | 720 | 1440;
+  /**
+   * "reuse" matches tracks against existing Aurral/Lidarr files before
+   * downloading; "download" always fetches fresh.
+   */
+  existingFileMode: ExistingFileMode;
 };
 
 export type FlowFormValues = {
@@ -169,10 +175,6 @@ export const MIX_PRESETS: { id: string; label: string; mix: MixPercent }[] = [
     mix: { discover: 30, mix: 20, trending: 10, focus: 40 },
   },
 ];
-
-export const RETRY_CYCLE_OPTIONS_MINUTES = [
-  15, 30, 60, 360, 720, 1440,
-] as const;
 
 export const FLOW_SIZE_MIN = 10;
 export const FLOW_SIZE_MAX = 100;

@@ -74,6 +74,58 @@ export async function getRecentReleases() {
   return r.data;
 }
 
+export type AdoptDiscoverFlowResponse = {
+  success: boolean;
+  flowId: string;
+  alreadyAdopted?: boolean;
+};
+
+export type AdoptDiscoverStaticResponse = {
+  success: boolean;
+  playlistId: string;
+  alreadyAdopted?: boolean;
+};
+
+export async function adoptDiscoverPlaylistAsFlow(presetId: string) {
+  const r = await api.post<AdoptDiscoverFlowResponse>(
+    "/discover/playlists/adopt",
+    { presetId },
+  );
+  return r.data;
+}
+
+export async function adoptDiscoverPlaylistAsStatic(presetId: string) {
+  const r = await api.post<AdoptDiscoverStaticResponse>(
+    "/discover/playlists/adopt-playlist",
+    { presetId },
+  );
+  return r.data;
+}
+
+export type AuthedImageSource = {
+  uri: string;
+  headers?: Record<string, string>;
+};
+
+/**
+ * Authenticated image source for a discover playlist's generated cover. The
+ * backend serves it from /discover/artwork/:presetId behind token auth; expo
+ * passes the Bearer header for us. `version` (the discovery `lastUpdated`
+ * stamp) busts the cache when the playlist is rebuilt.
+ */
+export function getDiscoverArtworkSource(
+  presetId: string,
+  token: string | null,
+  version?: string | null,
+): AuthedImageSource {
+  const base = api.defaults.baseURL;
+  const v = version ? `?v=${encodeURIComponent(version)}` : "";
+  const uri = `${base}/discover/artwork/${encodeURIComponent(presetId)}${v}`;
+  return token
+    ? { uri, headers: { Authorization: `Bearer ${token}` } }
+    : { uri };
+}
+
 export async function getNearbyShows(zipCode?: string, limit?: number) {
   const params: Record<string, string | number> = {};
   const trimmed = zipCode?.trim();
