@@ -5,7 +5,10 @@ import { useAuth } from "@/contexts/auth-context";
 
 export function AboutSection() {
   const { serverUrl } = useAuth();
-  const version = Constants.expoConfig?.version ?? "unknown";
+  const version =
+    (Constants.expoConfig?.extra?.fullVersion as string | undefined) ??
+    Constants.expoConfig?.version ??
+    "unknown";
 
   return (
     <View style={styles.container}>
