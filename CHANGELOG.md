@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0-test.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.0-test...v0.10.0-test.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* **ios:** sanitize prerelease version for CFBundleShortVersionString ([#149](https://github.com/dylfrancis/aurral-pocket/issues/149)) ([85e1e41](https://github.com/dylfrancis/aurral-pocket/commit/85e1e41a9a82f7845fd17919cebb062af6280e4d))
+
 ## [0.10.0-test](https://github.com/dylfrancis/aurral-pocket/compare/v0.9.0...v0.10.0-test) (2026-06-19)
 
 
