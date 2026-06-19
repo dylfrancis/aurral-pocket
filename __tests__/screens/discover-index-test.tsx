@@ -62,7 +62,7 @@ jest.mock("@/components/discover", () => {
     RecommendedForYouSection: stub("recommended"),
     GlobalTrendingSection: stub("globalTop"),
     GenreSectionsPanel: stub("genreSections"),
-    ExploreByTagSection: stub("topTags"),
+    DiscoverPlaylistsSection: stub("playlists"),
     CustomizeDiscoverSheet: () => null,
   };
 });
@@ -124,13 +124,13 @@ describe("DiscoverScreen layout", () => {
     const { queryByTestId } = await render(<DiscoverScreen />);
     expect(queryByTestId("section-header")).toBeTruthy();
     expect(queryByTestId("section-recentlyAdded")).toBeNull();
-    expect(queryByTestId("section-topTags")).toBeNull();
+    expect(queryByTestId("section-playlists")).toBeNull();
   });
 
   it("renders only enabled sections in layout order", async () => {
     mockUseDiscoverLayout.mockReturnValue({
       sections: [
-        { id: "topTags", label: "Explore by Tag", enabled: true },
+        { id: "playlists", label: "Playlists for You", enabled: true },
         { id: "recentlyAdded", label: "Recently Added", enabled: false },
         { id: "recommended", label: "Recommended for You", enabled: true },
       ],
@@ -140,13 +140,16 @@ describe("DiscoverScreen layout", () => {
 
     const { queryByTestId, getAllByTestId } = await render(<DiscoverScreen />);
     expect(queryByTestId("section-recentlyAdded")).toBeNull();
-    expect(queryByTestId("section-topTags")).toBeTruthy();
+    expect(queryByTestId("section-playlists")).toBeTruthy();
     expect(queryByTestId("section-recommended")).toBeTruthy();
 
     const renderedIds = getAllByTestId(/^section-/).map(
       (node) => node.props.testID,
     );
     const customizableIds = renderedIds.filter((id) => id !== "section-header");
-    expect(customizableIds).toEqual(["section-topTags", "section-recommended"]);
+    expect(customizableIds).toEqual([
+      "section-playlists",
+      "section-recommended",
+    ]);
   });
 });

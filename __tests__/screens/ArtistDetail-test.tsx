@@ -247,17 +247,6 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: jest.fn(() => () => true),
 }));
 
-// Mock the blocklist hooks so the screen doesn't fire the real useQuery (which
-// would hit the network via the api client). v14's async fireEvent flushes that
-// background query, surfacing the otherwise-leaked request as a test failure.
-jest.mock("@/hooks/discover/use-blocklist", () => ({
-  useIsArtistBlocked: jest.fn(() => ({ blocked: false, loaded: true })),
-  useBlocklistMutations: jest.fn(() => ({
-    toggleArtist: jest.fn(),
-    isPending: false,
-  })),
-}));
-
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

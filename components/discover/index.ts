@@ -3,7 +3,7 @@ export { RecentlyAddedSection } from "./RecentlyAddedSection";
 export { RecommendedForYouSection } from "./RecommendedForYouSection";
 export { GlobalTrendingSection } from "./GlobalTrendingSection";
 export { GenreSectionsPanel } from "./GenreSectionsPanel";
-export { ExploreByTagSection } from "./ExploreByTagSection";
+export { DiscoverPlaylistsSection } from "./DiscoverPlaylistsSection";
 export { RecentReleasesSection } from "./RecentReleasesSection";
 export { ShowsNearYouSection } from "./ShowsNearYouSection";
 export { NearbyShowRow } from "./NearbyShowRow";

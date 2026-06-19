@@ -1,9 +1,10 @@
-export type ListenHistoryProvider = "lastfm" | "listenbrainz";
+export type ListenHistoryProvider = "lastfm" | "listenbrainz" | "koito";
 
 export type ListenHistorySettings = {
   listenHistoryProvider: ListenHistoryProvider | null;
   listenHistoryUsername: string | null;
   lastfmUsername: string | null;
+  listenHistoryUrl: string | null;
 };
 
 export type UpdateListenHistoryPayload = {
@@ -18,12 +19,12 @@ export type ChangePasswordPayload = {
 
 export type DiscoverSectionId =
   | "recentlyAdded"
+  | "playlists"
   | "recommendedShows"
   | "recentReleases"
   | "recommended"
   | "globalTop"
-  | "genreSections"
-  | "topTags";
+  | "genreSections";
 
 export type DiscoverSection = {
   id: DiscoverSectionId;

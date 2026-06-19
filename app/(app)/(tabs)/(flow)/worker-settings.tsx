@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ScrollView, StyleSheet, Switch, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import type { ErrorBoundaryProps } from "expo-router";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { Text } from "@/components/ui/Text";
@@ -10,7 +10,7 @@ import { SegmentedRow } from "@/components/flow/SegmentedRow";
 import { useUpdateWorkerSettings, useWorkerSettings } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { RETRY_CYCLE_OPTIONS_MINUTES, WorkerSettings } from "@/lib/types/flow";
+import { WorkerSettings } from "@/lib/types/flow";
 
 const CONCURRENCY_OPTIONS = [
   { value: 1 as const, label: "1" },
@@ -18,24 +18,10 @@ const CONCURRENCY_OPTIONS = [
   { value: 3 as const, label: "3" },
 ];
 
-const FORMAT_OPTIONS = [
-  { value: "flac" as const, label: "FLAC" },
-  { value: "mp3" as const, label: "MP3" },
+const EXISTING_FILE_MODE_OPTIONS = [
+  { value: "reuse" as const, label: "Reuse" },
+  { value: "download" as const, label: "Download" },
 ];
-
-const RETRY_LABELS: Record<number, string> = {
-  15: "15 min",
-  30: "30 min",
-  60: "1 hr",
-  360: "6 hr",
-  720: "12 hr",
-  1440: "24 hr",
-};
-
-const RETRY_OPTIONS = RETRY_CYCLE_OPTIONS_MINUTES.map((minutes) => ({
-  value: minutes,
-  label: RETRY_LABELS[minutes] ?? `${minutes} min`,
-}));
 
 export default function WorkerSettingsScreen() {
   const colors = Colors[useColorScheme()];
@@ -76,43 +62,13 @@ export default function WorkerSettingsScreen() {
       </Section>
 
       <Section
-        title="Preferred Format"
-        subtitle="Try this format first when matching candidates."
+        title="Existing Files"
+        subtitle="Reuse tracks already in Aurral or Lidarr before downloading new copies."
       >
         <SegmentedRow
-          value={data.preferredFormat}
-          options={FORMAT_OPTIONS}
-          onChange={(preferredFormat) => apply({ preferredFormat })}
-        />
-        <View style={[styles.toggleRow, { borderColor: colors.separator }]}>
-          <View style={{ flex: 1 }}>
-            <Text variant="body" style={{ fontFamily: Fonts.medium }}>
-              Strict
-            </Text>
-            <Text variant="caption">
-              Skip non-matching candidates instead of falling back.
-            </Text>
-          </View>
-          <Switch
-            value={data.preferredFormatStrict}
-            onValueChange={(preferredFormatStrict) =>
-              apply({ preferredFormatStrict })
-            }
-            trackColor={{ false: colors.separator, true: colors.brand }}
-            thumbColor={colors.switchThumb}
-            ios_backgroundColor={colors.separator}
-          />
-        </View>
-      </Section>
-
-      <Section
-        title="Retry Cycle"
-        subtitle="How often the worker retries incomplete playlists."
-      >
-        <SegmentedRow
-          value={data.retryCycleMinutes}
-          options={RETRY_OPTIONS}
-          onChange={(retryCycleMinutes) => apply({ retryCycleMinutes })}
+          value={data.existingFileMode}
+          options={EXISTING_FILE_MODE_OPTIONS}
+          onChange={(existingFileMode) => apply({ existingFileMode })}
         />
       </Section>
     </ScrollView>
@@ -186,14 +142,5 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     lineHeight: 22,
-  },
-  toggleRow: {
-    height: 60,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    gap: 12,
   },
 });

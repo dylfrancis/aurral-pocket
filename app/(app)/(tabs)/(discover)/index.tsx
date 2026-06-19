@@ -1,7 +1,7 @@
 import {
   CustomizeDiscoverSheet,
   DiscoverHeaderSection,
-  ExploreByTagSection,
+  DiscoverPlaylistsSection,
   GenreSectionsPanel,
   GlobalTrendingSection,
   RecentlyAddedSection,
@@ -290,6 +290,8 @@ export default function DiscoverScreen() {
                             onViewAll={handleViewAllRecentlyAdded}
                           />
                         );
+                      case "playlists":
+                        return <DiscoverPlaylistsSection key={section.id} />;
                       case "recommendedShows":
                         return (
                           <ShowsNearYouSection
@@ -329,13 +331,6 @@ export default function DiscoverScreen() {
                             key={section.id}
                             onArtistPress={handleGenreArtistPress}
                             onViewAllGenre={handleTagPress}
-                          />
-                        );
-                      case "topTags":
-                        return (
-                          <ExploreByTagSection
-                            key={section.id}
-                            onTagPress={handleTagPress}
                           />
                         );
                       default:

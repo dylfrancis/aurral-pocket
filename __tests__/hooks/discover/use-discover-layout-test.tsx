@@ -68,10 +68,10 @@ describe("normalizeDiscoverLayout", () => {
   it("drops unknown ids and appends missing defaults at the end", () => {
     const input = [
       { id: "unknown", enabled: true },
-      { id: "topTags", enabled: false },
+      { id: "playlists", enabled: false },
     ];
     const result = normalizeDiscoverLayout(input);
-    expect(result?.[0]).toMatchObject({ id: "topTags", enabled: false });
+    expect(result?.[0]).toMatchObject({ id: "playlists", enabled: false });
     expect(result?.map((s) => s.id)).toEqual(
       expect.arrayContaining(DEFAULT_DISCOVER_SECTIONS.map((s) => s.id)),
     );
@@ -138,13 +138,15 @@ describe("useDiscoverLayout", () => {
   it("server response overrides local after hydration", async () => {
     mockStorage.getItem.mockResolvedValue(null);
     mockGetLayout.mockResolvedValue({
-      layout: [{ id: "topTags", enabled: false }],
+      layout: [{ id: "playlists", enabled: false }],
     });
 
     const { result } = await renderHook(() => useDiscoverLayout());
 
     await waitFor(() => expect(result.current.hydrated).toBe(true));
-    await waitFor(() => expect(result.current.sections[0].id).toBe("topTags"));
+    await waitFor(() =>
+      expect(result.current.sections[0].id).toBe("playlists"),
+    );
     expect(result.current.sections[0].enabled).toBe(false);
     await waitFor(() =>
       expect(mockStorage.setItem).toHaveBeenCalledWith(

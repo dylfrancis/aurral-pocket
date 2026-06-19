@@ -38,6 +38,8 @@ export function useUpdateListeningHistory() {
           listenHistoryUsername:
             next.listenHistoryUsername ?? prev?.listenHistoryUsername ?? null,
           lastfmUsername: next.lastfmUsername ?? prev?.lastfmUsername ?? null,
+          listenHistoryUrl:
+            next.listenHistoryUrl ?? prev?.listenHistoryUrl ?? null,
         }),
       );
     },
