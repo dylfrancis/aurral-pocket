@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.0-test](https://github.com/dylfrancis/aurral-pocket/compare/v0.9.0...v0.10.0-test) (2026-06-19)
+
+
+### Features
+
+* **discover:** sync API contract with aurral test backend ([#148](https://github.com/dylfrancis/aurral-pocket/issues/148)) ([58441ad](https://github.com/dylfrancis/aurral-pocket/commit/58441ad047153d16b4965ebc17d6738c34511613))
+* **ui:** ui refresh and update to match aurral 2.0 ([#146](https://github.com/dylfrancis/aurral-pocket/issues/146)) ([0689487](https://github.com/dylfrancis/aurral-pocket/commit/06894877279f4aae324999c83ae063291daaab7b))
+
 ## [0.9.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.8.2...v0.9.0) (2026-06-11)
 
 
