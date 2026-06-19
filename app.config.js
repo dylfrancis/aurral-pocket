@@ -1,3 +1,4 @@
+/* global __dirname */
 // Extends the static app.json. Expo loads app.json and passes it here as
 // `config`, with .env / .env.local already merged into process.env.
 //
@@ -26,8 +27,19 @@ function resolveShazamToken() {
 }
 
 module.exports = ({ config }) => {
+  // release-please bumps app.json's version, and on the `test` track that's a
+  // prerelease string like "0.10.0-test". iOS CFBundleShortVersionString only
+  // accepts one-to-three dot-separated integers, so strip any prerelease/build
+  // suffix for the native marketing version. The full string is preserved in
+  // `extra.fullVersion` so the About screen can still show "-test" on QA builds.
+  const fullVersion = config.version;
+  if (typeof config.version === "string") {
+    config.version = config.version.split("-")[0];
+  }
+
   config.extra = {
     ...(config.extra ?? {}),
+    fullVersion,
     shazamDeveloperToken: resolveShazamToken(),
   };
   return config;
