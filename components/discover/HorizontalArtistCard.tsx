@@ -13,6 +13,7 @@ export type HorizontalArtistCardProps = {
   isInLibrary?: boolean;
   onPress: () => void;
   fill?: boolean;
+  imageUrl?: string | null;
 };
 
 const CARD_WIDTH = 130;
@@ -24,6 +25,7 @@ function HorizontalArtistCardComponent({
   isInLibrary,
   onPress,
   fill,
+  imageUrl,
 }: HorizontalArtistCardProps) {
   const colors = Colors[useColorScheme()];
 
@@ -41,6 +43,7 @@ function HorizontalArtistCardComponent({
           mbid={mbid}
           size={fill ? "fill" : CARD_WIDTH}
           borderRadius={10}
+          imageUrl={imageUrl}
         />
         {isInLibrary && (
           <View style={[styles.badge, { backgroundColor: colors.card }]}>

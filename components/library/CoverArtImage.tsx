@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { Image, type ImageStyle } from "expo-image";
-import { Ionicons } from "@expo/vector-icons";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Colors } from "@/constants/theme";
 import { useCoverArtUrl } from "@/hooks/library/use-cover-art-url";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import type { CoverArtType } from "@/lib/types/library";
+import { Ionicons } from "@expo/vector-icons";
+import { Image, type ImageStyle } from "expo-image";
+import { useState } from "react";
+import { StyleSheet, View } from "react-native";
 
 type CoverArtImageProps = {
   type: CoverArtType;
@@ -15,6 +15,7 @@ type CoverArtImageProps = {
   style?: ImageStyle;
   borderRadius?: number;
   blurRadius?: number;
+  imageUrl?: string | null;
 };
 
 export function CoverArtImage({
@@ -24,8 +25,13 @@ export function CoverArtImage({
   style,
   borderRadius = 8,
   blurRadius,
+  imageUrl,
 }: CoverArtImageProps) {
-  const { url, isLoading } = useCoverArtUrl({ type, mbid });
+  const { url, isLoading } = useCoverArtUrl({
+    type,
+    mbid,
+    providedUrl: imageUrl,
+  });
   const colors = Colors[useColorScheme()];
   const recyclingKey = `${type}-${mbid}`;
   const [loadedKey, setLoadedKey] = useState<string | null>(null);

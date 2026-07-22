@@ -56,6 +56,7 @@ export function RecommendedForYouSection({ onArtistPress, onViewAll }: Props) {
             key={artist.id}
             mbid={artist.id}
             name={artist.name}
+            imageUrl={artist.imageUrl ?? artist.image}
             subtitle={
               artist.sourceArtist
                 ? `Similar to ${artist.sourceArtist}`

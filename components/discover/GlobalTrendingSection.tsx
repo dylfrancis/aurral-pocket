@@ -56,6 +56,7 @@ export function GlobalTrendingSection({ onArtistPress, onViewAll }: Props) {
             key={artist.id}
             mbid={artist.id}
             name={artist.name}
+            imageUrl={artist.imageUrl ?? artist.image}
             isInLibrary={isInLibrary(artist.id)}
             onPress={() => onArtistPress(artist)}
           />
