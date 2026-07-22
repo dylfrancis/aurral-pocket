@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0-test.2](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.0-test.1...v0.10.0-test.2) (2026-07-22)
+
+
+### Bug Fixes
+
+* **discover:** contain Playlists for You card artwork ([#154](https://github.com/dylfrancis/aurral-pocket/issues/154)) ([3fbc1f7](https://github.com/dylfrancis/aurral-pocket/commit/3fbc1f7e2153e2bd460cdd485ad2a766bdab57b6)), closes [#153](https://github.com/dylfrancis/aurral-pocket/issues/153)
+
 ## [0.10.0-test.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.0-test...v0.10.0-test.1) (2026-06-19)
 
 
