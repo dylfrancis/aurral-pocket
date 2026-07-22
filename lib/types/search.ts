@@ -132,7 +132,14 @@ export type BasedOnArtist = {
   source?: string;
 };
 
-export type DiscoverPlaylistType = "flow" | "release_radar" | "focus";
+export type DiscoverPlaylistType =
+  | "flow"
+  | "release_radar"
+  | "focus"
+  // Editorial/genre playlists come from a leaner builder that omits tags,
+  // relatedArtists, mix, and recipe (see editorialPlaylistBuilder on the
+  // backend). Keep the extra shape fields optional below.
+  | "editorial";
 
 export type DiscoverPlaylistMix = {
   discover: number;
@@ -165,18 +172,22 @@ export type DiscoverPlaylist = {
   name: string;
   description: string | null;
   type: DiscoverPlaylistType;
-  mix: DiscoverPlaylistMix;
   size: number;
-  deepDive: boolean;
-  tags: string[];
-  relatedArtists: string[];
-  recipe: DiscoverPlaylistRecipe;
   tracks: DiscoverPlaylistTrack[];
   trackCount: number;
   artworkStyle?: string;
   hasArtwork?: boolean;
-  adoptedFlowId: string | null;
-  adoptedPlaylistId: string | null;
+  adoptedFlowId?: string | null;
+  adoptedPlaylistId?: string | null;
+  // Present on personalized playlists; omitted by the editorial builder.
+  mix?: DiscoverPlaylistMix;
+  deepDive?: boolean;
+  tags?: string[];
+  relatedArtists?: string[];
+  recipe?: DiscoverPlaylistRecipe;
+  // Editorial-only fields.
+  editorialType?: string;
+  tag?: string;
 };
 
 export type DiscoveryResponse = {
