@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { FlowArtwork } from "@/components/flow/FlowArtwork";
 import { useAuth } from "@/contexts/auth-context";
@@ -38,18 +37,18 @@ export function DiscoverPlaylistCard({ playlist, version, onPress }: Props) {
   const adopted = !!playlist.adoptedFlowId || !!playlist.adoptedPlaylistId;
 
   return (
-    <Card
+    <Pressable
       onPress={onPress}
-      bordered
-      pressedOpacity={0.85}
-      style={[styles.card, { width: CARD_WIDTH }]}
+      style={({ pressed }) => [
+        { width: CARD_WIDTH, opacity: pressed ? 0.7 : 1 },
+      ]}
     >
-      <View style={[styles.artwork, { borderColor: colors.separator }]}>
+      <View style={styles.artwork}>
         <FlowArtwork
           name={playlist.name}
           kind={playlist.type === "flow" ? "flow" : "playlist"}
           size={ART_SIZE}
-          radius={12}
+          radius={10}
         />
         {showArtwork ? (
           <Image
@@ -68,42 +67,42 @@ export function DiscoverPlaylistCard({ playlist, version, onPress }: Props) {
           </View>
         ) : null}
       </View>
-      <Text
-        variant="body"
-        numberOfLines={1}
-        style={[styles.title, { color: colors.text }]}
-      >
-        {playlist.name}
-      </Text>
-      {subtitle ? (
+      <View style={styles.info}>
         <Text
-          variant="caption"
-          numberOfLines={2}
-          style={{ color: colors.subtle }}
+          variant="body"
+          numberOfLines={1}
+          style={[styles.title, { color: colors.text }]}
         >
-          {subtitle}
+          {playlist.name}
         </Text>
-      ) : (
-        <Text variant="caption" style={{ color: colors.subtle }}>
-          {playlist.trackCount} tracks
-        </Text>
-      )}
-    </Card>
+        {subtitle ? (
+          <Text
+            variant="caption"
+            numberOfLines={2}
+            style={{ color: colors.subtle }}
+          >
+            {subtitle}
+          </Text>
+        ) : (
+          <Text variant="caption" style={{ color: colors.subtle }}>
+            {playlist.trackCount} tracks
+          </Text>
+        )}
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 8,
-    gap: 6,
-  },
   artwork: {
     width: ART_SIZE,
     height: ART_SIZE,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
     overflow: "hidden",
-    marginBottom: 2,
+  },
+  info: {
+    paddingTop: 8,
+    gap: 2,
   },
   badge: {
     position: "absolute",
