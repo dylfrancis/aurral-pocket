@@ -6,7 +6,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Ionicons } from "@expo/vector-icons";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { EmptyState } from "@/components/library/EmptyState";
@@ -378,3 +379,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
   },
 });
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <RouteErrorBoundary {...props} message="Failed to load search" />;
+}
