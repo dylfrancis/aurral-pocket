@@ -15,7 +15,7 @@ jest.mock("@/lib/api/search", () => ({
 }));
 
 import React from "react";
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { cleanup, renderHook, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   getDiscovery,
@@ -35,10 +35,17 @@ const mockGetRecentlyAdded = getRecentlyAdded as jest.Mock;
 const mockGetRecentReleases = getRecentReleases as jest.Mock;
 const mockGetNearbyShows = getNearbyShows as jest.Mock;
 
+// The discover hooks set their own multi-hour gcTime, which overrides the
+// gcTime: 0 default below. React Query arms a setTimeout(gcTime) per cache entry
+// once its last observer unmounts, so without an explicit clear() each test
+// leaves a 30-60 minute timer holding the event loop open and Jest never exits.
+const clients: QueryClient[] = [];
+
 function makeWrapper() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
+  clients.push(client);
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -49,6 +56,15 @@ function makeWrapper() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  // Unmount before clearing: Jest runs same-level afterEach hooks in reverse
+  // registration order, so the library's own cleanup would otherwise run after
+  // this one and re-arm the gc timers that clear() just dropped.
+  cleanup();
+  clients.forEach((client) => client.clear());
+  clients.length = 0;
 });
 
 describe("useDiscovery", () => {

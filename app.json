@@ -55,6 +55,7 @@
       "expo-image",
       "expo-web-browser",
       "expo-audio",
+      "expo-status-bar",
       "expo-asset",
       [
         "expo-local-authentication",

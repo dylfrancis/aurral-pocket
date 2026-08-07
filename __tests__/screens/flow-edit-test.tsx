@@ -106,7 +106,14 @@ const status = {
 
 async function renderScreen() {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      // Unmounting the screen arms a gc timer per mutation, and React Query's
+      // default of 5 minutes outlives the test and stops Jest from exiting.
+      // Infinity (as above for queries) is skipped rather than scheduled, but
+      // mutations need a real cache entry here, so use 0 to let it fire at once.
+      mutations: { gcTime: 0 },
+    },
   });
   client.setQueryData(flowKeys.status(), status);
   const utils = await render(
