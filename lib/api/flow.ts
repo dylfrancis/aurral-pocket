@@ -8,15 +8,22 @@ import type {
   WorkerSettings,
 } from "@/lib/types/flow";
 
+// Aurral 2.0 remounted the weekly-flow router at /api/playlists
+// (`backend/server.js`: app.use("/api/playlists", weeklyFlowRouter)). The old
+// /api/weekly-flow prefix still answers, but only as a 308 redirect shim — that
+// costs a round-trip on every flow request and there is no guarantee upstream
+// keeps it. Everything here targets the real mount.
+const FLOW = "/playlists";
+
 export async function getFlowStatus(): Promise<FlowStatusSnapshot> {
-  const r = await api.get<FlowStatusSnapshot>("/weekly-flow/status", {
+  const r = await api.get<FlowStatusSnapshot>(`${FLOW}/status`, {
     params: { includeJobs: 1 },
   });
   return r.data;
 }
 
 export async function getWorkerSettings(): Promise<WorkerSettings> {
-  const r = await api.get<WorkerSettings>("/weekly-flow/worker/settings");
+  const r = await api.get<WorkerSettings>(`${FLOW}/worker/settings`);
   return r.data;
 }
 
@@ -24,7 +31,7 @@ export async function updateWorkerSettings(
   settings: Partial<WorkerSettings>,
 ): Promise<WorkerSettings> {
   const r = await api.put<{ success: boolean; settings: WorkerSettings }>(
-    "/weekly-flow/worker/settings",
+    `${FLOW}/worker/settings`,
     settings,
   );
   return r.data.settings;
@@ -32,7 +39,7 @@ export async function updateWorkerSettings(
 
 export async function createFlow(payload: FlowFormValues): Promise<Flow> {
   const r = await api.post<{ success: boolean; flow: Flow }>(
-    "/weekly-flow/flows",
+    `${FLOW}/flows`,
     payload,
   );
   return r.data.flow;
@@ -43,25 +50,25 @@ export async function updateFlow(
   payload: Partial<FlowFormValues>,
 ): Promise<Flow> {
   const r = await api.put<{ success: boolean; flow: Flow }>(
-    `/weekly-flow/flows/${flowId}`,
+    `${FLOW}/flows/${flowId}`,
     payload,
   );
   return r.data.flow;
 }
 
 export async function deleteFlow(flowId: string): Promise<void> {
-  await api.delete(`/weekly-flow/flows/${flowId}`);
+  await api.delete(`${FLOW}/flows/${flowId}`);
 }
 
 export async function setFlowEnabled(
   flowId: string,
   enabled: boolean,
 ): Promise<void> {
-  await api.put(`/weekly-flow/flows/${flowId}/enabled`, { enabled });
+  await api.put(`${FLOW}/flows/${flowId}/enabled`, { enabled });
 }
 
 export async function startFlow(flowId: string, limit?: number): Promise<void> {
-  await api.post(`/weekly-flow/start/${flowId}`, limit ? { limit } : {});
+  await api.post(`${FLOW}/start/${flowId}`, limit ? { limit } : {});
 }
 
 export async function convertFlowToStaticPlaylist(
@@ -69,7 +76,7 @@ export async function convertFlowToStaticPlaylist(
   name?: string,
 ): Promise<SharedPlaylist> {
   const r = await api.post<{ success: boolean; playlist: SharedPlaylist }>(
-    `/weekly-flow/flows/${flowId}/static-playlist`,
+    `${FLOW}/flows/${flowId}/static-playlist`,
     name ? { name } : {},
   );
   return r.data.playlist;
@@ -80,30 +87,31 @@ export async function updateSharedPlaylist(
   payload: { name?: string; tracks?: SharedPlaylistTrack[] },
 ): Promise<SharedPlaylist> {
   const r = await api.put<{ success: boolean; playlist: SharedPlaylist }>(
-    `/weekly-flow/shared-playlists/${playlistId}`,
+    `${FLOW}/shared-playlists/${playlistId}`,
     payload,
   );
   return r.data.playlist;
 }
 
 export async function deleteSharedPlaylist(playlistId: string): Promise<void> {
-  await api.delete(`/weekly-flow/shared-playlists/${playlistId}`);
+  await api.delete(`${FLOW}/shared-playlists/${playlistId}`);
 }
 
 export async function deleteSharedPlaylistTrack(
   playlistId: string,
   jobId: string,
 ): Promise<void> {
-  await api.delete(
-    `/weekly-flow/shared-playlists/${playlistId}/tracks/${jobId}`,
-  );
+  await api.delete(`${FLOW}/shared-playlists/${playlistId}/tracks/${jobId}`);
 }
 
 export async function setRetryCyclePaused(
   playlistId: string,
   paused: boolean,
 ): Promise<void> {
-  await api.put(`/weekly-flow/playlists/${playlistId}/retry-cycle`, { paused });
+  // The doubled segment is real: upstream registers this as
+  // `/playlists/:playlistId/retry-cycle` on a router already mounted at
+  // /api/playlists, so the served path is /api/playlists/playlists/:id/...
+  await api.put(`${FLOW}/playlists/${playlistId}/retry-cycle`, { paused });
 }
 
 export type FlowAuthedSource = {
@@ -123,7 +131,7 @@ export function getFlowStreamSource(
 ): FlowAuthedSource {
   const base = api.defaults.baseURL;
   return authedSource(
-    `${base}/weekly-flow/stream/${encodeURIComponent(jobId)}`,
+    `${base}${FLOW}/stream/${encodeURIComponent(jobId)}`,
     token,
   );
 }
@@ -134,7 +142,7 @@ export function getFlowArtworkSource(
 ): FlowAuthedSource {
   const base = api.defaults.baseURL;
   return authedSource(
-    `${base}/weekly-flow/artwork/${encodeURIComponent(playlistId)}`,
+    `${base}${FLOW}/artwork/${encodeURIComponent(playlistId)}`,
     token,
   );
 }
