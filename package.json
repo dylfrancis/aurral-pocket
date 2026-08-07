@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest",
+    "check:api-contract": "node scripts/check-api-contract.mjs",
     "prepare": "husky",
     "shazam:aar": "node scripts/setup-shazam-aar.mjs",
     "eas-build-pre-install": "node scripts/setup-shazam-aar.mjs"
