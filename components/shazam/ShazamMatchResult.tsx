@@ -9,7 +9,6 @@ import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useIsrcArtist } from "@/hooks/shazam/use-isrc-artist";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { absolutizeImageUrl } from "@/lib/api/client";
 import { rankCandidates } from "@/lib/shazam/rank-candidates";
 import type { SearchArtist } from "@/lib/types/search";
 import type { ShazamMatch } from "@/modules/shazam";
@@ -41,7 +40,9 @@ export function ShazamMatchResult({
   const { isInLibrary } = useLibraryLookup();
 
   const artistName = match.artist ?? "";
-  const { data, isLoading } = useArtistSearch(artistName);
+  // A Shazam match resolves to one specific act; a shallow suggest pass can
+  // miss it, and the user only pays this latency once per identification.
+  const { data, isLoading } = useArtistSearch(artistName, "full");
   const { data: isrcArtist, isLoading: isrcLoading } = useIsrcArtist(
     match.isrc,
   );
@@ -202,7 +203,6 @@ function ArtistCandidateRow({
 }) {
   const colors = Colors[useColorScheme()];
   const added = inLibrary || wasAdded;
-  const imageUrl = absolutizeImageUrl(artist.image ?? artist.imageUrl);
 
   return (
     <View style={[styles.row, { borderBottomColor: colors.separator }]}>
@@ -213,25 +213,16 @@ function ArtistCandidateRow({
         ]}
         onPress={onView}
       >
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={[styles.rowThumb, { backgroundColor: colors.card }]}
-            contentFit="cover"
-            transition={150}
-            recyclingKey={`shazam-${artist.id}`}
-          />
-        ) : (
-          <View
-            style={[
-              styles.rowThumb,
-              styles.rowThumbPlaceholder,
-              { backgroundColor: colors.card },
-            ]}
-          >
-            <Ionicons name="person-outline" size={18} color={colors.subtle} />
-          </View>
-        )}
+        {/* Candidates come from `/search/unified`, which returns no artwork. */}
+        <View
+          style={[
+            styles.rowThumb,
+            styles.rowThumbPlaceholder,
+            { backgroundColor: colors.card },
+          ]}
+        >
+          <Ionicons name="person-outline" size={18} color={colors.subtle} />
+        </View>
         <Text variant="body" numberOfLines={1} style={styles.rowName}>
           {artist.name}
         </Text>

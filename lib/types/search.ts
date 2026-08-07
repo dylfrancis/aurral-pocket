@@ -1,17 +1,65 @@
+/**
+ * An artist result, normalised from Aurral's `/search/unified` response.
+ *
+ * `id` is always a MusicBrainz ID — entries without one are dropped during
+ * normalisation, because every action pocket offers on a result (open the
+ * detail screen, add to library) addresses the artist by MBID.
+ *
+ * There is deliberately no artwork field. `/search/unified` returns none, and
+ * Aurral's own web UI shows no thumbnails in search results either; fetching
+ * `/artists/:mbid/cover` per row would mean one request per result.
+ */
 export type SearchArtist = {
   id: string;
   name: string;
-  "sort-name": string;
-  image: string | null;
-  imageUrl: string | null;
-  listeners: null;
+  sortName: string;
+  /**
+   * Aurral's view of library membership at query time. Pocket prefers its own
+   * `useLibraryLookup`, which updates the moment an add mutation settles rather
+   * than on the next search.
+   */
+  inLibrary: boolean;
+  score: number;
 };
 
+/**
+ * `/search/unified` carries no `count`/`offset` — it is not a paged endpoint.
+ * Nothing in pocket paginates artist results, so this is the whole contract.
+ */
 export type SearchArtistsResponse = {
   artists: SearchArtist[];
-  count: number;
-  offset: number;
 };
+
+/** Raw entry as `/search/unified` returns it, before normalisation. */
+export type UnifiedSearchEntry = {
+  type: string;
+  source: string;
+  id: string;
+  key: string;
+  name: string;
+  sortName?: string;
+  inLibrary?: boolean;
+  hasMbid?: boolean;
+  score?: number;
+};
+
+export type UnifiedSearchResponse = {
+  query: string;
+  mode: string;
+  top?: UnifiedSearchEntry | null;
+  library?: { artists?: UnifiedSearchEntry[]; tracks?: unknown[] };
+  catalog?: {
+    artists?: UnifiedSearchEntry[];
+    albums?: unknown[];
+    tracks?: unknown[];
+  };
+};
+
+/**
+ * `suggest` is the fast typeahead mode; `full` searches harder and returns more.
+ * Mirrors how Aurral's own client picks between them.
+ */
+export type UnifiedSearchMode = "suggest" | "full";
 
 export type AlbumStatus =
   | "available"

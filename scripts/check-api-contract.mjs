@@ -66,12 +66,7 @@ const MAX_RELOGINS = 2;
  * Keep this list short. Every entry is a call pocket makes that 404s in
  * production.
  */
-const KNOWN_DRIFT = new Map([
-  [
-    "GET /search/artists",
-    "#167 — removed in Aurral 2.0, migrate to /search/unified",
-  ],
-]);
+const KNOWN_DRIFT = new Map([]);
 
 /**
  * Pull every `api.<method>("<path>")` call out of lib/api/*.ts.
