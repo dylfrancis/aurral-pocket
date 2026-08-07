@@ -1,6 +1,10 @@
 import { api } from "./client";
 import type {
+  SearchArtist,
   SearchArtistsResponse,
+  UnifiedSearchEntry,
+  UnifiedSearchMode,
+  UnifiedSearchResponse,
   SearchAlbumsResponse,
   SimilarArtistsResponse,
   TagSuggestionsResponse,
@@ -14,11 +18,46 @@ import type {
   NearbyShowsResponse,
 } from "@/lib/types/search";
 
-export async function searchArtists(query: string, limit = 24, offset = 0) {
-  const r = await api.get<SearchArtistsResponse>("/search/artists", {
-    params: { query, limit, offset },
+/**
+ * Aurral 2.0 deleted `GET /search/artists`; `/search/unified` replaced it.
+ *
+ * `unified` answers with results split across `library` and `catalog`, but
+ * `catalog.artists` already contains library artists flagged `inLibrary`, so
+ * reading catalog alone gives the full set with no de-duplication needed.
+ */
+export async function searchArtists(
+  query: string,
+  {
+    mode = "suggest",
+    limit = 24,
+  }: { mode?: UnifiedSearchMode; limit?: number } = {},
+): Promise<SearchArtistsResponse> {
+  const r = await api.get<UnifiedSearchResponse>("/search/unified", {
+    params: { q: query, mode, limit },
+    // `full` searches upstream providers and is markedly slower than `suggest`;
+    // Aurral's own client allows it 30s.
+    timeout: mode === "full" ? 30_000 : 12_000,
   });
-  return r.data;
+  return { artists: normalizeArtists(r.data?.catalog?.artists) };
+}
+
+function normalizeArtists(
+  entries: UnifiedSearchEntry[] | undefined,
+): SearchArtist[] {
+  if (!Array.isArray(entries)) return [];
+  return (
+    entries
+      // Every action pocket offers addresses the artist by MBID, so an entry
+      // without one is not something we can render a working row for.
+      .filter((entry) => entry?.id && entry.hasMbid !== false)
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        sortName: entry.sortName ?? entry.name,
+        inLibrary: entry.inLibrary ?? false,
+        score: entry.score ?? 0,
+      }))
+  );
 }
 
 export async function searchAlbums(query: string, limit = 24, offset = 0) {

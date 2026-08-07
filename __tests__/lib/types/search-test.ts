@@ -13,48 +13,31 @@ describe("search types", () => {
     const artist: SearchArtist = {
       id: "mbid-1",
       name: "Radiohead",
-      "sort-name": "Radiohead",
-      image: "https://img.com/radiohead.jpg",
-      imageUrl: "https://img.com/radiohead.jpg",
-      listeners: null,
+      sortName: "Radiohead",
+      inLibrary: true,
+      score: 100,
     };
     expect(artist.id).toBe("mbid-1");
     expect(artist.name).toBe("Radiohead");
-    expect(artist["sort-name"]).toBe("Radiohead");
-    expect(artist.listeners).toBeNull();
+    expect(artist.sortName).toBe("Radiohead");
+    expect(artist.inLibrary).toBe(true);
+    expect(artist.score).toBe(100);
   });
 
-  it("SearchArtist accepts null image fields", () => {
-    const artist: SearchArtist = {
-      id: "mbid-2",
-      name: "Unknown Artist",
-      "sort-name": "Unknown Artist",
-      image: null,
-      imageUrl: null,
-      listeners: null,
-    };
-    expect(artist.image).toBeNull();
-    expect(artist.imageUrl).toBeNull();
-  });
-
-  it("SearchArtistsResponse wraps artists with count and offset", () => {
+  it("SearchArtistsResponse wraps artists with no paging metadata", () => {
+    // /search/unified is not paged, and nothing in pocket paginates artists.
     const response: SearchArtistsResponse = {
       artists: [
         {
           id: "1",
           name: "Test",
-          "sort-name": "Test",
-          image: null,
-          imageUrl: null,
-          listeners: null,
+          sortName: "Test",
+          inLibrary: false,
+          score: 0,
         },
       ],
-      count: 100,
-      offset: 0,
     };
     expect(response.artists).toHaveLength(1);
-    expect(response.count).toBe(100);
-    expect(response.offset).toBe(0);
   });
 
   it("SimilarArtist has match score", () => {

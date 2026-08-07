@@ -1,12 +1,10 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { absolutizeImageUrl } from "@/lib/api/client";
 import type { SearchArtist } from "@/lib/types/search";
 
 type SearchArtistRowProps = {
@@ -23,7 +21,6 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
   onPress,
 }: SearchArtistRowProps) {
   const colors = Colors[useColorScheme()];
-  const imageUrl = absolutizeImageUrl(artist.image ?? artist.imageUrl);
 
   return (
     <Pressable
@@ -33,25 +30,20 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
         { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      {imageUrl ? (
-        <Image
-          source={{ uri: imageUrl }}
-          style={[styles.thumb, { backgroundColor: colors.card }]}
-          contentFit="cover"
-          transition={150}
-          recyclingKey={`search-${artist.id}`}
-        />
-      ) : (
-        <View
-          style={[
-            styles.thumb,
-            styles.placeholder,
-            { backgroundColor: colors.card },
-          ]}
-        >
-          <Ionicons name="person-outline" size={20} color={colors.subtle} />
-        </View>
-      )}
+      {/*
+        `/search/unified` carries no artwork, and Aurral's own web UI shows no
+        thumbnails in search results either. Resolving `/artists/:mbid/cover`
+        here would cost one request per visible row.
+      */}
+      <View
+        style={[
+          styles.thumb,
+          styles.placeholder,
+          { backgroundColor: colors.card },
+        ]}
+      >
+        <Ionicons name="person-outline" size={20} color={colors.subtle} />
+      </View>
 
       <View style={styles.meta}>
         <Text

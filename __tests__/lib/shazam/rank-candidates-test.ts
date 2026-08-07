@@ -6,10 +6,9 @@ function artist(id: string, name = id): SearchArtist {
   return {
     id,
     name,
-    "sort-name": name,
-    image: null,
-    imageUrl: null,
-    listeners: null,
+    sortName: name,
+    inLibrary: false,
+    score: 0,
   };
 }
 

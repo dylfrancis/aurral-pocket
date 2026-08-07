@@ -19,10 +19,9 @@ import type { SearchArtist } from "@/lib/types/search";
 const baseArtist: SearchArtist = {
   id: "mbid-123",
   name: "Radiohead",
-  "sort-name": "Radiohead",
-  image: "https://img.com/radiohead.jpg",
-  imageUrl: "https://img.com/radiohead.jpg",
-  listeners: null,
+  sortName: "Radiohead",
+  inLibrary: false,
+  score: 0,
 };
 
 describe("SearchArtistRow", () => {
@@ -88,26 +87,17 @@ describe("SearchArtistRow", () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it("renders image when available", async () => {
-    const { getByTestId } = await render(
+  it("always renders the placeholder, never an image", async () => {
+    // /search/unified returns no artwork, and resolving covers per row would
+    // cost one request per visible result.
+    const { queryByTestId, getByTestId } = await render(
       <SearchArtistRow
         artist={baseArtist}
         isInLibrary={false}
         onPress={() => {}}
       />,
     );
-    expect(getByTestId("expo-image")).toBeTruthy();
-  });
-
-  it("renders placeholder when no image", async () => {
-    const artist = { ...baseArtist, image: null, imageUrl: null };
-    const { queryByTestId } = await render(
-      <SearchArtistRow
-        artist={artist}
-        isInLibrary={false}
-        onPress={() => {}}
-      />,
-    );
     expect(queryByTestId("expo-image")).toBeNull();
+    expect(getByTestId("icon-person-outline")).toBeTruthy();
   });
 });
