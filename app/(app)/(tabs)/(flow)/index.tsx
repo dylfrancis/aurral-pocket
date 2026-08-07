@@ -15,6 +15,7 @@ import { PlaylistCard } from "@/components/flow/PlaylistCard";
 import { FlowDetailSheet } from "@/components/flow/FlowDetailSheet";
 import { PlaylistDetailSheet } from "@/components/flow/PlaylistDetailSheet";
 import { useFlowStatusSuspense, useSetFlowEnabled } from "@/hooks/flow";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { Flow, PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
@@ -30,7 +31,33 @@ type SectionRow =
       key: string;
     };
 
+/**
+ * NativeTabs mounts every tab's screen at launch — `hidden` on a Trigger only
+ * blanks the tab bar item, it does not stop the screen from rendering. Without
+ * this guard, a user without `accessFlow` still fetches `/playlists/status` on
+ * cold launch and takes a 403 for a tab they cannot even see.
+ *
+ * The fetch lives in the inner component because a suspense query has no
+ * `enabled` option; the only way not to fire it is not to render the hook.
+ */
 export default function FlowScreen() {
+  const hasPermission = useHasPermission();
+
+  if (!hasPermission("accessFlow")) {
+    return (
+      <ScreenCenter>
+        <EmptyState
+          icon="lock-closed-outline"
+          message="You don't have access to Flow"
+        />
+      </ScreenCenter>
+    );
+  }
+
+  return <FlowScreenContent />;
+}
+
+function FlowScreenContent() {
   const colors = Colors[useColorScheme()];
   const router = useRouter();
   const { data, refetch } = useFlowStatusSuspense();

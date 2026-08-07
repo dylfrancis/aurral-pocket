@@ -6,7 +6,9 @@ import {
   useLocalSearchParams,
   useNavigation,
   useRouter,
+  type ErrorBoundaryProps,
 } from "expo-router";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import Public from "@expo/material-symbols/public.xml";
 import Star from "@expo/material-symbols/star.xml";
@@ -313,3 +315,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
   },
 });
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <RouteErrorBoundary {...props} message="Failed to load results" />;
+}

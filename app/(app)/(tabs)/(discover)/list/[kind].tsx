@@ -5,7 +5,9 @@ import {
   useLocalSearchParams,
   useNavigation,
   useRouter,
+  type ErrorBoundaryProps,
 } from "expo-router";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import {
@@ -273,3 +275,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <RouteErrorBoundary {...props} message="Failed to load list" />;
+}

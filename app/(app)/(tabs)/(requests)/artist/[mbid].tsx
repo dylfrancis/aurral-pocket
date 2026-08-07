@@ -4,12 +4,9 @@ import {
   useRouter,
   type ErrorBoundaryProps,
 } from "expo-router";
-import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { ArtistDetailLayout } from "@/components/artist/ArtistDetailLayout";
 import { useLibraryArtistSuspense } from "@/hooks/library/use-library-artist";
-import { ScreenCenter } from "@/components/ui/ScreenCenter";
-import { EmptyState } from "@/components/library/EmptyState";
-import { ApiError } from "@/lib/api/client";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import type { PrimaryReleaseType } from "@/lib/types/library";
 import type { SimilarArtist } from "@/lib/types/search";
 
@@ -72,26 +69,12 @@ export default function RequestsArtistDetailScreen() {
   );
 }
 
-export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
-  const { reset } = useQueryErrorResetBoundary();
-  if (error instanceof ApiError && error.status === 404) {
-    return (
-      <ScreenCenter>
-        <EmptyState icon="alert-circle-outline" message="Artist not found" />
-      </ScreenCenter>
-    );
-  }
+export function ErrorBoundary(props: ErrorBoundaryProps) {
   return (
-    <ScreenCenter>
-      <EmptyState
-        icon="cloud-offline-outline"
-        message="Failed to load artist"
-        actionLabel="Try Again"
-        onAction={() => {
-          reset();
-          retry();
-        }}
-      />
-    </ScreenCenter>
+    <RouteErrorBoundary
+      {...props}
+      message="Failed to load artist"
+      notFoundMessage="Artist not found"
+    />
   );
 }

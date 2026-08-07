@@ -19,6 +19,7 @@ jest.mock("@/lib/api/client", () => ({
 
 jest.mock("@/lib/api/auth", () => ({
   login: jest.fn(),
+  getMe: jest.fn(),
 }));
 
 import React, { useCallback } from "react";
@@ -28,11 +29,12 @@ import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
-import { login } from "@/lib/api/auth";
+import { getMe, login } from "@/lib/api/auth";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 const mockLogin = login as jest.Mock;
+const mockGetMe = getMe as jest.Mock;
 
 // Interactive consumer that exposes context state and actions
 function TestConsumer() {
@@ -567,5 +569,94 @@ describe("AuthProvider — proactive expiry timer", () => {
     await waitFor(() => {
       expect(getByTestId("sessionExpired").props.children).toBe("true");
     });
+  });
+});
+
+describe("AuthProvider — user rehydration from /auth/me", () => {
+  const alice = {
+    id: 1,
+    username: "alice",
+    role: "user" as const,
+    permissions: { accessFlow: true },
+  };
+
+  it("recovers the user when a token is stored but the cached user is missing", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+      if (key === "auth_token") return "my-token";
+      return null; // no user_json
+    });
+    mockGetMe.mockResolvedValue({ user: alice, expiresAt: 123 });
+
+    const { getByTestId } = await renderWithProvider();
+
+    await waitFor(() => {
+      expect(getByTestId("user").props.children).toBe("alice");
+    });
+    expect(mockGetMe).toHaveBeenCalled();
+    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+      "user_json",
+      JSON.stringify(alice),
+    );
+  });
+
+  it("recovers the user when the cached user JSON is corrupt", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+      if (key === "auth_token") return "my-token";
+      if (key === "user_json") return "{not valid json";
+      return null;
+    });
+    mockGetMe.mockResolvedValue({ user: alice, expiresAt: 123 });
+
+    const { getByTestId } = await renderWithProvider();
+
+    await waitFor(() => {
+      expect(getByTestId("user").props.children).toBe("alice");
+    });
+  });
+
+  it("does not call /auth/me when the cached user is already valid", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+      if (key === "auth_token") return "my-token";
+      if (key === "user_json") return JSON.stringify(alice);
+      return null;
+    });
+
+    const { getByTestId } = await renderWithProvider();
+
+    await waitFor(() => {
+      expect(getByTestId("user").props.children).toBe("alice");
+    });
+    expect(mockGetMe).not.toHaveBeenCalled();
+  });
+
+  it("does not call /auth/me when there is no token", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    mockSecureStore.getItemAsync.mockResolvedValue(null);
+
+    await renderWithProvider();
+
+    await waitFor(() => {
+      expect(mockGetMe).not.toHaveBeenCalled();
+    });
+  });
+
+  it("leaves the user null when /auth/me fails, without crashing", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+      if (key === "auth_token") return "my-token";
+      return null;
+    });
+    mockGetMe.mockRejectedValue(new Error("network down"));
+
+    const { getByTestId } = await renderWithProvider();
+
+    await waitFor(() => {
+      expect(mockGetMe).toHaveBeenCalled();
+    });
+    expect(getByTestId("user").props.children).toBe("null");
+    expect(getByTestId("token").props.children).toBe("my-token");
   });
 });

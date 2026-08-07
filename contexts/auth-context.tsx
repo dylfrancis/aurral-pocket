@@ -13,7 +13,7 @@ import {
   setOnSessionExpired,
   setOnAuthRefreshed,
 } from "@/lib/api/client";
-import { login } from "@/lib/api/auth";
+import { getMe, login } from "@/lib/api/auth";
 import { AppStorage, SecureStorage } from "@/lib/storage";
 import type { HealthResponse, User } from "@/lib/types/auth";
 
@@ -121,6 +121,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   }, []);
+
+  // A valid token paired with no cached user makes every permission check fail
+  // closed — `useHasPermission` returns false when `user` is null — which
+  // silently hides permission-gated UI (the Flow tab) from people who do have
+  // access. `SecureStorage.getUser()` can come back absent, and the parse above
+  // swallows corrupt JSON, so recover the user from the server rather than
+  // trusting the cache. Deliberately outside the restore block: it must not
+  // delay `isRestoring` and keep the splash screen up on every launch.
+  const rehydratedUser = useRef(false);
+  useEffect(() => {
+    if (isRestoring || rehydratedUser.current) return;
+    if (!token || user) return;
+    rehydratedUser.current = true;
+    (async () => {
+      try {
+        const me = await getMe();
+        setUser(me.user);
+        await SecureStorage.setUser(JSON.stringify(me.user));
+      } catch {
+        // Not fatal. A rejected token is already handled by the 401 interceptor,
+        // and any other failure just leaves permissions conservative.
+      }
+    })();
+  }, [isRestoring, token, user]);
 
   // Wire up interceptor callbacks
   useEffect(() => {

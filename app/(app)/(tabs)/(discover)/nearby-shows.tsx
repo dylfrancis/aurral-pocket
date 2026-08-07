@@ -7,7 +7,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Stack } from "expo-router";
+import { Stack, type ErrorBoundaryProps } from "expo-router";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Ionicons } from "@expo/vector-icons";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
@@ -455,3 +456,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return (
+    <RouteErrorBoundary {...props} message="Failed to load nearby shows" />
+  );
+}

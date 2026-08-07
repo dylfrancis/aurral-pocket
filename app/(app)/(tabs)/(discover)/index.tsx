@@ -36,7 +36,8 @@ import type {
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useQueryClient } from "@tanstack/react-query";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { useCallback, useRef, useState } from "react";
 import {
   Alert,
@@ -383,3 +384,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 });
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <RouteErrorBoundary {...props} message="Failed to load Discover" />;
+}
