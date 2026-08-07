@@ -78,14 +78,53 @@ npm run android
 
 ## Scripts
 
-| Script    | Purpose                              |
-| --------- | ------------------------------------ |
-| `start`   | Start the Expo dev server            |
-| `ios`     | Build and run the native iOS app     |
-| `android` | Build and run the native Android app |
-| `web`     | Start the web target                 |
-| `lint`    | Run ESLint via `expo lint`           |
-| `test`    | Run the Jest test suite              |
+| Script               | Purpose                                           |
+| -------------------- | ------------------------------------------------- |
+| `start`              | Start the Expo dev server                         |
+| `ios`                | Build and run the native iOS app                  |
+| `android`            | Build and run the native Android app              |
+| `web`                | Start the web target                              |
+| `lint`               | Run ESLint via `expo lint`                        |
+| `test`               | Run the Jest test suite                           |
+| `check:api-contract` | Verify every endpoint pocket calls exists (below) |
+
+## API contract check
+
+Aurral 2.0 moved the weekly-flow router to `/playlists` and deleted
+`/search/artists`. Neither broke the build — the client kept compiling and only
+failed as a 404 on a user's device. `check:api-contract` catches that class of
+drift by booting the Aurral version we target and calling every endpoint pocket
+uses.
+
+The pinned version lives in `.aurral-version`. Bumping it is the deliberate act
+of retargeting a new Aurral release; CI fails if pocket has not caught up.
+
+Run it locally against a throwaway container:
+
+```bash
+docker run -d --name aurral -p 3001:3001 \
+  ghcr.io/lklynet/aurral:$(cat .aurral-version)
+
+# Onboarding demands Lidarr credentials, but passing both profile IDs
+# short-circuits the lookup, so no Lidarr instance is required.
+curl -fsS -X POST http://localhost:3001/api/onboarding/complete \
+  -H 'Content-Type: application/json' \
+  -d '{"authUser":"ci","authPassword":"Ci-Contract-Check-2026!",
+       "lidarr":{"url":"http://lidarr.invalid:8686","apiKey":"ci-stub-key",
+                 "qualityProfileId":1,"metadataProfileId":1},
+       "downloadFolderPath":"/config/downloads"}'
+
+AURRAL_URL=http://localhost:3001 npm run check:api-contract
+docker rm -f aurral
+```
+
+Start a **fresh container per run** — Aurral rate-limits logins to 10 per 15
+minutes, and a reused container will eventually refuse to authenticate.
+
+A route counts as missing only when Aurral answers with its catch-all
+`{"error":"Not found"}`. Anything else — including `400` for a synthetic ID or
+`401` — means the route exists. Endpoints that answer only via a redirect fail
+too: a compatibility shim is not a contract.
 
 ## Project structure
 

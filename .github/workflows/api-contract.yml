@@ -1,0 +1,126 @@
+name: API contract
+
+# Aurral 2.0 moved the weekly-flow router and deleted /search/artists without
+# pocket noticing — the client kept compiling and only failed on a user's
+# device. This boots the Aurral version we target and asserts every endpoint
+# pocket calls actually answers.
+
+on:
+  pull_request:
+    paths:
+      - "lib/api/**"
+      - "scripts/check-api-contract.mjs"
+      - ".aurral-version"
+      - ".github/workflows/api-contract.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Weekly, to surface upstream drift even when pocket is not being changed.
+    - cron: "0 6 * * 1"
+
+jobs:
+  contract:
+    name: Against pinned Aurral
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Read pinned Aurral version
+        id: pin
+        run: echo "version=$(tr -d '[:space:]' < .aurral-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Start Aurral ${{ steps.pin.outputs.version }}
+        run: |
+          docker run -d --name aurral -p 3001:3001 \
+            ghcr.io/lklynet/aurral:${{ steps.pin.outputs.version }}
+
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3001/api/health/live >/dev/null 2>&1; then
+              echo "Aurral is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Aurral did not become healthy in 60s"
+          docker logs aurral
+          exit 1
+
+      - name: Complete onboarding
+        # Onboarding demands Lidarr credentials, but supplying both profile IDs
+        # short-circuits the lookup, so no Lidarr instance is needed. The
+        # download path must be writable inside the container.
+        run: |
+          curl -fsS -X POST http://localhost:3001/api/onboarding/complete \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "authUser": "ci",
+              "authPassword": "Ci-Contract-Check-2026!",
+              "lidarr": {
+                "url": "http://lidarr.invalid:8686",
+                "apiKey": "ci-stub-key",
+                "qualityProfileId": 1,
+                "metadataProfileId": 1
+              },
+              "downloadFolderPath": "/config/downloads"
+            }'
+
+      - name: Check API contract
+        env:
+          AURRAL_URL: http://localhost:3001
+        run: node scripts/check-api-contract.mjs
+
+      - name: Aurral logs on failure
+        if: failure()
+        run: docker logs aurral
+
+  next:
+    name: Against Aurral latest (advisory)
+    runs-on: ubuntu-latest
+    # Early warning for the next Aurral release. Never blocks a merge — it
+    # reports drift we have not chosen to adopt yet.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Start Aurral latest
+        run: |
+          docker run -d --name aurral-latest -p 3001:3001 \
+            ghcr.io/lklynet/aurral:latest
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3001/api/health/live >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs aurral-latest
+          exit 1
+
+      - name: Complete onboarding
+        run: |
+          curl -fsS -X POST http://localhost:3001/api/onboarding/complete \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "authUser": "ci",
+              "authPassword": "Ci-Contract-Check-2026!",
+              "lidarr": {
+                "url": "http://lidarr.invalid:8686",
+                "apiKey": "ci-stub-key",
+                "qualityProfileId": 1,
+                "metadataProfileId": 1
+              },
+              "downloadFolderPath": "/config/downloads"
+            }'
+
+      - name: Check API contract
+        env:
+          AURRAL_URL: http://localhost:3001
+        run: node scripts/check-api-contract.mjs
