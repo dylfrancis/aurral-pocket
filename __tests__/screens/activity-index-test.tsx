@@ -11,12 +11,13 @@ jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
 
-jest.mock("@/hooks/requests/use-requests", () => ({
-  useRequestsSuspense: jest.fn(),
+jest.mock("@/hooks/activity/use-activity", () => ({
+  useActivitySuspense: jest.fn(),
+  useRefreshActivity: jest.fn(() => jest.fn().mockResolvedValue(true)),
 }));
 
-jest.mock("@/hooks/requests/use-requests-download-statuses", () => ({
-  useRequestsDownloadStatuses: jest.fn(() => ({ data: undefined })),
+jest.mock("@/hooks/activity/use-activity-download-statuses", () => ({
+  useActivityDownloadStatuses: jest.fn(() => ({ data: undefined })),
 }));
 
 jest.mock("@/hooks/auth/use-has-permission", () => ({
@@ -60,11 +61,11 @@ jest.mock("@gorhom/bottom-sheet", () => {
   };
 });
 
-jest.mock("@/components/requests/RequestActionsSheet", () => {
+jest.mock("@/components/activity/ActivityActionsSheet", () => {
   const React = require("react");
   const { View } = require("react-native");
   return {
-    RequestActionsSheet: function MockRequestActionsSheet() {
+    ActivityActionsSheet: function MockRequestActionsSheet() {
       return React.createElement(View, { testID: "request-actions-sheet" });
     },
   };
@@ -83,13 +84,13 @@ jest.mock("@/components/library/CoverArtImage", () => {
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import RequestsScreen, {
+import ActivityScreen, {
   ErrorBoundary,
-} from "@/app/(app)/(tabs)/(requests)/index";
-import { useRequestsSuspense } from "@/hooks/requests/use-requests";
-import type { Request } from "@/lib/types/requests";
+} from "@/app/(app)/(tabs)/(activity)/index";
+import { useActivitySuspense } from "@/hooks/activity/use-activity";
+import type { ActivityHistoryItem, AlbumRequest } from "@/lib/types/activity";
 
-const mockUseRequestsSuspense = useRequestsSuspense as jest.Mock;
+const mockUseActivitySuspense = useActivitySuspense as jest.Mock;
 
 function renderWithClient(node: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -101,12 +102,14 @@ function renderWithClient(node: React.ReactElement) {
 }
 
 const defaultHook = {
-  data: [] as Request[],
+  data: [] as AlbumRequest[],
   refetch: jest.fn().mockResolvedValue({ isError: false }),
   isRefetching: false,
 };
 
-function makeRequest(overrides: Partial<Request> & { id: string }): Request {
+function makeRequest(
+  overrides: Partial<AlbumRequest> & { id: string },
+): AlbumRequest {
   return {
     type: "album",
     albumId: `album-${overrides.id}`,
@@ -125,45 +128,96 @@ function makeRequest(overrides: Partial<Request> & { id: string }): Request {
   };
 }
 
+function makeHistoryItem(
+  overrides: Partial<ActivityHistoryItem> & { id: string },
+): ActivityHistoryItem {
+  return {
+    type: "activity",
+    source: "lidarr",
+    kind: "artist_added",
+    title: `Added Artist ${overrides.id} to library`,
+    subtitle: "Artist added via Lidarr",
+    status: "completed",
+    statusLabel: "Added",
+    requestedAt: "2026-04-02T00:00:00.000Z",
+    href: `/artist/mbid-${overrides.id}`,
+    playlistId: null,
+    jobId: null,
+    trackName: null,
+    artistName: `Artist ${overrides.id}`,
+    albumName: null,
+    albumId: null,
+    requestedBy: null,
+    sourceFilename: null,
+    inQueue: false,
+    canReSearch: false,
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
-  mockUseRequestsSuspense.mockReturnValue({ ...defaultHook });
+  mockUseActivitySuspense.mockReturnValue({ ...defaultHook });
 });
 
-describe("RequestsScreen", () => {
-  it("shows empty state when no requests exist", async () => {
-    mockUseRequestsSuspense.mockReturnValue({ ...defaultHook, data: [] });
-    const { getByText } = await renderWithClient(<RequestsScreen />);
-    expect(getByText("No requests yet")).toBeTruthy();
+describe("ActivityScreen", () => {
+  it("shows empty state when the feed is empty", async () => {
+    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
+    const { getByText } = await renderWithClient(<ActivityScreen />);
+    expect(getByText("No activity yet")).toBeTruthy();
   });
 
   it("navigates to discover when empty state action is pressed", async () => {
-    mockUseRequestsSuspense.mockReturnValue({ ...defaultHook, data: [] });
-    const { getByText } = await renderWithClient(<RequestsScreen />);
+    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
+    const { getByText } = await renderWithClient(<ActivityScreen />);
     await fireEvent.press(getByText("Start Discovering"));
     expect(mockPush).toHaveBeenCalledWith("/(app)/(tabs)/(discover)");
   });
 
-  it("renders requests list when data is loaded", async () => {
-    mockUseRequestsSuspense.mockReturnValue({
+  it("renders album requests when data is loaded", async () => {
+    mockUseActivitySuspense.mockReturnValue({
       ...defaultHook,
       data: [
         makeRequest({ id: "1", albumName: "First Album" }),
         makeRequest({ id: "2", albumName: "Second Album" }),
       ],
     });
-    const { getByText } = await renderWithClient(<RequestsScreen />);
+    const { getByText } = await renderWithClient(<ActivityScreen />);
     expect(getByText("First Album")).toBeTruthy();
     expect(getByText("Second Album")).toBeTruthy();
   });
+  it("renders history entries alongside album requests", async () => {
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [
+        makeRequest({ id: "1", albumName: "First Album" }),
+        makeHistoryItem({ id: "2" }),
+        makeHistoryItem({
+          id: "3",
+          kind: "track_download",
+          source: "slskd",
+          title: "Downloading Some Track",
+          statusLabel: "Downloading",
+          status: "processing",
+          href: null,
+        }),
+      ],
+    });
+    const { getByText } = await renderWithClient(<ActivityScreen />);
+    expect(getByText("First Album")).toBeTruthy();
+    expect(getByText("Added Artist 2 to library")).toBeTruthy();
+    expect(getByText("Downloading Some Track")).toBeTruthy();
+    // Server-rendered label wins over any status wording Pocket would derive.
+    expect(getByText("Added")).toBeTruthy();
+  });
 });
 
-describe("RequestsScreen ErrorBoundary", () => {
+describe("ActivityScreen ErrorBoundary", () => {
   it("renders the failure message", async () => {
     const { getByText } = await renderWithClient(
       <ErrorBoundary error={new Error("fail")} retry={jest.fn()} />,
     );
-    expect(getByText("Failed to load requests")).toBeTruthy();
+    expect(getByText("Failed to load activity")).toBeTruthy();
   });
 
   it("calls retry when Try Again is pressed", async () => {

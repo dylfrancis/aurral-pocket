@@ -5,38 +5,78 @@ import * as Haptics from "expo-haptics";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
-import { RequestStatusBadge } from "./RequestStatusBadge";
+import { ActivityStatusBadge } from "./ActivityStatusBadge";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { DownloadStatusValue } from "@/lib/types/library";
-import type { Request } from "@/lib/types/requests";
+import {
+  historyArtistMbid,
+  isAlbumRequest,
+  type ActivityHistoryItem,
+  type ActivityItem,
+} from "@/lib/types/activity";
 
-type RequestRowProps = {
-  request: Request;
+const KIND_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  artist_added: "person-add-outline",
+  track_download: "cloud-download-outline",
+  track_reused_lidarr: "repeat-outline",
+  album_requested: "musical-notes-outline",
+};
+
+function fallbackIcon(item: ActivityItem): keyof typeof Ionicons.glyphMap {
+  if (isAlbumRequest(item)) return "musical-notes-outline";
+  return KIND_ICONS[item.kind ?? ""] ?? "pulse-outline";
+}
+
+/**
+ * Album requests title on the album; history entries arrive with the server's
+ * own pre-rendered title/subtitle, so they are shown verbatim.
+ */
+function primaryText(item: ActivityItem): string {
+  return isAlbumRequest(item) ? item.albumName : item.title;
+}
+
+function secondaryText(item: ActivityItem): string | null {
+  if (isAlbumRequest(item)) return item.artistName || null;
+  return item.subtitle;
+}
+
+/**
+ * Only rows that resolve an artist MBID can navigate — album requests carry one
+ * directly, history entries only via their href.
+ */
+function artistMbidFor(item: ActivityItem): string | null {
+  if (isAlbumRequest(item)) {
+    const mbid = item.artistMbid;
+    if (!mbid || mbid === "null" || mbid === "undefined") return null;
+    return mbid;
+  }
+  return historyArtistMbid(item as ActivityHistoryItem);
+}
+
+type ActivityRowProps = {
+  item: ActivityItem;
   downloadStatus?: DownloadStatusValue;
   hasActions: boolean;
   onPress: () => void;
   onLongPress: () => void;
 };
 
-export const RequestRow = React.memo(function RequestRow({
-  request,
+export const ActivityRow = React.memo(function ActivityRow({
+  item,
   downloadStatus,
   hasActions,
   onPress,
   onLongPress,
-}: RequestRowProps) {
+}: ActivityRowProps) {
   const colors = Colors[useColorScheme()];
 
-  const hasValidMbid =
-    !!request.artistMbid &&
-    request.artistMbid !== "null" &&
-    request.artistMbid !== "undefined";
-
-  const requestedLabel = new Date(request.requestedAt).toLocaleDateString(
+  const artistMbid = artistMbidFor(item);
+  const requestedLabel = new Date(item.requestedAt).toLocaleDateString(
     undefined,
     { month: "short", day: "numeric", year: "numeric" },
   );
+  const subtitle = secondaryText(item);
 
   const handleLongPress = () => {
     if (!hasActions) return;
@@ -46,17 +86,17 @@ export const RequestRow = React.memo(function RequestRow({
 
   return (
     <Card
-      onPress={hasValidMbid ? onPress : undefined}
+      onPress={artistMbid ? onPress : undefined}
       onLongPress={hasActions ? handleLongPress : undefined}
       delayLongPress={300}
-      disabled={!hasValidMbid && !hasActions}
+      disabled={!artistMbid && !hasActions}
       style={styles.row}
     >
       <View style={styles.thumb}>
-        {hasValidMbid ? (
+        {artistMbid ? (
           <CoverArtImage
             type="artist"
-            mbid={request.artistMbid!}
+            mbid={artistMbid}
             size={56}
             borderRadius={8}
           />
@@ -68,7 +108,7 @@ export const RequestRow = React.memo(function RequestRow({
             ]}
           >
             <Ionicons
-              name="musical-notes-outline"
+              name={fallbackIcon(item)}
               size={22}
               color={colors.subtle}
             />
@@ -82,13 +122,19 @@ export const RequestRow = React.memo(function RequestRow({
           numberOfLines={1}
           style={[styles.title, { color: colors.text }]}
         >
-          {request.albumName}
+          {primaryText(item)}
         </Text>
+        {subtitle ? (
+          <Text
+            variant="caption"
+            numberOfLines={1}
+            style={{ color: colors.subtle }}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
         <View style={styles.statusRow}>
-          <RequestStatusBadge
-            request={request}
-            downloadStatus={downloadStatus}
-          />
+          <ActivityStatusBadge item={item} downloadStatus={downloadStatus} />
         </View>
         <Text variant="caption" numberOfLines={1} style={styles.date}>
           {requestedLabel}

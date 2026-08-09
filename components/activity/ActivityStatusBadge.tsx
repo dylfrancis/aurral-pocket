@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Chip } from "@/components/ui/Chip";
 import type { DownloadStatusValue } from "@/lib/types/library";
-import type { Request } from "@/lib/types/requests";
+import { isAlbumRequest, type ActivityItem } from "@/lib/types/activity";
 
 type BadgeConfig = {
   label: string;
@@ -10,7 +10,7 @@ type BadgeConfig = {
 };
 
 function resolveBadge(
-  request: Request,
+  item: ActivityItem,
   downloadStatus: DownloadStatusValue | undefined,
 ): BadgeConfig {
   switch (downloadStatus) {
@@ -37,27 +37,42 @@ function resolveBadge(
       };
   }
 
-  if (downloadStatus === "failed" || request.status === "failed") {
+  if (downloadStatus === "failed" || item.status === "failed") {
     return { label: "Failed", icon: "alert-circle", variant: "error" };
   }
-  if (request.status === "available") {
+
+  // History entries ship a server-rendered label ("Added", "Reused", ...).
+  // Prefer it over anything Pocket would invent for the same status.
+  if (!isAlbumRequest(item) && item.statusLabel) {
+    const settled = item.status === "completed";
+    return {
+      label: item.statusLabel,
+      icon: settled ? "checkmark-circle" : "sync-outline",
+      variant: settled ? "brand" : "subtle",
+    };
+  }
+
+  if (item.status === "available" || item.status === "completed") {
     return { label: "Available", icon: "checkmark-circle", variant: "brand" };
   }
-  if (request.status === "processing") {
+  if (item.status === "processing" || item.status === "pending") {
     return { label: "Processing", icon: "sync-outline", variant: "brand" };
+  }
+  if (item.status === "blocked") {
+    return { label: "Blocked", icon: "hand-left-outline", variant: "error" };
   }
   return { label: "Requested", icon: "time-outline", variant: "subtle" };
 }
 
-type RequestStatusBadgeProps = {
-  request: Request;
+type ActivityStatusBadgeProps = {
+  item: ActivityItem;
   downloadStatus?: DownloadStatusValue;
 };
 
-export function RequestStatusBadge({
-  request,
+export function ActivityStatusBadge({
+  item,
   downloadStatus,
-}: RequestStatusBadgeProps) {
-  const { label, icon, variant } = resolveBadge(request, downloadStatus);
+}: ActivityStatusBadgeProps) {
+  const { label, icon, variant } = resolveBadge(item, downloadStatus);
   return <Chip label={label} icon={icon} variant={variant} />;
 }

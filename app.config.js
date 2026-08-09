@@ -7,8 +7,22 @@
 // .env.local (SHAZAM_KEY_ID, SHAZAM_TEAM_ID, SHAZAM_PRIVATE_KEY_PATH) and the
 // token is minted here at config time. The .p8 never lands in the repo/binary.
 // iOS ignores the token (catalog access rides the app entitlement).
+const fs = require("fs");
 const path = require("path");
 const { mintFromEnv } = require("./scripts/shazam-token.cjs");
+
+// Single source of truth for the Aurral release pocket is built against, shared
+// with the API contract workflow so CI and the About screen cannot disagree.
+function readPinnedAurralVersion() {
+  try {
+    return fs
+      .readFileSync(path.resolve(__dirname, ".aurral-version"), "utf8")
+      .trim();
+  } catch (err) {
+    console.warn(`Pinned Aurral version unavailable: ${err.message}`);
+    return null;
+  }
+}
 
 function resolveShazamToken() {
   try {
@@ -40,6 +54,7 @@ module.exports = ({ config }) => {
   config.extra = {
     ...(config.extra ?? {}),
     fullVersion,
+    aurralVersion: readPinnedAurralVersion(),
     shazamDeveloperToken: resolveShazamToken(),
   };
   return config;

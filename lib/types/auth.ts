@@ -22,6 +22,9 @@ export type HealthResponse = {
   authRequired: boolean;
   onboardingRequired: boolean;
   timestamp: string;
+  // Optional: present on Aurral 2.0.4 and 2.1.0, but treat it as absent-able so
+  // an older or forked server without it degrades to "unknown" instead of "".
+  appVersion?: string;
 };
 
 export type LoginRequest = {

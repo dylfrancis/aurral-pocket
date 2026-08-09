@@ -9,29 +9,38 @@ import {
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { RequestRow } from "@/components/requests/RequestRow";
-import { RequestActionsSheet } from "@/components/requests/RequestActionsSheet";
+import { ActivityRow } from "@/components/activity/ActivityRow";
+import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { EmptyState } from "@/components/library/EmptyState";
-import { useRequestsSuspense } from "@/hooks/requests/use-requests";
-import { useRequestsDownloadStatuses } from "@/hooks/requests/use-requests-download-statuses";
+import {
+  useActivitySuspense,
+  useRefreshActivity,
+} from "@/hooks/activity/use-activity";
+import { useActivityDownloadStatuses } from "@/hooks/activity/use-activity-download-statuses";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
-import type { Request } from "@/lib/types/requests";
+import {
+  historyArtistMbid,
+  isAlbumRequest,
+  type ActivityItem,
+  type AlbumRequest,
+} from "@/lib/types/activity";
 
 const LIST_PADDING_HORIZONTAL = 16;
 const LIST_PADDING_VERTICAL = 12;
 
-export default function RequestsScreen() {
+export default function ActivityScreen() {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
   const hasPermission = useHasPermission();
   const sheetRef = useRef<BottomSheetModal>(null);
-  const [selected, setSelected] = useState<Request | null>(null);
+  const [selected, setSelected] = useState<AlbumRequest | null>(null);
 
-  const { data: requests, refetch } = useRequestsSuspense();
-  const { data: downloadStatuses } = useRequestsDownloadStatuses(requests);
+  const { data: items, refetch } = useActivitySuspense();
+  const refreshActivity = useRefreshActivity();
+  const { data: downloadStatuses } = useActivityDownloadStatuses(items);
 
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
@@ -44,56 +53,61 @@ export default function RequestsScreen() {
   const handlePullRefresh = useCallback(async () => {
     setIsPullRefreshing(true);
     try {
-      const result = await refetch();
-      if (result.isError) {
+      const ok = await refreshActivity();
+      if (!ok) {
         Burnt.toast({
-          title: "Couldn't refresh requests",
+          title: "Couldn't refresh activity",
           preset: "error",
         });
       }
     } finally {
       setIsPullRefreshing(false);
     }
-  }, [refetch]);
+  }, [refreshActivity]);
 
+  // Only Lidarr album requests expose safe actions. artist_added rows look
+  // actionable but DELETE /requests/:mbid removes the artist from Lidarr
+  // entirely, so history entries stay read-only.
   const rowHasActions = useCallback(
-    (request: Request) => {
-      if (!request.albumId) return false;
-      const albumStatus = downloadStatuses?.[String(request.albumId)]?.status;
-      const isFailed = albumStatus === "failed" || request.status === "failed";
-      const canStop = request.inQueue && hasPermission("deleteAlbum");
+    (item: ActivityItem) => {
+      if (!isAlbumRequest(item) || !item.albumId) return false;
+      const albumStatus = downloadStatuses?.[String(item.albumId)]?.status;
+      const isFailed = albumStatus === "failed" || item.status === "failed";
+      const canStop = item.inQueue && hasPermission("deleteAlbum");
       return canStop || isFailed;
     },
     [downloadStatuses, hasPermission],
   );
 
   const handleRowPress = useCallback(
-    (request: Request) => {
-      if (!request.artistMbid) return;
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: { mbid: request.artistMbid },
-      });
+    (mbid: string | null) => {
+      if (!mbid) return;
+      router.push({ pathname: "/artist/[mbid]", params: { mbid } });
     },
     [router],
   );
 
-  const handleLongPress = useCallback((request: Request) => {
-    setSelected(request);
+  const handleLongPress = useCallback((item: ActivityItem) => {
+    if (!isAlbumRequest(item)) return;
+    setSelected(item);
     sheetRef.current?.present();
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: Request }) => (
-      <RequestRow
-        request={item}
+    ({ item }: { item: ActivityItem }) => (
+      <ActivityRow
+        item={item}
         downloadStatus={
           item.albumId
             ? downloadStatuses?.[String(item.albumId)]?.status
             : undefined
         }
         hasActions={rowHasActions(item)}
-        onPress={() => handleRowPress(item)}
+        onPress={() =>
+          handleRowPress(
+            isAlbumRequest(item) ? item.artistMbid : historyArtistMbid(item),
+          )
+        }
         onLongPress={() => handleLongPress(item)}
       />
     ),
@@ -107,14 +121,14 @@ export default function RequestsScreen() {
   return (
     <>
       <FlashList
-        data={requests}
+        data={items}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         ItemSeparatorComponent={ItemSeparator}
         ListEmptyComponent={
           <EmptyState
             icon="musical-notes-outline"
-            message="No requests yet"
+            message="No activity yet"
             actionLabel="Start Discovering"
             onAction={() => router.push("/(app)/(tabs)/(discover)")}
           />
@@ -132,7 +146,7 @@ export default function RequestsScreen() {
           />
         }
       />
-      <RequestActionsSheet
+      <ActivityActionsSheet
         sheetRef={sheetRef}
         request={selected}
         downloadStatus={activeStatus}
@@ -147,7 +161,7 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
     <ScreenCenter>
       <EmptyState
         icon="cloud-offline-outline"
-        message="Failed to load requests"
+        message="Failed to load activity"
         actionLabel="Try Again"
         onAction={() => {
           reset();

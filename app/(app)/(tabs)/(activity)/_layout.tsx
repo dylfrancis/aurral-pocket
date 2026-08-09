@@ -3,7 +3,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { TRANSPARENT_HEADER } from "@/constants/navigation";
 
-export default function RequestsLayout() {
+export default function ActivityLayout() {
   const colors = Colors[useColorScheme()];
 
   return (
@@ -17,7 +17,7 @@ export default function RequestsLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: "Requests",
+          title: "Activity",
           headerLargeTitleEnabled: true,
         }}
       />

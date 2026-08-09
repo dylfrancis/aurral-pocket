@@ -5,6 +5,7 @@ import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import SwapVert from "@expo/material-symbols/swap_vert.xml";
+import Block from "@expo/material-symbols/block.xml";
 import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
 import Schedule from "@expo/material-symbols/schedule.xml";
 import LibraryMusic from "@expo/material-symbols/library_music.xml";
@@ -100,6 +101,13 @@ export default function LibraryScreen() {
         onChangeText={(e) => setSearchQuery(e.nativeEvent.text)}
       />
       <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={process.env.EXPO_OS === "ios" ? "nosign" : Block}
+          accessibilityLabel="Blocklist"
+          onPress={() => router.push("/blocklist")}
+        >
+          Blocklist
+        </Stack.Toolbar.Button>
         <Stack.Toolbar.Menu
           icon={
             process.env.EXPO_OS === "ios" ? "arrow.up.arrow.down" : SwapVert

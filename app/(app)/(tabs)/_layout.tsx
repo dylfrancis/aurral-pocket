@@ -40,7 +40,7 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Label>Flow</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(requests)">
+      <NativeTabs.Trigger name="(activity)">
         <NativeTabs.Trigger.Icon
           sf={{
             default: "clock.arrow.circlepath",
@@ -48,7 +48,7 @@ export default function TabsLayout() {
           }}
           md="update"
         />
-        <NativeTabs.Trigger.Label>Requests</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
