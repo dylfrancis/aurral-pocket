@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { ActivityStatusBadge } from "./ActivityStatusBadge";
+import { ReviewActions } from "./ReviewActions";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { DownloadStatusValue } from "@/lib/types/library";
@@ -38,7 +39,18 @@ function primaryText(item: ActivityItem): string {
 
 function secondaryText(item: ActivityItem): string | null {
   if (isAlbumRequest(item)) return item.artistName || null;
+  // A blocked job's subtitle says little; the staged filename is what the user
+  // needs in order to decide whether to approve it.
+  if (item.status === "blocked" && item.sourceFilename) {
+    return item.sourceFilename;
+  }
   return item.subtitle;
+}
+
+/** Blocked jobs are the only rows that carry an inline decision. */
+function reviewJobId(item: ActivityItem): string | null {
+  if (isAlbumRequest(item)) return null;
+  return item.status === "blocked" && item.jobId ? item.jobId : null;
 }
 
 /**
@@ -77,6 +89,7 @@ export const ActivityRow = React.memo(function ActivityRow({
     { month: "short", day: "numeric", year: "numeric" },
   );
   const subtitle = secondaryText(item);
+  const jobId = reviewJobId(item);
 
   const handleLongPress = () => {
     if (!hasActions) return;
@@ -139,6 +152,7 @@ export const ActivityRow = React.memo(function ActivityRow({
         <Text variant="caption" numberOfLines={1} style={styles.date}>
           {requestedLabel}
         </Text>
+        {jobId ? <ReviewActions jobId={jobId} /> : null}
       </View>
     </Card>
   );
