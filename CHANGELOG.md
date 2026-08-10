@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.10.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.9.0...v0.10.0) (2026-08-10)
+
+
+### Features
+
+* **activity:** sync activity page with aurral 2.0 ([#173](https://github.com/dylfrancis/aurral-pocket/issues/173)) ([9d80196](https://github.com/dylfrancis/aurral-pocket/commit/9d80196382389efcf89955997490454f213cbaa9))
+* **discover:** sync API contract with aurral test backend ([#148](https://github.com/dylfrancis/aurral-pocket/issues/148)) ([58441ad](https://github.com/dylfrancis/aurral-pocket/commit/58441ad047153d16b4965ebc17d6738c34511613))
+* **ui:** ui refresh and update to match aurral 2.0 ([#146](https://github.com/dylfrancis/aurral-pocket/issues/146)) ([0689487](https://github.com/dylfrancis/aurral-pocket/commit/06894877279f4aae324999c83ae063291daaab7b))
+
+
+### Bug Fixes
+
+* **app:** gate flow fetch on permission and contain route failures ([#168](https://github.com/dylfrancis/aurral-pocket/issues/168)) ([e857d65](https://github.com/dylfrancis/aurral-pocket/commit/e857d651f416852fcd8e013a126766aae252e49f)), closes [#160](https://github.com/dylfrancis/aurral-pocket/issues/160)
+* **discover:** contain Playlists for You card artwork ([#154](https://github.com/dylfrancis/aurral-pocket/issues/154)) ([3fbc1f7](https://github.com/dylfrancis/aurral-pocket/commit/3fbc1f7e2153e2bd460cdd485ad2a766bdab57b6)), closes [#153](https://github.com/dylfrancis/aurral-pocket/issues/153)
+* **flow:** target aurral 2.0 /playlists mount directly ([#166](https://github.com/dylfrancis/aurral-pocket/issues/166)) ([8dee6a3](https://github.com/dylfrancis/aurral-pocket/commit/8dee6a30a2e1650be1bf50b2990e76d6fbfb1309)), closes [#160](https://github.com/dylfrancis/aurral-pocket/issues/160)
+* **ios:** sanitize prerelease version for CFBundleShortVersionString ([#149](https://github.com/dylfrancis/aurral-pocket/issues/149)) ([85e1e41](https://github.com/dylfrancis/aurral-pocket/commit/85e1e41a9a82f7845fd17919cebb062af6280e4d))
+* **search:** migrate artist search to /search/unified ([#170](https://github.com/dylfrancis/aurral-pocket/issues/170)) ([4b04a9b](https://github.com/dylfrancis/aurral-pocket/commit/4b04a9b70096167be3ff6456c94e5478772412e0)), closes [#167](https://github.com/dylfrancis/aurral-pocket/issues/167)
+
 ## [0.10.0-test.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.0-test...v0.10.0-test.1) (2026-06-19)
 
 
