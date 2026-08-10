@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.0...v0.10.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* use black text and icons on brand green surfaces ([f6fbe54](https://github.com/dylfrancis/aurral-pocket/commit/f6fbe54f5bec0e508f8dcf1c19d9258ee8ec15af))
+* use native search bar on blocklist and block artists from artist page ([8195c33](https://github.com/dylfrancis/aurral-pocket/commit/8195c33fb782430a11c0eb9cea6e009b24f9bd0a))
+
 ## [0.10.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.9.0...v0.10.0) (2026-08-10)
 
 
