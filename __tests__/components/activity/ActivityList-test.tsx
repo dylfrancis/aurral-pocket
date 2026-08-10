@@ -25,10 +25,36 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
 }));
 
 const mockPush = jest.fn();
-jest.mock("expo-router", () => ({
-  useFocusEffect: jest.fn(),
-  useRouter: jest.fn(() => ({ push: mockPush })),
-}));
+const mockReplace = jest.fn();
+jest.mock("expo-router", () => {
+  const React = require("react");
+  const { View, Pressable, Text } = require("react-native");
+  // Rendered rather than stubbed to null, so tests can assert which options
+  // the filter menu offers and what choosing one does.
+  const Toolbar = Object.assign(
+    ({ children }: any) => React.createElement(View, null, children),
+    {
+      Menu: ({ children, title }: any) =>
+        React.createElement(View, { testID: `menu-${title}` }, children),
+      MenuAction: ({ children, isOn, onPress }: any) =>
+        React.createElement(
+          Pressable,
+          {
+            accessibilityLabel: `option-${children}`,
+            accessibilityState: { selected: !!isOn },
+            onPress,
+          },
+          React.createElement(Text, null, children),
+        ),
+      Button: ({ children }: any) => React.createElement(View, null, children),
+    },
+  );
+  return {
+    useFocusEffect: jest.fn(),
+    useRouter: jest.fn(() => ({ push: mockPush, replace: mockReplace })),
+    Stack: { Screen: () => null, Toolbar },
+  };
+});
 
 jest.mock("@shopify/flash-list", () => {
   const { FlatList } = require("react-native");
@@ -65,8 +91,8 @@ jest.mock("@/components/activity/ActivityActionsSheet", () => {
   const React = require("react");
   const { View } = require("react-native");
   return {
-    ActivityActionsSheet: function MockRequestActionsSheet() {
-      return React.createElement(View, { testID: "request-actions-sheet" });
+    ActivityActionsSheet: function MockActivityActionsSheet() {
+      return React.createElement(View, { testID: "activity-actions-sheet" });
     },
   };
 });
@@ -84,9 +110,8 @@ jest.mock("@/components/library/CoverArtImage", () => {
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import ActivityScreen, {
-  ErrorBoundary,
-} from "@/app/(app)/(tabs)/(activity)/index";
+import { ActivityList } from "@/components/activity/ActivityList";
+import { ActivityErrorBoundary as ErrorBoundary } from "@/components/activity/ActivityErrorBoundary";
 import { useActivitySuspense } from "@/hooks/activity/use-activity";
 import type { ActivityHistoryItem, AlbumRequest } from "@/lib/types/activity";
 
@@ -160,16 +185,68 @@ beforeEach(() => {
   mockUseActivitySuspense.mockReturnValue({ ...defaultHook });
 });
 
-describe("ActivityScreen", () => {
-  it("shows empty state when the feed is empty", async () => {
-    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
-    const { getByText } = await renderWithClient(<ActivityScreen />);
-    expect(getByText("No activity yet")).toBeTruthy();
+describe("ActivityList", () => {
+  it("labels each view option with its count from the unfiltered feed", async () => {
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [
+        makeRequest({ id: "1" }),
+        makeHistoryItem({ id: "2", status: "blocked", jobId: "job-2" }),
+        makeHistoryItem({ id: "3", status: "completed" }),
+      ],
+    });
+    const { getByLabelText, getByTestId } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+    expect(getByTestId("menu-View")).toBeTruthy();
+    expect(getByLabelText("option-Queue (1)")).toBeTruthy();
+    expect(getByLabelText("option-Review (1)")).toBeTruthy();
+    expect(getByLabelText("option-History (1)")).toBeTruthy();
   });
 
-  it("navigates to discover when empty state action is pressed", async () => {
+  it("marks the current view as selected", async () => {
     mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
-    const { getByText } = await renderWithClient(<ActivityScreen />);
+    const { getByLabelText } = await renderWithClient(
+      <ActivityList view="review" />,
+    );
+    expect(
+      getByLabelText("option-Review").props.accessibilityState.selected,
+    ).toBe(true);
+    expect(
+      getByLabelText("option-Queue").props.accessibilityState.selected,
+    ).toBe(false);
+  });
+
+  it("replaces the route when a view option is chosen", async () => {
+    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
+    const { getByLabelText } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+    await fireEvent.press(getByLabelText("option-Review"));
+    // replace, not push: switching view is a filter, not a journey.
+    expect(mockReplace).toHaveBeenCalledWith("/review");
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("shows a per-view empty state", async () => {
+    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
+    const { getByText } = await renderWithClient(<ActivityList view="queue" />);
+    expect(getByText("Queue is empty")).toBeTruthy();
+  });
+
+  it("offers no discover CTA on the queue empty state", async () => {
+    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
+    const { queryByText } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+    expect(queryByText("Start Discovering")).toBeNull();
+  });
+
+  it("offers the discover CTA on the history empty state", async () => {
+    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
     await fireEvent.press(getByText("Start Discovering"));
     expect(mockPush).toHaveBeenCalledWith("/(app)/(tabs)/(discover)");
   });
@@ -182,15 +259,16 @@ describe("ActivityScreen", () => {
         makeRequest({ id: "2", albumName: "Second Album" }),
       ],
     });
-    const { getByText } = await renderWithClient(<ActivityScreen />);
+    const { getByText } = await renderWithClient(<ActivityList view="queue" />);
     expect(getByText("First Album")).toBeTruthy();
     expect(getByText("Second Album")).toBeTruthy();
   });
-  it("renders history entries alongside album requests", async () => {
+  it("shows only queue-eligible items in the queue view", async () => {
     mockUseActivitySuspense.mockReturnValue({
       ...defaultHook,
       data: [
         makeRequest({ id: "1", albumName: "First Album" }),
+        // Settled: belongs to History, not Queue.
         makeHistoryItem({ id: "2" }),
         makeHistoryItem({
           id: "3",
@@ -203,16 +281,42 @@ describe("ActivityScreen", () => {
         }),
       ],
     });
-    const { getByText } = await renderWithClient(<ActivityScreen />);
+    const { getByText, queryByText } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
     expect(getByText("First Album")).toBeTruthy();
-    expect(getByText("Added Artist 2 to library")).toBeTruthy();
     expect(getByText("Downloading Some Track")).toBeTruthy();
-    // Server-rendered label wins over any status wording Pocket would derive.
-    expect(getByText("Added")).toBeTruthy();
+    expect(queryByText("Added Artist 2 to library")).toBeNull();
+  });
+
+  it("shows a blocked job in Review with its filename and decisions", async () => {
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [
+        makeHistoryItem({
+          id: "blocked-1",
+          kind: "track_download",
+          title: "Review needed for Some Track",
+          status: "blocked",
+          statusLabel: "Blocked",
+          jobId: "job-1",
+          sourceFilename: "Some Track.flac",
+          href: null,
+        }),
+      ],
+    });
+    const { getByText, getByLabelText } = await renderWithClient(
+      <ActivityList view="review" />,
+    );
+    expect(getByText("Review needed for Some Track")).toBeTruthy();
+    // The staged filename is what the user judges the download on.
+    expect(getByText("Some Track.flac")).toBeTruthy();
+    expect(getByLabelText("Approve download")).toBeTruthy();
+    expect(getByLabelText("Deny download")).toBeTruthy();
   });
 });
 
-describe("ActivityScreen ErrorBoundary", () => {
+describe("ActivityList ErrorBoundary", () => {
   it("renders the failure message", async () => {
     const { getByText } = await renderWithClient(
       <ErrorBoundary error={new Error("fail")} retry={jest.fn()} />,

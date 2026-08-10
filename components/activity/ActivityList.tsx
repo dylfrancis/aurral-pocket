@@ -1,23 +1,19 @@
 import { useCallback, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import {
-  useFocusEffect,
-  useRouter,
-  type ErrorBoundaryProps,
-} from "expo-router";
-import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import FilterList from "@expo/material-symbols/filter_list.xml";
 import * as Burnt from "burnt";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ActivityRow } from "@/components/activity/ActivityRow";
 import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet";
-import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { EmptyState } from "@/components/library/EmptyState";
 import {
   useActivitySuspense,
   useRefreshActivity,
 } from "@/hooks/activity/use-activity";
 import { useActivityDownloadStatuses } from "@/hooks/activity/use-activity-download-statuses";
+import { useActivityFilter } from "@/hooks/activity/use-activity-view";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
@@ -27,11 +23,27 @@ import {
   type ActivityItem,
   type AlbumRequest,
 } from "@/lib/types/activity";
+import {
+  ACTIVITY_EMPTY_STATES,
+  ACTIVITY_TYPES,
+  ACTIVITY_VIEWS,
+  getActivityCounts,
+  type ActivityView,
+} from "@/lib/activity-views";
 
 const LIST_PADDING_HORIZONTAL = 16;
 const LIST_PADDING_VERTICAL = 12;
 
-export default function ActivityScreen() {
+type ActivityListProps = {
+  view: ActivityView;
+};
+
+/**
+ * One view of the activity feed. Every tab renders this with a different
+ * `view`; they share a single query cache entry, so the extra mounts do not
+ * cost extra requests.
+ */
+export function ActivityList({ view }: ActivityListProps) {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
   const hasPermission = useHasPermission();
@@ -41,6 +53,8 @@ export default function ActivityScreen() {
   const { data: items, refetch } = useActivitySuspense();
   const refreshActivity = useRefreshActivity();
   const { data: downloadStatuses } = useActivityDownloadStatuses(items);
+  const { typeFilter, setTypeFilter, visible } = useActivityFilter(items, view);
+  const counts = getActivityCounts(items);
 
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
@@ -80,9 +94,19 @@ export default function ActivityScreen() {
   );
 
   const handleRowPress = useCallback(
-    (mbid: string | null) => {
-      if (!mbid) return;
-      router.push({ pathname: "/artist/[mbid]", params: { mbid } });
+    (item: ActivityItem) => {
+      const mbid = isAlbumRequest(item)
+        ? item.artistMbid
+        : historyArtistMbid(item);
+      if (mbid) {
+        router.push({ pathname: "/artist/[mbid]", params: { mbid } });
+        return;
+      }
+      // History entries for playlist work carry a playlistId; send those to the
+      // flow tab rather than leaving the row inert.
+      if (!isAlbumRequest(item) && item.playlistId) {
+        router.push("/(app)/(tabs)/(flow)");
+      }
     },
     [router],
   );
@@ -103,11 +127,7 @@ export default function ActivityScreen() {
             : undefined
         }
         hasActions={rowHasActions(item)}
-        onPress={() =>
-          handleRowPress(
-            isAlbumRequest(item) ? item.artistMbid : historyArtistMbid(item),
-          )
-        }
+        onPress={() => handleRowPress(item)}
         onLongPress={() => handleLongPress(item)}
       />
     ),
@@ -120,17 +140,57 @@ export default function ActivityScreen() {
 
   return (
     <>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "line.3.horizontal.decrease"
+              : FilterList
+          }
+          title="Filters"
+          accessibilityLabel="Filter activity"
+        >
+          <Stack.Toolbar.Menu inline title="View">
+            {ACTIVITY_VIEWS.map((entry) => (
+              <Stack.Toolbar.MenuAction
+                key={entry.id}
+                isOn={view === entry.id}
+                onPress={() => router.replace(`/${entry.id}`)}
+              >
+                {counts[entry.id]
+                  ? `${entry.label} (${counts[entry.id]})`
+                  : entry.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu inline title="Show">
+            {ACTIVITY_TYPES.map((entry) => (
+              <Stack.Toolbar.MenuAction
+                key={entry.id}
+                isOn={typeFilter === entry.id}
+                onPress={() => setTypeFilter(entry.id)}
+              >
+                {entry.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       <FlashList
-        data={items}
+        data={visible}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         ItemSeparatorComponent={ItemSeparator}
         ListEmptyComponent={
           <EmptyState
             icon="musical-notes-outline"
-            message="No activity yet"
-            actionLabel="Start Discovering"
-            onAction={() => router.push("/(app)/(tabs)/(discover)")}
+            message={ACTIVITY_EMPTY_STATES[view].message}
+            actionLabel={view === "history" ? "Start Discovering" : undefined}
+            onAction={
+              view === "history"
+                ? () => router.push("/(app)/(tabs)/(discover)")
+                : undefined
+            }
           />
         }
         contentInsetAdjustmentBehavior="automatic"
@@ -152,23 +212,6 @@ export default function ActivityScreen() {
         downloadStatus={activeStatus}
       />
     </>
-  );
-}
-
-export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
-  const { reset } = useQueryErrorResetBoundary();
-  return (
-    <ScreenCenter>
-      <EmptyState
-        icon="cloud-offline-outline"
-        message="Failed to load activity"
-        actionLabel="Try Again"
-        onAction={() => {
-          reset();
-          retry();
-        }}
-      />
-    </ScreenCenter>
   );
 }
 
