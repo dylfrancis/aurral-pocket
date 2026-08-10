@@ -65,8 +65,8 @@ export function AboutSection() {
           ]}
         >
           {drifted
-            ? `Your server runs Aurral ${serverVersion}, but this app is verified against ${testedVersion}. Endpoints it calls may have moved, changed, or not exist yet — some features can break.`
-            : `Every endpoint this app calls is verified against Aurral ${testedVersion}. Other server versions may be missing those endpoints, or may have changed them — either way features can break.`}
+            ? `Your server runs Aurral ${serverVersion}, but this app is verified against ${testedVersion}. Endpoints it calls may have moved, changed, or not exist yet. Some features can break.`
+            : `Every endpoint this app calls is verified against Aurral ${testedVersion}. Other server versions may be missing those endpoints, or may have changed them causing features to potentially break.`}
         </Text>
       ) : null}
     </View>
