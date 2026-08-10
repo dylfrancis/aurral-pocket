@@ -17,6 +17,11 @@ import { useLibraryArtist } from "@/hooks/library/use-library-artist";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import {
+  useBlocklist,
+  useBlocklistMutations,
+} from "@/hooks/discover/use-blocklist";
+import { findBlockedArtist } from "@/lib/blocklist";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -31,10 +36,13 @@ import type { SimilarArtist } from "@/lib/types/search";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Stack } from "expo-router";
+import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
 import Sync from "@expo/material-symbols/sync.xml";
 import SearchIcon from "@expo/material-symbols/search.xml";
+import BlockIcon from "@expo/material-symbols/block.xml";
+import CheckCircle from "@expo/material-symbols/check_circle.xml";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -258,6 +266,37 @@ export function ArtistDetailLayout({
     );
   }, [libraryArtist, deleteMutation]);
 
+  // Blocking is the `block_artist` slice of /discover/feedback, the same call
+  // the blocklist screen makes — only the source context differs.
+  const { data: blockedArtists } = useBlocklist();
+  const { blockArtist, unblockArtist } = useBlocklistMutations();
+  const blockedEntry = useMemo(
+    () => findBlockedArtist(blockedArtists, { id: mbid, name: artistName }),
+    [blockedArtists, mbid, artistName],
+  );
+
+  const handleToggleBlock = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (blockedEntry) {
+      unblockArtist.mutate(blockedEntry, {
+        onSuccess: () =>
+          Burnt.toast({ title: `Unblocked ${artistName}`, preset: "done" }),
+        onError: () =>
+          Burnt.toast({ title: "Couldn't unblock artist", preset: "error" }),
+      });
+      return;
+    }
+    blockArtist.mutate(
+      { id: mbid, name: artistName, sourceContext: "artist_detail" },
+      {
+        onSuccess: () =>
+          Burnt.toast({ title: `Blocked ${artistName}`, preset: "done" }),
+        onError: () =>
+          Burnt.toast({ title: "Couldn't block artist", preset: "error" }),
+      },
+    );
+  }, [blockedEntry, unblockArtist, blockArtist, mbid, artistName]);
+
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -289,12 +328,12 @@ export function ArtistDetailLayout({
           ),
         }}
       />
-      {inLibrary && (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu
-            icon={process.env.EXPO_OS === "ios" ? "ellipsis" : MoreVert}
-            accessibilityLabel="More actions"
-          >
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={process.env.EXPO_OS === "ios" ? "ellipsis" : MoreVert}
+          accessibilityLabel="More actions"
+        >
+          {inLibrary && (
             <Stack.Toolbar.MenuAction
               icon={process.env.EXPO_OS === "ios" ? "arrow.clockwise" : Sync}
               disabled={refreshMutation.isPending}
@@ -305,21 +344,39 @@ export function ArtistDetailLayout({
             >
               {refreshMutation.isPending ? "Refreshing…" : "Refresh"}
             </Stack.Toolbar.MenuAction>
-            {canResearchMissing && (
-              <Stack.Toolbar.MenuAction
-                icon={
-                  process.env.EXPO_OS === "ios" ? "magnifyingglass" : SearchIcon
-                }
-                hidden={missingCount === 0}
-                disabled={isResearching}
-                onPress={() => researchMissing()}
-              >
-                {`Re-search Missing (${missingCount})`}
-              </Stack.Toolbar.MenuAction>
-            )}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
-      )}
+          )}
+          {inLibrary && canResearchMissing && (
+            <Stack.Toolbar.MenuAction
+              icon={
+                process.env.EXPO_OS === "ios" ? "magnifyingglass" : SearchIcon
+              }
+              hidden={missingCount === 0}
+              disabled={isResearching}
+              onPress={() => researchMissing()}
+            >
+              {`Re-search Missing (${missingCount})`}
+            </Stack.Toolbar.MenuAction>
+          )}
+          <Stack.Toolbar.MenuAction
+            icon={
+              process.env.EXPO_OS === "ios"
+                ? blockedEntry
+                  ? "checkmark.circle"
+                  : "nosign"
+                : blockedEntry
+                  ? CheckCircle
+                  : BlockIcon
+            }
+            // Native menus only offer the platform destructive style, so red
+            // here is the system red rather than the theme's error token.
+            destructive={!blockedEntry}
+            disabled={blockArtist.isPending || unblockArtist.isPending}
+            onPress={handleToggleBlock}
+          >
+            {blockedEntry ? "Unblock Artist" : "Block Artist"}
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       <Animated.ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         onScroll={scrollHandler}

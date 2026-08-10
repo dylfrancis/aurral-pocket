@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import {
   queryOptions,
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -32,6 +33,19 @@ export function useBlocklistSuspense() {
   return useSuspenseQuery(blocklistQueryOptions());
 }
 
+/**
+ * Non-suspense variant for screens where the blocklist is a side concern (e.g.
+ * the artist detail menu). A failed fetch must not take the host screen down,
+ * so it opts out of the error boundary and reports an empty list instead.
+ */
+export function useBlocklist() {
+  const { data, ...rest } = useQuery({
+    ...blocklistQueryOptions(),
+    throwOnError: false,
+  });
+  return { ...rest, data: data ?? [] };
+}
+
 export function useBlocklistMutations() {
   const queryClient = useQueryClient();
 
@@ -43,12 +57,17 @@ export function useBlocklistMutations() {
   }, [queryClient]);
 
   const blockArtist = useMutation({
-    mutationFn: (artist: { id?: string | null; name: string }) =>
+    mutationFn: (artist: {
+      id?: string | null;
+      name: string;
+      /** Where the block came from, recorded on the feedback row. */
+      sourceContext?: string;
+    }) =>
       addDiscoveryFeedback({
         action: "block_artist",
         artistId: artist.id ?? null,
         artistName: artist.name,
-        sourceContext: "blocklist",
+        sourceContext: artist.sourceContext ?? "blocklist",
       }),
     onSuccess: invalidate,
   });

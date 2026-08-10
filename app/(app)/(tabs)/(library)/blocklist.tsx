@@ -1,16 +1,21 @@
-import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import * as Haptics from "expo-haptics";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import type { ErrorBoundaryProps } from "expo-router";
+import { Stack, type ErrorBoundaryProps } from "expo-router";
+import type { SearchBarCommands } from "react-native-screens";
 import { Text } from "@/components/ui/Text";
+import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { EmptyState } from "@/components/library/EmptyState";
-import {
-  AutocompleteInput,
-  SuggestionRow,
-} from "@/components/blocklist/AutocompleteInput";
+import { SuggestionRow } from "@/components/blocklist/SuggestionRow";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import {
   useBlocklistMutations,
@@ -18,17 +23,21 @@ import {
 } from "@/hooks/discover/use-blocklist";
 import { isArtistBlocked } from "@/lib/blocklist";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors, Fonts, Radius } from "@/constants/theme";
 import type { BlockedArtist } from "@/lib/types/discovery-feedback";
 import type { SearchArtist } from "@/lib/types/search";
 
 const MAX_SUGGESTIONS = 6;
+const MIN_QUERY_LENGTH = 2;
 
 export default function BlocklistScreen() {
   const colors = Colors[useColorScheme()];
   const { data: blocked } = useBlocklistSuspense();
   const { blockArtist, unblockArtist } = useBlocklistMutations();
 
+  // The native search bar owns its text, so clearing after a block has to go
+  // through the ref — resetting our state alone leaves the field populated.
+  const searchBarRef = useRef<SearchBarCommands>(null);
   const [artistQuery, setArtistQuery] = useState("");
   const { data: artistResults, isFetching } = useArtistSearch(artistQuery);
 
@@ -48,11 +57,18 @@ export default function BlocklistScreen() {
     return out;
   }, [artistResults]);
 
+  const isSearching = artistQuery.trim().length >= MIN_QUERY_LENGTH;
+
+  const clearQuery = useCallback(() => {
+    searchBarRef.current?.clearText();
+    setArtistQuery("");
+  }, []);
+
   const handleSelectArtist = (artist: SearchArtist) => {
     if (isArtistBlocked(blocked, artist)) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     blockArtist.mutate({ id: artist.id, name: artist.name });
-    setArtistQuery("");
+    clearQuery();
   };
 
   // Blocking a name the search could not resolve is still useful: Aurral
@@ -67,7 +83,7 @@ export default function BlocklistScreen() {
     if (isArtistBlocked(blocked, { name })) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     blockArtist.mutate({ name });
-    setArtistQuery("");
+    clearQuery();
   };
 
   const handleUnblock = (entry: BlockedArtist) => {
@@ -76,62 +92,102 @@ export default function BlocklistScreen() {
   };
 
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text variant="caption" style={[styles.helper, { color: colors.subtle }]}>
-        Blocked artists are not recommended to you and are kept out of your
-        playlists and flows.
-      </Text>
-
-      <AutocompleteInput
-        value={artistQuery}
-        onChangeText={setArtistQuery}
+    <>
+      <Stack.SearchBar
+        ref={searchBarRef}
         placeholder="Search for an artist"
-        suggestions={suggestions}
-        isLoading={isFetching}
-        keyExtractor={(artist) => artist.id || artist.name}
-        isItemDisabled={(artist) => isArtistBlocked(blocked, artist)}
-        onSelectSuggestion={handleSelectArtist}
-        onSubmit={handleSubmitTypedArtist}
-        returnKeyType="done"
-        renderSuggestion={(artist) => (
-          <SuggestionRow
-            primary={artist.name}
-            disabled={isArtistBlocked(blocked, artist)}
-          />
-        )}
+        hideWhenScrolling={false}
+        autoCapitalize="none"
+        onChangeText={(e) => setArtistQuery(e.nativeEvent.text)}
+        onSearchButtonPress={handleSubmitTypedArtist}
+        onCancelButtonPress={() => setArtistQuery("")}
       />
-
-      <View style={styles.section}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text
-          variant="body"
-          style={[styles.sectionTitle, { color: colors.text }]}
+          variant="caption"
+          style={[styles.helper, { color: colors.subtle }]}
         >
-          Blocked Artists
+          Blocked artists are not recommended to you and are kept out of your
+          playlists and flows.
         </Text>
-        {blocked.length === 0 ? (
-          <EmptyState
-            icon="person-remove-outline"
-            message="You have not blocked any artists"
-          />
-        ) : (
-          <View style={styles.chips}>
-            {blocked.map((entry) => (
-              <Chip
-                key={entry.id}
-                label={entry.name}
-                icon="close-circle"
-                variant="subtle"
-                onPress={() => handleUnblock(entry)}
-              />
-            ))}
+
+        {isSearching ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text
+                variant="body"
+                style={[styles.sectionTitle, { color: colors.text }]}
+              >
+                Results
+              </Text>
+              {isFetching ? (
+                <ActivityIndicator size="small" color={colors.subtle} />
+              ) : null}
+            </View>
+            {suggestions.length > 0 ? (
+              <Card bordered radius={Radius.compact} style={styles.suggestions}>
+                {suggestions.map((artist) => {
+                  const disabled = isArtistBlocked(blocked, artist);
+                  return (
+                    <Pressable
+                      key={artist.id || artist.name}
+                      onPress={() => handleSelectArtist(artist)}
+                      disabled={disabled}
+                      style={({ pressed }) => [
+                        styles.suggestion,
+                        pressed &&
+                          !disabled && { backgroundColor: colors.brandMuted },
+                      ]}
+                    >
+                      <SuggestionRow
+                        primary={artist.name}
+                        secondary={disabled ? "Already blocked" : undefined}
+                        disabled={disabled}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </Card>
+            ) : isFetching ? null : (
+              <Text variant="caption" style={{ color: colors.subtle }}>
+                No artists found. Press search to block this name anyway.
+              </Text>
+            )}
           </View>
-        )}
-      </View>
-    </ScrollView>
+        ) : null}
+
+        <View style={styles.section}>
+          <Text
+            variant="body"
+            style={[styles.sectionTitle, { color: colors.text }]}
+          >
+            Blocked Artists
+          </Text>
+          {blocked.length === 0 ? (
+            <EmptyState
+              icon="person-remove-outline"
+              message="You have not blocked any artists"
+            />
+          ) : (
+            <View style={styles.chips}>
+              {blocked.map((entry) => (
+                <Chip
+                  key={entry.id}
+                  label={entry.name}
+                  icon="close-circle"
+                  variant="subtle"
+                  onPress={() => handleUnblock(entry)}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </>
   );
 }
 
@@ -164,8 +220,20 @@ const styles = StyleSheet.create({
   section: {
     gap: 12,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   sectionTitle: {
     fontFamily: Fonts.semiBold,
+  },
+  suggestions: {
+    overflow: "hidden",
+  },
+  suggestion: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   chips: {
     flexDirection: "row",

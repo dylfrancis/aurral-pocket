@@ -45,6 +45,7 @@ export default function LibraryLayout() {
         name="blocklist"
         options={{
           title: "Blocklist",
+          headerLargeTitleEnabled: true,
           headerBackButtonDisplayMode: "minimal",
         }}
       />

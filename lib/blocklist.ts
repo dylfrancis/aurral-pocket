@@ -57,20 +57,29 @@ export function selectBlockedArtists(
 
 /**
  * Matches Aurral's own comparison, which keys on either id or name so an artist
- * blocked by name still suppresses a recommendation that carries an id.
+ * blocked by name still suppresses a recommendation that carries an id. Returns
+ * the entry rather than a boolean so callers that need to unblock have the row
+ * id to DELETE.
  */
-export function isArtistBlocked(
+export function findBlockedArtist(
   blocked: BlockedArtist[],
   artist: { id?: string | null; name?: string | null },
-): boolean {
+): BlockedArtist | undefined {
   const id = (artist.id ?? "").trim().toLowerCase();
   const name = (artist.name ?? "").trim().toLowerCase();
-  if (!id && !name) return false;
+  if (!id && !name) return undefined;
 
-  return blocked.some((entry) => {
+  return blocked.find((entry) => {
     const entryId = (entry.artistId ?? "").trim().toLowerCase();
     const entryName = entry.name.trim().toLowerCase();
     if (id && entryId && id === entryId) return true;
     return !!name && !!entryName && name === entryName;
   });
+}
+
+export function isArtistBlocked(
+  blocked: BlockedArtist[],
+  artist: { id?: string | null; name?: string | null },
+): boolean {
+  return !!findBlockedArtist(blocked, artist);
 }
