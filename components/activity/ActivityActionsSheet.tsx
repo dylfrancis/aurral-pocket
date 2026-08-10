@@ -13,20 +13,20 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import { useDeleteAlbumRequest } from "@/hooks/requests/use-delete-album-request";
-import { useResearchAlbum } from "@/hooks/requests/use-research-album";
+import { useDeleteAlbumRequest } from "@/hooks/activity/use-delete-album-request";
+import { useResearchAlbum } from "@/hooks/activity/use-research-album";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { DownloadStatusValue } from "@/lib/types/library";
-import type { Request } from "@/lib/types/requests";
+import type { AlbumRequest } from "@/lib/types/activity";
 
 type RequestActionsSheetProps = {
   sheetRef: React.RefObject<BottomSheetModal | null>;
-  request: Request | null;
+  request: AlbumRequest | null;
   downloadStatus?: DownloadStatusValue;
 };
 
-export function RequestActionsSheet({
+export function ActivityActionsSheet({
   sheetRef,
   request,
   downloadStatus,

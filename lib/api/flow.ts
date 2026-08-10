@@ -146,3 +146,17 @@ export function getFlowArtworkSource(
     token,
   );
 }
+
+/**
+ * Blocked download jobs wait for a decision before Aurral imports them. The
+ * jobId comes from an activity entry with status "blocked".
+ */
+export async function approveBlockedJob(jobId: string) {
+  const r = await api.post(`${FLOW}/jobs/${encodeURIComponent(jobId)}/approve`);
+  return r.data;
+}
+
+export async function denyBlockedJob(jobId: string) {
+  const r = await api.post(`${FLOW}/jobs/${encodeURIComponent(jobId)}/deny`);
+  return r.data;
+}

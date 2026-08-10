@@ -1,5 +1,6 @@
 export const authKeys = {
   me: (serverUrl: string) => ["auth", "me", serverUrl] as const,
+  health: (serverUrl: string) => ["auth", "health", serverUrl] as const,
 };
 
 export const libraryKeys = {
@@ -29,14 +30,15 @@ export const searchKeys = {
   similarArtists: (mbid: string) => ["search", "similar", mbid] as const,
 };
 
-export const requestsKeys = {
-  list: () => ["requests", "list"] as const,
-  downloadStatusesAll: () => ["requests", "downloadStatuses"] as const,
+export const activityKeys = {
+  list: () => ["activity", "list"] as const,
+  downloadStatusesAll: () => ["activity", "downloadStatuses"] as const,
   downloadStatuses: (albumIds: string) =>
-    ["requests", "downloadStatuses", albumIds] as const,
+    ["activity", "downloadStatuses", albumIds] as const,
 };
 
 export const discoverKeys = {
+  feedback: () => ["discover", "feedback"] as const,
   discovery: () => ["discover", "main"] as const,
   recentlyAdded: () => ["discover", "recentlyAdded"] as const,
   recentReleases: () => ["discover", "recentReleases"] as const,

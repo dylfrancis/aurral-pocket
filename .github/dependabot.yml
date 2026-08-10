@@ -104,6 +104,11 @@ updates:
       - dependency-name: "react-native-worklets"
         versions: ["*"]
 
+      # Versions in lockstep with react-native itself, which Expo pins. Bump it
+      # alongside the SDK upgrade, not on Dependabot's schedule.
+      - dependency-name: "@react-native/*"
+        versions: ["*"]
+
       # Expo-pinned third-party packages
       - dependency-name: "@react-native-async-storage/async-storage"
         versions: ["*"]
@@ -125,6 +130,12 @@ updates:
         versions: ["*"]
       - dependency-name: "@stripe/stripe-react-native"
         versions: ["*"]
+
+      # Not in the Expo SDK pin list, but peer-depends on react-native-pager-view,
+      # which is. A major bump can demand a pager-view major the SDK has not
+      # adopted, so let minor/patch through and take majors with an SDK upgrade.
+      - dependency-name: "react-native-tab-view"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

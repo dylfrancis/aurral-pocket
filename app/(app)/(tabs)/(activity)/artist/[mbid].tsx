@@ -10,7 +10,7 @@ import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import type { PrimaryReleaseType } from "@/lib/types/library";
 import type { SimilarArtist } from "@/lib/types/search";
 
-export default function RequestsArtistDetailScreen() {
+export default function ActivityArtistDetailScreen() {
   const { mbid } = useLocalSearchParams<{ mbid: string }>();
   const router = useRouter();
 
