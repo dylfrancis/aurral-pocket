@@ -70,13 +70,17 @@ export function ReviewActions({ jobId }: ReviewActionsProps) {
         ]}
       >
         {approve.isPending ? (
-          <ActivityIndicator size="small" color={colors.background} />
+          <ActivityIndicator size="small" color={colors.buttonPrimaryText} />
         ) : (
           <>
-            <Ionicons name="checkmark" size={16} color={colors.background} />
+            <Ionicons
+              name="checkmark"
+              size={16}
+              color={colors.buttonPrimaryText}
+            />
             <Text
               variant="caption"
-              style={[styles.label, { color: colors.background }]}
+              style={[styles.label, { color: colors.buttonPrimaryText }]}
             >
               Approve
             </Text>

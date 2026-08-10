@@ -38,7 +38,7 @@ export const PreviewTrackRow = React.memo(function PreviewTrackRow({
         <Ionicons
           name={isPlaying ? "pause" : "play"}
           size={14}
-          color={isPlaying ? "#fff" : colors.text}
+          color={isPlaying ? colors.buttonPrimaryText : colors.text}
           style={isPlaying ? undefined : styles.playIcon}
         />
       </View>

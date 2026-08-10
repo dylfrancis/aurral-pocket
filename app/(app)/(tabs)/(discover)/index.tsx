@@ -266,7 +266,10 @@ export default function DiscoverScreen() {
             >
               <Text
                 variant="caption"
-                style={{ color: colors.background, fontFamily: Fonts.semiBold }}
+                style={{
+                  color: colors.buttonPrimaryText,
+                  fontFamily: Fonts.semiBold,
+                }}
               >
                 Open Settings
               </Text>

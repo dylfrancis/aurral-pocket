@@ -143,13 +143,23 @@ export function AddArtistSheet({
             disabled={addArtist.isPending}
           >
             {addArtist.isPending ? (
-              <ActivityIndicator size={18} color="#fff" />
+              <ActivityIndicator size={18} color={colors.buttonPrimaryText} />
             ) : addArtist.isSuccess ? (
-              <Ionicons name="checkmark" size={18} color="#fff" />
+              <Ionicons
+                name="checkmark"
+                size={18}
+                color={colors.buttonPrimaryText}
+              />
             ) : (
-              <Ionicons name="add" size={18} color="#fff" />
+              <Ionicons name="add" size={18} color={colors.buttonPrimaryText} />
             )}
-            <Text variant="body" style={styles.addButtonText}>
+            <Text
+              variant="body"
+              style={[
+                styles.addButtonText,
+                { color: colors.buttonPrimaryText },
+              ]}
+            >
               {addArtist.isSuccess ? "Added" : "Add to Library"}
             </Text>
           </Pressable>
@@ -207,7 +217,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addButtonText: {
-    color: "#fff",
     fontFamily: Fonts.semiBold,
   },
 });

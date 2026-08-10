@@ -22,7 +22,9 @@ export const Colors = {
     brandStrong: "#4d7c0f",
     brandMuted: "#65a30d29",
     buttonPrimary: "#65a30d",
-    buttonPrimaryText: "#ffffff",
+    // Foreground on the brand green is always black, in both schemes: the green
+    // is light enough that white text drops below contrast in light mode.
+    buttonPrimaryText: "#000000",
     complete: "#3b82f6",
     switchThumb: "#ffffff",
   },

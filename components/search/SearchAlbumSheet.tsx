@@ -203,6 +203,12 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
     isPending: addAlbumMutation.isPending || researchMutation.isPending,
   });
 
+  // Enabled sits on brand green, disabled on the separator grey — each needs
+  // its own foreground to stay legible in both schemes.
+  const actionForeground = action.disabled
+    ? colors.subtle
+    : colors.buttonPrimaryText;
+
   const onActionPress = () => {
     if (action.kind === "add") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -264,11 +270,18 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
                 disabled={action.disabled}
               >
                 {action.busy ? (
-                  <ActivityIndicator size={18} color="#fff" />
+                  <ActivityIndicator size={18} color={actionForeground} />
                 ) : (
-                  <Ionicons name={action.icon} size={18} color="#fff" />
+                  <Ionicons
+                    name={action.icon}
+                    size={18}
+                    color={actionForeground}
+                  />
                 )}
-                <Text variant="body" style={styles.actionButtonText}>
+                <Text
+                  variant="body"
+                  style={[styles.actionButtonText, { color: actionForeground }]}
+                >
                   {action.label}
                 </Text>
               </Pressable>
@@ -438,7 +451,7 @@ const TrackPreviewRow = React.memo(function TrackPreviewRow({
           <Ionicons
             name={isPlaying ? "pause" : "play"}
             size={12}
-            color={isPlaying ? "#fff" : colors.text}
+            color={isPlaying ? colors.buttonPrimaryText : colors.text}
             style={isPlaying ? undefined : styles.playIcon}
           />
         </Pressable>
@@ -512,7 +525,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   actionButtonText: {
-    color: "#fff",
     fontFamily: Fonts.semiBold,
   },
   callout: {

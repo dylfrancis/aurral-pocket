@@ -240,11 +240,17 @@ function ArtistCandidateRow({
           ]}
         >
           {isAdding ? (
-            <ActivityIndicator size={14} color="#fff" />
+            <ActivityIndicator size={14} color={colors.buttonPrimaryText} />
           ) : (
             <>
-              <Ionicons name="add" size={16} color="#fff" />
-              <Text variant="caption" style={styles.addButtonText}>
+              <Ionicons name="add" size={16} color={colors.buttonPrimaryText} />
+              <Text
+                variant="caption"
+                style={[
+                  styles.addButtonText,
+                  { color: colors.buttonPrimaryText },
+                ]}
+              >
                 Add
               </Text>
             </>
@@ -339,7 +345,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonText: {
-    color: "#fff",
     fontFamily: Fonts.semiBold,
   },
 });

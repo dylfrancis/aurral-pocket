@@ -55,7 +55,7 @@ export function ShazamListeningIndicator() {
         style={[styles.ring, { backgroundColor: colors.brand }, ringStyle]}
       />
       <View style={[styles.core, { backgroundColor: colors.brand }]}>
-        <Ionicons name="mic" size={36} color="#fff" />
+        <Ionicons name="mic" size={36} color={colors.buttonPrimaryText} />
       </View>
     </View>
   );

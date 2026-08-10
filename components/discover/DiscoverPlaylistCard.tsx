@@ -63,7 +63,11 @@ export function DiscoverPlaylistCard({ playlist, version, onPress }: Props) {
         ) : null}
         {adopted ? (
           <View style={[styles.badge, { backgroundColor: colors.brand }]}>
-            <Ionicons name="checkmark" size={14} color="#fff" />
+            <Ionicons
+              name="checkmark"
+              size={14}
+              color={colors.buttonPrimaryText}
+            />
           </View>
         ) : null}
       </View>

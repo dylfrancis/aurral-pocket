@@ -204,7 +204,13 @@ function CenteredState({
           { backgroundColor: colors.brand, opacity: pressed ? 0.85 : 1 },
         ]}
       >
-        <Text variant="body" style={styles.primaryButtonText}>
+        <Text
+          variant="body"
+          style={[
+            styles.primaryButtonText,
+            { color: colors.buttonPrimaryText },
+          ]}
+        >
           {primaryLabel}
         </Text>
       </Pressable>
@@ -266,7 +272,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryButtonText: {
-    color: "#fff",
     fontFamily: Fonts.semiBold,
   },
   secondaryButton: {

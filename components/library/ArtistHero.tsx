@@ -90,8 +90,18 @@ export function ArtistHero({
                   { backgroundColor: colors.brand, opacity: pressed ? 0.8 : 1 },
                 ]}
               >
-                <Ionicons name="add" size={18} color="#fff" />
-                <Text variant="body" style={styles.addButtonText}>
+                <Ionicons
+                  name="add"
+                  size={18}
+                  color={colors.buttonPrimaryText}
+                />
+                <Text
+                  variant="body"
+                  style={[
+                    styles.addButtonText,
+                    { color: colors.buttonPrimaryText },
+                  ]}
+                >
                   Add to Library
                 </Text>
               </Pressable>
@@ -152,7 +162,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   addButtonText: {
-    color: "#fff",
     fontFamily: Fonts.semiBold,
   },
 });

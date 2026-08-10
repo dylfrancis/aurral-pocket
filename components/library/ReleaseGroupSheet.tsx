@@ -161,13 +161,30 @@ export function ReleaseGroupSheet({
                   disabled={addMutation.isPending}
                 >
                   {addMutation.isPending ? (
-                    <ActivityIndicator size={18} color="#fff" />
+                    <ActivityIndicator
+                      size={18}
+                      color={colors.buttonPrimaryText}
+                    />
                   ) : addMutation.isSuccess ? (
-                    <Ionicons name="checkmark" size={18} color="#fff" />
+                    <Ionicons
+                      name="checkmark"
+                      size={18}
+                      color={colors.buttonPrimaryText}
+                    />
                   ) : (
-                    <Ionicons name="add" size={18} color="#fff" />
+                    <Ionicons
+                      name="add"
+                      size={18}
+                      color={colors.buttonPrimaryText}
+                    />
                   )}
-                  <Text variant="body" style={styles.addButtonText}>
+                  <Text
+                    variant="body"
+                    style={[
+                      styles.addButtonText,
+                      { color: colors.buttonPrimaryText },
+                    ]}
+                  >
                     {addMutation.isSuccess ? "Added" : "Add to Library"}
                   </Text>
                 </Pressable>
@@ -247,7 +264,7 @@ const ReleaseGroupTrackRow = React.memo(function ReleaseGroupTrackRow({
           <Ionicons
             name={isPlaying ? "pause" : "play"}
             size={12}
-            color={isPlaying ? "#fff" : colors.text}
+            color={isPlaying ? colors.buttonPrimaryText : colors.text}
             style={isPlaying ? undefined : styles.playIcon}
           />
         </Pressable>
@@ -314,7 +331,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addButtonText: {
-    color: "#fff",
     fontFamily: Fonts.semiBold,
   },
   trackSection: {
