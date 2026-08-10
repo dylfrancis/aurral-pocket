@@ -1,6 +1,6 @@
 import { deleteAlbumRequest } from "@/lib/api/activity";
 import { activityKeys } from "@/lib/query-keys";
-import type { AlbumRequest } from "@/lib/types/activity";
+import { isAlbumRequest, type ActivityItem } from "@/lib/types/activity";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export function useDeleteAlbumRequest() {
@@ -10,11 +10,19 @@ export function useDeleteAlbumRequest() {
     mutationFn: (albumId: string) => deleteAlbumRequest(albumId),
     onMutate: async (albumId) => {
       await queryClient.cancelQueries({ queryKey: activityKeys.list() });
-      const prev = queryClient.getQueryData<AlbumRequest[]>(
+      const prev = queryClient.getQueryData<ActivityItem[]>(
         activityKeys.list(),
       );
-      queryClient.setQueryData<AlbumRequest[]>(activityKeys.list(), (old) =>
-        old ? old.filter((r) => String(r.albumId) !== String(albumId)) : old,
+      // Only the album request goes; history entries for the same album are a
+      // record of what happened and stay in the feed.
+      queryClient.setQueryData<ActivityItem[]>(activityKeys.list(), (old) =>
+        old
+          ? old.filter(
+              (item) =>
+                !isAlbumRequest(item) ||
+                String(item.albumId) !== String(albumId),
+            )
+          : old,
       );
       return { prev };
     },
