@@ -95,7 +95,7 @@ describe("FlowScreen permission gate", () => {
 
     const { getByText } = await render(<FlowScreen />);
 
-    expect(getByText("You don't have access to Flow")).toBeTruthy();
+    expect(getByText("You don't have access to Playlists")).toBeTruthy();
   });
 
   it("fetches flow status once the user has accessFlow", async () => {
