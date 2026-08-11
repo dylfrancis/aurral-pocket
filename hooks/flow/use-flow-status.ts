@@ -7,7 +7,7 @@ import {
 import { useIsFocused } from "expo-router/react-navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
-import { getFlowStatus } from "@/lib/api/flow";
+import { getFlowStatus, getPlaylistJobs } from "@/lib/api/flow";
 import { flowKeys } from "@/lib/query-keys";
 
 const POLL_INTERVAL_MS = 3000;
@@ -43,6 +43,32 @@ export function useFlowStatus() {
   );
 
   return query;
+}
+
+export function playlistJobsQueryOptions(playlistId: string) {
+  return queryOptions({
+    queryKey: flowKeys.jobs(playlistId),
+    queryFn: () => getPlaylistJobs(playlistId),
+    staleTime: 1000,
+  });
+}
+
+/**
+ * Track jobs for one flow or shared playlist. The status snapshot does not
+ * carry jobs (server dropped them in Aurral cc9dc1d5), so this polls
+ * /playlists/jobs/:id on the same cadence as the status query.
+ */
+export function usePlaylistJobs(playlistId: string | undefined) {
+  const { serverUrl, token } = useAuth();
+  const isFocused = useIsFocused();
+  const enabled = !!serverUrl && !!token && !!playlistId;
+
+  return useQuery({
+    ...playlistJobsQueryOptions(playlistId ?? ""),
+    enabled,
+    refetchInterval: isFocused ? POLL_INTERVAL_MS : false,
+    refetchIntervalInBackground: false,
+  });
 }
 
 /**

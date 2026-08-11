@@ -17,7 +17,7 @@ import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { useEditSnapshot, useUpdateSharedPlaylist } from "@/hooks/flow";
+import { usePlaylistEditSnapshot, useUpdateSharedPlaylist } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type {
@@ -66,14 +66,7 @@ export default function PlaylistEditScreen() {
   // The form edits a one-time snapshot of the playlist. Subscribing to the
   // live status poll here would reset in-progress draft edits whenever the
   // playlist changes server-side (same failure mode as #138).
-  const { snapshot, isLoading } = useEditSnapshot(!!playlistId, (status) => {
-    const playlist = status.sharedPlaylists.find((p) => p.id === playlistId);
-    if (!playlist) return undefined;
-    const jobs = (status.jobs ?? []).filter(
-      (job) => job.playlistType === playlistId && job.status !== "failed",
-    );
-    return { playlist, jobs };
-  });
+  const { snapshot, isLoading } = usePlaylistEditSnapshot(playlistId);
 
   if (isLoading) {
     return (

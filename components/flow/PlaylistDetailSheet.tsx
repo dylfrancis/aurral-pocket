@@ -23,6 +23,7 @@ import {
   useDeleteSharedPlaylistTrack,
   useFlowAudioPreview,
   useJobsForPlaylist,
+  usePlaylistJobs,
   usePlaylistStats,
   useRetryCyclePaused,
   useSetRetryCyclePaused,
@@ -52,6 +53,8 @@ export function PlaylistDetailSheet({
   const playlist = useSharedPlaylist(playlistId ?? undefined);
   const stats = usePlaylistStats(playlistId ?? undefined);
   const jobs = useJobsForPlaylist(playlistId ?? undefined);
+  // Same cache entry as useJobsForPlaylist; only the initial-load flag is read.
+  const jobsLoading = usePlaylistJobs(playlistId ?? undefined).isLoading;
   const retryPaused = useRetryCyclePaused(playlistId ?? undefined);
   const { stop } = useFlowAudioPreview();
 
@@ -218,10 +221,14 @@ export function PlaylistDetailSheet({
   const renderEmpty = useCallback(
     () => (
       <View style={styles.empty}>
-        <Text variant="caption">No tracks yet.</Text>
+        {jobsLoading ? (
+          <ActivityIndicator />
+        ) : (
+          <Text variant="caption">No tracks yet.</Text>
+        )}
       </View>
     ),
-    [],
+    [jobsLoading],
   );
 
   return (

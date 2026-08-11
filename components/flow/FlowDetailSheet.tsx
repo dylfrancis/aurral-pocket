@@ -28,6 +28,7 @@ import {
   useFlowAudioPreview,
   useFlowStats,
   useJobsForPlaylist,
+  usePlaylistJobs,
   useRetryCyclePaused,
   useSetFlowEnabled,
   useSetRetryCyclePaused,
@@ -59,6 +60,8 @@ export function FlowDetailSheet({
   const flow = useFlow(flowId ?? undefined);
   const stats = useFlowStats(flowId ?? undefined);
   const jobs = useJobsForPlaylist(flowId ?? undefined);
+  // Same cache entry as useJobsForPlaylist; only the initial-load flag is read.
+  const jobsLoading = usePlaylistJobs(flowId ?? undefined).isLoading;
   const retryPaused = useRetryCyclePaused(flowId ?? undefined);
   const { data: status } = useFlowStatus();
   const { stop } = useFlowAudioPreview();
@@ -296,14 +299,18 @@ export function FlowDetailSheet({
   const renderEmpty = useCallback(
     () => (
       <View style={styles.empty}>
-        <Text variant="caption">
-          {flow?.enabled
-            ? "Tracks will appear once the flow runs."
-            : "Enable the flow or tap Start Now to populate tracks."}
-        </Text>
+        {jobsLoading ? (
+          <ActivityIndicator />
+        ) : (
+          <Text variant="caption">
+            {flow?.enabled
+              ? "Tracks will appear once the flow runs."
+              : "Enable the flow or tap Start Now to populate tracks."}
+          </Text>
+        )}
       </View>
     ),
-    [flow?.enabled],
+    [flow?.enabled, jobsLoading],
   );
 
   return (

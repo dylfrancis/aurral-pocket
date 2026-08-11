@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useFlowStatus } from "./use-flow-status";
+import { useFlowStatus, usePlaylistJobs } from "./use-flow-status";
 import type {
   Flow,
   FlowJob,
@@ -39,15 +39,12 @@ export function useJobsForPlaylist(
   playlistId: string | undefined,
   { includeFailed = false }: { includeFailed?: boolean } = {},
 ): FlowJob[] {
-  const { data } = useFlowStatus();
+  const { data } = usePlaylistJobs(playlistId);
   return useMemo(() => {
-    if (!playlistId || !data?.jobs) return [];
-    return data.jobs.filter(
-      (job) =>
-        job.playlistType === playlistId &&
-        (includeFailed || job.status !== "failed"),
-    );
-  }, [playlistId, data?.jobs, includeFailed]);
+    if (!data) return [];
+    if (includeFailed) return data;
+    return data.filter((job) => job.status !== "failed");
+  }, [data, includeFailed]);
 }
 
 export function useFlowStats(

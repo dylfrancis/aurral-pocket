@@ -37,7 +37,12 @@ export type SharedPlaylist = {
   tracks?: SharedPlaylistTrack[];
 };
 
-export type FlowJobStatus = "pending" | "downloading" | "done" | "failed";
+export type FlowJobStatus =
+  | "pending"
+  | "downloading"
+  | "blocked"
+  | "done"
+  | "failed";
 
 export type FlowJob = {
   id: string;
@@ -56,6 +61,8 @@ export type PlaylistStats = {
   total: number;
   pending: number;
   downloading: number;
+  /** Absent on Aurral versions that predate the blocked-download review flow. */
+  blocked?: number;
   done: number;
   failed: number;
 };
@@ -97,7 +104,6 @@ export type FlowStatusSnapshot = {
   flowStats: Record<string, PlaylistStats>;
   sharedStats: PlaylistStats;
   sharedPlaylistStats: Record<string, PlaylistStats>;
-  jobs?: FlowJob[];
   flows: Flow[];
   sharedPlaylists: SharedPlaylist[];
   retryCyclePausedByPlaylist: Record<string, boolean>;

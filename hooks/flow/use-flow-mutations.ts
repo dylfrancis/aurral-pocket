@@ -20,7 +20,11 @@ import type {
 
 function useFlowInvalidate() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: flowKeys.status() });
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: flowKeys.status() }),
+      queryClient.invalidateQueries({ queryKey: flowKeys.jobsAll() }),
+    ]);
 }
 
 export function useCreateFlow() {
@@ -80,6 +84,7 @@ export function useSetFlowEnabled() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: flowKeys.status() });
+      queryClient.invalidateQueries({ queryKey: flowKeys.jobsAll() });
     },
   });
 }

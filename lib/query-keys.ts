@@ -49,6 +49,8 @@ export const discoverKeys = {
 
 export const flowKeys = {
   status: () => ["flow", "status"] as const,
+  jobsAll: () => ["flow", "jobs"] as const,
+  jobs: (playlistId: string) => ["flow", "jobs", playlistId] as const,
   workerSettings: () => ["flow", "worker", "settings"] as const,
 };
 
