@@ -2,6 +2,7 @@ import { api } from "./client";
 import type {
   Flow,
   FlowFormValues,
+  FlowJob,
   FlowStatusSnapshot,
   SharedPlaylist,
   SharedPlaylistTrack,
@@ -16,9 +17,19 @@ import type {
 const FLOW = "/playlists";
 
 export async function getFlowStatus(): Promise<FlowStatusSnapshot> {
-  const r = await api.get<FlowStatusSnapshot>(`${FLOW}/status`, {
-    params: { includeJobs: 1 },
-  });
+  const r = await api.get<FlowStatusSnapshot>(`${FLOW}/status`);
+  return r.data;
+}
+
+/**
+ * Per-playlist track jobs. The status snapshot stopped carrying a `jobs`
+ * array in Aurral cc9dc1d5; this endpoint is the only source for a flow's
+ * tracks. It also serves shared playlists, ordered by their track order.
+ */
+export async function getPlaylistJobs(playlistId: string): Promise<FlowJob[]> {
+  const r = await api.get<FlowJob[]>(
+    `${FLOW}/jobs/${encodeURIComponent(playlistId)}`,
+  );
   return r.data;
 }
 

@@ -7,6 +7,7 @@ const CONFIG: Record<
 > = {
   pending: { label: "Queued", variant: "subtle" },
   downloading: { label: "Downloading", variant: "brand" },
+  blocked: { label: "Blocked", variant: "error" },
   done: { label: "Ready", variant: "brand" },
   failed: { label: "Failed", variant: "error" },
 };
@@ -14,6 +15,11 @@ const CONFIG: Record<
 type Props = { status: FlowJobStatus };
 
 export function StatusBadge({ status }: Props) {
-  const { label, variant } = CONFIG[status];
+  // The server can grow new statuses ahead of an app update; render them
+  // as-is instead of crashing on a missing config entry.
+  const { label, variant } = CONFIG[status] ?? {
+    label: status,
+    variant: "subtle" as const,
+  };
   return <Chip label={label} variant={variant} />;
 }
