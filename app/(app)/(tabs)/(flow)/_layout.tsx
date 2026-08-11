@@ -26,7 +26,7 @@ export default function FlowLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: "Flow",
+          title: "Playlists",
           headerLargeTitleEnabled: true,
         }}
       />

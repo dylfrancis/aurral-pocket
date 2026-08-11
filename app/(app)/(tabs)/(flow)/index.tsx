@@ -48,7 +48,7 @@ export default function FlowScreen() {
       <ScreenCenter>
         <EmptyState
           icon="lock-closed-outline"
-          message="You don't have access to Flow"
+          message="You don't have access to Playlists"
         />
       </ScreenCenter>
     );
@@ -70,7 +70,7 @@ function FlowScreenContent() {
       const result = await refetch();
       if (result.isError) {
         Burnt.toast({
-          title: "Couldn't refresh flows",
+          title: "Couldn't refresh playlists",
           preset: "error",
         });
       }
@@ -91,6 +91,7 @@ function FlowScreenContent() {
   const rows = useMemo<SectionRow[]>(() => {
     const out: SectionRow[] = [];
     if (data.flows.length > 0) {
+      out.push({ kind: "header", title: "Flows", key: "h-flows" });
       for (const flow of data.flows) {
         out.push({
           kind: "flow",
@@ -264,7 +265,7 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
     <ScreenCenter>
       <EmptyState
         icon="cloud-offline-outline"
-        message="Failed to load flows"
+        message="Failed to load playlists"
         actionLabel="Try Again"
         onAction={() => {
           reset();
