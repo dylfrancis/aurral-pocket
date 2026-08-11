@@ -2,13 +2,11 @@ jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
 
-jest.mock("@/lib/api/client", () => ({
-  absolutizeImageUrl: (raw: string | null | undefined) => raw ?? null,
-}));
-
-jest.mock("expo-image", () => {
+jest.mock("@/components/library/CoverArtImage", () => {
   const { View } = require("react-native");
-  return { Image: (props: any) => <View testID="expo-image" {...props} /> };
+  return {
+    CoverArtImage: (props: any) => <View testID="cover-art-image" {...props} />,
+  };
 });
 
 import React from "react";
@@ -87,17 +85,16 @@ describe("SearchArtistRow", () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it("always renders the placeholder, never an image", async () => {
-    // /search/unified returns no artwork, and resolving covers per row would
-    // cost one request per visible result.
-    const { queryByTestId, getByTestId } = await render(
+  it("renders the artist cover art for the row's mbid", async () => {
+    const { getByTestId } = await render(
       <SearchArtistRow
         artist={baseArtist}
         isInLibrary={false}
         onPress={() => {}}
       />,
     );
-    expect(queryByTestId("expo-image")).toBeNull();
-    expect(getByTestId("icon-person-outline")).toBeTruthy();
+    const cover = getByTestId("cover-art-image");
+    expect(cover.props.type).toBe("artist");
+    expect(cover.props.mbid).toBe("mbid-123");
   });
 });

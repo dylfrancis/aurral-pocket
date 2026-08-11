@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
+import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { SearchArtist } from "@/lib/types/search";
@@ -30,20 +31,12 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
         { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      {/*
-        `/search/unified` carries no artwork, and Aurral's own web UI shows no
-        thumbnails in search results either. Resolving `/artists/:mbid/cover`
-        here would cost one request per visible row.
-      */}
-      <View
-        style={[
-          styles.thumb,
-          styles.placeholder,
-          { backgroundColor: colors.card },
-        ]}
-      >
-        <Ionicons name="person-outline" size={20} color={colors.subtle} />
-      </View>
+      <CoverArtImage
+        type="artist"
+        mbid={artist.id}
+        size={THUMB_SIZE}
+        borderRadius={THUMB_SIZE / 2}
+      />
 
       <View style={styles.meta}>
         <Text
@@ -70,15 +63,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
-  },
-  thumb: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: THUMB_SIZE / 2,
-  },
-  placeholder: {
-    justifyContent: "center",
-    alignItems: "center",
   },
   meta: {
     flex: 1,
