@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Verifies every endpoint pocket calls still exists on the Aurral version we
- * target.
+ * target, and that the responses pocket reads still have the shape it expects.
  *
  * Aurral 2.0 moved the weekly-flow router to /playlists and deleted
  * /search/artists. Both were silent: the client kept compiling, and the failure
@@ -21,16 +21,50 @@
  * the router level (weeklyFlow) answer 401 for unmatched paths too, which would
  * make every missing route under /playlists look present.
  *
+ * How it decides a response shape drifted
+ * ---------------------------------------
+ * Route existence alone missed #176: Aurral cc9dc1d5 removed the `jobs` array
+ * from GET /playlists/status, the route kept answering 200, and the flow
+ * detail sheet shipped with an empty track list. So for every GET route that
+ * answers 200 with JSON, the check records the body's *shape* — key paths and
+ * value types, never values — and compares it against the checked-in baseline
+ * in scripts/api-contract-baseline.json.
+ *
+ * The baseline is tied to the pinned version in .aurral-version. Bumping the
+ * pin without regenerating the baseline fails the build, so upstream shape
+ * drift lands in the same PR as the bump, as a reviewable diff.
+ *
+ * A key that disappears or changes type fails the build, with two deliberate
+ * tolerances: a key that *appears* is only reported (additions cannot break a
+ * reader), and "null" matches any type (fresh-install nullables track timing
+ * and provider reachability, not the contract). Parameterized GET routes are
+ * excluded — probed with synthetic IDs, their bodies describe nonexistent
+ * records — so shape checking covers the routes that answer 200 without real
+ * data: status, settings, lists.
+ *
  * Usage:
  *   AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs
+ *
+ * Regenerating the baseline (after bumping .aurral-version, or after adding a
+ * GET call site) — record against a fresh, onboarded container of the pinned
+ * version, exactly like .github/workflows/api-contract.yml starts one:
+ *   docker run -d --name aurral -p 3001:3001 ghcr.io/lklynet/aurral:$(cat .aurral-version)
+ *   curl -X POST http://localhost:3001/api/onboarding/complete ...   # see workflow
+ *   AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs --record
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const API_DIR = join(ROOT, "lib", "api");
+const BASELINE_PATH = join(ROOT, "scripts", "api-contract-baseline.json");
+const PINNED_VERSION = readFileSync(
+  join(ROOT, ".aurral-version"),
+  "utf8",
+).trim();
+const RECORD = process.argv.includes("--record");
 const BASE = (process.env.AURRAL_URL || "http://localhost:3001").replace(
   /\/+$/,
   "",
@@ -67,6 +101,98 @@ const MAX_RELOGINS = 2;
  * production.
  */
 const KNOWN_DRIFT = new Map([]);
+
+/**
+ * Top-level keys the client cannot function without, asserted against the live
+ * response on every run — including --record. The baseline compare alone would
+ * miss the case #176 shipped: if upstream drops one of these and someone
+ * regenerates the baseline without reading the diff, the recorded shape and
+ * the server agree and the compare passes. This list does not regenerate.
+ *
+ * Only routes that answer 200 on a fresh install can appear here. The client
+ * also requires GET /playlists/jobs/:id, but it needs a real playlist and
+ * always 404s against a synthetic ID, so it cannot be asserted this way.
+ */
+const REQUIRED_KEYS = new Map([
+  [
+    "GET /playlists/status",
+    { flowStats: "object", flows: "array", sharedPlaylists: "array" },
+  ],
+]);
+
+/**
+ * The shape of a JSON value, with every concrete value erased:
+ *   scalars  -> "string" | "number" | "boolean" | "null"
+ *   arrays   -> [] when empty, [<shape of first element>] otherwise
+ *   objects  -> { key: <shape>, ... } with keys sorted
+ *
+ * Arrays are described by their first element only. On the fresh CI container
+ * every list is empty anyway, and a merged union of element shapes buys
+ * nothing for that cost.
+ */
+function shapeOf(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value))
+    return value.length === 0 ? [] : [shapeOf(value[0])];
+  if (typeof value === "object") {
+    const shape = {};
+    for (const key of Object.keys(value).sort())
+      shape[key] = shapeOf(value[key]);
+    return shape;
+  }
+  return typeof value;
+}
+
+function kindOf(shape) {
+  if (typeof shape === "string") return shape;
+  return Array.isArray(shape) ? "array" : "object";
+}
+
+/**
+ * Collects the differences between a baseline shape and a probed shape.
+ *
+ * Failures (`missing`, `changed`) are what breaks a reader: a key that is gone
+ * or a value whose type moved under it. Additions cannot break a reader and
+ * only land in `added`, so the caller can report them without failing.
+ *
+ * Null matches any type, in both directions. On a fresh install, nullable
+ * fields (`lastUpdated`, `lastFailureAt`, `library.lastScan`) reflect timing
+ * and provider reachability, not the contract — a strict rule here would make
+ * the build flap. The signal #176 taught us to watch for is a key that is
+ * *gone*, and that still fails.
+ */
+function compareShapes(baseline, probed, path, diff) {
+  const baseKind = kindOf(baseline);
+  const probedKind = kindOf(probed);
+
+  if (baseKind !== probedKind) {
+    if (baseKind === "null" || probedKind === "null") return;
+    diff.changed.push(`${path}: ${baseKind} -> ${probedKind}`);
+    return;
+  }
+
+  if (baseKind === "array") {
+    // An empty side means no element was observed on that run, which is an
+    // unknown element shape, not a conflicting one.
+    if (baseline.length > 0 && probed.length > 0) {
+      compareShapes(baseline[0], probed[0], `${path}[]`, diff);
+    }
+    return;
+  }
+
+  if (baseKind === "object") {
+    for (const key of Object.keys(baseline)) {
+      if (key in probed) {
+        compareShapes(baseline[key], probed[key], `${path}.${key}`, diff);
+      } else {
+        diff.missing.push(`${path}.${key}`);
+      }
+    }
+    for (const key of Object.keys(probed)) {
+      if (!(key in baseline)) diff.added.push(`${path}.${key}`);
+    }
+  }
+}
 
 /**
  * Pull every `api.<method>("<path>")` call out of lib/api/*.ts.
@@ -208,6 +334,121 @@ async function login() {
   return token;
 }
 
+/** Returns true on failure. Runs in both modes — see REQUIRED_KEYS. */
+function checkRequiredKeys(shapes) {
+  let failed = false;
+  for (const [key, required] of REQUIRED_KEYS) {
+    const shape = shapes.get(key);
+    if (shape === undefined) {
+      console.error(
+        `\nFAIL: ${key} did not answer 200 with JSON, so its required keys ` +
+          "cannot be verified.",
+      );
+      failed = true;
+      continue;
+    }
+    for (const [topKey, kind] of Object.entries(required)) {
+      const got = topKey in shape ? kindOf(shape[topKey]) : undefined;
+      if (got !== kind) {
+        console.error(
+          `\nFAIL: ${key} must carry \`${topKey}\` (${kind}); got ` +
+            `${got ?? "no such key"}. The client reads this on the happy path — ` +
+            "see #176.",
+        );
+        failed = true;
+      }
+    }
+  }
+  return failed;
+}
+
+function writeBaseline(shapes) {
+  const baseline = {
+    aurralVersion: PINNED_VERSION,
+    shapes: Object.fromEntries(
+      [...shapes.entries()].sort(([a], [b]) => a.localeCompare(b)),
+    ),
+  };
+  writeFileSync(BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`);
+  console.log(
+    `\nRecorded ${shapes.size} response shape(s) for Aurral ${PINNED_VERSION} ` +
+      `into ${BASELINE_PATH}. Commit the diff — it is the reviewable record of ` +
+      "what changed upstream.",
+  );
+}
+
+/** Returns true on failure. */
+function compareBaseline(shapes) {
+  let baseline;
+  try {
+    baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8"));
+  } catch {
+    console.error(
+      `\nFAIL: could not read ${BASELINE_PATH}. Record it against a fresh ` +
+        `onboarded Aurral ${PINNED_VERSION} container with --record (see the ` +
+        "header of this script).",
+    );
+    return true;
+  }
+
+  if (baseline.aurralVersion !== PINNED_VERSION) {
+    console.error(
+      `\nFAIL: the shape baseline was recorded against Aurral ` +
+        `${baseline.aurralVersion} but .aurral-version pins ${PINNED_VERSION}. ` +
+        "Regenerate with --record in the same PR as the version bump, so the " +
+        "shape diff gets reviewed alongside it.",
+    );
+    return true;
+  }
+
+  let failed = false;
+  const recorded = baseline.shapes ?? {};
+
+  for (const [key, baseShape] of Object.entries(recorded)) {
+    if (!shapes.has(key)) {
+      console.error(
+        `\nFAIL: ${key} is in the shape baseline but no longer answers 200 ` +
+          "with JSON. If the call site was removed, regenerate the baseline " +
+          "with --record; otherwise the route regressed.",
+      );
+      failed = true;
+      continue;
+    }
+
+    const diff = { missing: [], changed: [], added: [] };
+    compareShapes(baseShape, shapes.get(key), "body", diff);
+
+    if (diff.missing.length > 0 || diff.changed.length > 0) {
+      console.error(`\nFAIL: response shape drifted for ${key}:`);
+      for (const p of diff.missing) console.error(`  gone     ${p}`);
+      for (const p of diff.changed) console.error(`  retyped  ${p}`);
+      failed = true;
+    }
+    if (diff.added.length > 0) {
+      console.log(`  note: new keys on ${key} (harmless; --record to adopt):`);
+      for (const p of diff.added) console.log(`    ${p}`);
+    }
+  }
+
+  for (const key of shapes.keys()) {
+    if (!(key in recorded)) {
+      console.error(
+        `\nFAIL: ${key} answers 200 but has no shape baseline. Regenerate ` +
+          "with --record so the new response is covered.",
+      );
+      failed = true;
+    }
+  }
+
+  if (!failed) {
+    console.log(
+      `${Object.keys(recorded).length} response shape(s) match the ` +
+        `Aurral ${PINNED_VERSION} baseline.`,
+    );
+  }
+  return failed;
+}
+
 async function main() {
   let token = await login();
   const extracted = extractPocketRoutes();
@@ -231,6 +472,10 @@ async function main() {
   // Allowlist entries that now pass — the drift was fixed and the entry should
   // be deleted, otherwise the list quietly grows into a place bugs hide.
   const stale = [];
+  // Shapes of every GET response that answered 200 with JSON, keyed by
+  // "<METHOD> <raw path>". Only these routes are shape-checkable: synthetic
+  // path parameters make every parameterized route answer 404 on its merits.
+  const shapes = new Map();
 
   for (const route of routes) {
     const path = `/api${concretize(route.raw)}`;
@@ -288,6 +533,18 @@ async function main() {
     } else {
       if (knownReason) stale.push({ ...route, reason: knownReason });
       ok.push({ ...route, path, status: result.status });
+      // Parameterized routes are excluded even when they answer 200: a body
+      // produced for a synthetic ID describes a nonexistent record — usually
+      // via an external lookup (Lidarr, MusicBrainz, cover art), whose
+      // availability would make the recorded shape flap between runs.
+      if (
+        route.method === "GET" &&
+        result.status === 200 &&
+        result.body !== undefined &&
+        !route.raw.includes("${")
+      ) {
+        shapes.set(key, shapeOf(result.body));
+      }
     }
   }
 
@@ -334,6 +591,22 @@ async function main() {
     failed = true;
   }
 
+  if (checkRequiredKeys(shapes)) failed = true;
+
+  if (RECORD) {
+    if (failed) {
+      console.error(
+        "\nNot recording a baseline from a failing run — fix the failures " +
+          "above first.",
+      );
+      process.exit(1);
+    }
+    writeBaseline(shapes);
+    return;
+  }
+
+  if (compareBaseline(shapes)) failed = true;
+
   if (failed) process.exit(1);
 
   if (known.length > 0) {
@@ -341,7 +614,10 @@ async function main() {
       `\nPASS with ${known.length} known drift item(s) still outstanding.`,
     );
   } else {
-    console.log("\nPASS: every endpoint pocket calls exists.");
+    console.log(
+      "\nPASS: every endpoint pocket calls exists and every recorded " +
+        "response shape matches the baseline.",
+    );
   }
 }
 

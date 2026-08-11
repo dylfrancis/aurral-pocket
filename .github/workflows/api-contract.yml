@@ -5,6 +5,7 @@ on:
     paths:
       - "lib/api/**"
       - "scripts/check-api-contract.mjs"
+      - "scripts/api-contract-baseline.json"
       - ".aurral-version"
       - ".github/workflows/api-contract.yml"
   push:

@@ -1,0 +1,361 @@
+{
+  "aurralVersion": "2.2.0",
+  "shapes": {
+    "GET /auth/me": {
+      "expiresAt": "number",
+      "user": {
+        "id": "number",
+        "permissions": {
+          "accessFlow": "boolean",
+          "addAlbum": "boolean",
+          "addArtist": "boolean",
+          "changeMonitoring": "boolean",
+          "deleteAlbum": "boolean",
+          "deleteArtist": "boolean"
+        },
+        "role": "string",
+        "username": "string"
+      }
+    },
+    "GET /discover": {
+      "basedOn": [],
+      "capabilities": {
+        "arbitraryTagSearch": "boolean",
+        "flows": {
+          "discover": "boolean",
+          "focus": "boolean",
+          "mix": "boolean",
+          "trending": "boolean"
+        },
+        "genreSections": "boolean",
+        "globalTrending": "boolean",
+        "personalizedRecommendations": "boolean",
+        "relatedArtists": "boolean"
+      },
+      "configured": "boolean",
+      "discoverPlaylists": [],
+      "discoveryMode": "string",
+      "discoveryRunId": "null",
+      "enrichmentCompletedAt": "null",
+      "enrichmentProgressMessage": "null",
+      "enrichmentStartedAt": "null",
+      "fallbackGenres": [
+        {
+          "artists": [
+            {
+              "genres": ["string"],
+              "id": "string",
+              "listenCount": "number",
+              "mbid": "string",
+              "metaText": "string",
+              "name": "string",
+              "navigateTo": "string",
+              "popularityLabel": "string",
+              "popularityRank": "number",
+              "sortName": "string",
+              "source": "string",
+              "tags": ["string"],
+              "type": "string"
+            }
+          ],
+          "name": "string",
+          "tags": ["string"]
+        }
+      ],
+      "globalTop": [
+        {
+          "id": "string",
+          "listenCount": "number",
+          "mbid": "string",
+          "metaText": "string",
+          "name": "string",
+          "navigateTo": "string",
+          "popularityLabel": "string",
+          "popularityRank": "number",
+          "sortName": "string",
+          "source": "string",
+          "type": "string"
+        }
+      ],
+      "isEnriching": "boolean",
+      "isUpdating": "boolean",
+      "lastUpdated": "string",
+      "playlistsUpdating": "boolean",
+      "provider": "string",
+      "recommendationCount": "number",
+      "recommendationQuality": "null",
+      "recommendations": [],
+      "stale": "boolean",
+      "topGenres": ["string"],
+      "topTags": ["string"]
+    },
+    "GET /discover/feedback": {
+      "feedback": []
+    },
+    "GET /discover/nearby-shows": {
+      "configured": "boolean",
+      "libraryShows": [],
+      "location": "null",
+      "recommendedShows": [],
+      "shows": [],
+      "total": "number"
+    },
+    "GET /discover/tags": {
+      "tags": ["string"]
+    },
+    "GET /health": {
+      "appVersion": "string",
+      "authRequired": "boolean",
+      "authUser": "string",
+      "discovery": {
+        "cachedImagesCount": "number",
+        "cachedImagesSizeBytes": "number",
+        "capabilities": {
+          "arbitraryTagSearch": "boolean",
+          "flows": {
+            "discover": "boolean",
+            "focus": "boolean",
+            "mix": "boolean",
+            "trending": "boolean"
+          },
+          "genreSections": "boolean",
+          "globalTrending": "boolean",
+          "personalizedRecommendations": "boolean",
+          "relatedArtists": "boolean"
+        },
+        "globalTopCount": "number",
+        "isUpdating": "boolean",
+        "lastUpdated": "string",
+        "provider": "string",
+        "recommendationsCount": "number",
+        "updatePhase": "null",
+        "updateProgress": "null",
+        "updateProgressMessage": "null"
+      },
+      "downloadSources": {
+        "slskd": {
+          "configured": "boolean",
+          "enabled": "boolean",
+          "id": "string",
+          "label": "string",
+          "priority": "number"
+        },
+        "usenet": {
+          "configured": "boolean",
+          "enabled": "boolean",
+          "id": "string",
+          "label": "string",
+          "nzbgetConfigured": "boolean",
+          "priority": "number",
+          "prowlarrConfigured": "boolean",
+          "sabnzbdConfigured": "boolean"
+        },
+        "ytdlp": {
+          "configured": "boolean",
+          "enabled": "boolean",
+          "id": "string",
+          "label": "string",
+          "priority": "number"
+        }
+      },
+      "inboxEnabled": "boolean",
+      "lastfmConfigured": "boolean",
+      "library": {
+        "artistCount": "number",
+        "lastScan": "null"
+      },
+      "lidarr": {
+        "circuitOpen": "boolean",
+        "configured": "boolean"
+      },
+      "lidarrConfigured": "boolean",
+      "localNetworkBypass": {
+        "active": "boolean",
+        "eligible": "boolean",
+        "enabled": "boolean",
+        "reason": "string"
+      },
+      "metadataConfigured": "boolean",
+      "metadataProviders": {
+        "brainzmash": {
+          "activeBaseUrl": "string",
+          "configuredProvider": "string",
+          "failoverActive": "boolean",
+          "lastCheckedAt": "string",
+          "lastFailureAt": "string",
+          "lastFailureReason": "string",
+          "lastSuccessAt": "string"
+        }
+      },
+      "musicbrainzConfigured": "boolean",
+      "newsConfigured": "boolean",
+      "nzbgetConfigured": "boolean",
+      "oidcEnabled": "boolean",
+      "oidcLogoutUrl": "null",
+      "onboardingRequired": "boolean",
+      "prowlarrConfigured": "boolean",
+      "proxyAuthEnabled": "boolean",
+      "proxyLogoutUrl": "null",
+      "rootFolderConfigured": "boolean",
+      "sabnzbdConfigured": "boolean",
+      "slskdConfigured": "boolean",
+      "status": "string",
+      "system": {
+        "arch": "string",
+        "dataDir": "string",
+        "database": {
+          "engine": "string",
+          "label": "string",
+          "version": "string"
+        },
+        "databasePath": "string",
+        "diskSpace": [
+          {
+            "available": "boolean",
+            "freeBytes": "number",
+            "location": "string",
+            "role": "string",
+            "statTarget": "string",
+            "totalBytes": "number",
+            "usedPercent": "number"
+          }
+        ],
+        "docker": "boolean",
+        "hostname": "string",
+        "links": [
+          {
+            "label": "string",
+            "url": "string",
+            "value": "string"
+          }
+        ],
+        "mode": "string",
+        "nodeVersion": "string",
+        "platform": "string",
+        "startedAt": "string",
+        "startupDirectory": "string",
+        "uptimeSeconds": "number",
+        "version": "string"
+      },
+      "ticketmasterConfigured": "boolean",
+      "timestamp": "string",
+      "usenetConfigured": "boolean",
+      "user": {
+        "id": "number",
+        "permissions": {
+          "accessFlow": "boolean",
+          "accessSettings": "boolean",
+          "addAlbum": "boolean",
+          "addArtist": "boolean",
+          "changeMonitoring": "boolean",
+          "deleteAlbum": "boolean",
+          "deleteArtist": "boolean"
+        },
+        "role": "string",
+        "username": "string"
+      },
+      "websocket": {
+        "channels": {},
+        "clients": "number"
+      },
+      "ytdlpConfigured": "boolean"
+    },
+    "GET /library/artists": [],
+    "GET /library/recent": [],
+    "GET /library/tracks": [],
+    "GET /playlists/status": {
+      "capabilities": {
+        "availableSources": [],
+        "lastfmRequired": "boolean",
+        "unavailableSources": {
+          "discover": "string",
+          "focus": "string",
+          "mix": "string",
+          "trending": "string"
+        }
+      },
+      "flowStats": {},
+      "flows": [],
+      "hint": {
+        "message": "string",
+        "phase": "string"
+      },
+      "operationQueue": {
+        "currentLabel": "null",
+        "pending": "number",
+        "processing": "boolean"
+      },
+      "operationWorker": {
+        "currentLabel": "null",
+        "running": "boolean"
+      },
+      "retryCyclePausedByPlaylist": {},
+      "retryCycleScheduledByPlaylist": {},
+      "sharedPlaylistStats": {},
+      "sharedPlaylists": [],
+      "sharedStats": {
+        "blocked": "number",
+        "done": "number",
+        "downloading": "number",
+        "failed": "number",
+        "pending": "number",
+        "total": "number"
+      },
+      "slskd": {
+        "configured": "boolean",
+        "connected": "boolean",
+        "downloadPath": "null",
+        "serverState": "null"
+      },
+      "stats": {
+        "blocked": "number",
+        "done": "number",
+        "downloading": "number",
+        "failed": "number",
+        "pending": "number",
+        "total": "number"
+      },
+      "worker": {
+        "activeCount": "number",
+        "currentJob": "null",
+        "downloadMetrics": {
+          "avgAttemptsPerTrack": "number",
+          "avgSuccessLatencyMs": "number",
+          "completedTracks": "number"
+        },
+        "lastJobMetrics": "null",
+        "playlistRuns": {},
+        "processing": "boolean",
+        "running": "boolean",
+        "settings": {
+          "concurrency": "number",
+          "existingFileMode": "string",
+          "retryPausedPlaylistIds": []
+        },
+        "stats": {
+          "blocked": "number",
+          "done": "number",
+          "downloading": "number",
+          "failed": "number",
+          "pending": "number",
+          "total": "number"
+        }
+      }
+    },
+    "GET /playlists/worker/settings": {
+      "concurrency": "number",
+      "existingFileMode": "string",
+      "retryPausedPlaylistIds": []
+    },
+    "GET /requests": [],
+    "GET /users/me/discover-layout": {
+      "layout": "null"
+    },
+    "GET /users/me/listening-history": {
+      "lastfmUsername": "null",
+      "listenHistoryProvider": "string",
+      "listenHistoryUrl": "null",
+      "listenHistoryUsername": "null"
+    }
+  }
+}
