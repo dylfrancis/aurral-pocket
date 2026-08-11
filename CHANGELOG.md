@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.2](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.1...v0.10.2) (2026-08-11)
+
+
+### Bug Fixes
+
+* **flow:** fetch playlist tracks from the jobs endpoint ([#180](https://github.com/dylfrancis/aurral-pocket/issues/180)) ([3ff12b5](https://github.com/dylfrancis/aurral-pocket/commit/3ff12b5e3030ad04aa7cbeef1753e5ddece909c6)), closes [#176](https://github.com/dylfrancis/aurral-pocket/issues/176)
+* rename the Flow tab to Playlists ([#183](https://github.com/dylfrancis/aurral-pocket/issues/183)) ([01d2db0](https://github.com/dylfrancis/aurral-pocket/commit/01d2db08859d382e3378de0d20043ebda36897cb)), closes [#178](https://github.com/dylfrancis/aurral-pocket/issues/178)
+* show artist cover art in search results ([#182](https://github.com/dylfrancis/aurral-pocket/issues/182)) ([074f5f0](https://github.com/dylfrancis/aurral-pocket/commit/074f5f0d21ec36d54d0c87171c0fd9869896fa54)), closes [#177](https://github.com/dylfrancis/aurral-pocket/issues/177)
+
 ## [0.10.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.0...v0.10.1) (2026-08-10)
 
 
