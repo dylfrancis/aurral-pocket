@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import SwapVert from "@expo/material-symbols/swap_vert.xml";
@@ -9,6 +10,7 @@ import Block from "@expo/material-symbols/block.xml";
 import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
 import Schedule from "@expo/material-symbols/schedule.xml";
 import LibraryMusic from "@expo/material-symbols/library_music.xml";
+import { AlphabetIndex } from "@/components/library/AlphabetIndex";
 import { ArtistCard } from "@/components/library/ArtistCard";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { type SortMode } from "@/components/library/SearchBar";
@@ -16,6 +18,7 @@ import { EmptyState } from "@/components/library/EmptyState";
 import { useLibraryArtistsSuspense } from "@/hooks/library/use-library-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
+import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
 import { stripArticle } from "@/lib/strings";
 import type { Artist } from "@/lib/types/library";
 
@@ -42,6 +45,7 @@ export default function LibraryScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("alpha");
+  const listRef = useRef<FlashListRef<Artist>>(null);
 
   const filtered = useMemo(() => {
     if (!searchQuery) return artists;
@@ -67,6 +71,56 @@ export default function LibraryScreen() {
         );
     }
   }, [filtered, sortMode]);
+
+  const letterIndex = useMemo(() => {
+    if (sortMode !== "alpha") return [];
+    return buildLetterIndex(sorted.map((artist) => artist.artistName));
+  }, [sorted, sortMode]);
+
+  // Scroll targets subtract the header height because contentOffset 0 sits
+  // under the translucent header. Jumps use getLayout + scrollToOffset (one
+  // native call) instead of scrollToIndex, whose multi-step render loop lags
+  // behind a fast scrub. requestAnimationFrame coalesces crossings so at most
+  // one jump lands per frame, and the newest letter wins.
+  const headerHeight = useHeaderHeight();
+  const pendingEntry = useRef<LetterIndexEntry | null>(null);
+  const scrollScheduled = useRef(false);
+  const handleLetterSelect = useCallback(
+    (entry: LetterIndexEntry) => {
+      pendingEntry.current = entry;
+      if (scrollScheduled.current) return;
+      scrollScheduled.current = true;
+      requestAnimationFrame(() => {
+        scrollScheduled.current = false;
+        const target = pendingEntry.current;
+        const list = listRef.current;
+        if (!target || !list) return;
+        if (target.index === 0) {
+          list.scrollToOffset({ offset: -headerHeight, animated: false });
+          return;
+        }
+        const layout = list.getLayout(target.index);
+        if (!layout) {
+          list.scrollToIndex({
+            index: target.index,
+            animated: false,
+            viewOffset: -headerHeight,
+          });
+          return;
+        }
+        const maxOffset = Math.max(
+          0,
+          list.getChildContainerDimensions().height -
+            list.getWindowSize().height,
+        );
+        list.scrollToOffset({
+          offset: Math.min(layout.y + EDGE_PADDING - headerHeight, maxOffset),
+          animated: false,
+        });
+      });
+    },
+    [headerHeight],
+  );
 
   const handleRefresh = useCallback(async () => {
     const result = await refetch();
@@ -130,26 +184,36 @@ export default function LibraryScreen() {
           ))}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
-      <FlashList
-        key={sortMode}
-        data={sorted}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        numColumns={NUM_COLUMNS}
-        ListEmptyComponent={<EmptyState message="Your library is empty" />}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{
-          ...styles.listContent,
-          backgroundColor: colors.background,
-        }}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={handleRefresh}
-            tintColor={colors.brand}
-          />
-        }
-      />
+      <View style={styles.listWrapper}>
+        <FlashList
+          key={sortMode}
+          ref={listRef}
+          data={sorted}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          numColumns={NUM_COLUMNS}
+          // The native scrollTo command clamps negative offsets to the raw
+          // contentInset (0), which blocks jumps into the adjusted header
+          // inset; this prop disables that clamp.
+          scrollToOverflowEnabled
+          ListEmptyComponent={<EmptyState message="Your library is empty" />}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={{
+            ...styles.listContent,
+            backgroundColor: colors.background,
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={handleRefresh}
+              tintColor={colors.brand}
+            />
+          }
+        />
+        {letterIndex.length > 0 && (
+          <AlphabetIndex entries={letterIndex} onSelect={handleLetterSelect} />
+        )}
+      </View>
     </>
   );
 }
@@ -172,6 +236,9 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 }
 
 const styles = StyleSheet.create({
+  listWrapper: {
+    flex: 1,
+  },
   listContent: {
     paddingHorizontal: EDGE_PADDING,
     paddingTop: EDGE_PADDING,
