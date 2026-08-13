@@ -58,11 +58,16 @@ async function renderSection(onAddToPlaylist?: (track: PreviewTrack) => void) {
 }
 
 describe("TopTracksSection", () => {
-  it("calls onAddToPlaylist with the pressed track on long-press", async () => {
+  it("calls onAddToPlaylist with the row's track when the + button is pressed", async () => {
     const onAddToPlaylist = jest.fn();
-    const { getByText } = await renderSection(onAddToPlaylist);
-    await fireEvent(getByText("Reckoner"), "longPress");
+    const { getByLabelText } = await renderSection(onAddToPlaylist);
+    await fireEvent.press(getByLabelText("Add Reckoner to a playlist"));
     expect(onAddToPlaylist).toHaveBeenCalledWith(TRACKS[1]);
+  });
+
+  it("shows no + button without an onAddToPlaylist handler", async () => {
+    const { queryByLabelText } = await renderSection(undefined);
+    expect(queryByLabelText("Add Reckoner to a playlist")).toBeNull();
   });
 
   it("still toggles preview playback on press", async () => {

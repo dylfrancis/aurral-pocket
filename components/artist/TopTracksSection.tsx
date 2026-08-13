@@ -13,7 +13,7 @@ type TopTracksSectionProps = {
   playingId: string | null;
   progress: number;
   onToggle: (track: PreviewTrack) => void;
-  /** Long-press action. Rows have no long-press when this is absent. */
+  /** Rows show a "+" button on the right when this is set. */
   onAddToPlaylist?: (track: PreviewTrack) => void;
 };
 
@@ -58,9 +58,7 @@ export function TopTracksSection({
             void Haptics.selectionAsync();
             onToggle(track);
           }}
-          onLongPress={
-            onAddToPlaylist ? () => onAddToPlaylist(track) : undefined
-          }
+          onAdd={onAddToPlaylist ? () => onAddToPlaylist(track) : undefined}
         />
       ))}
     </View>

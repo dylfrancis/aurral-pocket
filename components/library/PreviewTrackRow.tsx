@@ -11,7 +11,8 @@ type PreviewTrackRowProps = {
   isPlaying: boolean;
   progress: number;
   onToggle: () => void;
-  onLongPress?: () => void;
+  /** Shows a "+" button on the right of the row when set. */
+  onAdd?: () => void;
 };
 
 export const PreviewTrackRow = React.memo(function PreviewTrackRow({
@@ -19,14 +20,13 @@ export const PreviewTrackRow = React.memo(function PreviewTrackRow({
   isPlaying,
   progress,
   onToggle,
-  onLongPress,
+  onAdd,
 }: PreviewTrackRowProps) {
   const colors = Colors[useColorScheme()];
 
   return (
     <Pressable
       onPress={onToggle}
-      onLongPress={onLongPress}
       style={({ pressed }) => [
         styles.container,
         { opacity: pressed ? 0.7 : 1 },
@@ -71,6 +71,20 @@ export const PreviewTrackRow = React.memo(function PreviewTrackRow({
           </View>
         )}
       </View>
+      {onAdd ? (
+        <Pressable
+          onPress={onAdd}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Add ${track.title} to a playlist`}
+          style={({ pressed }) => [
+            styles.addButton,
+            { opacity: pressed ? 0.5 : 1 },
+          ]}
+        >
+          <Ionicons name="add-circle-outline" size={22} color={colors.subtle} />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 });
@@ -96,6 +110,12 @@ const styles = StyleSheet.create({
   meta: {
     flex: 1,
     gap: 2,
+  },
+  addButton: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontFamily: Fonts.medium,
