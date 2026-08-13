@@ -31,6 +31,15 @@ describe("buildSharedTrackIdentity", () => {
     );
   });
 
+  it("stringifies a numeric release year like the server", () => {
+    const identity = buildSharedTrackIdentity({
+      artistName: "Radiohead",
+      trackName: "Reckoner",
+      releaseYear: 2007,
+    });
+    expect(identity.split(String.fromCharCode(1))[6]).toBe("2007");
+  });
+
   it("differs when the album differs, like the server's append filter", () => {
     const live = buildSharedTrackIdentity({
       artistName: "Radiohead",

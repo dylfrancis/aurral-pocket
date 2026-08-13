@@ -12,13 +12,7 @@ import type { SharedPlaylistTrack } from "@/lib/types/flow";
  * a missing or wrong "Already added" mark, never to a wrong append, because
  * the server filters duplicates itself.
  */
-export function buildSharedTrackIdentity(
-  track: SharedPlaylistTrack & {
-    albumMbid?: string | null;
-    trackMbid?: string | null;
-    releaseYear?: string | null;
-  },
-): string {
+export function buildSharedTrackIdentity(track: SharedPlaylistTrack): string {
   return [
     String(track.artistName || "")
       .trim()

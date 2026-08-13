@@ -25,6 +25,9 @@ export type SharedPlaylistTrack = {
   trackName: string;
   albumName?: string | null;
   artistMbid?: string | null;
+  albumMbid?: string | null;
+  trackMbid?: string | null;
+  releaseYear?: string | number | null;
   reason?: string | null;
 };
 
