@@ -93,6 +93,43 @@ export async function convertFlowToStaticPlaylist(
   return r.data.playlist;
 }
 
+/**
+ * Shared-playlist creation and track appends run on the server's operation
+ * queue. The response carries ids only; the new state arrives through the
+ * status poll once the operation completes.
+ */
+export type QueuedSharedPlaylistOperation = {
+  playlistId: string;
+  operationId: string;
+};
+
+export async function createSharedPlaylist(payload: {
+  name: string;
+  tracks?: SharedPlaylistTrack[];
+}): Promise<QueuedSharedPlaylistOperation> {
+  const r = await api.post<{
+    success: boolean;
+    playlistId: string;
+    queued: boolean;
+    operationId: string;
+  }>(`${FLOW}/shared-playlists`, payload);
+  return { playlistId: r.data.playlistId, operationId: r.data.operationId };
+}
+
+/** The server skips tracks the playlist already contains. */
+export async function addSharedPlaylistTracks(
+  playlistId: string,
+  tracks: SharedPlaylistTrack[],
+): Promise<QueuedSharedPlaylistOperation> {
+  const r = await api.post<{
+    success: boolean;
+    playlistId: string;
+    queued: boolean;
+    operationId: string;
+  }>(`${FLOW}/shared-playlists/${playlistId}/tracks`, { tracks });
+  return { playlistId: r.data.playlistId, operationId: r.data.operationId };
+}
+
 export async function updateSharedPlaylist(
   playlistId: string,
   payload: { name?: string; tracks?: SharedPlaylistTrack[] },

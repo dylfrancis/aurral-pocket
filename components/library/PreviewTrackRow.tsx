@@ -11,6 +11,7 @@ type PreviewTrackRowProps = {
   isPlaying: boolean;
   progress: number;
   onToggle: () => void;
+  onLongPress?: () => void;
 };
 
 export const PreviewTrackRow = React.memo(function PreviewTrackRow({
@@ -18,12 +19,14 @@ export const PreviewTrackRow = React.memo(function PreviewTrackRow({
   isPlaying,
   progress,
   onToggle,
+  onLongPress,
 }: PreviewTrackRowProps) {
   const colors = Colors[useColorScheme()];
 
   return (
     <Pressable
       onPress={onToggle}
+      onLongPress={onLongPress}
       style={({ pressed }) => [
         styles.container,
         { opacity: pressed ? 0.7 : 1 },

@@ -15,8 +15,10 @@ export {
   useSharedPlaylists,
 } from "./use-flow-selectors";
 export {
+  useAddSharedPlaylistTracks,
   useConvertFlowToStaticPlaylist,
   useCreateFlow,
+  useCreateSharedPlaylist,
   useDeleteFlow,
   useDeleteSharedPlaylist,
   useDeleteSharedPlaylistTrack,

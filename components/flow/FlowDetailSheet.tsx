@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
+import { AddToPlaylistSheet } from "./AddToPlaylistSheet";
 import { TrackRow } from "./TrackRow";
 import { MixPills } from "./MixPills";
 import { ProgressBar } from "./ProgressBar";
@@ -37,7 +38,7 @@ import {
 } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import type { FlowJob } from "@/lib/types/flow";
+import type { FlowJob, SharedPlaylistTrack } from "@/lib/types/flow";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -73,6 +74,10 @@ export function FlowDetailSheet({
   const setRetryPaused = useSetRetryCyclePaused();
 
   const renderScrollComponent = useBottomSheetScrollableCreator();
+
+  const [trackToAdd, setTrackToAdd] = useState<SharedPlaylistTrack | null>(
+    null,
+  );
 
   // Workaround for facebook/react-native#53856: on iOS 26, <Switch> drops its
   // custom thumbColor when re-mounted (e.g. when a bottom sheet opens). Bumping
@@ -164,9 +169,25 @@ export function FlowDetailSheet({
     return `${flow.scheduleDays.map((d) => DAY_LABELS[d]).join(", ")} · ${flow.scheduleTime}`;
   }, [flow]);
 
+  // Flow tracks are regenerated on every run; saving one into a static
+  // playlist is how it survives the next refresh (#125).
+  const handleAddToPlaylist = useCallback((job: FlowJob) => {
+    if (job.status !== "done") return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setTrackToAdd({
+      artistName: job.artistName,
+      trackName: job.trackName,
+      albumName: job.albumName ?? null,
+      artistMbid: job.artistMbid ?? null,
+      reason: job.reason ?? null,
+    });
+  }, []);
+
   const renderItem = useCallback(
-    ({ item }: { item: FlowJob }) => <TrackRow job={item} />,
-    [],
+    ({ item }: { item: FlowJob }) => (
+      <TrackRow job={item} onLongPress={() => handleAddToPlaylist(item)} />
+    ),
+    [handleAddToPlaylist],
   );
 
   const renderHeader = () => {
@@ -292,6 +313,12 @@ export function FlowDetailSheet({
         >
           Tracks
         </Text>
+        <Text
+          variant="caption"
+          style={[styles.tracksHint, { color: colors.subtle }]}
+        >
+          Long-press a ready track to add it to a playlist.
+        </Text>
       </View>
     );
   };
@@ -314,26 +341,32 @@ export function FlowDetailSheet({
   );
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      snapPoints={["90%"]}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      onDismiss={onClose}
-      onChange={handleSheetChange}
-    >
-      {flow ? (
-        <FlashList
-          data={jobs}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={renderEmpty}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
-          renderScrollComponent={renderScrollComponent}
-        />
-      ) : null}
-    </AppSheet>
+    <>
+      <AppSheet
+        ref={sheetRef}
+        snapPoints={["90%"]}
+        enablePanDownToClose
+        enableDynamicSizing={false}
+        onDismiss={onClose}
+        onChange={handleSheetChange}
+      >
+        {flow ? (
+          <FlashList
+            data={jobs}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={renderEmpty}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+            renderScrollComponent={renderScrollComponent}
+          />
+        ) : null}
+      </AppSheet>
+      <AddToPlaylistSheet
+        track={trackToAdd}
+        onClose={() => setTrackToAdd(null)}
+      />
+    </>
   );
 }
 
@@ -443,6 +476,9 @@ const styles = StyleSheet.create({
   tracksHeader: {
     paddingHorizontal: 16,
     paddingTop: 4,
+  },
+  tracksHint: {
+    paddingHorizontal: 16,
   },
   empty: {
     paddingHorizontal: 16,

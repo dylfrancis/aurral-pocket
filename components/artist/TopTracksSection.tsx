@@ -13,6 +13,8 @@ type TopTracksSectionProps = {
   playingId: string | null;
   progress: number;
   onToggle: (track: PreviewTrack) => void;
+  /** Long-press action. Rows have no long-press when this is absent. */
+  onAddToPlaylist?: (track: PreviewTrack) => void;
 };
 
 export function TopTracksSection({
@@ -21,6 +23,7 @@ export function TopTracksSection({
   playingId,
   progress,
   onToggle,
+  onAddToPlaylist,
 }: TopTracksSectionProps) {
   const colors = Colors[useColorScheme()];
 
@@ -55,6 +58,14 @@ export function TopTracksSection({
             void Haptics.selectionAsync();
             onToggle(track);
           }}
+          onLongPress={
+            onAddToPlaylist
+              ? () => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  onAddToPlaylist(track);
+                }
+              : undefined
+          }
         />
       ))}
     </View>

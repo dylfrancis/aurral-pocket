@@ -1,4 +1,5 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
+import { AddToPlaylistSheet } from "@/components/flow/AddToPlaylistSheet";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
@@ -29,9 +30,11 @@ import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import type {
   Album,
+  PreviewTrack,
   PrimaryReleaseType,
   ReleaseGroup,
 } from "@/lib/types/library";
+import type { SharedPlaylistTrack } from "@/lib/types/flow";
 import type { SimilarArtist } from "@/lib/types/search";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -206,6 +209,24 @@ export function ArtistDetailLayout({
     }
     return map;
   }, [typedAlbums]);
+
+  // The playlist API sits behind accessFlow; without it the sheet's status
+  // query would 403, so the long-press is not offered at all.
+  const canAddToPlaylist = hasPermission("accessFlow");
+  const [playlistTrack, setPlaylistTrack] =
+    useState<SharedPlaylistTrack | null>(null);
+
+  const handleAddToPlaylist = useCallback(
+    (track: PreviewTrack) => {
+      setPlaylistTrack({
+        artistName,
+        trackName: track.title,
+        albumName: track.album,
+        artistMbid: mbid,
+      });
+    },
+    [artistName, mbid],
+  );
 
   const releaseGroupSheetRef = useRef<BottomSheetModal>(null);
   const [selectedReleaseGroup, setSelectedReleaseGroup] =
@@ -411,6 +432,7 @@ export function ArtistDetailLayout({
           playingId={preview.playingId}
           progress={preview.progress}
           onToggle={preview.toggle}
+          onAddToPlaylist={canAddToPlaylist ? handleAddToPlaylist : undefined}
         />
 
         {inLibrary && (
@@ -482,6 +504,11 @@ export function ArtistDetailLayout({
           }}
         />
       )}
+
+      <AddToPlaylistSheet
+        track={playlistTrack}
+        onClose={() => setPlaylistTrack(null)}
+      />
     </View>
   );
 }
