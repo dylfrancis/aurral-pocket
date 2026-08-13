@@ -23,6 +23,7 @@ import {
 } from "@/hooks/discover/use-blocklist";
 import { isArtistBlocked } from "@/lib/blocklist";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts, Radius } from "@/constants/theme";
 import type { BlockedArtist } from "@/lib/types/discovery-feedback";
 import type { SearchArtist } from "@/lib/types/search";
@@ -98,6 +99,7 @@ export default function BlocklistScreen() {
         placeholder="Search for an artist"
         hideWhenScrolling={false}
         autoCapitalize="none"
+        {...searchBarColors(colors)}
         onChangeText={(e) => setArtistQuery(e.nativeEvent.text)}
         onSearchButtonPress={handleSubmitTypedArtist}
         onCancelButtonPress={() => setArtistQuery("")}

@@ -28,6 +28,22 @@ export const TRANSPARENT_HEADER = IS_IOS
   : {};
 
 /**
+ * Android inflates the header search view once per fragment and never
+ * re-resolves its theme colors when `Appearance.setColorScheme` changes the
+ * app theme (no activity recreation, so the cached view keeps the old
+ * palette and can render invisible). Driving the colors from JS re-applies
+ * them on every theme change. iOS re-themes natively; it uses `textColor`
+ * and ignores the two Android-only props.
+ */
+export function searchBarColors(colors: { text: string; subtle: string }) {
+  return {
+    textColor: colors.text,
+    hintTextColor: colors.subtle,
+    headerIconColor: colors.text,
+  } as const;
+}
+
+/**
  * iOS 26+ Liquid Glass tab bars stay translucent at the scroll edge by design.
  * On iOS 18 and earlier that leaves the bar with no backing, so scrolled
  * content (e.g. artist artwork) bleeds into the tabs. Pinning the bar's

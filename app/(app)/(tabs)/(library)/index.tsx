@@ -17,6 +17,7 @@ import { type SortMode } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { useLibraryArtistsSuspense } from "@/hooks/library/use-library-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { searchBarColors } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
 import { stripArticle } from "@/lib/strings";
@@ -152,6 +153,7 @@ export default function LibraryScreen() {
         placeholder="Search artists..."
         hideWhenScrolling={false}
         autoCapitalize="none"
+        {...searchBarColors(colors)}
         onChangeText={(e) => setSearchQuery(e.nativeEvent.text)}
       />
       <Stack.Toolbar placement="right">

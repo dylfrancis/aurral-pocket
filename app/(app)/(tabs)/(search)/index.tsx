@@ -29,6 +29,7 @@ import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import type { SearchAlbum, SearchArtist } from "@/lib/types/search";
@@ -319,6 +320,7 @@ export default function SearchScreen() {
         placeholder="Artists, bands, #tags..."
         hideWhenScrolling={false}
         autoCapitalize="none"
+        {...searchBarColors(colors)}
         onChangeText={handleChangeText}
         onCancelButtonPress={handleCancelSearch}
         onSearchButtonPress={handleSearchSubmit}
