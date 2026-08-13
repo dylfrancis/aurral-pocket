@@ -1,15 +1,20 @@
 import React, { useCallback } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import {
   BottomSheetModal,
   useBottomSheetScrollableCreator,
 } from "@gorhom/bottom-sheet";
 import { FlashList } from "@shopify/flash-list";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
+import {
+  AddToPlaylistSheet,
+  useAddToPlaylist,
+} from "@/components/flow/AddToPlaylistSheet";
 import { useAdoptDiscoverPlaylist } from "@/hooks/discover/use-adopt-discover-playlist";
 import { playlistSourceLine } from "@/lib/discover/playlist-format";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -32,6 +37,7 @@ export function DiscoverPlaylistSheet({ sheetRef, playlist, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const adopt = useAdoptDiscoverPlaylist();
   const renderScrollComponent = useBottomSheetScrollableCreator();
+  const { canAddToPlaylist, ...addToPlaylist } = useAddToPlaylist();
 
   const pendingKind = adopt.isPending ? adopt.variables?.kind : null;
 
@@ -40,22 +46,69 @@ export function DiscoverPlaylistSheet({ sheetRef, playlist, onClose }: Props) {
     key: `${playlist?.presetId}-${i}`,
   }));
 
+  const openAddToPlaylist = addToPlaylist.open;
+  const handleAddTrack = useCallback(
+    (track: DiscoverPlaylistTrack) => {
+      // The playlist API requires both names; the other fields are optional.
+      if (!track.artistName || !track.trackName) return;
+      openAddToPlaylist({
+        artistName: track.artistName,
+        trackName: track.trackName,
+        albumName: track.albumName,
+        artistMbid: track.artistMbid,
+        albumMbid: track.albumMbid,
+        trackMbid: track.trackMbid,
+        releaseYear: track.releaseYear,
+        reason: track.reason,
+      });
+    },
+    [openAddToPlaylist],
+  );
+
   const renderItem = useCallback(
-    ({ item }: { item: TrackItem }) => (
-      <View style={styles.trackRow}>
-        <Text variant="body" numberOfLines={1} style={{ color: colors.text }}>
-          {item.track.trackName || "Unknown track"}
-        </Text>
-        <Text
-          variant="caption"
-          numberOfLines={1}
-          style={{ color: colors.subtle }}
-        >
-          {item.track.artistName || "Unknown artist"}
-        </Text>
-      </View>
-    ),
-    [colors.text, colors.subtle],
+    ({ item }: { item: TrackItem }) => {
+      const addable =
+        canAddToPlaylist && !!item.track.artistName && !!item.track.trackName;
+      return (
+        <View style={styles.trackRow}>
+          <View style={styles.trackMeta}>
+            <Text
+              variant="body"
+              numberOfLines={1}
+              style={{ color: colors.text }}
+            >
+              {item.track.trackName || "Unknown track"}
+            </Text>
+            <Text
+              variant="caption"
+              numberOfLines={1}
+              style={{ color: colors.subtle }}
+            >
+              {item.track.artistName || "Unknown artist"}
+            </Text>
+          </View>
+          {addable ? (
+            <Pressable
+              onPress={() => handleAddTrack(item.track)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${item.track.trackName} to a playlist`}
+              style={({ pressed }) => [
+                styles.addButton,
+                { opacity: pressed ? 0.5 : 1 },
+              ]}
+            >
+              <Ionicons
+                name="add-circle-outline"
+                size={22}
+                color={colors.subtle}
+              />
+            </Pressable>
+          ) : null}
+        </View>
+      );
+    },
+    [colors.text, colors.subtle, canAddToPlaylist, handleAddTrack],
   );
 
   const renderHeader = () => {
@@ -136,24 +189,30 @@ export function DiscoverPlaylistSheet({ sheetRef, playlist, onClose }: Props) {
   };
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      snapPoints={["85%"]}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      onDismiss={onClose}
-    >
-      {playlist ? (
-        <FlashList
-          data={items}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.key}
-          ListHeaderComponent={renderHeader}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
-          renderScrollComponent={renderScrollComponent}
-        />
-      ) : null}
-    </AppSheet>
+    <>
+      <AppSheet
+        ref={sheetRef}
+        snapPoints={["85%"]}
+        enablePanDownToClose
+        enableDynamicSizing={false}
+        onDismiss={onClose}
+      >
+        {playlist ? (
+          <FlashList
+            data={items}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.key}
+            ListHeaderComponent={renderHeader}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+            renderScrollComponent={renderScrollComponent}
+          />
+        ) : null}
+      </AppSheet>
+      <AddToPlaylistSheet
+        track={addToPlaylist.track}
+        onClose={addToPlaylist.close}
+      />
+    </>
   );
 }
 
@@ -184,8 +243,20 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   trackRow: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
+    gap: 12,
+  },
+  trackMeta: {
+    flex: 1,
     gap: 2,
+  },
+  addButton: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

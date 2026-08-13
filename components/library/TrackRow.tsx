@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -8,13 +8,25 @@ import type { Track } from "@/lib/types/library";
 
 type TrackRowProps = {
   track: Track;
+  onLongPress?: () => void;
 };
 
-export const TrackRow = React.memo(function TrackRow({ track }: TrackRowProps) {
+export const TrackRow = React.memo(function TrackRow({
+  track,
+  onLongPress,
+}: TrackRowProps) {
   const colors = Colors[useColorScheme()];
 
   return (
-    <View style={[styles.row, { borderBottomColor: colors.separator }]}>
+    <Pressable
+      onLongPress={onLongPress}
+      disabled={!onLongPress}
+      style={({ pressed }) => [
+        styles.row,
+        { borderBottomColor: colors.separator },
+        pressed && onLongPress ? { opacity: 0.6 } : null,
+      ]}
+    >
       <Text variant="caption" style={[styles.number, { color: colors.subtle }]}>
         {track.trackNumber}
       </Text>
@@ -41,7 +53,7 @@ export const TrackRow = React.memo(function TrackRow({ track }: TrackRowProps) {
         size={16}
         color={track.hasFile ? colors.brand : colors.subtle}
       />
-    </View>
+    </Pressable>
   );
 });
 

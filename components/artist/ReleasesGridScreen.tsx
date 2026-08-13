@@ -51,6 +51,7 @@ export function ReleasesGridScreen() {
           releaseGroup={selectedRG}
           artistId={grid.artistId}
           artistName={grid.artistName}
+          artistMbid={grid.artistMbid}
           sheetRef={rgSheetRef}
         />
       }

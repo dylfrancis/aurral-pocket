@@ -25,6 +25,9 @@ export type SharedPlaylistTrack = {
   trackName: string;
   albumName?: string | null;
   artistMbid?: string | null;
+  albumMbid?: string | null;
+  trackMbid?: string | null;
+  releaseYear?: string | number | null;
   reason?: string | null;
 };
 
@@ -35,6 +38,12 @@ export type SharedPlaylist = {
   sourceFlowId: string | null;
   trackCount: number;
   tracks?: SharedPlaylistTrack[];
+  /**
+   * Dedup keys for the playlist's tracks, from the status snapshot. Compare
+   * with buildSharedTrackIdentity to tell whether a track is already in the
+   * playlist. Optional because older Aurral versions do not send it.
+   */
+  trackIdentities?: string[];
 };
 
 export type FlowJobStatus =

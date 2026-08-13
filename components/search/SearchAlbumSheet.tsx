@@ -15,6 +15,10 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
+import {
+  AddToPlaylistSheet,
+  useAddToPlaylist,
+} from "@/components/flow/AddToPlaylistSheet";
 import { AlbumSearchStatusBadge } from "./AlbumSearchStatusBadge";
 import {
   addLibraryAlbum,
@@ -75,6 +79,7 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
   const hasPermission = useHasPermission();
   const { libraryArtists } = useLibraryLookup();
   const canAddAlbum = hasPermission("addAlbum");
+  const { canAddToPlaylist, ...addToPlaylist } = useAddToPlaylist();
 
   const libraryArtistId = album?.artistMbid
     ? (libraryArtists?.find((a) => a.mbid === album.artistMbid)?.id ?? null)
@@ -220,115 +225,150 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
   };
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      snapPoints={["60%", "90%"]}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      onDismiss={handleDismiss}
-    >
-      <BottomSheetScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+    <>
+      <AppSheet
+        ref={sheetRef}
+        snapPoints={["60%", "90%"]}
+        enablePanDownToClose
+        enableDynamicSizing={false}
+        onDismiss={handleDismiss}
       >
-        {album && (
-          <>
-            <View style={styles.header}>
-              <CoverArtImage
-                type="album"
-                mbid={album.id}
-                size={120}
-                borderRadius={10}
-              />
-              <View style={styles.headerMeta}>
-                <Text variant="title" style={styles.albumName}>
-                  {album.title}
-                </Text>
-                <Text variant="caption" style={{ color: colors.subtle }}>
-                  {album.artistName}
-                </Text>
-                <Text variant="caption" style={{ color: colors.subtle }}>
-                  {[year, typeLabel, tracks ? `${tracks.length} tracks` : null]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
-                <AlbumSearchStatusBadge status={album.status} />
+        <BottomSheetScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        >
+          {album && (
+            <>
+              <View style={styles.header}>
+                <CoverArtImage
+                  type="album"
+                  mbid={album.id}
+                  size={120}
+                  borderRadius={10}
+                />
+                <View style={styles.headerMeta}>
+                  <Text variant="title" style={styles.albumName}>
+                    {album.title}
+                  </Text>
+                  <Text variant="caption" style={{ color: colors.subtle }}>
+                    {album.artistName}
+                  </Text>
+                  <Text variant="caption" style={{ color: colors.subtle }}>
+                    {[
+                      year,
+                      typeLabel,
+                      tracks ? `${tracks.length} tracks` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                  <AlbumSearchStatusBadge status={album.status} />
+                </View>
               </View>
-            </View>
 
-            <View style={[styles.actions, { borderColor: colors.separator }]}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  {
-                    backgroundColor: action.disabled
-                      ? colors.separator
-                      : colors.brand,
-                    opacity: pressed && !action.disabled ? 0.85 : 1,
-                  },
-                ]}
-                onPress={onActionPress}
-                disabled={action.disabled}
-              >
-                {action.busy ? (
-                  <ActivityIndicator size={18} color={actionForeground} />
-                ) : (
-                  <Ionicons
-                    name={action.icon}
-                    size={18}
-                    color={actionForeground}
-                  />
-                )}
-                <Text
-                  variant="body"
-                  style={[styles.actionButtonText, { color: actionForeground }]}
+              <View style={[styles.actions, { borderColor: colors.separator }]}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    {
+                      backgroundColor: action.disabled
+                        ? colors.separator
+                        : colors.brand,
+                      opacity: pressed && !action.disabled ? 0.85 : 1,
+                    },
+                  ]}
+                  onPress={onActionPress}
+                  disabled={action.disabled}
                 >
-                  {action.label}
-                </Text>
-              </Pressable>
-              {willCreateArtist && canAddAlbum && (
-                <Text
-                  variant="caption"
-                  style={[styles.callout, { color: colors.subtle }]}
-                >
-                  This will also add {album.artistName} to your library.
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.trackSection}>
-              <Text
-                variant="subtitle"
-                style={[styles.trackHeader, { color: colors.text }]}
-              >
-                Tracks
-              </Text>
-              {tracksLoading ? (
-                <ActivityIndicator style={styles.loader} color={colors.brand} />
-              ) : tracks && tracks.length > 0 ? (
-                tracks.map((track, i) => {
-                  const trackId = track.id ?? track.mbid ?? `${track.number}`;
-                  const isPlaying = playingId === trackId;
-                  return (
-                    <TrackPreviewRow
-                      key={`${track.number}-${i}`}
-                      track={track}
-                      hasPreview={!!track.preview_url}
-                      isPlaying={isPlaying}
-                      progress={isPlaying ? progress : 0}
-                      onToggle={() => togglePreview(track)}
+                  {action.busy ? (
+                    <ActivityIndicator size={18} color={actionForeground} />
+                  ) : (
+                    <Ionicons
+                      name={action.icon}
+                      size={18}
+                      color={actionForeground}
                     />
-                  );
-                })
-              ) : (
-                <Text variant="caption" style={styles.emptyText}>
-                  No tracks available
+                  )}
+                  <Text
+                    variant="body"
+                    style={[
+                      styles.actionButtonText,
+                      { color: actionForeground },
+                    ]}
+                  >
+                    {action.label}
+                  </Text>
+                </Pressable>
+                {willCreateArtist && canAddAlbum && (
+                  <Text
+                    variant="caption"
+                    style={[styles.callout, { color: colors.subtle }]}
+                  >
+                    This will also add {album.artistName} to your library.
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.trackSection}>
+                <Text
+                  variant="subtitle"
+                  style={[styles.trackHeader, { color: colors.text }]}
+                >
+                  Tracks
                 </Text>
-              )}
-            </View>
-          </>
-        )}
-      </BottomSheetScrollView>
-    </AppSheet>
+                {canAddToPlaylist ? (
+                  <Text
+                    variant="caption"
+                    style={[styles.trackHint, { color: colors.subtle }]}
+                  >
+                    Long-press a track to add it to a playlist.
+                  </Text>
+                ) : null}
+                {tracksLoading ? (
+                  <ActivityIndicator
+                    style={styles.loader}
+                    color={colors.brand}
+                  />
+                ) : tracks && tracks.length > 0 ? (
+                  tracks.map((track, i) => {
+                    const trackId = track.id ?? track.mbid ?? `${track.number}`;
+                    const isPlaying = playingId === trackId;
+                    return (
+                      <TrackPreviewRow
+                        key={`${track.number}-${i}`}
+                        track={track}
+                        hasPreview={!!track.preview_url}
+                        isPlaying={isPlaying}
+                        progress={isPlaying ? progress : 0}
+                        onToggle={() => togglePreview(track)}
+                        onLongPress={
+                          canAddToPlaylist
+                            ? () =>
+                                addToPlaylist.open({
+                                  artistName: album.artistName,
+                                  trackName: track.title,
+                                  albumName: album.title,
+                                  artistMbid: album.artistMbid ?? null,
+                                })
+                            : undefined
+                        }
+                      />
+                    );
+                  })
+                ) : (
+                  <Text variant="caption" style={styles.emptyText}>
+                    No tracks available
+                  </Text>
+                )}
+              </View>
+            </>
+          )}
+        </BottomSheetScrollView>
+      </AppSheet>
+      <AddToPlaylistSheet
+        track={addToPlaylist.track}
+        onClose={addToPlaylist.close}
+      />
+    </>
   );
 }
 
@@ -418,19 +458,29 @@ const TrackPreviewRow = React.memo(function TrackPreviewRow({
   isPlaying,
   progress,
   onToggle,
+  onLongPress,
 }: {
   track: ReleaseGroupTrack;
   hasPreview: boolean;
   isPlaying: boolean;
   progress: number;
   onToggle: () => void;
+  onLongPress?: () => void;
 }) {
   const colors = Colors[useColorScheme()];
   const duration = formatDuration(track.length);
   const trackNum = track.trackNumber ?? track.position ?? track.number;
 
   return (
-    <View style={[styles.trackRow, { borderBottomColor: colors.separator }]}>
+    <Pressable
+      onLongPress={onLongPress}
+      disabled={!onLongPress}
+      style={({ pressed }) => [
+        styles.trackRow,
+        { borderBottomColor: colors.separator },
+        pressed && onLongPress ? { opacity: 0.6 } : null,
+      ]}
+    >
       <Text
         variant="caption"
         style={[styles.trackNumber, { color: colors.subtle }]}
@@ -488,7 +538,7 @@ const TrackPreviewRow = React.memo(function TrackPreviewRow({
           {duration}
         </Text>
       )}
-    </View>
+    </Pressable>
   );
 });
 
@@ -537,6 +587,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 4,
+  },
+  trackHint: {
+    paddingHorizontal: 16,
     paddingBottom: 4,
   },
   trackRow: {

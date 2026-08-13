@@ -13,6 +13,8 @@ type TopTracksSectionProps = {
   playingId: string | null;
   progress: number;
   onToggle: (track: PreviewTrack) => void;
+  /** Rows show a "+" button on the right when this is set. */
+  onAddToPlaylist?: (track: PreviewTrack) => void;
 };
 
 export function TopTracksSection({
@@ -21,6 +23,7 @@ export function TopTracksSection({
   playingId,
   progress,
   onToggle,
+  onAddToPlaylist,
 }: TopTracksSectionProps) {
   const colors = Colors[useColorScheme()];
 
@@ -55,6 +58,7 @@ export function TopTracksSection({
             void Haptics.selectionAsync();
             onToggle(track);
           }}
+          onAdd={onAddToPlaylist ? () => onAddToPlaylist(track) : undefined}
         />
       ))}
     </View>

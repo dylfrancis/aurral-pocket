@@ -16,6 +16,10 @@ import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { AlbumStatusBadge } from "./AlbumStatusBadge";
 import { TrackRow } from "./TrackRow";
+import {
+  AddToPlaylistSheet,
+  useAddToPlaylist,
+} from "@/components/flow/AddToPlaylistSheet";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import { triggerAlbumSearch, deleteAlbum } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
@@ -27,6 +31,7 @@ import type { Album, DownloadStatusValue } from "@/lib/types/library";
 type AlbumSheetProps = {
   album: Album | null;
   artistName?: string;
+  artistMbid?: string;
   sheetRef: React.RefObject<BottomSheetModal | null>;
   onDeleted?: () => void;
   downloadStatus?: DownloadStatusValue;
@@ -35,6 +40,7 @@ type AlbumSheetProps = {
 export function AlbumSheet({
   album,
   artistName,
+  artistMbid,
   sheetRef,
   onDeleted,
   downloadStatus,
@@ -43,6 +49,11 @@ export function AlbumSheet({
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { data: tracks, isLoading } = useLibraryTracks(album?.id);
+
+  // A SharedPlaylistTrack requires an artist name, so the long-press also
+  // needs the artistName prop, not only the permission.
+  const { canAddToPlaylist, ...addToPlaylist } = useAddToPlaylist();
+  const canAddTracks = canAddToPlaylist && !!artistName;
 
   const year = album?.releaseDate
     ? new Date(album.releaseDate).getFullYear()
@@ -110,122 +121,159 @@ export function AlbumSheet({
   };
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      snapPoints={["60%", "90%"]}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-    >
-      <BottomSheetScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+    <>
+      <AppSheet
+        ref={sheetRef}
+        snapPoints={["60%", "90%"]}
+        enablePanDownToClose
+        enableDynamicSizing={false}
       >
-        {album && (
-          <>
-            <View style={styles.header}>
-              <CoverArtImage
-                type="album"
-                mbid={album.mbid}
-                size={120}
-                borderRadius={10}
-              />
-              <View style={styles.headerMeta}>
-                <Text variant="title" style={styles.albumName}>
-                  {album.albumName}
-                </Text>
-                <Text variant="caption">
-                  {[year, `${album.statistics.trackCount} tracks`]
-                    .filter(Boolean)
-                    .join(" \u00B7 ")}
-                </Text>
-                <AlbumStatusBadge
-                  album={album}
-                  downloadStatus={downloadStatus}
+        <BottomSheetScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        >
+          {album && (
+            <>
+              <View style={styles.header}>
+                <CoverArtImage
+                  type="album"
+                  mbid={album.mbid}
+                  size={120}
+                  borderRadius={10}
                 />
-              </View>
-            </View>
-
-            <View style={[styles.actions, { borderColor: colors.separator }]}>
-              {!isComplete &&
-                (!downloadStatus || downloadStatus === "failed") && (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.actionButton,
-                      { opacity: pressed ? 0.6 : 1 },
-                    ]}
-                    onPress={handleResearch}
-                    disabled={searchMutation.isPending}
-                  >
-                    {searchMutation.isPending ? (
-                      <ActivityIndicator size={18} color={colors.brand} />
-                    ) : (
-                      <Ionicons name="refresh" size={18} color={colors.brand} />
-                    )}
-                    <Text variant="body" style={{ color: colors.brand }}>
-                      Re-search
-                    </Text>
-                  </Pressable>
-                )}
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  { opacity: pressed ? 0.6 : 1 },
-                ]}
-                onPress={handleLastFm}
-              >
-                <Ionicons name="open-outline" size={18} color={colors.text} />
-                <Text variant="body">View on Last.fm</Text>
-              </Pressable>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  { opacity: pressed ? 0.6 : 1 },
-                ]}
-                onPress={handleDelete}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? (
-                  <ActivityIndicator size={18} color={colors.error} />
-                ) : (
-                  <Ionicons
-                    name="trash-outline"
-                    size={18}
-                    color={colors.error}
+                <View style={styles.headerMeta}>
+                  <Text variant="title" style={styles.albumName}>
+                    {album.albumName}
+                  </Text>
+                  <Text variant="caption">
+                    {[year, `${album.statistics.trackCount} tracks`]
+                      .filter(Boolean)
+                      .join(" \u00B7 ")}
+                  </Text>
+                  <AlbumStatusBadge
+                    album={album}
+                    downloadStatus={downloadStatus}
                   />
-                )}
-                <Text variant="body" style={{ color: colors.error }}>
-                  Delete Album
-                </Text>
-              </Pressable>
-            </View>
+                </View>
+              </View>
 
-            <View
-              style={[
-                styles.trackSection,
-                { borderTopColor: colors.separator },
-              ]}
-            >
-              <Text
-                variant="subtitle"
-                style={[styles.trackHeader, { color: colors.text }]}
+              <View style={[styles.actions, { borderColor: colors.separator }]}>
+                {!isComplete &&
+                  (!downloadStatus || downloadStatus === "failed") && (
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        { opacity: pressed ? 0.6 : 1 },
+                      ]}
+                      onPress={handleResearch}
+                      disabled={searchMutation.isPending}
+                    >
+                      {searchMutation.isPending ? (
+                        <ActivityIndicator size={18} color={colors.brand} />
+                      ) : (
+                        <Ionicons
+                          name="refresh"
+                          size={18}
+                          color={colors.brand}
+                        />
+                      )}
+                      <Text variant="body" style={{ color: colors.brand }}>
+                        Re-search
+                      </Text>
+                    </Pressable>
+                  )}
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    { opacity: pressed ? 0.6 : 1 },
+                  ]}
+                  onPress={handleLastFm}
+                >
+                  <Ionicons name="open-outline" size={18} color={colors.text} />
+                  <Text variant="body">View on Last.fm</Text>
+                </Pressable>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    { opacity: pressed ? 0.6 : 1 },
+                  ]}
+                  onPress={handleDelete}
+                  disabled={deleteMutation.isPending}
+                >
+                  {deleteMutation.isPending ? (
+                    <ActivityIndicator size={18} color={colors.error} />
+                  ) : (
+                    <Ionicons
+                      name="trash-outline"
+                      size={18}
+                      color={colors.error}
+                    />
+                  )}
+                  <Text variant="body" style={{ color: colors.error }}>
+                    Delete Album
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View
+                style={[
+                  styles.trackSection,
+                  { borderTopColor: colors.separator },
+                ]}
               >
-                Tracks
-              </Text>
-              {isLoading ? (
-                <ActivityIndicator style={styles.loader} color={colors.brand} />
-              ) : tracks && tracks.length > 0 ? (
-                tracks.map((track) => <TrackRow key={track.id} track={track} />)
-              ) : (
-                <Text variant="caption" style={styles.emptyText}>
-                  No tracks available
+                <Text
+                  variant="subtitle"
+                  style={[styles.trackHeader, { color: colors.text }]}
+                >
+                  Tracks
                 </Text>
-              )}
-            </View>
-          </>
-        )}
-      </BottomSheetScrollView>
-    </AppSheet>
+                {canAddTracks ? (
+                  <Text
+                    variant="caption"
+                    style={[styles.trackHint, { color: colors.subtle }]}
+                  >
+                    Long-press a track to add it to a playlist.
+                  </Text>
+                ) : null}
+                {isLoading ? (
+                  <ActivityIndicator
+                    style={styles.loader}
+                    color={colors.brand}
+                  />
+                ) : tracks && tracks.length > 0 ? (
+                  tracks.map((track) => (
+                    <TrackRow
+                      key={track.id}
+                      track={track}
+                      onLongPress={
+                        canAddTracks
+                          ? () =>
+                              addToPlaylist.open({
+                                artistName: artistName!,
+                                trackName: track.trackName,
+                                albumName: album.albumName,
+                                artistMbid: artistMbid ?? null,
+                              })
+                          : undefined
+                      }
+                    />
+                  ))
+                ) : (
+                  <Text variant="caption" style={styles.emptyText}>
+                    No tracks available
+                  </Text>
+                )}
+              </View>
+            </>
+          )}
+        </BottomSheetScrollView>
+      </AppSheet>
+      <AddToPlaylistSheet
+        track={addToPlaylist.track}
+        onClose={addToPlaylist.close}
+      />
+    </>
   );
 }
 
@@ -267,6 +315,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 4,
+  },
+  trackHint: {
+    paddingHorizontal: 16,
     paddingBottom: 4,
   },
   loader: {

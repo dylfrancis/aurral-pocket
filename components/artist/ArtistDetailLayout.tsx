@@ -1,4 +1,8 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
+import {
+  AddToPlaylistSheet,
+  useAddToPlaylist,
+} from "@/components/flow/AddToPlaylistSheet";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
@@ -29,6 +33,7 @@ import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import type {
   Album,
+  PreviewTrack,
   PrimaryReleaseType,
   ReleaseGroup,
 } from "@/lib/types/library";
@@ -206,6 +211,21 @@ export function ArtistDetailLayout({
     }
     return map;
   }, [typedAlbums]);
+
+  const { canAddToPlaylist, ...addToPlaylist } = useAddToPlaylist();
+
+  const openAddToPlaylist = addToPlaylist.open;
+  const handleAddToPlaylist = useCallback(
+    (track: PreviewTrack) => {
+      openAddToPlaylist({
+        artistName,
+        trackName: track.title,
+        albumName: track.album,
+        artistMbid: mbid,
+      });
+    },
+    [openAddToPlaylist, artistName, mbid],
+  );
 
   const releaseGroupSheetRef = useRef<BottomSheetModal>(null);
   const [selectedReleaseGroup, setSelectedReleaseGroup] =
@@ -411,6 +431,7 @@ export function ArtistDetailLayout({
           playingId={preview.playingId}
           progress={preview.progress}
           onToggle={preview.toggle}
+          onAddToPlaylist={canAddToPlaylist ? handleAddToPlaylist : undefined}
         />
 
         {inLibrary && (
@@ -453,6 +474,7 @@ export function ArtistDetailLayout({
         releaseGroup={selectedReleaseGroup}
         artistId={libraryArtist?.id}
         artistName={artistName}
+        artistMbid={mbid}
         sheetRef={releaseGroupSheetRef}
       />
 
@@ -460,6 +482,7 @@ export function ArtistDetailLayout({
         <AlbumSheet
           album={selectedAlbum}
           artistName={artistName}
+          artistMbid={mbid}
           sheetRef={albumSheetRef}
           onDeleted={() => setSelectedAlbum(null)}
           downloadStatus={
@@ -482,6 +505,11 @@ export function ArtistDetailLayout({
           }}
         />
       )}
+
+      <AddToPlaylistSheet
+        track={addToPlaylist.track}
+        onClose={addToPlaylist.close}
+      />
     </View>
   );
 }

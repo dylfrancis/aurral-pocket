@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  addSharedPlaylistTracks,
   convertFlowToStaticPlaylist,
   createFlow,
+  createSharedPlaylist,
   deleteFlow,
   deleteSharedPlaylist,
   deleteSharedPlaylistTrack,
@@ -103,6 +105,29 @@ export function useConvertFlowToStaticPlaylist() {
   return useMutation({
     mutationFn: ({ flowId, name }: { flowId: string; name?: string }) =>
       convertFlowToStaticPlaylist(flowId, name),
+    onSuccess: invalidate,
+  });
+}
+
+export function useCreateSharedPlaylist() {
+  const invalidate = useFlowInvalidate();
+  return useMutation({
+    mutationFn: (payload: { name: string; tracks?: SharedPlaylistTrack[] }) =>
+      createSharedPlaylist(payload),
+    onSuccess: invalidate,
+  });
+}
+
+export function useAddSharedPlaylistTracks() {
+  const invalidate = useFlowInvalidate();
+  return useMutation({
+    mutationFn: ({
+      playlistId,
+      tracks,
+    }: {
+      playlistId: string;
+      tracks: SharedPlaylistTrack[];
+    }) => addSharedPlaylistTracks(playlistId, tracks),
     onSuccess: invalidate,
   });
 }
