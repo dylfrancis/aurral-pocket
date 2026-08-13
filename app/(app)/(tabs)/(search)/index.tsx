@@ -6,6 +6,10 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import type {
+  NativeSyntheticEvent,
+  TextInputFocusEventData,
+} from "react-native";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,7 +20,9 @@ import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumSheet } from "@/components/search/SearchAlbumSheet";
-import { ShazamSheet, ShazamTriggerButton } from "@/components/shazam";
+import Mic from "@expo/material-symbols/mic.xml";
+import { ShazamSheet } from "@/components/shazam";
+import { isShazamAvailable } from "@/modules/shazam";
 import { RecentSearches } from "@/components/search/RecentSearches";
 import { Text } from "@/components/ui/Text";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
@@ -25,6 +31,7 @@ import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import type { SearchAlbum, SearchArtist } from "@/lib/types/search";
@@ -66,25 +73,44 @@ export default function SearchScreen() {
   const artists = artistData?.artists;
   const albums = albumData?.items;
 
+  const { add: addRecentSearch } = recentSearches;
+
   const pushResults = useCallback(
     (q: string, scope?: "artist" | "album") => {
       Keyboard.dismiss();
       if (q.startsWith("#")) {
-        recentSearches.add({ type: "tag", text: q.slice(1) });
+        addRecentSearch({ type: "tag", text: q.slice(1) });
       } else {
-        recentSearches.add({ type: "query", text: q });
+        addRecentSearch({ type: "query", text: q });
       }
       router.push({
         pathname: "/results",
         params: scope ? { q, scope } : { q },
       });
     },
-    [router, recentSearches],
+    [router, addRecentSearch],
   );
 
-  const handleSubmit = useCallback(() => {
-    if (query.trim()) pushResults(query.trim());
-  }, [query, pushResults]);
+  // Stack.SearchBar re-registers its native header options whenever a prop
+  // identity changes. Keep every handler stable so typing does not churn the
+  // header config — on Android the toolbar menu that hosts the search icon is
+  // rebuilt from it, and rebuilds can drop the icon (react-native-screens
+  // issue #2271).
+  const handleChangeText = useCallback(
+    (e: NativeSyntheticEvent<TextInputFocusEventData>) =>
+      setQuery(e.nativeEvent.text),
+    [],
+  );
+
+  const handleCancelSearch = useCallback(() => setQuery(""), []);
+
+  const handleSearchSubmit = useCallback(
+    (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+      const q = e.nativeEvent.text.trim();
+      if (q) pushResults(q);
+    },
+    [pushResults],
+  );
 
   const handleTagSelect = useCallback(
     (tag: string) => pushResults(`#${tag}`),
@@ -93,7 +119,7 @@ export default function SearchScreen() {
 
   const handleArtistPress = useCallback(
     (artist: SearchArtist) => {
-      recentSearches.add({
+      addRecentSearch({
         type: "artist",
         text: artist.name,
         mbid: artist.id,
@@ -103,7 +129,7 @@ export default function SearchScreen() {
         params: { mbid: artist.id, name: artist.name },
       });
     },
-    [router, recentSearches],
+    [router, addRecentSearch],
   );
 
   const previewTags = hasQuery
@@ -243,7 +269,7 @@ export default function SearchScreen() {
           <SeeAllRow
             label="See all tag results"
             color={colors.brand}
-            onPress={handleSubmit}
+            onPress={() => pushResults(query.trim())}
           />
         )}
       </View>
@@ -279,23 +305,26 @@ export default function SearchScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <ShazamTriggerButton
-              onPress={() => shazamSheetRef.current?.present()}
-            />
-          ),
-        }}
-      />
       <Stack.SearchBar
         placeholder="Artists, bands, #tags..."
         hideWhenScrolling={false}
         autoCapitalize="none"
-        onChangeText={(e) => setQuery(e.nativeEvent.text)}
-        onCancelButtonPress={() => setQuery("")}
-        onSearchButtonPress={handleSubmit}
+        {...searchBarColors(colors)}
+        onChangeText={handleChangeText}
+        onCancelButtonPress={handleCancelSearch}
+        onSearchButtonPress={handleSearchSubmit}
       />
+      <Stack.Toolbar placement="right">
+        {isShazamAvailable && (
+          <Stack.Toolbar.Button
+            icon={process.env.EXPO_OS === "ios" ? "mic" : Mic}
+            accessibilityLabel="Identify song"
+            onPress={() => shazamSheetRef.current?.present()}
+          >
+            Identify song
+          </Stack.Toolbar.Button>
+        )}
+      </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"

@@ -21,6 +21,7 @@ import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
 import { useGridColumns } from "@/hooks/use-grid-columns";
 import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { searchBarColors } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 
 const ANDROID_SORT_ICONS: Record<AlbumSortMode, number> = {
@@ -114,6 +115,7 @@ export function ReleaseGrid<T>({
         placeholder={searchPlaceholder}
         hideWhenScrolling={false}
         autoCapitalize="none"
+        {...searchBarColors(colors)}
         onChangeText={(e) => onSearchChange(e.nativeEvent.text)}
         onCancelButtonPress={() => onSearchChange("")}
       />

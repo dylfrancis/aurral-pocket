@@ -30,6 +30,7 @@ import {
 } from "@/components/discover/NearbyShowsFilterSheet";
 import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
 import {
   isInNext30Days,
@@ -329,6 +330,7 @@ export default function NearbyShowsScreen() {
         placeholder="Search artists or events"
         hideWhenScrolling={false}
         autoCapitalize="none"
+        {...searchBarColors(colors)}
         onChangeText={(e) => setSearchQuery(e.nativeEvent.text)}
         onCancelButtonPress={() => setSearchQuery("")}
       />
