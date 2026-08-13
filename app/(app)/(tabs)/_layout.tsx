@@ -1,13 +1,23 @@
+import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { TAB_BAR_BACKGROUND } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 
 export default function TabsLayout() {
+  const { isUserResolved } = useAuth();
   const hasPermission = useHasPermission();
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
+
+  // The tab set must be final on first render. A trigger whose `hidden` flag
+  // flips after mount rebuilds the native tab bar, and on Android that
+  // re-races the activity options menu that hosts the header search icon.
+  if (!isUserResolved) {
+    return <ScreenCenter loading />;
+  }
 
   return (
     <NativeTabs

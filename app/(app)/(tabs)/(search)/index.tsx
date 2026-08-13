@@ -1,10 +1,14 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
+} from "react-native";
+import type {
+  NativeSyntheticEvent,
+  TextInputFocusEventData,
 } from "react-native";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
@@ -66,25 +70,44 @@ export default function SearchScreen() {
   const artists = artistData?.artists;
   const albums = albumData?.items;
 
+  const { add: addRecentSearch } = recentSearches;
+
   const pushResults = useCallback(
     (q: string, scope?: "artist" | "album") => {
       Keyboard.dismiss();
       if (q.startsWith("#")) {
-        recentSearches.add({ type: "tag", text: q.slice(1) });
+        addRecentSearch({ type: "tag", text: q.slice(1) });
       } else {
-        recentSearches.add({ type: "query", text: q });
+        addRecentSearch({ type: "query", text: q });
       }
       router.push({
         pathname: "/results",
         params: scope ? { q, scope } : { q },
       });
     },
-    [router, recentSearches],
+    [router, addRecentSearch],
   );
 
-  const handleSubmit = useCallback(() => {
-    if (query.trim()) pushResults(query.trim());
-  }, [query, pushResults]);
+  // Stack.SearchBar re-registers its native header options whenever a prop
+  // identity changes. Keep every handler stable so typing does not churn the
+  // header config — on Android the toolbar menu that hosts the search icon is
+  // rebuilt from it, and rebuilds can drop the icon (react-native-screens
+  // issue #2271).
+  const handleChangeText = useCallback(
+    (e: NativeSyntheticEvent<TextInputFocusEventData>) =>
+      setQuery(e.nativeEvent.text),
+    [],
+  );
+
+  const handleCancelSearch = useCallback(() => setQuery(""), []);
+
+  const handleSearchSubmit = useCallback(
+    (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+      const q = e.nativeEvent.text.trim();
+      if (q) pushResults(q);
+    },
+    [pushResults],
+  );
 
   const handleTagSelect = useCallback(
     (tag: string) => pushResults(`#${tag}`),
@@ -93,7 +116,7 @@ export default function SearchScreen() {
 
   const handleArtistPress = useCallback(
     (artist: SearchArtist) => {
-      recentSearches.add({
+      addRecentSearch({
         type: "artist",
         text: artist.name,
         mbid: artist.id,
@@ -103,7 +126,7 @@ export default function SearchScreen() {
         params: { mbid: artist.id, name: artist.name },
       });
     },
-    [router, recentSearches],
+    [router, addRecentSearch],
   );
 
   const previewTags = hasQuery
@@ -146,6 +169,18 @@ export default function SearchScreen() {
   }, []);
 
   const shazamSheetRef = useRef<BottomSheetModal | null>(null);
+  // Same stability rule as the search bar handlers above: a fresh options
+  // object would call navigation.setOptions on every render.
+  const screenOptions = useMemo(
+    () => ({
+      headerRight: () => (
+        <ShazamTriggerButton
+          onPress={() => shazamSheetRef.current?.present()}
+        />
+      ),
+    }),
+    [],
+  );
   const handleShazamArtist = useCallback(
     (mbid: string, name: string) => {
       router.push({ pathname: "/artist/[mbid]", params: { mbid, name } });
@@ -243,7 +278,7 @@ export default function SearchScreen() {
           <SeeAllRow
             label="See all tag results"
             color={colors.brand}
-            onPress={handleSubmit}
+            onPress={() => pushResults(query.trim())}
           />
         )}
       </View>
@@ -279,22 +314,14 @@ export default function SearchScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <ShazamTriggerButton
-              onPress={() => shazamSheetRef.current?.present()}
-            />
-          ),
-        }}
-      />
+      <Stack.Screen options={screenOptions} />
       <Stack.SearchBar
         placeholder="Artists, bands, #tags..."
         hideWhenScrolling={false}
         autoCapitalize="none"
-        onChangeText={(e) => setQuery(e.nativeEvent.text)}
-        onCancelButtonPress={() => setQuery("")}
-        onSearchButtonPress={handleSubmit}
+        onChangeText={handleChangeText}
+        onCancelButtonPress={handleCancelSearch}
+        onSearchButtonPress={handleSearchSubmit}
       />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"

@@ -24,6 +24,14 @@ type AuthContextValue = {
   token: string | null;
   user: User | null;
   isRestoring: boolean;
+  /**
+   * True once the user object is as settled as startup can make it: restore
+   * finished, and any server-side user recovery has completed or failed.
+   * Screens whose structure depends on permissions (the tab bar) must wait
+   * for this instead of `isRestoring`, or they render once with provisional
+   * permissions and rebuild when the user arrives.
+   */
+  isUserResolved: boolean;
   serverHealth: ServerHealth | null;
   rememberCredentials: boolean;
   useBiometrics: boolean;
@@ -53,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [biometrics, setBiometrics] = useState(false);
   const [hasCredentials, setHasCredentials] = useState(false);
   const [sessionExpired, setSessionExpiredState] = useState(false);
+  const [userRecoveryAttempted, setUserRecoveryAttempted] = useState(false);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -142,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {
         // Not fatal. A rejected token is already handled by the 401 interceptor,
         // and any other failure just leaves permissions conservative.
+      } finally {
+        setUserRecoveryAttempted(true);
       }
     })();
   }, [isRestoring, token, user]);
@@ -327,6 +338,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token,
       user,
       isRestoring,
+      isUserResolved:
+        !isRestoring && (!token || !!user || userRecoveryAttempted),
       serverHealth,
       rememberCredentials: rememberCreds,
       useBiometrics: biometrics,
@@ -348,6 +361,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token,
       user,
       isRestoring,
+      userRecoveryAttempted,
       serverHealth,
       rememberCreds,
       biometrics,
