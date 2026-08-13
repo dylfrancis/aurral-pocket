@@ -33,9 +33,10 @@ jest.mock("@/components/search/SearchAlbumSheet", () => ({
   SearchAlbumSheet: () => null,
 }));
 
+jest.mock("@expo/material-symbols/mic.xml", () => "Mic");
+
 jest.mock("@/components/shazam", () => ({
   ShazamSheet: () => null,
-  ShazamTriggerButton: () => null,
 }));
 
 jest.mock("@/hooks/search/use-library-lookup", () => ({
@@ -48,7 +49,11 @@ jest.mock("@/hooks/search/use-library-lookup", () => ({
 jest.mock("expo-router", () => ({
   useNavigation: jest.fn(() => ({ setOptions: jest.fn() })),
   useRouter: jest.fn(() => ({ push: jest.fn() })),
-  Stack: { SearchBar: () => null, Screen: () => null },
+  Stack: {
+    SearchBar: () => null,
+    Screen: () => null,
+    Toolbar: Object.assign(() => null, { Button: () => null }),
+  },
 }));
 
 jest.mock("@shopify/flash-list", () => {

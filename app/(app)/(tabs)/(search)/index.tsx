@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Keyboard,
   Pressable,
@@ -20,7 +20,9 @@ import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumSheet } from "@/components/search/SearchAlbumSheet";
-import { ShazamSheet, ShazamTriggerButton } from "@/components/shazam";
+import Mic from "@expo/material-symbols/mic.xml";
+import { ShazamSheet } from "@/components/shazam";
+import { isShazamAvailable } from "@/modules/shazam";
 import { RecentSearches } from "@/components/search/RecentSearches";
 import { Text } from "@/components/ui/Text";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
@@ -170,18 +172,6 @@ export default function SearchScreen() {
   }, []);
 
   const shazamSheetRef = useRef<BottomSheetModal | null>(null);
-  // Same stability rule as the search bar handlers above: a fresh options
-  // object would call navigation.setOptions on every render.
-  const screenOptions = useMemo(
-    () => ({
-      headerRight: () => (
-        <ShazamTriggerButton
-          onPress={() => shazamSheetRef.current?.present()}
-        />
-      ),
-    }),
-    [],
-  );
   const handleShazamArtist = useCallback(
     (mbid: string, name: string) => {
       router.push({ pathname: "/artist/[mbid]", params: { mbid, name } });
@@ -315,7 +305,6 @@ export default function SearchScreen() {
 
   return (
     <>
-      <Stack.Screen options={screenOptions} />
       <Stack.SearchBar
         placeholder="Artists, bands, #tags..."
         hideWhenScrolling={false}
@@ -325,6 +314,17 @@ export default function SearchScreen() {
         onCancelButtonPress={handleCancelSearch}
         onSearchButtonPress={handleSearchSubmit}
       />
+      <Stack.Toolbar placement="right">
+        {isShazamAvailable && (
+          <Stack.Toolbar.Button
+            icon={process.env.EXPO_OS === "ios" ? "mic" : Mic}
+            accessibilityLabel="Identify song"
+            onPress={() => shazamSheetRef.current?.present()}
+          >
+            Identify song
+          </Stack.Toolbar.Button>
+        )}
+      </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"

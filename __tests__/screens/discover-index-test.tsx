@@ -73,7 +73,6 @@ jest.mock("@/components/settings/SettingsSheet", () => ({
 
 jest.mock("@/components/shazam", () => ({
   ShazamSheet: () => null,
-  ShazamTriggerButton: () => null,
 }));
 
 jest.mock("@gorhom/bottom-sheet", () => {
