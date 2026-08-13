@@ -178,10 +178,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
   },
   sectionLabel: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     fontSize: 12,
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   optionLabel: {
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
   actions: {
     paddingHorizontal: 16,
@@ -217,6 +217,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addButtonText: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });

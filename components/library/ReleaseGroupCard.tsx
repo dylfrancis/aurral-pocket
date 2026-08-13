@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
     fontSize: 13,
     lineHeight: 17,
   },

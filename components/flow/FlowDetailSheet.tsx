@@ -247,7 +247,7 @@ export function FlowDetailSheet({
             />
             <Text
               variant="caption"
-              style={{ color: colors.brandStrong, fontFamily: Fonts.medium }}
+              style={{ color: colors.brandStrong, ...Fonts.medium }}
             >
               {headerHint}
             </Text>
@@ -256,7 +256,7 @@ export function FlowDetailSheet({
 
         <View style={[styles.enableRow, { borderColor: colors.separator }]}>
           <View style={{ flex: 1 }}>
-            <Text variant="body" style={{ fontFamily: Fonts.medium }}>
+            <Text variant="body" style={{ ...Fonts.medium }}>
               Enabled
             </Text>
             <Text variant="caption">Refresh on schedule when on.</Text>
@@ -309,7 +309,7 @@ export function FlowDetailSheet({
           variant="subtitle"
           style={[
             styles.tracksHeader,
-            { color: colors.text, fontFamily: Fonts.semiBold },
+            { color: colors.text, ...Fonts.semiBold },
           ]}
         >
           Tracks
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     lineHeight: 28,
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
   },
   iconButton: {
     width: 36,

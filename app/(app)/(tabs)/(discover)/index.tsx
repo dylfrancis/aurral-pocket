@@ -248,7 +248,7 @@ export default function DiscoverScreen() {
               variant="body"
               style={[
                 styles.emptyTitle,
-                { color: colors.text, fontFamily: Fonts.semiBold },
+                { color: colors.text, ...Fonts.semiBold },
               ]}
             >
               Discovery not configured
@@ -268,7 +268,7 @@ export default function DiscoverScreen() {
                 variant="caption"
                 style={{
                   color: colors.buttonPrimaryText,
-                  fontFamily: Fonts.semiBold,
+                  ...Fonts.semiBold,
                 }}
               >
                 Open Settings

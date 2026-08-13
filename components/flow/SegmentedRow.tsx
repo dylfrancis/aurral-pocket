@@ -37,11 +37,11 @@ export function SegmentedRow<T extends string | number>({
       tintColor={colors.brand}
       fontStyle={{
         color: colors.text,
-        fontFamily: Fonts.medium,
+        ...Fonts.medium,
       }}
       activeFontStyle={{
         color: colors.buttonPrimaryText,
-        fontFamily: Fonts.semiBold,
+        ...Fonts.semiBold,
       }}
       onChange={(event) => {
         const index = event.nativeEvent.selectedSegmentIndex;

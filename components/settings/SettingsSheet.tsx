@@ -57,10 +57,7 @@ export function SettingsSheet({ sheetRef, onClose }: Props) {
           <View style={styles.headerTextWrap}>
             <Text
               variant="title"
-              style={[
-                styles.welcome,
-                { color: colors.text, fontFamily: Fonts.bold },
-              ]}
+              style={[styles.welcome, { color: colors.text, ...Fonts.bold }]}
             >
               Welcome, {user?.username}
             </Text>
@@ -117,7 +114,7 @@ function SectionHeading({ title }: { title: string }) {
       variant="caption"
       style={[
         styles.sectionHeading,
-        { color: colors.subtle, fontFamily: Fonts.semiBold },
+        { color: colors.subtle, ...Fonts.semiBold },
       ]}
     >
       {title.toUpperCase()}

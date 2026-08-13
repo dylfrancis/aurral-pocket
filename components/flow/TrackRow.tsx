@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
   progressBar: {
     height: 2,

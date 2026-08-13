@@ -287,13 +287,13 @@ const styles = StyleSheet.create({
   songTitle: {
     fontSize: 20,
     lineHeight: 26,
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
   },
   divider: {
     marginBottom: 8,
   },
   sectionLabel: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     fontSize: 12,
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   },
   rowName: {
     flex: 1,
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
   addButton: {
     flexDirection: "row",
@@ -345,6 +345,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonText: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });

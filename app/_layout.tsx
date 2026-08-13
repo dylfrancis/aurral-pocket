@@ -2,13 +2,13 @@ import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import type { AppStateStatus } from "react-native";
 import { Stack } from "expo-router";
-import { Theme, ThemeProvider } from "expo-router/react-navigation";
+import {
+  DarkTheme,
+  DefaultTheme,
+  Theme,
+  ThemeProvider,
+} from "expo-router/react-navigation";
 import { focusManager, QueryClientProvider } from "@tanstack/react-query";
-import { useFonts } from "expo-font";
-import { DMSans_400Regular } from "@expo-google-fonts/dm-sans/400Regular";
-import { DMSans_500Medium } from "@expo-google-fonts/dm-sans/500Medium";
-import { DMSans_600SemiBold } from "@expo-google-fonts/dm-sans/600SemiBold";
-import { DMSans_700Bold } from "@expo-google-fonts/dm-sans/700Bold";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -48,12 +48,7 @@ const AurralDarkTheme: Theme = {
     border: Colors.dark.separator,
     notification: Colors.dark.error,
   },
-  fonts: {
-    regular: { fontFamily: "DMSans_400Regular", fontWeight: "400" },
-    medium: { fontFamily: "DMSans_500Medium", fontWeight: "500" },
-    bold: { fontFamily: "DMSans_700Bold", fontWeight: "700" },
-    heavy: { fontFamily: "DMSans_700Bold", fontWeight: "700" },
-  },
+  fonts: DarkTheme.fonts,
 };
 
 const AurralLightTheme: Theme = {
@@ -66,12 +61,7 @@ const AurralLightTheme: Theme = {
     border: Colors.light.separator,
     notification: Colors.light.error,
   },
-  fonts: {
-    regular: { fontFamily: "DMSans_400Regular", fontWeight: "400" },
-    medium: { fontFamily: "DMSans_500Medium", fontWeight: "500" },
-    bold: { fontFamily: "DMSans_700Bold", fontWeight: "700" },
-    heavy: { fontFamily: "DMSans_700Bold", fontWeight: "700" },
-  },
+  fonts: DefaultTheme.fonts,
 };
 
 function RootLayoutNav() {
@@ -79,22 +69,15 @@ function RootLayoutNav() {
   const { isThemeLoaded } = useThemePreference();
   const colorScheme = useColorScheme();
 
-  const [fontsLoaded] = useFonts({
-    DMSans_400Regular,
-    DMSans_500Medium,
-    DMSans_600SemiBold,
-    DMSans_700Bold,
-  });
-
   const isAuthenticated = !!serverUrl && !!token;
 
   useEffect(() => {
-    if (!isRestoring && fontsLoaded && isThemeLoaded) {
+    if (!isRestoring && isThemeLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [isRestoring, fontsLoaded, isThemeLoaded]);
+  }, [isRestoring, isThemeLoaded]);
 
-  if (isRestoring || !fontsLoaded || !isThemeLoaded) return null;
+  if (isRestoring || !isThemeLoaded) return null;
 
   return (
     <ThemeProvider

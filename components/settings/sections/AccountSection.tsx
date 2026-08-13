@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   fieldLabel: {
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
     fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 0.6,

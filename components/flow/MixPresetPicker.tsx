@@ -47,7 +47,7 @@ export function MixPresetPicker({ value, onPick }: Props) {
               variant="caption"
               style={{
                 color: active ? colors.buttonPrimaryText : colors.brandStrong,
-                fontFamily: Fonts.semiBold,
+                ...Fonts.semiBold,
               }}
             >
               {preset.label}

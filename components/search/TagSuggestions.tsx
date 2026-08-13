@@ -67,6 +67,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
 });

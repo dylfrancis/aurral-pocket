@@ -144,12 +144,12 @@ const styles = StyleSheet.create({
   letter: {
     fontSize: 11,
     lineHeight: 14,
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     textAlign: "center",
   },
   bubbleLetter: {
     fontSize: 24,
     lineHeight: 28,
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
   },
 });

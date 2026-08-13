@@ -517,7 +517,7 @@ export function ArtistDetailLayout({
 const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });
 

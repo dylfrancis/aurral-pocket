@@ -39,7 +39,7 @@ export function FocusEditor({ label, placeholder, value, onChange }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text variant="body" style={{ fontFamily: Fonts.medium }}>
+      <Text variant="body" style={{ ...Fonts.medium }}>
         {label}
       </Text>
       <View style={styles.inputRow}>

@@ -110,7 +110,7 @@ function Section({
           variant="subtitle"
           style={[
             styles.sectionTitle,
-            { color: colors.text, fontFamily: Fonts.semiBold },
+            { color: colors.text, ...Fonts.semiBold },
           ]}
         >
           {title}

@@ -69,6 +69,6 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   name: {
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
 });

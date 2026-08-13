@@ -56,6 +56,6 @@ const styles = StyleSheet.create({
   },
   label: {
     flex: 1,
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
 });

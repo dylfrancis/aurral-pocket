@@ -62,10 +62,7 @@ function DiscoverReleaseCardComponent({
       <View style={styles.info}>
         <Text
           variant="body"
-          style={[
-            styles.title,
-            { color: colors.text, fontFamily: Fonts.semiBold },
-          ]}
+          style={[styles.title, { color: colors.text, ...Fonts.semiBold }]}
           numberOfLines={2}
         >
           {title}

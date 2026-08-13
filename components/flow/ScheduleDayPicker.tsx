@@ -56,7 +56,7 @@ export function ScheduleDayPicker({ value, onChange }: Props) {
               variant="body"
               style={{
                 color: active ? colors.buttonPrimaryText : colors.text,
-                fontFamily: Fonts.semiBold,
+                ...Fonts.semiBold,
               }}
             >
               {day.label}

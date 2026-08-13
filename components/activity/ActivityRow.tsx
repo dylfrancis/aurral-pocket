@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
   statusRow: {
     flexDirection: "row",

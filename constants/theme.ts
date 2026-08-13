@@ -66,9 +66,10 @@ export const Radius = {
   round: 9999,
 };
 
+/** Weight-only styles for the platform system font. Spread into a text style. */
 export const Fonts = {
-  regular: "DMSans_400Regular",
-  medium: "DMSans_500Medium",
-  semiBold: "DMSans_600SemiBold",
-  bold: "DMSans_700Bold",
-};
+  regular: { fontWeight: "400" },
+  medium: { fontWeight: "500" },
+  semiBold: { fontWeight: "600" },
+  bold: { fontWeight: "700" },
+} as const;

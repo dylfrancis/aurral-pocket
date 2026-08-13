@@ -155,7 +155,7 @@ function PlaylistEditForm({
             variant="subtitle"
             style={[
               styles.sectionTitle,
-              { color: colors.text, fontFamily: Fonts.semiBold },
+              { color: colors.text, ...Fonts.semiBold },
             ]}
           >
             Name
@@ -186,7 +186,7 @@ function PlaylistEditForm({
               variant="subtitle"
               style={[
                 styles.sectionTitle,
-                { color: colors.text, fontFamily: Fonts.semiBold },
+                { color: colors.text, ...Fonts.semiBold },
               ]}
             >
               Tracks
@@ -206,7 +206,7 @@ function PlaylistEditForm({
                     <Text
                       variant="body"
                       numberOfLines={1}
-                      style={{ fontFamily: Fonts.medium }}
+                      style={{ ...Fonts.medium }}
                     >
                       {track.trackName}
                     </Text>

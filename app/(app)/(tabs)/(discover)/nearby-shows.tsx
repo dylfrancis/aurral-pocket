@@ -211,12 +211,12 @@ export default function NearbyShowsScreen() {
               else handleSelectZip();
             }}
             fontStyle={{
-              fontFamily: Fonts.medium,
+              ...Fonts.medium,
               fontSize: 12,
               color: colors.text,
             }}
             activeFontStyle={{
-              fontFamily: Fonts.semiBold,
+              ...Fonts.semiBold,
               fontSize: 12,
               color: colors.background,
             }}
@@ -267,7 +267,7 @@ export default function NearbyShowsScreen() {
             variant="body"
             style={[
               styles.emptyTitle,
-              { color: colors.text, fontFamily: Fonts.semiBold },
+              { color: colors.text, ...Fonts.semiBold },
             ]}
           >
             Ticketmaster not configured
@@ -289,7 +289,7 @@ export default function NearbyShowsScreen() {
             variant="body"
             style={[
               styles.emptyTitle,
-              { color: colors.text, fontFamily: Fonts.semiBold },
+              { color: colors.text, ...Fonts.semiBold },
             ]}
           >
             ZIP not set

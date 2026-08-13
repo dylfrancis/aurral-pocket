@@ -155,10 +155,7 @@ function AddToPlaylistSheetContent({
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text
-          variant="title"
-          style={[styles.title, { fontFamily: Fonts.semiBold }]}
-        >
+        <Text variant="title" style={[styles.title, { ...Fonts.semiBold }]}>
           Add to Playlist
         </Text>
         <Text
@@ -208,7 +205,7 @@ function AddToPlaylistSheetContent({
                     <Text
                       variant="body"
                       numberOfLines={1}
-                      style={{ fontFamily: Fonts.medium }}
+                      style={{ ...Fonts.medium }}
                     >
                       {playlist.name}
                     </Text>
@@ -296,7 +293,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   newLabel: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 8,

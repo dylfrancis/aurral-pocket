@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   albumName: {
     fontSize: 20,
     lineHeight: 26,
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
   },
   actions: {
     paddingHorizontal: 16,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
   },
   trackHeader: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 4,

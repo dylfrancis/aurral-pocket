@@ -119,6 +119,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });

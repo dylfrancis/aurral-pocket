@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionTitle: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
   suggestions: {
     overflow: "hidden",

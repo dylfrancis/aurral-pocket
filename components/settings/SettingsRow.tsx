@@ -36,10 +36,7 @@ export function SettingsRow({
       <View style={styles.labelGroup}>
         <Text
           variant="body"
-          style={[
-            styles.label,
-            { color: labelColor, fontFamily: Fonts.medium },
-          ]}
+          style={[styles.label, { color: labelColor, ...Fonts.medium }]}
         >
           {label}
         </Text>

@@ -51,10 +51,7 @@ function HorizontalArtistCardComponent({
       <View style={styles.info}>
         <Text
           variant="body"
-          style={[
-            styles.name,
-            { color: colors.text, fontFamily: Fonts.semiBold },
-          ]}
+          style={[styles.name, { color: colors.text, ...Fonts.semiBold }]}
           numberOfLines={2}
         >
           {name}

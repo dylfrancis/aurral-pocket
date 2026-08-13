@@ -41,7 +41,7 @@ export function ScheduleHourPicker({ value, onChange }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text variant="body" style={[styles.label, { fontFamily: Fonts.medium }]}>
+      <Text variant="body" style={[styles.label, { ...Fonts.medium }]}>
         Refresh hour
       </Text>
       <View style={styles.pickerWrap}>
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   item: {
-    fontFamily: Fonts.regular,
+    ...Fonts.regular,
     fontSize: 18,
   },
 });

@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   tag: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     fontSize: 18,
   },
   list: {

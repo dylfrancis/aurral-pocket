@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   label: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     fontSize: 14,
