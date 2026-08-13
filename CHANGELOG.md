@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.2...v0.11.0) (2026-08-13)
+
+
+### Features
+
+* **library:** add alphabet index scroller to the library screen ([#185](https://github.com/dylfrancis/aurral-pocket/issues/185)) ([6fac04c](https://github.com/dylfrancis/aurral-pocket/commit/6fac04c26bce6ac855364c2d034444593198a3e9)), closes [#63](https://github.com/dylfrancis/aurral-pocket/issues/63)
+* **playlists:** add tracks to static playlists from flows and artist pages ([#187](https://github.com/dylfrancis/aurral-pocket/issues/187)) ([22977ee](https://github.com/dylfrancis/aurral-pocket/commit/22977eea9e9c066ca73b2a657d84c05c688fee54))
+* **ui:** add list and grid view options to collection screens ([#191](https://github.com/dylfrancis/aurral-pocket/issues/191)) ([cc1850e](https://github.com/dylfrancis/aurral-pocket/commit/cc1850ec9050e08d3efa37084cf7bce18c65efc0))
+* **ui:** use the platform system font to match web branding ([#190](https://github.com/dylfrancis/aurral-pocket/issues/190)) ([81fea93](https://github.com/dylfrancis/aurral-pocket/commit/81fea9364c47cbf36c75dbc55a2e8f0a753f3dbd))
+
+
+### Bug Fixes
+
+* **search:** keep the Android header search icon from disappearing ([#192](https://github.com/dylfrancis/aurral-pocket/issues/192)) ([5454591](https://github.com/dylfrancis/aurral-pocket/commit/5454591cce3588f5e877b6523883af414ad18791))
+
 ## [0.10.2](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.1...v0.10.2) (2026-08-11)
 
 
