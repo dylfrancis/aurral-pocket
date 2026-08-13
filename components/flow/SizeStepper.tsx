@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -21,10 +21,13 @@ export function SizeStepper({ value, onChange }: Props) {
   const colors = Colors[useColorScheme()];
   const [draft, setDraft] = useState(String(value));
   const [editing, setEditing] = useState(false);
+  // While idle the input mirrors the prop; the draft only exists mid-edit.
+  const display = editing ? draft : String(value);
 
-  useEffect(() => {
-    if (!editing) setDraft(String(value));
-  }, [value, editing]);
+  const startEditing = () => {
+    setDraft(String(value));
+    setEditing(true);
+  };
 
   const decrement = () => {
     if (value <= FLOW_SIZE_MIN) return;
@@ -40,12 +43,8 @@ export function SizeStepper({ value, onChange }: Props) {
   const commit = () => {
     setEditing(false);
     const parsed = Number(draft.replace(/[^0-9]/g, ""));
-    if (!Number.isFinite(parsed) || draft.trim() === "") {
-      setDraft(String(value));
-      return;
-    }
+    if (!Number.isFinite(parsed) || draft.trim() === "") return;
     const next = clamp(parsed);
-    setDraft(String(next));
     if (next !== value) onChange(next);
   };
 
@@ -72,9 +71,9 @@ export function SizeStepper({ value, onChange }: Props) {
       </Pressable>
       <View style={styles.valueWrap}>
         <TextInput
-          value={draft}
+          value={display}
           onChangeText={setDraft}
-          onFocus={() => setEditing(true)}
+          onFocus={startEditing}
           onBlur={commit}
           onSubmitEditing={commit}
           keyboardType="number-pad"
