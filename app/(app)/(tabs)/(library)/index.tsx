@@ -5,17 +5,21 @@ import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import * as Burnt from "burnt";
-import SwapVert from "@expo/material-symbols/swap_vert.xml";
+import FilterList from "@expo/material-symbols/filter_list.xml";
 import Block from "@expo/material-symbols/block.xml";
 import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
 import Schedule from "@expo/material-symbols/schedule.xml";
 import LibraryMusic from "@expo/material-symbols/library_music.xml";
 import { AlphabetIndex } from "@/components/library/AlphabetIndex";
 import { ArtistCard } from "@/components/library/ArtistCard";
+import { MediaRow } from "@/components/ui/MediaRow";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
+import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
 import { type SortMode } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { useLibraryArtistsSuspense } from "@/hooks/library/use-library-artists";
+import { useGridColumns } from "@/hooks/use-grid-columns";
+import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
@@ -30,7 +34,6 @@ const SORT_ICONS = {
 
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
-const NUM_COLUMNS = 2;
 
 const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
   { key: "alpha", label: "Alphabetical", icon: "textformat.abc" },
@@ -45,6 +48,8 @@ export default function LibraryScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("alpha");
+  const [viewMode, setViewMode] = useViewMode("library-artists", "grid");
+  const gridColumns = useGridColumns(EDGE_PADDING * 2);
   const listRef = useRef<FlashListRef<Artist>>(null);
 
   const filtered = useMemo(() => {
@@ -134,6 +139,18 @@ export default function LibraryScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: Artist }) => {
+      if (viewMode === "list") {
+        const { albumCount } = item.statistics;
+        return (
+          <MediaRow
+            imageType="artist"
+            mbid={item.mbid}
+            title={item.artistName}
+            subtitle={`${albumCount} ${albumCount === 1 ? "album" : "albums"}`}
+            onPress={() => router.push(`/artist/${item.mbid}`)}
+          />
+        );
+      }
       return (
         <View style={styles.gridItem}>
           <ArtistCard
@@ -143,7 +160,7 @@ export default function LibraryScreen() {
         </View>
       );
     },
-    [router],
+    [router, viewMode],
   );
 
   return (
@@ -164,7 +181,9 @@ export default function LibraryScreen() {
         </Stack.Toolbar.Button>
         <Stack.Toolbar.Menu
           icon={
-            process.env.EXPO_OS === "ios" ? "arrow.up.arrow.down" : SwapVert
+            process.env.EXPO_OS === "ios"
+              ? "line.3.horizontal.decrease"
+              : FilterList
           }
           title="Sort By"
         >
@@ -182,16 +201,17 @@ export default function LibraryScreen() {
               {option.label}
             </Stack.Toolbar.MenuAction>
           ))}
+          {viewModeMenuSection(viewMode, setViewMode)}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <View style={styles.listWrapper}>
         <FlashList
-          key={sortMode}
+          key={`${sortMode}-${viewMode}`}
           ref={listRef}
           data={sorted}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          numColumns={NUM_COLUMNS}
+          numColumns={viewMode === "grid" ? gridColumns : 1}
           // The native scrollTo command clamps negative offsets to the raw
           // contentInset (0), which blocks jumps into the adjusted header
           // inset; this prop disables that clamp.
@@ -199,7 +219,10 @@ export default function LibraryScreen() {
           ListEmptyComponent={<EmptyState message="Your library is empty" />}
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{
-            ...styles.listContent,
+            // Rows carry their own horizontal padding; only the grid needs
+            // it on the container. paddingTop stays in both modes because
+            // the letter-jump offset math adds EDGE_PADDING.
+            ...(viewMode === "grid" ? styles.listContent : styles.rowsContent),
             backgroundColor: colors.background,
           }}
           refreshControl={
@@ -241,6 +264,9 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: EDGE_PADDING,
+    paddingTop: EDGE_PADDING,
+  },
+  rowsContent: {
     paddingTop: EDGE_PADDING,
   },
   gridItem: {

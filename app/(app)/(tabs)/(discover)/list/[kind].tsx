@@ -7,6 +7,7 @@ import {
   useRouter,
   type ErrorBoundaryProps,
 } from "expo-router";
+import FilterList from "@expo/material-symbols/filter_list.xml";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
@@ -16,10 +17,16 @@ import {
   useRecentReleases,
 } from "@/hooks/discover";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { useGridColumns } from "@/hooks/use-grid-columns";
+import { useViewMode } from "@/hooks/use-view-mode";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
 import { DiscoverReleaseCard } from "@/components/discover/DiscoverReleaseCard";
 import { EmptyState } from "@/components/library/EmptyState";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
+import { Chip } from "@/components/ui/Chip";
+import { MediaRow } from "@/components/ui/MediaRow";
+import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
+import { formatReleaseStatus } from "@/lib/discover/format";
 import type {
   DiscoveryArtist,
   RecentlyAddedArtist,
@@ -27,6 +34,8 @@ import type {
 } from "@/lib/types/search";
 
 type Kind = "recommended" | "trending" | "recently-added" | "recent-releases";
+
+const EDGE_PADDING = 16;
 
 const TITLES: Record<Kind, string> = {
   recommended: "Recommended For You",
@@ -54,8 +63,14 @@ function formatAdded(date?: string | null) {
 const SPACER = "__spacer__" as const;
 type WithSpacer<T> = T | typeof SPACER;
 
-function padForGrid<T>(items: T[]): WithSpacer<T>[] {
-  return items.length % 2 === 1 ? [...items, SPACER] : items;
+// Pads the last row so every cell keeps an equal flex width.
+function padForGrid<T>(items: T[], columns: number): WithSpacer<T>[] {
+  const remainder = items.length % columns;
+  if (remainder === 0) return items;
+  return [
+    ...items,
+    ...Array.from({ length: columns - remainder }, () => SPACER),
+  ];
 }
 
 function SpacerCell() {
@@ -70,6 +85,13 @@ export default function DiscoverListScreen() {
   const { isInLibrary } = useLibraryLookup();
 
   const kind: Kind | null = isValidKind(kindParam) ? kindParam : null;
+
+  const [viewMode, setViewMode] = useViewMode(
+    `discover-${kind ?? "unknown"}`,
+    "grid",
+  );
+  const gridColumns = useGridColumns(EDGE_PADDING * 2);
+  const isGrid = viewMode === "grid";
 
   const discovery = useDiscovery();
   const recentlyAdded = useRecentlyAdded();
@@ -111,6 +133,20 @@ export default function DiscoverListScreen() {
     recentReleases.isLoading,
   ]);
 
+  const viewToolbar = (
+    <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Menu
+        icon={
+          process.env.EXPO_OS === "ios"
+            ? "line.3.horizontal.decrease"
+            : FilterList
+        }
+      >
+        {viewModeMenuSection(viewMode, setViewMode)}
+      </Stack.Toolbar.Menu>
+    </Stack.Toolbar>
+  );
+
   if (!kind) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
@@ -123,6 +159,7 @@ export default function DiscoverListScreen() {
   if (isLoading) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
+        {viewToolbar}
         <AlbumCategorySkeleton />
         <AlbumCategorySkeleton />
       </View>
@@ -132,81 +169,112 @@ export default function DiscoverListScreen() {
   if (kind === "recent-releases") {
     const albums = recentReleases.data ?? [];
     return (
-      <FlatList
-        data={padForGrid(albums)}
-        keyExtractor={(item, index) =>
-          item === SPACER
-            ? `spacer-${index}`
-            : item.id ||
-              item.mbid ||
-              item.foreignAlbumId ||
-              `${item.albumName}-${index}`
-        }
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={[
-          styles.content,
-          { backgroundColor: colors.background },
-        ]}
-        contentInsetAdjustmentBehavior="automatic"
-        renderItem={({ item }: { item: WithSpacer<RecentReleaseAlbum> }) =>
-          item === SPACER ? (
-            <SpacerCell />
-          ) : (
-            <DiscoverReleaseCard
-              album={item}
-              fill
-              onPress={() => {
-                const mbid =
-                  item.artistMbid ||
-                  item.foreignArtistId ||
-                  item.artistId ||
-                  "";
-                pushArtist(mbid, item.artistName);
-              }}
-            />
-          )
-        }
-        ListEmptyComponent={
-          <EmptyState icon="disc-outline" message="Nothing here yet" />
-        }
-      />
+      <>
+        {viewToolbar}
+        <FlatList
+          key={`${viewMode}-${gridColumns}`}
+          data={isGrid ? padForGrid(albums, gridColumns) : albums}
+          keyExtractor={(item, index) =>
+            item === SPACER
+              ? `spacer-${index}`
+              : item.id ||
+                item.mbid ||
+                item.foreignAlbumId ||
+                `${item.albumName}-${index}`
+          }
+          numColumns={isGrid ? gridColumns : 1}
+          columnWrapperStyle={isGrid ? styles.row : undefined}
+          contentContainerStyle={[
+            isGrid ? styles.content : styles.rowsContent,
+            { backgroundColor: colors.background },
+          ]}
+          contentInsetAdjustmentBehavior="automatic"
+          renderItem={({ item }: { item: WithSpacer<RecentReleaseAlbum> }) => {
+            if (item === SPACER) return <SpacerCell />;
+            const onPress = () => {
+              const mbid =
+                item.artistMbid || item.foreignArtistId || item.artistId || "";
+              pushArtist(mbid, item.artistName);
+            };
+            if (!isGrid) {
+              return (
+                <MediaRow
+                  imageType="album"
+                  mbid={item.mbid || item.foreignAlbumId}
+                  title={item.albumName || item.title || "Untitled"}
+                  subtitle={[
+                    item.artistName || "Unknown Artist",
+                    formatReleaseStatus(item.releaseDate),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  onPress={onPress}
+                />
+              );
+            }
+            return <DiscoverReleaseCard album={item} fill onPress={onPress} />;
+          }}
+          ListEmptyComponent={
+            <EmptyState icon="disc-outline" message="Nothing here yet" />
+          }
+        />
+      </>
     );
   }
 
   if (kind === "recently-added") {
     const artists = recentlyAdded.data ?? [];
     return (
-      <FlatList
-        data={padForGrid(artists)}
-        keyExtractor={(item, index) =>
-          item === SPACER ? `spacer-${index}` : item.id
-        }
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={[
-          styles.content,
-          { backgroundColor: colors.background },
-        ]}
-        contentInsetAdjustmentBehavior="automatic"
-        renderItem={({ item }: { item: WithSpacer<RecentlyAddedArtist> }) => {
-          if (item === SPACER) return <SpacerCell />;
-          const mbid = item.mbid || item.foreignArtistId || item.id;
-          return (
-            <HorizontalArtistCard
-              mbid={mbid}
-              name={item.artistName}
-              subtitle={formatAdded(item.addedAt || item.added)}
-              isInLibrary={isInLibrary(mbid)}
-              fill
-              onPress={() => pushArtist(mbid, item.artistName)}
-            />
-          );
-        }}
-        ListEmptyComponent={
-          <EmptyState icon="disc-outline" message="Nothing here yet" />
-        }
-      />
+      <>
+        {viewToolbar}
+        <FlatList
+          key={`${viewMode}-${gridColumns}`}
+          data={isGrid ? padForGrid(artists, gridColumns) : artists}
+          keyExtractor={(item, index) =>
+            item === SPACER ? `spacer-${index}` : item.id
+          }
+          numColumns={isGrid ? gridColumns : 1}
+          columnWrapperStyle={isGrid ? styles.row : undefined}
+          contentContainerStyle={[
+            isGrid ? styles.content : styles.rowsContent,
+            { backgroundColor: colors.background },
+          ]}
+          contentInsetAdjustmentBehavior="automatic"
+          renderItem={({ item }: { item: WithSpacer<RecentlyAddedArtist> }) => {
+            if (item === SPACER) return <SpacerCell />;
+            const mbid = item.mbid || item.foreignArtistId || item.id;
+            if (!isGrid) {
+              return (
+                <MediaRow
+                  imageType="artist"
+                  mbid={mbid}
+                  title={item.artistName}
+                  subtitle={formatAdded(item.addedAt || item.added)}
+                  trailing={
+                    isInLibrary(mbid) ? (
+                      <Chip label="In Library" variant="brand" />
+                    ) : undefined
+                  }
+                  onPress={() => pushArtist(mbid, item.artistName)}
+                />
+              );
+            }
+            return (
+              <HorizontalArtistCard
+                mbid={mbid}
+                name={item.artistName}
+                subtitle={formatAdded(item.addedAt || item.added)}
+                isInLibrary={isInLibrary(mbid)}
+                fill
+                onPress={() => pushArtist(mbid, item.artistName)}
+              />
+            );
+          }}
+          ListEmptyComponent={
+            <EmptyState icon="disc-outline" message="Nothing here yet" />
+          }
+        />
+      </>
     );
   }
 
@@ -216,47 +284,71 @@ export default function DiscoverListScreen() {
       : discovery.data?.globalTop) ?? [];
 
   return (
-    <FlatList
-      data={padForGrid(artists)}
-      keyExtractor={(item, index) =>
-        item === SPACER ? `spacer-${index}` : item.id
-      }
-      numColumns={2}
-      columnWrapperStyle={styles.row}
-      contentContainerStyle={[
-        styles.content,
-        { backgroundColor: colors.background },
-      ]}
-      contentInsetAdjustmentBehavior="automatic"
-      renderItem={({ item }: { item: WithSpacer<DiscoveryArtist> }) =>
-        item === SPACER ? (
-          <SpacerCell />
-        ) : (
-          <HorizontalArtistCard
-            mbid={item.id}
-            name={item.name}
-            subtitle={
-              item.sourceArtist ? `Similar to ${item.sourceArtist}` : undefined
-            }
-            isInLibrary={isInLibrary(item.id)}
-            fill
-            onPress={() => pushArtist(item.id, item.name)}
-          />
-        )
-      }
-      ListEmptyComponent={
-        <EmptyState icon="disc-outline" message="Nothing here yet" />
-      }
-    />
+    <>
+      {viewToolbar}
+      <FlatList
+        key={`${viewMode}-${gridColumns}`}
+        data={isGrid ? padForGrid(artists, gridColumns) : artists}
+        keyExtractor={(item, index) =>
+          item === SPACER ? `spacer-${index}` : item.id
+        }
+        numColumns={isGrid ? gridColumns : 1}
+        columnWrapperStyle={isGrid ? styles.row : undefined}
+        contentContainerStyle={[
+          isGrid ? styles.content : styles.rowsContent,
+          { backgroundColor: colors.background },
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
+        renderItem={({ item }: { item: WithSpacer<DiscoveryArtist> }) => {
+          if (item === SPACER) return <SpacerCell />;
+          const subtitle = item.sourceArtist
+            ? `Similar to ${item.sourceArtist}`
+            : undefined;
+          if (!isGrid) {
+            return (
+              <MediaRow
+                imageType="artist"
+                mbid={item.id}
+                title={item.name}
+                subtitle={subtitle}
+                trailing={
+                  isInLibrary(item.id) ? (
+                    <Chip label="In Library" variant="brand" />
+                  ) : undefined
+                }
+                onPress={() => pushArtist(item.id, item.name)}
+              />
+            );
+          }
+          return (
+            <HorizontalArtistCard
+              mbid={item.id}
+              name={item.name}
+              subtitle={subtitle}
+              isInLibrary={isInLibrary(item.id)}
+              fill
+              onPress={() => pushArtist(item.id, item.name)}
+            />
+          );
+        }}
+        ListEmptyComponent={
+          <EmptyState icon="disc-outline" message="Nothing here yet" />
+        }
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: EDGE_PADDING,
     paddingTop: 12,
     paddingBottom: 32,
     gap: 16,
+  },
+  rowsContent: {
+    paddingTop: 12,
+    paddingBottom: 32,
   },
   row: {
     gap: 12,

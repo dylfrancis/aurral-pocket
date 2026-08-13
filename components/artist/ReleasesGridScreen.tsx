@@ -3,8 +3,15 @@ import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ReleaseGroupCard } from "@/components/library/ReleaseGroupCard";
 import { ReleaseGroupSheet } from "@/components/library/ReleaseGroupSheet";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
+import { MediaRow } from "@/components/ui/MediaRow";
 import { useReleaseGrid } from "@/hooks/library/use-release-grid";
 import type { ReleaseGroup } from "@/lib/types/library";
+
+function releaseYear(date?: string | null) {
+  if (!date) return undefined;
+  const year = new Date(date).getFullYear();
+  return Number.isFinite(year) ? String(year) : undefined;
+}
 
 const releaseConfig = {
   variant: "releases" as const,
@@ -43,6 +50,15 @@ export function ReleasesGridScreen() {
           releaseGroup={item}
           onPress={() => openReleaseGroup(item)}
           fill
+        />
+      )}
+      renderListItem={(item) => (
+        <MediaRow
+          imageType="album"
+          mbid={item.id}
+          title={item.title}
+          subtitle={releaseYear(item["first-release-date"])}
+          onPress={() => openReleaseGroup(item)}
         />
       )}
       keyExtractor={(item) => item.id}

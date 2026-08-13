@@ -19,6 +19,7 @@ const KEYS = {
   USE_BIOMETRICS: "use_biometrics",
   EXPIRES_AT: "token_expires_at",
   LAST_ACTIVE_AT: "last_active_at",
+  VIEW_MODES: "view_modes",
 } as const;
 
 export const SecureStorage = {
@@ -222,6 +223,25 @@ export const AppStorage = {
   async deleteThemePreference(): Promise<void> {
     try {
       await AsyncStorage.removeItem(KEYS.THEME_PREFERENCE);
+    } catch {}
+  },
+
+  async getViewModes(): Promise<Record<string, string>> {
+    try {
+      const raw = await AsyncStorage.getItem(KEYS.VIEW_MODES);
+      if (!raw) return {};
+      const parsed: unknown = JSON.parse(raw);
+      return parsed && typeof parsed === "object"
+        ? (parsed as Record<string, string>)
+        : {};
+    } catch {
+      return {};
+    }
+  },
+
+  async setViewModes(modes: Record<string, string>): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.VIEW_MODES, JSON.stringify(modes));
     } catch {}
   },
 };

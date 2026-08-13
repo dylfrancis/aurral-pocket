@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack } from "expo-router";
-import SwapVert from "@expo/material-symbols/swap_vert.xml";
+import FilterList from "@expo/material-symbols/filter_list.xml";
 import Event from "@expo/material-symbols/event.xml";
 import CalendarToday from "@expo/material-symbols/calendar_today.xml";
 import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
@@ -17,6 +17,9 @@ import {
   type SortOption,
 } from "@/components/library/AlbumSortPicker";
 import { EmptyState } from "@/components/library/EmptyState";
+import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
+import { useGridColumns } from "@/hooks/use-grid-columns";
+import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 
@@ -30,7 +33,6 @@ const ANDROID_SORT_ICONS: Record<AlbumSortMode, number> = {
 
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
-const NUM_COLUMNS = 2;
 
 type ReleaseGridProps<T> = {
   items: T[];
@@ -47,6 +49,7 @@ type ReleaseGridProps<T> = {
   emptyMessage: string;
   noMatchesIcon?: "search-outline";
   renderItem: (item: T) => React.ReactElement;
+  renderListItem: (item: T) => React.ReactElement;
   keyExtractor: (item: T) => string;
   bottomSheet?: React.ReactNode;
 };
@@ -65,10 +68,14 @@ export function ReleaseGrid<T>({
   hasUnderlyingItems,
   emptyMessage,
   renderItem,
+  renderListItem,
   keyExtractor,
   bottomSheet,
 }: ReleaseGridProps<T>) {
   const colors = Colors[useColorScheme()];
+  // One shared preference for every artist's release pages.
+  const [viewMode, setViewMode] = useViewMode("artist-releases", "grid");
+  const gridColumns = useGridColumns(EDGE_PADDING * 2);
 
   if (isLoading) {
     return (
@@ -113,7 +120,9 @@ export function ReleaseGrid<T>({
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
           icon={
-            process.env.EXPO_OS === "ios" ? "arrow.up.arrow.down" : SwapVert
+            process.env.EXPO_OS === "ios"
+              ? "line.3.horizontal.decrease"
+              : FilterList
           }
           title="Sort By"
         >
@@ -131,16 +140,21 @@ export function ReleaseGrid<T>({
               {option.label}
             </Stack.Toolbar.MenuAction>
           ))}
+          {viewModeMenuSection(viewMode, setViewMode)}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <FlashList
-        key={sortMode}
+        key={`${sortMode}-${viewMode}`}
         data={items}
-        renderItem={({ item }) => (
-          <View style={styles.gridItem}>{renderItem(item)}</View>
-        )}
+        renderItem={({ item }) =>
+          viewMode === "grid" ? (
+            <View style={styles.gridItem}>{renderItem(item)}</View>
+          ) : (
+            renderListItem(item)
+          )
+        }
         keyExtractor={keyExtractor}
-        numColumns={NUM_COLUMNS}
+        numColumns={viewMode === "grid" ? gridColumns : 1}
         ListEmptyComponent={emptyComponent}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
@@ -148,7 +162,7 @@ export function ReleaseGrid<T>({
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         contentContainerStyle={{
-          ...styles.listContent,
+          ...(viewMode === "grid" ? styles.listContent : styles.rowsContent),
           backgroundColor: colors.background,
         }}
       />
@@ -161,6 +175,9 @@ export function ReleaseGrid<T>({
 const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: EDGE_PADDING,
+    paddingTop: EDGE_PADDING,
+  },
+  rowsContent: {
     paddingTop: EDGE_PADDING,
   },
   gridItem: {
