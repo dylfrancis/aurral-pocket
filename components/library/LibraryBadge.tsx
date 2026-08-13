@@ -41,6 +41,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 15,
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });

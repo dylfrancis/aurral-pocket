@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
   progressBar: {
     height: 2,

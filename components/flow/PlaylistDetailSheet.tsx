@@ -203,7 +203,7 @@ export function PlaylistDetailSheet({
           variant="subtitle"
           style={[
             styles.tracksHeader,
-            { color: colors.text, fontFamily: Fonts.semiBold },
+            { color: colors.text, ...Fonts.semiBold },
           ]}
         >
           Tracks
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     lineHeight: 28,
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
   },
   iconButton: {
     width: 36,

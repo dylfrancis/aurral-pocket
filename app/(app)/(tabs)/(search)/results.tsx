@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 4,
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
 });
 

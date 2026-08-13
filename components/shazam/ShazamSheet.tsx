@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   listeningTitle: {
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
     fontSize: 22,
   },
   listeningHint: {
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   centeredTitle: {
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
     fontSize: 20,
     textAlign: "center",
     marginTop: 4,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryButtonText: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
   secondaryButton: {
     marginTop: 4,

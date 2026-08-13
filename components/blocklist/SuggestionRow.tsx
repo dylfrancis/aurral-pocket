@@ -26,7 +26,7 @@ export function SuggestionRow({
           numberOfLines={1}
           style={{
             color: disabled ? colors.subtle : colors.text,
-            fontFamily: Fonts.medium,
+            ...Fonts.medium,
           }}
         >
           {primary}

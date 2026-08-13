@@ -113,6 +113,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   label: {
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
 });

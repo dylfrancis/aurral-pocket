@@ -89,10 +89,7 @@ function NearbyShowRowComponent({ show, onPress }: Props) {
         )}
         <Text
           variant="body"
-          style={[
-            styles.title,
-            { color: colors.text, fontFamily: Fonts.semiBold },
-          ]}
+          style={[styles.title, { color: colors.text, ...Fonts.semiBold }]}
           numberOfLines={2}
         >
           {title}
@@ -162,7 +159,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.5,
     color: "#FFFFFF",
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
   content: {
     padding: 14,
@@ -172,7 +169,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
   title: {
     fontSize: 16,

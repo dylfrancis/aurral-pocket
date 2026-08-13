@@ -110,7 +110,7 @@ export function ShowsNearYouSection({
             variant="body"
             style={[
               styles.emptyTitle,
-              { color: colors.text, fontFamily: Fonts.semiBold },
+              { color: colors.text, ...Fonts.semiBold },
             ]}
           >
             Ticketmaster not configured
@@ -136,7 +136,7 @@ export function ShowsNearYouSection({
             variant="body"
             style={[
               styles.emptyTitle,
-              { color: colors.text, fontFamily: Fonts.semiBold },
+              { color: colors.text, ...Fonts.semiBold },
             ]}
           >
             ZIP not set
@@ -165,7 +165,7 @@ export function ShowsNearYouSection({
             variant="body"
             style={[
               styles.emptyTitle,
-              { color: colors.text, fontFamily: Fonts.semiBold },
+              { color: colors.text, ...Fonts.semiBold },
             ]}
           >
             No upcoming nearby matches
@@ -225,7 +225,7 @@ export function ShowsNearYouSection({
                 variant="body"
                 style={[
                   styles.showTitle,
-                  { color: colors.text, fontFamily: Fonts.semiBold },
+                  { color: colors.text, ...Fonts.semiBold },
                 ]}
                 numberOfLines={2}
               >

@@ -47,6 +47,6 @@ const styles = StyleSheet.create({
   label: {
     color: "#fff",
     fontSize: 14,
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
 });

@@ -142,7 +142,7 @@ function FlowScreenContent() {
             variant="subtitle"
             style={[
               styles.sectionHeader,
-              { color: colors.text, fontFamily: Fonts.semiBold },
+              { color: colors.text, ...Fonts.semiBold },
             ]}
           >
             {item.title}

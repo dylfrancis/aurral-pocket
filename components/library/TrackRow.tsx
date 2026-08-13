@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   number: {
     width: 24,
     textAlign: "right",
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
   title: {
     flex: 1,
@@ -81,6 +81,6 @@ const styles = StyleSheet.create({
   },
   qualityText: {
     fontSize: 10,
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
 });

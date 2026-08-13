@@ -148,7 +148,7 @@ export function ReAuthModal() {
             Enter your password to continue as{" "}
             <Text
               variant="subtitle"
-              style={{ fontFamily: Fonts.semiBold, color: colors.text }}
+              style={{ ...Fonts.semiBold, color: colors.text }}
             >
               {user?.username}
             </Text>

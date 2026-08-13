@@ -92,7 +92,7 @@ function SingleSlider({
   return (
     <View style={styles.row}>
       <View style={styles.labelRow}>
-        <Text variant="body" style={{ fontFamily: Fonts.medium }}>
+        <Text variant="body" style={{ ...Fonts.medium }}>
           {label}
         </Text>
         <Text variant="body" style={[styles.value, { color: accent }]}>
@@ -134,6 +134,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   value: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });

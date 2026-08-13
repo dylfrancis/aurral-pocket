@@ -35,6 +35,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });

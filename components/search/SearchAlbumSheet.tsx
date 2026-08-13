@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   albumName: {
     fontSize: 20,
     lineHeight: 26,
-    fontFamily: Fonts.bold,
+    ...Fonts.bold,
   },
   actions: {
     paddingHorizontal: 16,
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   actionButtonText: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
   callout: {
     textAlign: "center",
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
   },
   trackHeader: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 4,
@@ -614,14 +614,14 @@ const styles = StyleSheet.create({
   trackNumber: {
     width: 26,
     textAlign: "center",
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
   trackMeta: {
     flex: 1,
     gap: 2,
   },
   trackTitle: {
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
   progressBar: {
     height: 2,

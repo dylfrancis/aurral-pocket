@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   title: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     fontSize: 18,
   },
   chevron: {

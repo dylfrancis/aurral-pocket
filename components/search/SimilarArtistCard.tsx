@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   name: {
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
     textAlign: "center",
     fontSize: 13,
   },

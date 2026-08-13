@@ -1,6 +1,7 @@
 import {
   Text as RNText,
   type TextProps as RNTextProps,
+  type TextStyle,
   StyleSheet,
 } from "react-native";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -36,7 +37,7 @@ const variantStyles = StyleSheet.create({
   },
 });
 
-const variantFonts: Record<Variant, string> = {
+const variantFonts: Record<Variant, TextStyle> = {
   title: Fonts.bold,
   subtitle: Fonts.regular,
   body: Fonts.regular,
@@ -56,11 +57,7 @@ export function Text({ variant = "body", style, ...rest }: TextProps) {
 
   return (
     <RNText
-      style={[
-        variantStyles[variant],
-        { color, fontFamily: variantFonts[variant] },
-        style,
-      ]}
+      style={[variantStyles[variant], variantFonts[variant], { color }, style]}
       {...rest}
     />
   );

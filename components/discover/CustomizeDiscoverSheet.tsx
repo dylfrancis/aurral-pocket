@@ -120,10 +120,7 @@ export function CustomizeDiscoverSheet({
           <View style={styles.headerText}>
             <Text
               variant="title"
-              style={[
-                styles.title,
-                { color: colors.text, fontFamily: Fonts.bold },
-              ]}
+              style={[styles.title, { color: colors.text, ...Fonts.bold }]}
             >
               Customize Discover
             </Text>
@@ -202,10 +199,7 @@ const Row = memo(function Row({
       <Ionicons name="reorder-three" size={22} color={subtleColor} />
       <Text
         variant="body"
-        style={[
-          styles.rowLabel,
-          { color: textColor, fontFamily: Fonts.medium },
-        ]}
+        style={[styles.rowLabel, { color: textColor, ...Fonts.medium }]}
       >
         {section.label}
       </Text>

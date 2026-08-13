@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   sectionLabel: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     paddingHorizontal: 16,
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   seeAllText: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });
 

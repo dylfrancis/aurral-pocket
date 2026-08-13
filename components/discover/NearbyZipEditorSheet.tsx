@@ -89,10 +89,7 @@ function NearbyZipEditorSheetContent({
       <BottomSheetView
         style={[styles.content, { paddingBottom: insets.bottom + 16 }]}
       >
-        <Text
-          variant="title"
-          style={[styles.title, { fontFamily: Fonts.semiBold }]}
-        >
+        <Text variant="title" style={[styles.title, { ...Fonts.semiBold }]}>
           Set ZIP code
         </Text>
         <Text

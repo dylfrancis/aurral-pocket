@@ -22,7 +22,6 @@
     ]
   },
   "dependencies": {
-    "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo/material-symbols": "^0.1.1",
     "@expo/vector-icons": "^15.0.3",
     "@gorhom/bottom-sheet": "^5.2.13",

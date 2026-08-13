@@ -104,10 +104,7 @@ export function PasswordSection() {
         />
         <Text
           variant="body"
-          style={[
-            styles.headerLabel,
-            { color: colors.text, fontFamily: Fonts.medium },
-          ]}
+          style={[styles.headerLabel, { color: colors.text, ...Fonts.medium }]}
         >
           Change password
         </Text>

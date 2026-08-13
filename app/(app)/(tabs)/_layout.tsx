@@ -14,7 +14,7 @@ export default function TabsLayout() {
       tintColor={colors.tabIconSelected}
       backgroundColor={colors.card}
       indicatorColor={colors.brandMuted}
-      labelStyle={{ fontFamily: Fonts.medium, color: colors.tabIconDefault }}
+      labelStyle={{ ...Fonts.medium, color: colors.tabIconDefault }}
       {...TAB_BAR_BACKGROUND}
     >
       <NativeTabs.Trigger name="(discover)">

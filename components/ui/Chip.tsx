@@ -120,7 +120,7 @@ const sizeSm = StyleSheet.create({
   label: {
     fontSize: 12,
     lineHeight: 16,
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });
 
@@ -136,7 +136,7 @@ const sizeMd = StyleSheet.create({
   label: {
     fontSize: 13,
     lineHeight: 18,
-    fontFamily: Fonts.medium,
+    ...Fonts.medium,
   },
 });
 

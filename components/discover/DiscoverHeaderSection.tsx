@@ -129,7 +129,7 @@ function CustomizeButton({ onPress }: { onPress: () => void }) {
         variant="caption"
         style={[
           styles.customizeLabel,
-          { color: colors.subtle, fontFamily: Fonts.medium },
+          { color: colors.subtle, ...Fonts.medium },
         ]}
       >
         Customize

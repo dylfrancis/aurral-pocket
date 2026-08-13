@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   title: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     fontSize: 17,
   },
   chipRow: {

@@ -29,10 +29,10 @@ describe("Colors", () => {
 });
 
 describe("Fonts", () => {
-  it("exports DM Sans font family variants", () => {
-    expect(Fonts.regular).toBe("DMSans_400Regular");
-    expect(Fonts.medium).toBe("DMSans_500Medium");
-    expect(Fonts.semiBold).toBe("DMSans_600SemiBold");
-    expect(Fonts.bold).toBe("DMSans_700Bold");
+  it("exports system-font weight styles", () => {
+    expect(Fonts.regular).toEqual({ fontWeight: "400" });
+    expect(Fonts.medium).toEqual({ fontWeight: "500" });
+    expect(Fonts.semiBold).toEqual({ fontWeight: "600" });
+    expect(Fonts.bold).toEqual({ fontWeight: "700" });
   });
 });

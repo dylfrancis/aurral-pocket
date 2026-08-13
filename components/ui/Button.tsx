@@ -48,10 +48,7 @@ export function Button({
         onPress={handlePress}
         {...rest}
       >
-        <Text
-          variant="body"
-          style={{ color: colors.brand, fontFamily: Fonts.medium }}
-        >
+        <Text variant="body" style={{ color: colors.brand, ...Fonts.medium }}>
           {title}
         </Text>
       </Pressable>
@@ -81,7 +78,7 @@ export function Button({
           variant="body"
           style={[
             styles.primaryText,
-            { color: colors.buttonPrimaryText, fontFamily: Fonts.semiBold },
+            { color: colors.buttonPrimaryText, ...Fonts.semiBold },
           ]}
         >
           {title}

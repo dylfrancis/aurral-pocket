@@ -162,6 +162,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   addButtonText: {
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
   },
 });

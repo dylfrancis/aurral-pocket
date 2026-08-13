@@ -8,7 +8,7 @@ export const inputThemedStyle = (colorScheme: "light" | "dark") => {
   return {
     backgroundColor: colors.inputBackground,
     color: colors.inputText,
-    fontFamily: Fonts.regular,
+    ...Fonts.regular,
   } as const;
 };
 

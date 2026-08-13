@@ -32,7 +32,7 @@ describe("Input", () => {
     );
     expect(flatStyle.backgroundColor).toBe(Colors.dark.inputBackground);
     expect(flatStyle.color).toBe(Colors.dark.inputText);
-    expect(flatStyle.fontFamily).toBe(Fonts.regular);
+    expect(flatStyle).toMatchObject(Fonts.regular);
     // Borderless filled field per the style guide
     expect(flatStyle.borderWidth).toBeUndefined();
   });
@@ -102,6 +102,6 @@ describe("Input", () => {
     expect(inputBaseStyle.borderRadius).toBe(Radius.compact);
     const themed = inputThemedStyle("dark");
     expect(themed.backgroundColor).toBe(Colors.dark.inputBackground);
-    expect(themed.fontFamily).toBe(Fonts.regular);
+    expect(themed).toMatchObject(Fonts.regular);
   });
 });

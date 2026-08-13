@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     lineHeight: 16,
-    fontFamily: Fonts.semiBold,
+    ...Fonts.semiBold,
     color: "#ffffff",
   },
 });

@@ -27,7 +27,7 @@ describe("Text", () => {
     const flatStyle = Array.isArray(el.props.style)
       ? Object.assign({}, ...el.props.style.flat(Infinity).filter(Boolean))
       : el.props.style;
-    expect(flatStyle.fontFamily).toBe(Fonts.regular);
+    expect(flatStyle).toMatchObject(Fonts.regular);
     expect(flatStyle.color).toBe(Colors.dark.text);
   });
 
@@ -38,7 +38,7 @@ describe("Text", () => {
       {},
       ...el.props.style.flat(Infinity).filter(Boolean),
     );
-    expect(flatStyle.fontFamily).toBe(Fonts.bold);
+    expect(flatStyle).toMatchObject(Fonts.bold);
     expect(flatStyle.fontSize).toBe(28);
     expect(flatStyle.color).toBe(Colors.dark.text);
   });

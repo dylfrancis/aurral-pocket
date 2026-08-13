@@ -80,10 +80,7 @@ export function SizeStepper({ value, onChange }: Props) {
           returnKeyType="done"
           maxLength={3}
           selectTextOnFocus
-          style={[
-            styles.value,
-            { color: colors.text, fontFamily: Fonts.semiBold },
-          ]}
+          style={[styles.value, { color: colors.text, ...Fonts.semiBold }]}
           accessibilityLabel="Track count"
         />
         <Text variant="caption">tracks</Text>
