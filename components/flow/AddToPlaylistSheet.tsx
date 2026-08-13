@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, Pressable, StyleSheet, View } from "react-native";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
@@ -24,6 +24,7 @@ import { useSharedPlaylists } from "@/hooks/flow/use-flow-selectors";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { buildSharedTrackIdentity } from "@/lib/shared-track-identity";
 import type { ApiError } from "@/lib/api/client";
 import type { SharedPlaylist, SharedPlaylistTrack } from "@/lib/types/flow";
 
@@ -82,6 +83,11 @@ function AddToPlaylistSheetContent({
   const addTracks = useAddSharedPlaylistTracks();
   const createPlaylist = useCreateSharedPlaylist();
   const isPending = addTracks.isPending || createPlaylist.isPending;
+
+  // The server skips an append when the playlist already contains the track,
+  // so a tap there would toast "Added" while changing nothing. Marking those
+  // rows uses the same dedup key the server uses.
+  const trackIdentity = useMemo(() => buildSharedTrackIdentity(track), [track]);
 
   useEffect(() => {
     sheetRef.current?.present();
@@ -165,46 +171,65 @@ function AddToPlaylistSheetContent({
 
         {playlists.length > 0 ? (
           <View style={[styles.list, { borderColor: colors.separator }]}>
-            {playlists.map((playlist) => (
-              <Pressable
-                key={playlist.id}
-                onPress={() => handlePick(playlist)}
-                disabled={isPending}
-                accessibilityLabel={`Add to ${playlist.name}`}
-                style={({ pressed }) => [
-                  styles.playlistRow,
-                  { borderBottomColor: colors.separator },
-                  { opacity: pressed || isPending ? 0.6 : 1 },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.playlistIcon,
-                    { backgroundColor: colors.brandMuted },
+            {playlists.map((playlist) => {
+              const alreadyAdded =
+                !!playlist.trackIdentities?.includes(trackIdentity);
+              return (
+                <Pressable
+                  key={playlist.id}
+                  onPress={() => handlePick(playlist)}
+                  disabled={isPending || alreadyAdded}
+                  accessibilityLabel={
+                    alreadyAdded
+                      ? `Already in ${playlist.name}`
+                      : `Add to ${playlist.name}`
+                  }
+                  style={({ pressed }) => [
+                    styles.playlistRow,
+                    { borderBottomColor: colors.separator },
+                    {
+                      opacity: pressed || isPending || alreadyAdded ? 0.6 : 1,
+                    },
                   ]}
                 >
-                  <Ionicons
-                    name="musical-notes"
-                    size={16}
-                    color={colors.brandStrong}
-                  />
-                </View>
-                <View style={styles.playlistBody}>
-                  <Text
-                    variant="body"
-                    numberOfLines={1}
-                    style={{ fontFamily: Fonts.medium }}
+                  <View
+                    style={[
+                      styles.playlistIcon,
+                      { backgroundColor: colors.brandMuted },
+                    ]}
                   >
-                    {playlist.name}
-                  </Text>
-                  <Text variant="caption">
-                    {playlist.trackCount === 1
-                      ? "1 track"
-                      : `${playlist.trackCount} tracks`}
-                  </Text>
-                </View>
-              </Pressable>
-            ))}
+                    <Ionicons
+                      name="musical-notes"
+                      size={16}
+                      color={colors.brandStrong}
+                    />
+                  </View>
+                  <View style={styles.playlistBody}>
+                    <Text
+                      variant="body"
+                      numberOfLines={1}
+                      style={{ fontFamily: Fonts.medium }}
+                    >
+                      {playlist.name}
+                    </Text>
+                    <Text variant="caption">
+                      {alreadyAdded
+                        ? "Already added"
+                        : playlist.trackCount === 1
+                          ? "1 track"
+                          : `${playlist.trackCount} tracks`}
+                    </Text>
+                  </View>
+                  {alreadyAdded ? (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color={colors.brand}
+                    />
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </View>
         ) : null}
 
