@@ -59,12 +59,7 @@ export function TopTracksSection({
             onToggle(track);
           }}
           onLongPress={
-            onAddToPlaylist
-              ? () => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  onAddToPlaylist(track);
-                }
-              : undefined
+            onAddToPlaylist ? () => onAddToPlaylist(track) : undefined
           }
         />
       ))}

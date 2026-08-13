@@ -55,6 +55,7 @@ export function AlbumsGridScreen() {
         <AlbumSheet
           album={selectedAlbum}
           artistName={grid.artistName}
+          artistMbid={grid.artistMbid}
           sheetRef={albumSheetRef}
           onDeleted={() => setSelectedAlbum(null)}
           downloadStatus={

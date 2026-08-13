@@ -13,6 +13,10 @@ jest.mock("@/hooks/flow/use-flow-mutations", () => ({
   useCreateSharedPlaylist: jest.fn(() => mockCreateMutation),
 }));
 
+jest.mock("@/hooks/auth/use-has-permission", () => ({
+  useHasPermission: jest.fn(() => () => true),
+}));
+
 jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));

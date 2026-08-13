@@ -155,6 +155,7 @@ export function useReleaseGrid<T>(config: ReleaseGridConfig<T>) {
     setSearchQuery,
     hasUnderlyingItems,
     artistId,
+    artistMbid,
     artistName: artistName ?? "",
     rawAlbums,
   };

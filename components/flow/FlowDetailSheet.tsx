@@ -18,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
-import { AddToPlaylistSheet } from "./AddToPlaylistSheet";
+import { AddToPlaylistSheet, useAddToPlaylist } from "./AddToPlaylistSheet";
 import { TrackRow } from "./TrackRow";
 import { MixPills } from "./MixPills";
 import { ProgressBar } from "./ProgressBar";
@@ -38,7 +38,7 @@ import {
 } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import type { FlowJob, SharedPlaylistTrack } from "@/lib/types/flow";
+import type { FlowJob } from "@/lib/types/flow";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -75,9 +75,7 @@ export function FlowDetailSheet({
 
   const renderScrollComponent = useBottomSheetScrollableCreator();
 
-  const [trackToAdd, setTrackToAdd] = useState<SharedPlaylistTrack | null>(
-    null,
-  );
+  const addToPlaylist = useAddToPlaylist();
 
   // Workaround for facebook/react-native#53856: on iOS 26, <Switch> drops its
   // custom thumbColor when re-mounted (e.g. when a bottom sheet opens). Bumping
@@ -171,17 +169,20 @@ export function FlowDetailSheet({
 
   // Flow tracks are regenerated on every run; saving one into a static
   // playlist is how it survives the next refresh (#125).
-  const handleAddToPlaylist = useCallback((job: FlowJob) => {
-    if (job.status !== "done") return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setTrackToAdd({
-      artistName: job.artistName,
-      trackName: job.trackName,
-      albumName: job.albumName ?? null,
-      artistMbid: job.artistMbid ?? null,
-      reason: job.reason ?? null,
-    });
-  }, []);
+  const openAddToPlaylist = addToPlaylist.open;
+  const handleAddToPlaylist = useCallback(
+    (job: FlowJob) => {
+      if (job.status !== "done") return;
+      openAddToPlaylist({
+        artistName: job.artistName,
+        trackName: job.trackName,
+        albumName: job.albumName ?? null,
+        artistMbid: job.artistMbid ?? null,
+        reason: job.reason ?? null,
+      });
+    },
+    [openAddToPlaylist],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: FlowJob }) => (
@@ -363,8 +364,8 @@ export function FlowDetailSheet({
         ) : null}
       </AppSheet>
       <AddToPlaylistSheet
-        track={trackToAdd}
-        onClose={() => setTrackToAdd(null)}
+        track={addToPlaylist.track}
+        onClose={addToPlaylist.close}
       />
     </>
   );

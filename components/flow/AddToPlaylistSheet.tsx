@@ -21,6 +21,7 @@ import {
   useCreateSharedPlaylist,
 } from "@/hooks/flow/use-flow-mutations";
 import { useSharedPlaylists } from "@/hooks/flow/use-flow-selectors";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { ApiError } from "@/lib/api/client";
@@ -31,6 +32,27 @@ type Props = {
   track: SharedPlaylistTrack | null;
   onClose: () => void;
 };
+
+/**
+ * State and permission gate for one AddToPlaylistSheet. `open` sets the track
+ * and gives haptic feedback; wire it to a long-press only when
+ * `canAddToPlaylist` is true, because the playlist API answers 403 without
+ * the accessFlow permission.
+ */
+export function useAddToPlaylist() {
+  const hasPermission = useHasPermission();
+  const canAddToPlaylist = hasPermission("accessFlow");
+  const [track, setTrack] = useState<SharedPlaylistTrack | null>(null);
+
+  const open = useCallback((next: SharedPlaylistTrack) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setTrack(next);
+  }, []);
+
+  const close = useCallback(() => setTrack(null), []);
+
+  return { canAddToPlaylist, track, open, close };
+}
 
 /**
  * Bottom sheet that saves one track into a static playlist — an existing one,

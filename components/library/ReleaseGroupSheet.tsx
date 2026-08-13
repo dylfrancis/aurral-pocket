@@ -8,6 +8,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import {
+  AddToPlaylistSheet,
+  useAddToPlaylist,
+} from "@/components/flow/AddToPlaylistSheet";
+import {
   getReleaseGroupTracks,
   addLibraryAlbum,
   searchDeezerAlbum,
@@ -24,6 +28,7 @@ type ReleaseGroupSheetProps = {
   releaseGroup: ReleaseGroup | null;
   artistId?: string;
   artistName: string;
+  artistMbid?: string;
   sheetRef: React.RefObject<BottomSheetModal | null>;
 };
 
@@ -39,11 +44,13 @@ export function ReleaseGroupSheet({
   releaseGroup,
   artistId,
   artistName,
+  artistMbid,
   sheetRef,
 }: ReleaseGroupSheetProps) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { canAddToPlaylist, ...addToPlaylist } = useAddToPlaylist();
 
   const { data: tracks, isLoading } = useQuery({
     queryKey: libraryKeys.releaseGroupTracks(releaseGroup?.id ?? ""),
@@ -113,118 +120,152 @@ export function ReleaseGroupSheet({
       : type;
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      snapPoints={["60%", "90%"]}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      onDismiss={handleDismiss}
-    >
-      <BottomSheetScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+    <>
+      <AppSheet
+        ref={sheetRef}
+        snapPoints={["60%", "90%"]}
+        enablePanDownToClose
+        enableDynamicSizing={false}
+        onDismiss={handleDismiss}
       >
-        {releaseGroup && (
-          <>
-            <View style={styles.header}>
-              <CoverArtImage
-                type="album"
-                mbid={releaseGroup.id}
-                size={120}
-                borderRadius={10}
-              />
-              <View style={styles.headerMeta}>
-                <Text variant="title" style={styles.albumName}>
-                  {releaseGroup.title}
-                </Text>
-                <Text variant="caption">
-                  {[year, typeLabel, tracks ? `${tracks.length} tracks` : null]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
-              </View>
-            </View>
-
-            {artistId && (
-              <View style={[styles.actions, { borderColor: colors.separator }]}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.addButton,
-                    {
-                      backgroundColor: colors.brand,
-                      opacity: pressed ? 0.8 : 1,
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    addMutation.mutate();
-                  }}
-                  disabled={addMutation.isPending}
-                >
-                  {addMutation.isPending ? (
-                    <ActivityIndicator
-                      size={18}
-                      color={colors.buttonPrimaryText}
-                    />
-                  ) : addMutation.isSuccess ? (
-                    <Ionicons
-                      name="checkmark"
-                      size={18}
-                      color={colors.buttonPrimaryText}
-                    />
-                  ) : (
-                    <Ionicons
-                      name="add"
-                      size={18}
-                      color={colors.buttonPrimaryText}
-                    />
-                  )}
-                  <Text
-                    variant="body"
-                    style={[
-                      styles.addButtonText,
-                      { color: colors.buttonPrimaryText },
-                    ]}
-                  >
-                    {addMutation.isSuccess ? "Added" : "Add to Library"}
+        <BottomSheetScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        >
+          {releaseGroup && (
+            <>
+              <View style={styles.header}>
+                <CoverArtImage
+                  type="album"
+                  mbid={releaseGroup.id}
+                  size={120}
+                  borderRadius={10}
+                />
+                <View style={styles.headerMeta}>
+                  <Text variant="title" style={styles.albumName}>
+                    {releaseGroup.title}
                   </Text>
-                </Pressable>
+                  <Text variant="caption">
+                    {[
+                      year,
+                      typeLabel,
+                      tracks ? `${tracks.length} tracks` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                </View>
               </View>
-            )}
 
-            <View style={styles.trackSection}>
-              <Text
-                variant="subtitle"
-                style={[styles.trackHeader, { color: colors.text }]}
-              >
-                Tracks
-              </Text>
-              {isLoading ? (
-                <ActivityIndicator style={styles.loader} color={colors.brand} />
-              ) : tracks && tracks.length > 0 ? (
-                tracks.map((track, i) => {
-                  const trackId = track.id ?? track.mbid ?? `${track.number}`;
-                  const isPlaying = playingId === trackId;
-                  return (
-                    <ReleaseGroupTrackRow
-                      key={`${track.number}-${i}`}
-                      track={track}
-                      hasPreview={!!track.preview_url}
-                      isPlaying={isPlaying}
-                      progress={isPlaying ? progress : 0}
-                      onToggle={() => togglePreview(track)}
-                    />
-                  );
-                })
-              ) : (
-                <Text variant="caption" style={styles.emptyText}>
-                  No tracks available
-                </Text>
+              {artistId && (
+                <View
+                  style={[styles.actions, { borderColor: colors.separator }]}
+                >
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.addButton,
+                      {
+                        backgroundColor: colors.brand,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      addMutation.mutate();
+                    }}
+                    disabled={addMutation.isPending}
+                  >
+                    {addMutation.isPending ? (
+                      <ActivityIndicator
+                        size={18}
+                        color={colors.buttonPrimaryText}
+                      />
+                    ) : addMutation.isSuccess ? (
+                      <Ionicons
+                        name="checkmark"
+                        size={18}
+                        color={colors.buttonPrimaryText}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="add"
+                        size={18}
+                        color={colors.buttonPrimaryText}
+                      />
+                    )}
+                    <Text
+                      variant="body"
+                      style={[
+                        styles.addButtonText,
+                        { color: colors.buttonPrimaryText },
+                      ]}
+                    >
+                      {addMutation.isSuccess ? "Added" : "Add to Library"}
+                    </Text>
+                  </Pressable>
+                </View>
               )}
-            </View>
-          </>
-        )}
-      </BottomSheetScrollView>
-    </AppSheet>
+
+              <View style={styles.trackSection}>
+                <Text
+                  variant="subtitle"
+                  style={[styles.trackHeader, { color: colors.text }]}
+                >
+                  Tracks
+                </Text>
+                {canAddToPlaylist ? (
+                  <Text
+                    variant="caption"
+                    style={[styles.trackHint, { color: colors.subtle }]}
+                  >
+                    Long-press a track to add it to a playlist.
+                  </Text>
+                ) : null}
+                {isLoading ? (
+                  <ActivityIndicator
+                    style={styles.loader}
+                    color={colors.brand}
+                  />
+                ) : tracks && tracks.length > 0 ? (
+                  tracks.map((track, i) => {
+                    const trackId = track.id ?? track.mbid ?? `${track.number}`;
+                    const isPlaying = playingId === trackId;
+                    return (
+                      <ReleaseGroupTrackRow
+                        key={`${track.number}-${i}`}
+                        track={track}
+                        hasPreview={!!track.preview_url}
+                        isPlaying={isPlaying}
+                        progress={isPlaying ? progress : 0}
+                        onToggle={() => togglePreview(track)}
+                        onLongPress={
+                          canAddToPlaylist
+                            ? () =>
+                                addToPlaylist.open({
+                                  artistName,
+                                  trackName: track.title,
+                                  albumName: releaseGroup.title,
+                                  artistMbid: artistMbid ?? null,
+                                })
+                            : undefined
+                        }
+                      />
+                    );
+                  })
+                ) : (
+                  <Text variant="caption" style={styles.emptyText}>
+                    No tracks available
+                  </Text>
+                )}
+              </View>
+            </>
+          )}
+        </BottomSheetScrollView>
+      </AppSheet>
+      <AddToPlaylistSheet
+        track={addToPlaylist.track}
+        onClose={addToPlaylist.close}
+      />
+    </>
   );
 }
 
@@ -234,19 +275,29 @@ const ReleaseGroupTrackRow = React.memo(function ReleaseGroupTrackRow({
   isPlaying,
   progress,
   onToggle,
+  onLongPress,
 }: {
   track: ReleaseGroupTrack;
   hasPreview: boolean;
   isPlaying: boolean;
   progress: number;
   onToggle: () => void;
+  onLongPress?: () => void;
 }) {
   const colors = Colors[useColorScheme()];
   const duration = formatDuration(track.length);
   const trackNum = track.trackNumber ?? track.position ?? track.number;
 
   return (
-    <View style={[styles.row, { borderBottomColor: colors.separator }]}>
+    <Pressable
+      onLongPress={onLongPress}
+      disabled={!onLongPress}
+      style={({ pressed }) => [
+        styles.row,
+        { borderBottomColor: colors.separator },
+        pressed && onLongPress ? { opacity: 0.6 } : null,
+      ]}
+    >
       <Text variant="caption" style={[styles.number, { color: colors.subtle }]}>
         {trackNum}
       </Text>
@@ -295,7 +346,7 @@ const ReleaseGroupTrackRow = React.memo(function ReleaseGroupTrackRow({
           {duration}
         </Text>
       )}
-    </View>
+    </Pressable>
   );
 });
 
@@ -340,6 +391,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 4,
+  },
+  trackHint: {
+    paddingHorizontal: 16,
     paddingBottom: 4,
   },
   row: {
