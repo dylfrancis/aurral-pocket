@@ -19,8 +19,8 @@ type MediaRowProps = {
 const ARTIST_THUMB_SIZE = 48;
 const ALBUM_THUMB_SIZE = 56;
 
-// Generic list row for the list mode of screens whose grid cells are
-// artwork cards. Mirrors the search result row styling.
+// List row for screens whose grid cells are artwork cards; mirrors the
+// search result row styling.
 export const MediaRow = React.memo(function MediaRow({
   imageType,
   mbid,

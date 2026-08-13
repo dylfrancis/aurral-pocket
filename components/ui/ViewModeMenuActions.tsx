@@ -18,9 +18,8 @@ const VIEW_OPTIONS: {
   },
 ];
 
-// Returns a titled inline section ("View") to append inside a
-// Stack.Toolbar.Menu. A plain function (not a component) so the toolbar
-// sees the elements as direct children, matching the option-map pattern.
+// A plain function (not a component) so the toolbar sees the menu
+// elements as direct children of the parent Menu.
 export function viewModeMenuSection(
   mode: ViewMode,
   onChange: (mode: ViewMode) => void,
