@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.11.0...v0.11.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **discover:** stop editorial playlists from crashing the detail sheet ([#196](https://github.com/dylfrancis/aurral-pocket/issues/196)) ([c7bfc93](https://github.com/dylfrancis/aurral-pocket/commit/c7bfc93a9de2d998fb7bf6d51b9fafc2d58c8986)), closes [#195](https://github.com/dylfrancis/aurral-pocket/issues/195)
+
 ## [0.11.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.10.2...v0.11.0) (2026-08-13)
 
 
