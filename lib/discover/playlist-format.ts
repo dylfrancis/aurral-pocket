@@ -1,7 +1,10 @@
-import type { DiscoverPlaylist } from "@/lib/types/search";
+import type {
+  DiscoverPlaylist,
+  DiscoverPlaylistRecipe,
+} from "@/lib/types/search";
 
 const RECIPE_LABELS: {
-  key: keyof DiscoverPlaylist["recipe"];
+  key: keyof DiscoverPlaylistRecipe;
   label: string;
 }[] = [
   { key: "discover", label: "Discovery" },
@@ -12,7 +15,9 @@ const RECIPE_LABELS: {
 ];
 
 /** "12 Discovery · 8 Library" from the recipe's non-zero entries. */
-export function formatRecipe(recipe: DiscoverPlaylist["recipe"]): string {
+export function formatRecipe(
+  recipe: DiscoverPlaylistRecipe | undefined,
+): string {
   return RECIPE_LABELS.map(({ key, label }) => {
     const count = recipe?.[key] ?? 0;
     return count > 0 ? `${count} ${label}` : null;
