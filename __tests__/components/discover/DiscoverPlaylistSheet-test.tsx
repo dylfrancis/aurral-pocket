@@ -97,6 +97,35 @@ const PLAYLIST = {
   ],
 } as unknown as DiscoverPlaylist;
 
+/**
+ * The server builds editorial playlists from a Last.fm tag chart. They omit
+ * `tags`, `relatedArtists`, `mix` and `recipe` (issue #195).
+ */
+const EDITORIAL_PLAYLIST = {
+  presetId: "editorial-shoegaze",
+  name: "Shoegaze Essentials",
+  description: null,
+  type: "editorial",
+  editorialType: "genre",
+  tag: "shoegaze",
+  size: 30,
+  trackCount: 1,
+  adoptedFlowId: null,
+  adoptedPlaylistId: null,
+  tracks: [
+    {
+      artistName: "Slowdive",
+      trackName: "Alison",
+      albumName: null,
+      artistMbid: null,
+      albumMbid: null,
+      trackMbid: null,
+      releaseYear: null,
+      reason: "#1 on Last.fm",
+    },
+  ],
+} as unknown as DiscoverPlaylist;
+
 const sheetRef = { current: null } as any;
 
 beforeEach(() => {
@@ -135,6 +164,18 @@ describe("DiscoverPlaylistSheet", () => {
       />,
     );
     expect(queryByLabelText("Add Orphan Track to a playlist")).toBeNull();
+  });
+
+  it("renders an editorial playlist that has no tags or related artists", async () => {
+    const { getByText } = await render(
+      <DiscoverPlaylistSheet
+        sheetRef={sheetRef}
+        playlist={EDITORIAL_PLAYLIST}
+        onClose={jest.fn()}
+      />,
+    );
+    expect(getByText("Shoegaze Essentials")).toBeTruthy();
+    expect(getByText("Alison")).toBeTruthy();
   });
 
   it("shows no + buttons without the accessFlow permission", async () => {

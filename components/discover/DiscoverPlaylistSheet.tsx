@@ -116,6 +116,9 @@ export function DiscoverPlaylistSheet({ sheetRef, playlist, onClose }: Props) {
     const subtitle = playlistSourceLine(playlist);
     const adoptedAsFlow = !!playlist.adoptedFlowId;
     const adoptedAsStatic = !!playlist.adoptedPlaylistId;
+    // Editorial playlists carry neither list, so default both to empty.
+    const tags = playlist.tags ?? [];
+    const relatedArtists = playlist.relatedArtists ?? [];
     return (
       <View style={styles.headerWrap}>
         <Text
@@ -130,9 +133,9 @@ export function DiscoverPlaylistSheet({ sheetRef, playlist, onClose }: Props) {
           {subtitle ? ` · ${subtitle}` : ""}
         </Text>
 
-        {playlist.tags.length > 0 || playlist.relatedArtists.length > 0 ? (
+        {tags.length > 0 || relatedArtists.length > 0 ? (
           <View style={styles.pills}>
-            {playlist.tags.map((tag) => (
+            {tags.map((tag) => (
               <Chip
                 key={`t-${tag}`}
                 label={`#${tag}`}
@@ -140,7 +143,7 @@ export function DiscoverPlaylistSheet({ sheetRef, playlist, onClose }: Props) {
                 size="sm"
               />
             ))}
-            {playlist.relatedArtists.map((artist) => (
+            {relatedArtists.map((artist) => (
               <Chip
                 key={`a-${artist}`}
                 label={`~${artist}`}

@@ -128,13 +128,7 @@ export type TagArtistsResponse = {
 };
 
 export type MonitorOption =
-  | "none"
-  | "all"
-  | "existing"
-  | "latest"
-  | "first"
-  | "missing"
-  | "future";
+  "none" | "all" | "existing" | "latest" | "first" | "missing" | "future";
 
 export type AddArtistRequest = {
   foreignArtistId: string;
@@ -180,7 +174,8 @@ export type BasedOnArtist = {
   source?: string;
 };
 
-export type DiscoverPlaylistType = "flow" | "release_radar" | "focus";
+export type DiscoverPlaylistType =
+  "flow" | "release_radar" | "focus" | "editorial";
 
 export type DiscoverPlaylistMix = {
   discover: number;
@@ -208,19 +203,28 @@ export type DiscoverPlaylistTrack = {
   reason: string | null;
 };
 
+/**
+ * The server sends two playlist shapes under `discoverPlaylists`. A preset
+ * playlist carries the flow fields: `mix`, `size`, `deepDive`, `tags`,
+ * `relatedArtists` and `recipe`. An editorial playlist is built from a
+ * Last.fm tag chart and omits all six, so each one is optional here.
+ */
 export type DiscoverPlaylist = {
   presetId: string;
   name: string;
   description: string | null;
   type: DiscoverPlaylistType;
-  mix: DiscoverPlaylistMix;
-  size: number;
-  deepDive: boolean;
-  tags: string[];
-  relatedArtists: string[];
-  recipe: DiscoverPlaylistRecipe;
+  mix?: DiscoverPlaylistMix;
+  size?: number;
+  deepDive?: boolean;
+  tags?: string[];
+  relatedArtists?: string[];
+  recipe?: DiscoverPlaylistRecipe;
   tracks: DiscoverPlaylistTrack[];
   trackCount: number;
+  /** Editorial playlists only: the chart tag and the editorial sub-type. */
+  tag?: string;
+  editorialType?: string;
   artworkStyle?: string;
   hasArtwork?: boolean;
   adoptedFlowId: string | null;
