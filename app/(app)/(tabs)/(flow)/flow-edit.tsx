@@ -21,6 +21,7 @@ import { SizeStepper } from "@/components/flow/SizeStepper";
 import { ScheduleDayPicker } from "@/components/flow/ScheduleDayPicker";
 import { ScheduleHourPicker } from "@/components/flow/ScheduleHourPicker";
 import { FocusEditor } from "@/components/flow/FocusEditor";
+import { YearBoundInput } from "@/components/flow/YearBoundInput";
 import { useCreateFlow, useEditSnapshot, useUpdateFlow } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -41,11 +42,27 @@ function toFormValues(flow: Flow): FlowFormValues {
     // pre-2.5.0 server, which omits the field, seeds as enabled. Seeding false
     // here would send false back and turn the setting off.
     recordHistory: flow.recordHistory !== false,
+    yearFrom: flow.yearFrom ?? null,
+    yearTo: flow.yearTo ?? null,
     tags: [...(flow.tags ?? [])],
     relatedArtists: [...(flow.relatedArtists ?? [])],
     scheduleDays: [...(flow.scheduleDays ?? [])],
     scheduleTime: flow.scheduleTime || "00:00",
   };
+}
+
+function describeYearRange(
+  yearFrom: number | null,
+  yearTo: number | null,
+): string {
+  if (yearFrom != null && yearTo != null) {
+    return yearFrom === yearTo
+      ? `Only ${yearFrom} releases.`
+      : `Releases from ${yearFrom} to ${yearTo}.`;
+  }
+  if (yearFrom != null) return `Releases from ${yearFrom} onward.`;
+  if (yearTo != null) return `Releases up to ${yearTo}.`;
+  return "Any release year.";
 }
 
 export default function FlowEditScreen() {
@@ -110,13 +127,20 @@ function FlowEditForm({
       : createDefaultFlowForm(),
   });
 
-  const [watchedTags, watchedArtists, watchedMix] = useWatch({
+  const [
+    watchedTags,
+    watchedArtists,
+    watchedMix,
+    watchedYearFrom,
+    watchedYearTo,
+  ] = useWatch({
     control,
-    name: ["tags", "relatedArtists", "mix"],
+    name: ["tags", "relatedArtists", "mix", "yearFrom", "yearTo"],
   });
   const hasFocusEntries =
     (watchedTags?.length ?? 0) > 0 || (watchedArtists?.length ?? 0) > 0;
   const focusInactive = hasFocusEntries && (watchedMix?.focus ?? 0) === 0;
+  const yearError = errors.yearFrom?.message ?? errors.yearTo?.message;
 
   const isPending = createFlow.isPending || updateFlow.isPending;
 
@@ -255,6 +279,48 @@ function FlowEditForm({
         />
 
         <Section
+          title="Release Years"
+          subtitle="Limit the flow to a range of release years. Leave a field empty to keep that end open."
+        >
+          <View style={styles.yearRow}>
+            <Controller
+              control={control}
+              name="yearFrom"
+              render={({ field: { value, onChange } }) => (
+                <YearBoundInput
+                  label="From"
+                  placeholder="Any"
+                  testID="year-from-input"
+                  value={value}
+                  onChange={onChange}
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="yearTo"
+              render={({ field: { value, onChange } }) => (
+                <YearBoundInput
+                  label="To"
+                  placeholder="Any"
+                  testID="year-to-input"
+                  value={value}
+                  onChange={onChange}
+                />
+              )}
+            />
+          </View>
+          <Text variant="caption" style={{ color: colors.subtle }}>
+            {describeYearRange(watchedYearFrom ?? null, watchedYearTo ?? null)}
+          </Text>
+          {yearError ? (
+            <Text variant="caption" style={{ color: colors.error }}>
+              {yearError}
+            </Text>
+          ) : null}
+        </Section>
+
+        <Section
           title="Focus"
           subtitle="Bias the flow toward specific tags or artists."
         >
@@ -385,6 +451,10 @@ const styles = StyleSheet.create({
   },
   sectionHead: {
     gap: 4,
+  },
+  yearRow: {
+    flexDirection: "row",
+    gap: 12,
   },
   sectionTitleRow: {
     flexDirection: "row",

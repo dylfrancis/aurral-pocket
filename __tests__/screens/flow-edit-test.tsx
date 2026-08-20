@@ -104,7 +104,7 @@ const status = {
   jobs: [],
 } as unknown as FlowStatusSnapshot;
 
-async function renderScreen() {
+async function renderScreen(flowOverrides?: Partial<Flow>) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Infinity },
@@ -115,7 +115,12 @@ async function renderScreen() {
       mutations: { gcTime: 0 },
     },
   });
-  client.setQueryData(flowKeys.status(), status);
+  client.setQueryData(
+    flowKeys.status(),
+    flowOverrides
+      ? { ...status, flows: [{ ...flow, ...flowOverrides }] }
+      : status,
+  );
   const utils = await render(
     <QueryClientProvider client={client}>
       <FlowEditScreen />
@@ -238,6 +243,137 @@ describe("FlowEditScreen (editing)", () => {
         expect.objectContaining({ recordHistory: false }),
       ),
     );
+  });
+
+  it("hydrates the year range from the cached flow", async () => {
+    const { getByTestId, getByText } = await renderScreen({
+      yearFrom: 1990,
+      yearTo: 1999,
+    });
+
+    expect(getByTestId("year-from-input").props.value).toBe("1990");
+    expect(getByTestId("year-to-input").props.value).toBe("1999");
+    expect(getByText("Releases from 1990 to 1999.")).toBeTruthy();
+  });
+
+  it("describes an open range when the flow has no year bounds", async () => {
+    const { getByTestId, getByText } = await renderScreen();
+
+    expect(getByTestId("year-from-input").props.value).toBe("");
+    expect(getByTestId("year-to-input").props.value).toBe("");
+    expect(getByText("Any release year.")).toBeTruthy();
+  });
+
+  // The form posts both bounds on every save, so an unseeded field would send
+  // null and wipe a range set on another client (#207).
+  it("resends the stored year range when an unrelated field changes", async () => {
+    mockUpdateFlow.mockResolvedValue(flow);
+    const { getByTestId, getByText } = await renderScreen({
+      yearFrom: 1990,
+      yearTo: 1999,
+    });
+
+    await act(() => {
+      getByTestId("hour-picker").props.onValueChange(14);
+    });
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(mockUpdateFlow).toHaveBeenCalledWith(
+        "flow-1",
+        expect.objectContaining({
+          scheduleTime: "14:00",
+          yearFrom: 1990,
+          yearTo: 1999,
+        }),
+      ),
+    );
+  });
+
+  it("saves an edited year range", async () => {
+    mockUpdateFlow.mockResolvedValue(flow);
+    const { getByTestId, getByText } = await renderScreen();
+
+    await act(() => {
+      fireEvent.changeText(getByTestId("year-from-input"), "1975");
+    });
+    await act(() => {
+      fireEvent.changeText(getByTestId("year-to-input"), "1985");
+    });
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(mockUpdateFlow).toHaveBeenCalledWith(
+        "flow-1",
+        expect.objectContaining({ yearFrom: 1975, yearTo: 1985 }),
+      ),
+    );
+  });
+
+  it("clears the range by sending null for an emptied bound", async () => {
+    mockUpdateFlow.mockResolvedValue(flow);
+    const { getByTestId, getByText } = await renderScreen({
+      yearFrom: 1990,
+      yearTo: 1999,
+    });
+
+    await act(() => {
+      fireEvent.changeText(getByTestId("year-from-input"), "");
+    });
+    await act(() => {
+      fireEvent.changeText(getByTestId("year-to-input"), "");
+    });
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(mockUpdateFlow).toHaveBeenCalledWith(
+        "flow-1",
+        expect.objectContaining({ yearFrom: null, yearTo: null }),
+      ),
+    );
+  });
+
+  it("drops non-digits from a year bound", async () => {
+    const { getByTestId } = await renderScreen();
+
+    await act(() => {
+      fireEvent.changeText(getByTestId("year-from-input"), "19a9-0");
+    });
+
+    expect(getByTestId("year-from-input").props.value).toBe("1990");
+  });
+
+  it("blocks the save when the range is inverted", async () => {
+    const { getByTestId, getByText } = await renderScreen();
+
+    await act(() => {
+      fireEvent.changeText(getByTestId("year-from-input"), "1999");
+    });
+    await act(() => {
+      fireEvent.changeText(getByTestId("year-to-input"), "1990");
+    });
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(
+        getByText("To year must not be before the from year"),
+      ).toBeTruthy(),
+    );
+    expect(mockUpdateFlow).not.toHaveBeenCalled();
+  });
+
+  it("blocks the save when a bound is not a 4-digit year", async () => {
+    const { getByTestId, getByText } = await renderScreen();
+
+    await act(() => {
+      fireEvent.changeText(getByTestId("year-from-input"), "199");
+    });
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(getByText("Year must have 4 digits")).toBeTruthy(),
+    );
+    expect(mockUpdateFlow).not.toHaveBeenCalled();
   });
 
   it("shows a not-found state when the flow is missing from the cache", async () => {

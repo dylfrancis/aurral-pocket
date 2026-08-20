@@ -20,6 +20,13 @@ export type Flow = {
    */
   recordHistory?: boolean;
   recipe?: string | null;
+  /**
+   * Inclusive release-year bounds for the tracks this flow picks. Each bound
+   * is a 4-digit year, or null when that end of the range is open. Optional
+   * because older Aurral versions do not send them.
+   */
+  yearFrom?: number | null;
+  yearTo?: number | null;
   tags: string[];
   relatedArtists: string[];
   scheduleDays: number[];
@@ -137,6 +144,8 @@ export type FlowFormValues = {
   mix: MixPercent;
   deepDive: boolean;
   recordHistory: boolean;
+  yearFrom: number | null;
+  yearTo: number | null;
   tags: string[];
   relatedArtists: string[];
   scheduleDays: number[];
@@ -158,6 +167,8 @@ export const createDefaultFlowForm = (): FlowFormValues => ({
   mix: DEFAULT_MIX,
   deepDive: false,
   recordHistory: true,
+  yearFrom: null,
+  yearTo: null,
   tags: [],
   relatedArtists: [],
   scheduleDays: [new Date().getDay()],
@@ -195,3 +206,10 @@ export const MIX_PRESETS: { id: string; label: string; mix: MixPercent }[] = [
 export const FLOW_SIZE_MIN = 10;
 export const FLOW_SIZE_MAX = 100;
 export const FLOW_SIZE_STEP = 5;
+
+/**
+ * Aurral rejects a year bound outside this range with a 400 error. Keep both
+ * ends in step with normalizeYearBound on the server.
+ */
+export const FLOW_YEAR_MIN = 1000;
+export const FLOW_YEAR_MAX = 9999;

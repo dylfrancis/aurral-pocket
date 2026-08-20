@@ -1,5 +1,19 @@
 import { z } from "zod";
-import { FLOW_SIZE_MAX, FLOW_SIZE_MIN } from "@/lib/types/flow";
+import {
+  FLOW_SIZE_MAX,
+  FLOW_SIZE_MIN,
+  FLOW_YEAR_MAX,
+  FLOW_YEAR_MIN,
+} from "@/lib/types/flow";
+
+// null leaves that end of the range open. Aurral treats an out-of-range year
+// as a 400 error, so reject it here instead.
+const yearBound = z
+  .number()
+  .int("Year must be a whole number")
+  .min(FLOW_YEAR_MIN, "Year must have 4 digits")
+  .max(FLOW_YEAR_MAX, "Year must have 4 digits")
+  .nullable();
 
 export const flowFormSchema = z
   .object({
@@ -18,6 +32,8 @@ export const flowFormSchema = z
       ),
     deepDive: z.boolean(),
     recordHistory: z.boolean(),
+    yearFrom: yearBound,
+    yearTo: yearBound,
     tags: z.array(z.string()),
     relatedArtists: z.array(z.string()),
     scheduleDays: z
@@ -35,6 +51,19 @@ export const flowFormSchema = z
         code: z.ZodIssueCode.custom,
         path: ["tags"],
         message: "Focus needs at least one genre tag or related artist",
+      });
+    }
+    // Aurral swaps an inverted range instead of rejecting it, which silently
+    // saves a range the user did not ask for. Reject it here.
+    if (
+      values.yearFrom != null &&
+      values.yearTo != null &&
+      values.yearFrom > values.yearTo
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["yearTo"],
+        message: "To year must not be before the from year",
       });
     }
   });
