@@ -37,6 +37,10 @@ function toFormValues(flow: Flow): FlowFormValues {
     size: flow.size,
     mix: { ...flow.mix, focus: flow.mix.focus ?? 0 },
     deepDive: flow.deepDive,
+    // Match the server default (`recordHistory !== false`) so a flow from a
+    // pre-2.5.0 server, which omits the field, seeds as enabled. Seeding false
+    // here would send false back and turn the setting off.
+    recordHistory: flow.recordHistory !== false,
     tags: [...(flow.tags ?? [])],
     relatedArtists: [...(flow.relatedArtists ?? [])],
     scheduleDays: [...(flow.scheduleDays ?? [])],
@@ -217,6 +221,26 @@ function FlowEditForm({
             <Section
               title="Deep Dive"
               subtitle="Surface lesser-known tracks from each artist."
+              trailing={
+                <Switch
+                  value={value}
+                  onValueChange={onChange}
+                  trackColor={{ false: colors.separator, true: colors.brand }}
+                  thumbColor={colors.switchThumb}
+                  ios_backgroundColor={colors.separator}
+                />
+              }
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="recordHistory"
+          render={({ field: { value, onChange } }) => (
+            <Section
+              title="Record History"
+              subtitle="Count plays from this flow in your listening history."
               trailing={
                 <Switch
                   value={value}

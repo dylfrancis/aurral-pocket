@@ -175,6 +175,71 @@ describe("FlowEditScreen (editing)", () => {
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
   });
 
+  it("preserves recordHistory through an unrelated edit (#198)", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity },
+        mutations: { gcTime: 0 },
+      },
+    });
+    client.setQueryData(flowKeys.status(), {
+      ...status,
+      flows: [{ ...flow, recordHistory: true }],
+    });
+    mockUpdateFlow.mockResolvedValue({ ...flow, recordHistory: true });
+    const { getByTestId, getByText } = await render(
+      <QueryClientProvider client={client}>
+        <FlowEditScreen />
+      </QueryClientProvider>,
+    );
+
+    await act(() => {
+      getByTestId("hour-picker").props.onValueChange(14);
+    });
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(mockUpdateFlow).toHaveBeenCalledWith(
+        "flow-1",
+        expect.objectContaining({ recordHistory: true, scheduleTime: "14:00" }),
+      ),
+    );
+  });
+
+  it("seeds recordHistory as enabled when the server omits it", async () => {
+    mockUpdateFlow.mockResolvedValue(flow);
+    const { getByText } = await renderScreen();
+
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(mockUpdateFlow).toHaveBeenCalledWith(
+        "flow-1",
+        expect.objectContaining({ recordHistory: true }),
+      ),
+    );
+  });
+
+  it("saves recordHistory turned off", async () => {
+    mockUpdateFlow.mockResolvedValue({ ...flow, recordHistory: false });
+    const { getByText, getAllByRole } = await renderScreen();
+
+    // Two switches render, in tree order: Deep Dive, then Record History.
+    const switches = getAllByRole("switch");
+    expect(switches).toHaveLength(2);
+    await act(() => {
+      fireEvent(switches[1], "valueChange", false);
+    });
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(mockUpdateFlow).toHaveBeenCalledWith(
+        "flow-1",
+        expect.objectContaining({ recordHistory: false }),
+      ),
+    );
+  });
+
   it("shows a not-found state when the flow is missing from the cache", async () => {
     mockUseLocalSearchParams.mockReturnValue({ id: "missing-flow" });
     const { getByText } = await renderScreen();
