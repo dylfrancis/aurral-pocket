@@ -11,6 +11,19 @@ describe("flowFormSchema", () => {
     expect(flowFormSchema.safeParse(validForm()).success).toBe(true);
   });
 
+  it("requires recordHistory", () => {
+    const { recordHistory, ...withoutRecordHistory } = validForm();
+    expect(flowFormSchema.safeParse(withoutRecordHistory).success).toBe(false);
+  });
+
+  it("accepts recordHistory disabled", () => {
+    const result = flowFormSchema.safeParse({
+      ...validForm(),
+      recordHistory: false,
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("accepts a focused mix with at least one tag", () => {
     const result = flowFormSchema.safeParse({
       ...validForm(),

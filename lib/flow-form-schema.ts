@@ -17,6 +17,7 @@ export const flowFormSchema = z
         { message: "Mix must total 100%" },
       ),
     deepDive: z.boolean(),
+    recordHistory: z.boolean(),
     tags: z.array(z.string()),
     relatedArtists: z.array(z.string()),
     scheduleDays: z

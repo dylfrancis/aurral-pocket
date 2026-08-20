@@ -12,6 +12,13 @@ export type Flow = {
   size: number;
   mix: MixPercent;
   deepDive: boolean;
+  /**
+   * Whether the flow's plays feed listening history. Optional because Aurral
+   * versions before 2.5.0 do not send it. Absent means enabled: the server
+   * defaults it with `recordHistory !== false`
+   * (`backend/services/weeklyFlow/weeklyFlowPlaylistConfig.js`).
+   */
+  recordHistory?: boolean;
   recipe?: string | null;
   tags: string[];
   relatedArtists: string[];
@@ -47,11 +54,7 @@ export type SharedPlaylist = {
 };
 
 export type FlowJobStatus =
-  | "pending"
-  | "downloading"
-  | "blocked"
-  | "done"
-  | "failed";
+  "pending" | "downloading" | "blocked" | "done" | "failed";
 
 export type FlowJob = {
   id: string;
@@ -77,11 +80,7 @@ export type PlaylistStats = {
 };
 
 export type StatusHintPhase =
-  | "idle"
-  | "preparing"
-  | "downloading"
-  | "queued"
-  | "completed";
+  "idle" | "preparing" | "downloading" | "queued" | "completed";
 
 export type StatusHint = {
   phase: StatusHintPhase;
@@ -137,6 +136,7 @@ export type FlowFormValues = {
   size: number;
   mix: MixPercent;
   deepDive: boolean;
+  recordHistory: boolean;
   tags: string[];
   relatedArtists: string[];
   scheduleDays: number[];
@@ -157,6 +157,7 @@ export const createDefaultFlowForm = (): FlowFormValues => ({
   size: DEFAULT_FLOW_SIZE,
   mix: DEFAULT_MIX,
   deepDive: false,
+  recordHistory: true,
   tags: [],
   relatedArtists: [],
   scheduleDays: [new Date().getDay()],
