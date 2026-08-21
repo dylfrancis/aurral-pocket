@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.11.1...v0.12.0) (2026-08-21)
+
+
+### Features
+
+* **auth:** add OIDC sign-in ([#206](https://github.com/dylfrancis/aurral-pocket/issues/206)) ([#211](https://github.com/dylfrancis/aurral-pocket/issues/211)) ([6cba1d4](https://github.com/dylfrancis/aurral-pocket/commit/6cba1d47f815a9a3480e9508ee1e54b988824c0c))
+* **flow:** add a release-year range to the flow editor ([#210](https://github.com/dylfrancis/aurral-pocket/issues/210)) ([7d2f2c0](https://github.com/dylfrancis/aurral-pocket/commit/7d2f2c0cb0a392190c2a920a5c83c04cc1cd2bc1)), closes [#207](https://github.com/dylfrancis/aurral-pocket/issues/207)
+* **flow:** add the recordHistory control to flow editing ([#208](https://github.com/dylfrancis/aurral-pocket/issues/208)) ([b0f21b7](https://github.com/dylfrancis/aurral-pocket/commit/b0f21b76ca69bc2db40788b331948a5bb3f85d46)), closes [#198](https://github.com/dylfrancis/aurral-pocket/issues/198)
+
 ## [0.11.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.11.0...v0.11.1) (2026-08-18)
 
 
