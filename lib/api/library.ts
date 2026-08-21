@@ -9,6 +9,11 @@ import type {
   ArtistTag,
   PreviewTrack,
   DownloadStatusMap,
+  CanonicalPage,
+  CanonicalPageParams,
+  LibraryReadOptions,
+  LibraryScanJob,
+  LibraryScanStatus,
 } from "@/lib/types/library";
 
 type ArtistDetailsResponse = {
@@ -17,23 +22,99 @@ type ArtistDetailsResponse = {
   "release-groups"?: ReleaseGroup[];
 };
 
-export async function getLibraryArtists() {
-  const r = await api.get<Artist[]>("/library/artists");
+/**
+ * Build the opt-in query parameters for the canonical read path. Returns an
+ * empty object on the legacy path so those requests stay byte-identical.
+ *
+ * `source` defaults to "all" because the server defaults it per route, and the
+ * defaults disagree: /library/albums and /library/artists default to "all",
+ * while the read adapter defaults to "lidarr". Sending it explicitly removes
+ * the ambiguity.
+ */
+function readPathParams(options: LibraryReadOptions = {}) {
+  if (options.readPath !== "canonical") return {};
+  return { readPath: "canonical", source: options.source ?? "all" };
+}
+
+export async function getLibraryArtists(options: LibraryReadOptions = {}) {
+  const params = readPathParams(options);
+  const r =
+    Object.keys(params).length > 0
+      ? await api.get<Artist[]>("/library/artists", { params })
+      : await api.get<Artist[]>("/library/artists");
   return r.data;
 }
 
+/**
+ * The server has no canonical route for a single artist, so this always reads
+ * the legacy path. Artists that exist only in the canonical library return 404,
+ * and artists whose id is not a UUID return 400.
+ */
 export async function getLibraryArtist(mbid: string) {
   const r = await api.get<Artist>(`/library/artists/${mbid}`);
   return r.data;
 }
 
-export async function getLibraryAlbums(artistId: string) {
-  const r = await api.get<Album[]>("/library/albums", { params: { artistId } });
+/**
+ * On the canonical read path the server matches `artistId` against the
+ * canonical artist id or the artist MBID. A Lidarr artist id matches neither,
+ * so canonical callers must pass a canonical id or an MBID.
+ */
+export async function getLibraryAlbums(
+  artistId: string,
+  options: LibraryReadOptions = {},
+) {
+  const r = await api.get<Album[]>("/library/albums", {
+    params: { artistId, ...readPathParams(options) },
+  });
   return r.data;
 }
 
-export async function getLibraryTracks(albumId: string) {
-  const r = await api.get<Track[]>("/library/tracks", { params: { albumId } });
+/**
+ * On the canonical read path the server matches `albumId` against the
+ * canonical album id, its MBID, or its foreign album id, and returns only
+ * albums that have files. Responses carry `streamPath` instead of a
+ * filesystem path.
+ */
+export async function getLibraryTracks(
+  albumId: string,
+  options: LibraryReadOptions = {},
+) {
+  const r = await api.get<Track[]>("/library/tracks", {
+    params: { albumId, ...readPathParams(options) },
+  });
+  return r.data;
+}
+
+/** Read one page of the canonical library. The server caps `pageSize` at 100. */
+export async function getCanonicalLibraryPage(params: CanonicalPageParams) {
+  const query: Record<string, string> = { kind: params.kind };
+  if (params.source) query.source = params.source;
+  if (params.availableOnly) query.availableOnly = "true";
+  if (params.page != null) query.page = String(params.page);
+  if (params.pageSize != null) query.pageSize = String(params.pageSize);
+  if (params.query) query.query = params.query;
+  if (params.genre) query.genre = params.genre;
+  if (params.sort) query.sort = params.sort;
+  if (params.direction) query.direction = params.direction;
+  if (params.artistId) query.artistId = params.artistId;
+  if (params.albumId) query.albumId = params.albumId;
+
+  const r = await api.get<CanonicalPage>("/library/canonical", {
+    params: query,
+  });
+  return r.data;
+}
+
+/** Queue a rescan of the canonical library. Returns 202 with a job id. */
+export async function refreshCanonicalLibrary() {
+  const r = await api.post<LibraryScanJob>("/library/refresh");
+  return r.data;
+}
+
+/** Poll one queued rescan. The server returns 404 for an unknown job id. */
+export async function getCanonicalLibraryRefresh(jobId: string) {
+  const r = await api.get<LibraryScanStatus>(`/library/refresh/${jobId}`);
   return r.data;
 }
 

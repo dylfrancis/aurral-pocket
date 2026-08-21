@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
+import { libraryAlbumsRef } from "@/lib/library-read";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -43,7 +44,9 @@ export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
         queryKey: libraryKeys.artist(artist.mbid),
       });
       queryClient.invalidateQueries({
-        queryKey: libraryKeys.albums(artist.id),
+        queryKey: libraryKeys.albums(
+          libraryAlbumsRef({ artistId: artist.id, artistMbid: artist.mbid })!,
+        ),
       });
     },
   });

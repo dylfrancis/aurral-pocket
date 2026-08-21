@@ -36,6 +36,27 @@ const SORT_ICONS = {
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
 
+/**
+ * The identifier the artist route uses.
+ *
+ * The canonical read path leaves `mbid` null for artists it scanned from files
+ * that carry no MusicBrainz id, so fall back to the identifiers the server
+ * always sets. That keeps the route well formed. The artist screen still needs
+ * a real MBID to load, so those artists open on its not-found state.
+ */
+const artistRouteId = (artist: Artist) =>
+  artist.mbid || artist.foreignArtistId || artist.id;
+
+const byName = (a: Artist, b: Artist) =>
+  stripArticle(a.artistName).localeCompare(stripArticle(b.artistName));
+
+/** Milliseconds since the epoch, or null when the server sent no usable date. */
+function addedTime(artist: Artist): number | null {
+  if (!artist.addedAt) return null;
+  const time = new Date(artist.addedAt).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
 const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
   { key: "alpha", label: "Alphabetical", icon: "textformat.abc" },
   { key: "recent", label: "Recently Added", icon: "clock" },
@@ -63,14 +84,19 @@ export default function LibraryScreen() {
     const list = [...filtered];
     switch (sortMode) {
       case "alpha":
-        return list.sort((a, b) =>
-          stripArticle(a.artistName).localeCompare(stripArticle(b.artistName)),
-        );
+        return list.sort(byName);
       case "recent":
-        return list.sort(
-          (a, b) =>
-            new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime(),
-        );
+        // The canonical read path records no added date, so every artist can
+        // sort as undated. Undated artists go last in alphabetical order, so
+        // the list stays stable instead of showing the server's own order.
+        return list.sort((a, b) => {
+          const left = addedTime(a);
+          const right = addedTime(b);
+          if (left === right) return byName(a, b);
+          if (left === null) return 1;
+          if (right === null) return -1;
+          return right - left;
+        });
       case "albums":
         return list.sort(
           (a, b) => b.statistics.albumCount - a.statistics.albumCount,
@@ -148,7 +174,7 @@ export default function LibraryScreen() {
             mbid={item.mbid}
             title={item.artistName}
             subtitle={`${albumCount} ${albumCount === 1 ? "album" : "albums"}`}
-            onPress={() => router.push(`/artist/${item.mbid}`)}
+            onPress={() => router.push(`/artist/${artistRouteId(item)}`)}
           />
         );
       }
@@ -156,7 +182,7 @@ export default function LibraryScreen() {
         <View style={styles.gridItem}>
           <ArtistCard
             artist={item}
-            onPress={() => router.push(`/artist/${item.mbid}`)}
+            onPress={() => router.push(`/artist/${artistRouteId(item)}`)}
           />
         </View>
       );

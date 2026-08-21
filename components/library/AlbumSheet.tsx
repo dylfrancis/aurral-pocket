@@ -23,6 +23,7 @@ import {
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import { triggerAlbumSearch, deleteAlbum } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
+import { libraryAlbumsRef, libraryTracksRef } from "@/lib/library-read";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import * as Haptics from "expo-haptics";
@@ -48,7 +49,9 @@ export function AlbumSheet({
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { data: tracks, isLoading } = useLibraryTracks(album?.id);
+  const { data: tracks, isLoading } = useLibraryTracks(
+    libraryTracksRef({ albumId: album?.id, albumMbid: album?.mbid }),
+  );
 
   // A SharedPlaylistTrack requires an artist name, so the long-press also
   // needs the artistName prop, not only the permission.
@@ -86,7 +89,9 @@ export function AlbumSheet({
     mutationFn: () => deleteAlbum(album!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: libraryKeys.albums(album!.artistId),
+        queryKey: libraryKeys.albums(
+          libraryAlbumsRef({ artistId: album!.artistId, artistMbid })!,
+        ),
       });
       sheetRef.current?.dismiss();
       onDeleted?.();

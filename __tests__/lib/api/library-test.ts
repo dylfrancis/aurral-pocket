@@ -13,6 +13,9 @@ import {
   getLibraryArtist,
   getLibraryAlbums,
   getLibraryTracks,
+  getCanonicalLibraryPage,
+  refreshCanonicalLibrary,
+  getCanonicalLibraryRefresh,
   getArtistCover,
   getAlbumCover,
   triggerAlbumSearch,
@@ -40,6 +43,33 @@ describe("getLibraryArtists", () => {
     const result = await getLibraryArtists();
     expect(mockApi.get).toHaveBeenCalledWith("/library/artists");
     expect(result).toEqual(artists);
+  });
+});
+
+describe("getLibraryArtists on the canonical read path", () => {
+  it("sends readPath and source", async () => {
+    mockApi.get.mockResolvedValue({ data: [] });
+
+    await getLibraryArtists({ readPath: "canonical" });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/artists", {
+      params: { readPath: "canonical", source: "all" },
+    });
+  });
+
+  it("sends the requested source", async () => {
+    mockApi.get.mockResolvedValue({ data: [] });
+
+    await getLibraryArtists({ readPath: "canonical", source: "aurral" });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/artists", {
+      params: { readPath: "canonical", source: "aurral" },
+    });
+  });
+
+  it("ignores a source without a canonical read path", async () => {
+    mockApi.get.mockResolvedValue({ data: [] });
+
+    await getLibraryArtists({ source: "aurral" });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/artists");
   });
 });
 
@@ -179,5 +209,106 @@ describe("requestAlbumFromSearch", () => {
   it("propagates errors", async () => {
     mockApi.post.mockRejectedValue(new Error("409"));
     await expect(requestAlbumFromSearch(payload)).rejects.toThrow("409");
+  });
+});
+
+describe("canonical read path parameters", () => {
+  it("adds readPath and source to the album request", async () => {
+    mockApi.get.mockResolvedValue({ data: [] });
+
+    await getLibraryAlbums("mb-artist", { readPath: "canonical" });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/albums", {
+      params: { artistId: "mb-artist", readPath: "canonical", source: "all" },
+    });
+  });
+
+  it("adds readPath and source to the track request", async () => {
+    mockApi.get.mockResolvedValue({ data: [] });
+
+    await getLibraryTracks("mb-album", { readPath: "canonical" });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/tracks", {
+      params: { albumId: "mb-album", readPath: "canonical", source: "all" },
+    });
+  });
+
+  it("leaves the legacy album request unchanged", async () => {
+    mockApi.get.mockResolvedValue({ data: [] });
+
+    await getLibraryAlbums("42");
+    expect(mockApi.get).toHaveBeenCalledWith("/library/albums", {
+      params: { artistId: "42" },
+    });
+  });
+});
+
+describe("getCanonicalLibraryPage", () => {
+  it("sends only the parameters the caller set", async () => {
+    mockApi.get.mockResolvedValue({ data: { kind: "albums" } });
+
+    await getCanonicalLibraryPage({ kind: "albums", page: 2, pageSize: 50 });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
+      params: { kind: "albums", page: "2", pageSize: "50" },
+    });
+  });
+
+  it("serialises every supported filter", async () => {
+    mockApi.get.mockResolvedValue({ data: { kind: "tracks" } });
+
+    await getCanonicalLibraryPage({
+      kind: "tracks",
+      source: "lidarr",
+      availableOnly: true,
+      page: 1,
+      pageSize: 100,
+      query: "wave",
+      genre: "Jazz",
+      sort: "newest",
+      direction: "desc",
+      artistId: "art1",
+      albumId: "alb1",
+    });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
+      params: {
+        kind: "tracks",
+        source: "lidarr",
+        availableOnly: "true",
+        page: "1",
+        pageSize: "100",
+        query: "wave",
+        genre: "Jazz",
+        sort: "newest",
+        direction: "desc",
+        artistId: "art1",
+        albumId: "alb1",
+      },
+    });
+  });
+
+  it("omits availableOnly when it is false", async () => {
+    mockApi.get.mockResolvedValue({ data: { kind: "artists" } });
+
+    await getCanonicalLibraryPage({ kind: "artists", availableOnly: false });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
+      params: { kind: "artists" },
+    });
+  });
+});
+
+describe("canonical library scan", () => {
+  it("queues a scan", async () => {
+    const job = { queued: true, jobId: "job-1", status: { status: "queued" } };
+    mockApi.post.mockResolvedValue({ data: job });
+
+    const result = await refreshCanonicalLibrary();
+    expect(mockApi.post).toHaveBeenCalledWith("/library/refresh");
+    expect(result).toEqual(job);
+  });
+
+  it("reads one scan status", async () => {
+    mockApi.get.mockResolvedValue({ data: { status: "running" } });
+
+    const result = await getCanonicalLibraryRefresh("job-1");
+    expect(mockApi.get).toHaveBeenCalledWith("/library/refresh/job-1");
+    expect(result).toEqual({ status: "running" });
   });
 });

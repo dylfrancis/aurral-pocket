@@ -5,12 +5,13 @@ import {
 } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { getLibraryArtists } from "@/lib/api/library";
+import { LIBRARY_READ } from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
 
 export function libraryArtistsQueryOptions() {
   return queryOptions({
     queryKey: libraryKeys.artists(),
-    queryFn: getLibraryArtists,
+    queryFn: () => getLibraryArtists(LIBRARY_READ),
     throwOnError: (_error, query) => query.state.data === undefined,
   });
 }

@@ -17,6 +17,7 @@ import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
+import { libraryAlbumsRef } from "@/lib/library-read";
 import { useLibraryArtist } from "@/hooks/library/use-library-artist";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
@@ -119,12 +120,18 @@ export function ArtistDetailLayout({
   const { data: libraryArtist, refetch: refetchArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,
   );
+  // The read path decides whether albums are addressed by Lidarr id or by
+  // MBID, so both identifiers go in and the helper picks one.
+  const albumsRef = libraryAlbumsRef({
+    artistId: libraryArtist?.id,
+    artistMbid: inLibrary ? mbid : undefined,
+  });
   const {
     data: rawAlbums,
     isLoading: albumsLoading,
     error: albumsError,
     refetch: refetchAlbums,
-  } = useLibraryAlbums(libraryArtist?.id);
+  } = useLibraryAlbums(albumsRef);
   const { stop: stopPreview, ...preview } = usePreviewPlayer(mbid, artistName);
   const { data: details } = useArtistDetailsStream(mbid);
   const { data: similarArtists } = useSimilarArtists(mbid);
@@ -263,7 +270,9 @@ export function ArtistDetailLayout({
       });
       if (libraryArtist) {
         void queryClient.invalidateQueries({
-          queryKey: libraryKeys.albums(libraryArtist.id),
+          queryKey: libraryKeys.albums(
+            libraryAlbumsRef({ artistId: libraryArtist.id, artistMbid: mbid })!,
+          ),
         });
       }
     },
