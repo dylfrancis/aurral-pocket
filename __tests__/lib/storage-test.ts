@@ -8,6 +8,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
   removeItem: jest.fn(),
+  multiRemove: jest.fn(),
 }));
 
 import * as SecureStore from "expo-secure-store";
@@ -132,5 +133,65 @@ describe("AppStorage.themePreference", () => {
     expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith(
       "theme_preference",
     );
+  });
+});
+
+describe("AppStorage.oidcSession", () => {
+  it("reads the flag as a boolean", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("true");
+    expect(await AppStorage.getOidcSession()).toBe(true);
+    expect(mockAsyncStorage.getItem).toHaveBeenCalledWith("oidc_session");
+  });
+
+  it("reads absent as false", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    expect(await AppStorage.getOidcSession()).toBe(false);
+  });
+
+  it("returns false on error", async () => {
+    mockAsyncStorage.getItem.mockRejectedValue(new Error("fail"));
+    expect(await AppStorage.getOidcSession()).toBe(false);
+  });
+
+  it("stores the flag with the logout URL", async () => {
+    await AppStorage.setOidcSession("https://idp.example.com/logout");
+    expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+      "oidc_session",
+      "true",
+    );
+    expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+      "oidc_logout_url",
+      "https://idp.example.com/logout",
+    );
+  });
+
+  it("clears a stale logout URL when the server reports none", async () => {
+    await AppStorage.setOidcSession(null);
+    expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+      "oidc_session",
+      "true",
+    );
+    expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("oidc_logout_url");
+  });
+
+  it("reads the logout URL", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://idp.example.com/out");
+    expect(await AppStorage.getOidcLogoutUrl()).toBe(
+      "https://idp.example.com/out",
+    );
+    expect(mockAsyncStorage.getItem).toHaveBeenCalledWith("oidc_logout_url");
+  });
+
+  it("returns null for the logout URL on error", async () => {
+    mockAsyncStorage.getItem.mockRejectedValue(new Error("fail"));
+    expect(await AppStorage.getOidcLogoutUrl()).toBeNull();
+  });
+
+  it("deletes both keys together", async () => {
+    await AppStorage.deleteOidcSession();
+    expect(mockAsyncStorage.multiRemove).toHaveBeenCalledWith([
+      "oidc_session",
+      "oidc_logout_url",
+    ]);
   });
 });

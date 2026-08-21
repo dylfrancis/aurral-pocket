@@ -20,6 +20,8 @@ const KEYS = {
   EXPIRES_AT: "token_expires_at",
   LAST_ACTIVE_AT: "last_active_at",
   VIEW_MODES: "view_modes",
+  OIDC_SESSION: "oidc_session",
+  OIDC_LOGOUT_URL: "oidc_logout_url",
 } as const;
 
 export const SecureStorage = {
@@ -242,6 +244,41 @@ export const AppStorage = {
   async setViewModes(modes: Record<string, string>): Promise<void> {
     try {
       await AsyncStorage.setItem(KEYS.VIEW_MODES, JSON.stringify(modes));
+    } catch {}
+  },
+
+  async getOidcSession(): Promise<boolean> {
+    try {
+      return (await AsyncStorage.getItem(KEYS.OIDC_SESSION)) === "true";
+    } catch {
+      return false;
+    }
+  },
+
+  // Stored rather than read from health at sign-out, because health needs a
+  // reachable server and sign-out has to work without one.
+  async setOidcSession(logoutUrl: string | null): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.OIDC_SESSION, "true");
+      if (logoutUrl) {
+        await AsyncStorage.setItem(KEYS.OIDC_LOGOUT_URL, logoutUrl);
+      } else {
+        await AsyncStorage.removeItem(KEYS.OIDC_LOGOUT_URL);
+      }
+    } catch {}
+  },
+
+  async getOidcLogoutUrl(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(KEYS.OIDC_LOGOUT_URL);
+    } catch {
+      return null;
+    }
+  },
+
+  async deleteOidcSession(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([KEYS.OIDC_SESSION, KEYS.OIDC_LOGOUT_URL]);
     } catch {}
   },
 };

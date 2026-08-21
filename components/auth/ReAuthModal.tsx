@@ -7,6 +7,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
+import { OidcSignInModal } from "@/components/auth/OidcSignInModal";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -17,8 +18,10 @@ import {
   useBiometricAvailability,
   authenticateWithBiometrics,
 } from "@/hooks/auth/use-biometric-availability";
+import { useOidcSignIn } from "@/hooks/auth/use-oidc-sign-in";
 import { Colors, Fonts } from "@/constants/theme";
 import { login } from "@/lib/api/auth";
+import type { OidcSession } from "@/lib/types/auth";
 import { ApiError, notifyReAuthResult } from "@/lib/api/client";
 import { SecureStorage } from "@/lib/storage";
 import { authKeys } from "@/lib/query-keys";
@@ -49,11 +52,14 @@ export function ReAuthModal() {
     sessionExpired,
     useBiometrics,
     hasCredentials,
+    isOidcSession,
     dismissSessionExpired,
     setAuth,
     clearAuth,
   } = useAuth();
   const queryClient = useQueryClient();
+  const applyOidcSession = useOidcSignIn();
+  const [oidcVisible, setOidcVisible] = useState(false);
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const biometricLabel = useBiometricAvailability();
@@ -102,6 +108,13 @@ export function ReAuthModal() {
     }
   };
 
+  const handleOidcSession = async (session: OidcSession) => {
+    setOidcVisible(false);
+    await applyOidcSession(session);
+    notifyReAuthResult(true);
+    dismissSessionExpired();
+  };
+
   const handleSignOut = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     notifyReAuthResult(false);
@@ -109,7 +122,11 @@ export function ReAuthModal() {
     await clearAuth();
   };
 
-  const showBiometric = useBiometrics && hasCredentials && !!biometricLabel;
+  // An OIDC user has no password on the Aurral server, so the password field
+  // and the biometric shortcut — which replays a stored password — cannot
+  // renew their session. Send them back through the provider instead.
+  const showBiometric =
+    !isOidcSession && useBiometrics && hasCredentials && !!biometricLabel;
 
   const autoTriggeredRef = useRef(false);
   useEffect(() => {
@@ -145,7 +162,9 @@ export function ReAuthModal() {
             Session Expired
           </Text>
           <Text variant="subtitle" style={styles.subtitle}>
-            Enter your password to continue as{" "}
+            {isOidcSession
+              ? "Sign in again to continue as "
+              : "Enter your password to continue as "}
             <Text
               variant="subtitle"
               style={{ ...Fonts.semiBold, color: colors.text }}
@@ -154,40 +173,51 @@ export function ReAuthModal() {
             </Text>
           </Text>
 
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                placeholder="Password"
-                value={value}
-                onChangeText={(t) => {
-                  onChange(t);
-                  setError(null);
-                }}
-                onBlur={onBlur}
-                secureTextEntry
-                textContentType="password"
-                returnKeyType="go"
-                onSubmitEditing={handleSubmit(onSubmit)}
-                editable={!loading}
-                style={styles.input}
-              />
-            )}
-          />
+          {isOidcSession ? (
+            <Button
+              title="Sign in with SSO"
+              onPress={() => setOidcVisible(true)}
+              style={styles.button}
+              testID="reauth-oidc-sign-in"
+            />
+          ) : (
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  placeholder="Password"
+                  value={value}
+                  onChangeText={(t) => {
+                    onChange(t);
+                    setError(null);
+                  }}
+                  onBlur={onBlur}
+                  secureTextEntry
+                  textContentType="password"
+                  returnKeyType="go"
+                  onSubmitEditing={handleSubmit(onSubmit)}
+                  editable={!loading}
+                  style={styles.input}
+                />
+              )}
+            />
+          )}
 
-          {(errors.password?.message || error != null) && (
+          {!isOidcSession && (errors.password?.message || error != null) && (
             <Text variant="error" style={styles.error}>
               {errors.password?.message ?? getErrorMessage(error) ?? ""}
             </Text>
           )}
 
-          <Button
-            title="Continue"
-            onPress={handleSubmit(onSubmit)}
-            loading={loading}
-            style={styles.button}
-          />
+          {!isOidcSession && (
+            <Button
+              title="Continue"
+              onPress={handleSubmit(onSubmit)}
+              loading={loading}
+              style={styles.button}
+            />
+          )}
 
           {showBiometric && (
             <Button
@@ -206,6 +236,15 @@ export function ReAuthModal() {
           />
         </Card>
       </KeyboardAvoidingView>
+
+      {isOidcSession && serverUrl && (
+        <OidcSignInModal
+          visible={oidcVisible}
+          serverUrl={serverUrl}
+          onClose={() => setOidcVisible(false)}
+          onSession={handleOidcSession}
+        />
+      )}
     </Modal>
   );
 }
