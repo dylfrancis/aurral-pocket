@@ -1,3 +1,12 @@
+import { getMe, login } from "@/lib/api/auth";
+import {
+  setAuthToken,
+  setBaseUrl,
+  setOnAuthRefreshed,
+  setOnSessionExpired,
+} from "@/lib/api/client";
+import { AppStorage, SecureStorage } from "@/lib/storage";
+import type { HealthResponse, User } from "@/lib/types/auth";
 import React, {
   createContext,
   useCallback,
@@ -7,17 +16,11 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  setAuthToken,
-  setBaseUrl,
-  setOnSessionExpired,
-  setOnAuthRefreshed,
-} from "@/lib/api/client";
-import { getMe, login } from "@/lib/api/auth";
-import { AppStorage, SecureStorage } from "@/lib/storage";
-import type { HealthResponse, User } from "@/lib/types/auth";
 
-type ServerHealth = Pick<HealthResponse, "authRequired" | "onboardingRequired">;
+type ServerHealth = Pick<
+  HealthResponse,
+  "authRequired" | "onboardingRequired" | "oidcEnabled" | "oidcLogoutUrl"
+>;
 
 type AuthContextValue = {
   serverUrl: string | null;
@@ -33,12 +36,21 @@ type AuthContextValue = {
    */
   isUserResolved: boolean;
   serverHealth: ServerHealth | null;
+  isOidcSession: boolean;
+  /**
+   * Provider logout URL waiting to be opened. Sign-out sets it;
+   * `OidcLogoutWebView` clears it once the provider has been visited.
+   */
+  pendingOidcLogoutUrl: string | null;
   rememberCredentials: boolean;
   useBiometrics: boolean;
   hasCredentials: boolean;
   sessionExpired: boolean;
   setServer: (url: string, health: HealthResponse) => Promise<void>;
   setAuth: (token: string, user: User, expiresAt?: number) => Promise<void>;
+  markOidcSession: (logoutUrl: string | null) => Promise<void>;
+  requestOidcLogout: (logoutUrl: string) => void;
+  finishOidcLogout: () => void;
   clearAuth: () => Promise<void>;
   clearAll: () => Promise<void>;
   setRememberCredentials: (value: boolean) => Promise<void>;
@@ -56,6 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [serverHealth, setServerHealth] = useState<ServerHealth | null>(null);
+  const [isOidcSession, setIsOidcSession] = useState(false);
+  const [pendingOidcLogoutUrl, setPendingOidcLogoutUrl] = useState<
+    string | null
+  >(null);
   const [isRestoring, setIsRestoring] = useState(true);
   const [rememberCreds, setRememberCreds] = useState(false);
   const [biometrics, setBiometrics] = useState(false);
@@ -78,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           creds,
           storedExpiry,
           lastActive,
+          oidcSession,
         ] = await Promise.all([
           AppStorage.getServerUrl(),
           SecureStorage.getToken(),
@@ -87,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           SecureStorage.getCredentials(),
           SecureStorage.getExpiresAt(),
           SecureStorage.getLastActiveAt(),
+          AppStorage.getOidcSession(),
         ]);
 
         // Hard expire after 30 days of inactivity with full reset to login screen
@@ -101,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             SecureStorage.deleteUseBiometrics(),
             SecureStorage.deleteExpiresAt(),
             SecureStorage.deleteLastActiveAt(),
+            AppStorage.deleteOidcSession(),
           ]);
           return;
         }
@@ -123,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setRememberCreds(remember);
         setBiometrics(bio);
+        setIsOidcSession(oidcSession);
         setHasCredentials(!!creds);
         if (storedExpiry) setExpiresAt(storedExpiry);
       } finally {
@@ -219,6 +239,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setServerHealth({
       authRequired: health.authRequired,
       onboardingRequired: health.onboardingRequired,
+      oidcEnabled: health.oidcEnabled,
+      oidcLogoutUrl: health.oidcLogoutUrl,
     });
     await AppStorage.setServerUrl(url);
   }, []);
@@ -240,15 +262,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const markOidcSession = useCallback(async (logoutUrl: string | null) => {
+    setIsOidcSession(true);
+    await AppStorage.setOidcSession(logoutUrl);
+  }, []);
+
+  const requestOidcLogout = useCallback((logoutUrl: string) => {
+    setPendingOidcLogoutUrl(logoutUrl);
+  }, []);
+
+  const finishOidcLogout = useCallback(() => {
+    setPendingOidcLogoutUrl(null);
+  }, []);
+
   const clearAuth = useCallback(async () => {
     setToken(null);
     setUser(null);
     setExpiresAt(null);
     setAuthToken(null);
+    setIsOidcSession(false);
     await Promise.all([
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),
       SecureStorage.deleteExpiresAt(),
+      AppStorage.deleteOidcSession(),
     ]);
   }, []);
 
@@ -262,8 +299,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRememberCreds(false);
     setBiometrics(false);
     setHasCredentials(false);
+    setIsOidcSession(false);
     await Promise.all([
       AppStorage.deleteServerUrl(),
+      AppStorage.deleteOidcSession(),
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),
       SecureStorage.deleteCredentials(),
@@ -341,12 +380,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isUserResolved:
         !isRestoring && (!token || !!user || userRecoveryAttempted),
       serverHealth,
+      isOidcSession,
+      pendingOidcLogoutUrl,
       rememberCredentials: rememberCreds,
       useBiometrics: biometrics,
       hasCredentials,
       sessionExpired,
       setServer,
       setAuth,
+      markOidcSession,
+      requestOidcLogout,
+      finishOidcLogout,
       clearAuth,
       clearAll,
       setRememberCredentials,
@@ -363,12 +407,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isRestoring,
       userRecoveryAttempted,
       serverHealth,
+      isOidcSession,
+      pendingOidcLogoutUrl,
       rememberCreds,
       biometrics,
       hasCredentials,
       sessionExpired,
       setServer,
       setAuth,
+      markOidcSession,
+      requestOidcLogout,
+      finishOidcLogout,
       clearAuth,
       clearAll,
       setRememberCredentials,

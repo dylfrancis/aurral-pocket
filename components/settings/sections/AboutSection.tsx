@@ -2,10 +2,8 @@ import { SettingsRow } from "@/components/settings/SettingsRow";
 import { Text } from "@/components/ui/Text";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
+import { useServerHealth } from "@/hooks/auth/use-server-health";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { getServerHealth } from "@/lib/api/health";
-import { authKeys } from "@/lib/query-keys";
-import { useQuery } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { StyleSheet, View } from "react-native";
 
@@ -19,15 +17,9 @@ export function AboutSection() {
   // Injected from .aurral-version by app.config.js — the same pin the API
   // contract workflow boots, so this cannot drift from what CI verifies.
   const testedVersion = Constants.expoConfig?.extra?.aurralVersion as
-    | string
-    | undefined;
+    string | undefined;
 
-  const { data: health } = useQuery({
-    queryKey: authKeys.health(serverUrl ?? ""),
-    queryFn: getServerHealth,
-    enabled: !!serverUrl,
-    staleTime: 60_000,
-  });
+  const { data: health } = useServerHealth();
   const serverVersion = health?.appVersion;
   const drifted =
     !!serverVersion && !!testedVersion && serverVersion !== testedVersion;

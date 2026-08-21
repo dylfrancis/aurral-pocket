@@ -1,4 +1,5 @@
 import { AurralLogo } from "@/components/AurralLogo";
+import { OidcSignInModal } from "@/components/auth/OidcSignInModal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Text } from "@/components/ui/Text";
@@ -9,10 +10,13 @@ import {
   useBiometricAvailability,
 } from "@/hooks/auth/use-biometric-availability";
 import { useLogin } from "@/hooks/auth/use-login";
+import { useOidcSignIn } from "@/hooks/auth/use-oidc-sign-in";
+import { useServerHealth } from "@/hooks/auth/use-server-health";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ApiError } from "@/lib/api/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Haptics from "expo-haptics";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -51,6 +55,13 @@ export default function LoginScreen() {
   } = useAuth();
   const loginMutation = useLogin();
   const biometricLabel = useBiometricAvailability();
+  const { data: health } = useServerHealth();
+  const applyOidcSession = useOidcSignIn();
+  const [oidcVisible, setOidcVisible] = useState(false);
+
+  // The server sets the flag only once OIDC is fully configured, so an older
+  // server, or one with OIDC off, never shows the option.
+  const oidcEnabled = health?.oidcEnabled === true && !!serverUrl;
 
   const {
     control,
@@ -207,6 +218,16 @@ export default function LoginScreen() {
             style={styles.button}
           />
 
+          {oidcEnabled && (
+            <Button
+              title="Sign in with SSO"
+              variant="inline"
+              onPress={() => setOidcVisible(true)}
+              style={styles.sso}
+              testID="oidc-sign-in"
+            />
+          )}
+
           <Button
             title="Change Server"
             variant="inline"
@@ -215,6 +236,18 @@ export default function LoginScreen() {
           />
         </View>
       </ScrollView>
+
+      {oidcEnabled && serverUrl && (
+        <OidcSignInModal
+          visible={oidcVisible}
+          serverUrl={serverUrl}
+          onClose={() => setOidcVisible(false)}
+          onSession={async (session) => {
+            setOidcVisible(false);
+            await applyOidcSession(session);
+          }}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -270,6 +303,9 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 8,
+  },
+  sso: {
+    marginTop: 12,
   },
   changeServer: {
     marginTop: 24,
