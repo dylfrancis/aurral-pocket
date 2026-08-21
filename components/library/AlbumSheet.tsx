@@ -50,7 +50,11 @@ export function AlbumSheet({
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { data: tracks, isLoading } = useLibraryTracks(
-    libraryTracksRef({ albumId: album?.id, albumMbid: album?.mbid }),
+    libraryTracksRef({
+      albumId: album?.id,
+      albumMbid: album?.mbid,
+      canonicalAlbumId: album?.canonicalId,
+    }),
   );
 
   // A SharedPlaylistTrack requires an artist name, so the long-press also

@@ -30,7 +30,7 @@ export function useLibraryRefresh() {
     onSuccess: (job) => setJobId(job.jobId),
   });
 
-  const { data: status } = useQuery({
+  const { data: status, error: statusError } = useQuery({
     queryKey: libraryKeys.refresh(jobId!),
     queryFn: async () => {
       const next = await getCanonicalLibraryRefresh(jobId!);
@@ -46,8 +46,14 @@ export function useLibraryRefresh() {
       return next;
     },
     enabled: !!jobId,
+    retry: false,
+    // Stop on a finished scan, and on a failed read. The server answers 404
+    // for a job it does not know, and for every server older than 2.5.0.
+    // Without this the poll would repeat that 404 forever.
     refetchInterval: (query) =>
-      isFinished(query.state.data?.status) ? false : POLL_INTERVAL_MS,
+      query.state.error || isFinished(query.state.data?.status)
+        ? false
+        : POLL_INTERVAL_MS,
   });
 
   const reset = useCallback(() => setJobId(null), []);
@@ -56,10 +62,11 @@ export function useLibraryRefresh() {
     start: start.mutate,
     startAsync: start.mutateAsync,
     isStarting: start.isPending,
-    error: start.error,
+    /** The error from queueing the scan, or from reading its status. */
+    error: start.error ?? statusError,
     jobId,
     status,
-    isScanning: !!jobId && !isFinished(status?.status),
+    isScanning: !!jobId && !statusError && !isFinished(status?.status),
     reset,
   };
 }

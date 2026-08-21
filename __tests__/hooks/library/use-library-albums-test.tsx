@@ -3,8 +3,8 @@ jest.mock("@/lib/api/library", () => ({
 }));
 
 // The read path is a build-time constant, so the tests swap it through the
-// module to cover the legacy branch as well as the shipped one.
-let mockReadsCanonical = true;
+// module to cover the canonical branch as well as the shipped legacy one.
+let mockReadsCanonical = false;
 jest.mock("@/lib/library-read", () => ({
   get READS_CANONICAL() {
     return mockReadsCanonical;
@@ -55,14 +55,10 @@ function makeWrapper() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockReadsCanonical = true;
+  mockReadsCanonical = false;
 });
 
 describe("useLibraryAlbums on the legacy read path", () => {
-  beforeEach(() => {
-    mockReadsCanonical = false;
-  });
-
   it("drops unmonitored albums, keeping monitored ones", async () => {
     mockGetLibraryAlbums.mockResolvedValue([
       makeAlbum({ id: "monitored", mbid: "mb-monitored", monitored: true }),
@@ -98,6 +94,10 @@ describe("useLibraryAlbums on the legacy read path", () => {
 });
 
 describe("useLibraryAlbums on the canonical read path", () => {
+  beforeEach(() => {
+    mockReadsCanonical = true;
+  });
+
   it("keeps unmonitored albums", async () => {
     // The canonical library returns only albums it found files for, and it
     // leaves monitored false for albums scanned from the Aurral root. The
