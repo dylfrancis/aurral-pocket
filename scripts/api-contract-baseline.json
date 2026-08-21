@@ -1,5 +1,5 @@
 {
-  "aurralVersion": "2.2.0",
+  "aurralVersion": "2.5.1",
   "shapes": {
     "GET /auth/me": {
       "expiresAt": "number",
@@ -11,7 +11,8 @@
           "addArtist": "boolean",
           "changeMonitoring": "boolean",
           "deleteAlbum": "boolean",
-          "deleteArtist": "boolean"
+          "deleteArtist": "boolean",
+          "deleteTrack": "boolean"
         },
         "role": "string",
         "username": "string"
@@ -45,13 +46,10 @@
             {
               "genres": ["string"],
               "id": "string",
-              "listenCount": "number",
               "mbid": "string",
               "metaText": "string",
               "name": "string",
               "navigateTo": "string",
-              "popularityLabel": "string",
-              "popularityRank": "number",
               "sortName": "string",
               "source": "string",
               "tags": ["string"],
@@ -62,21 +60,7 @@
           "tags": ["string"]
         }
       ],
-      "globalTop": [
-        {
-          "id": "string",
-          "listenCount": "number",
-          "mbid": "string",
-          "metaText": "string",
-          "name": "string",
-          "navigateTo": "string",
-          "popularityLabel": "string",
-          "popularityRank": "number",
-          "sortName": "string",
-          "source": "string",
-          "type": "string"
-        }
-      ],
+      "globalTop": [],
       "isEnriching": "boolean",
       "isUpdating": "boolean",
       "lastUpdated": "string",
@@ -107,6 +91,7 @@
       "appVersion": "string",
       "authRequired": "boolean",
       "authUser": "string",
+      "dateTimeFormat": "string",
       "discovery": {
         "cachedImagesCount": "number",
         "cachedImagesSizeBytes": "number",
@@ -125,7 +110,7 @@
         },
         "globalTopCount": "number",
         "isUpdating": "boolean",
-        "lastUpdated": "string",
+        "lastUpdated": "null",
         "provider": "string",
         "recommendationsCount": "number",
         "updatePhase": "null",
@@ -181,10 +166,10 @@
           "activeBaseUrl": "string",
           "configuredProvider": "string",
           "failoverActive": "boolean",
-          "lastCheckedAt": "string",
-          "lastFailureAt": "string",
+          "lastCheckedAt": "null",
+          "lastFailureAt": "null",
           "lastFailureReason": "string",
-          "lastSuccessAt": "string"
+          "lastSuccessAt": "null"
         }
       },
       "musicbrainzConfigured": "boolean",
@@ -249,7 +234,8 @@
           "addArtist": "boolean",
           "changeMonitoring": "boolean",
           "deleteAlbum": "boolean",
-          "deleteArtist": "boolean"
+          "deleteArtist": "boolean",
+          "deleteTrack": "boolean"
         },
         "role": "string",
         "username": "string"
@@ -261,6 +247,11 @@
       "ytdlpConfigured": "boolean"
     },
     "GET /library/artists": [],
+    "GET /library/canonical": {
+      "albums": [],
+      "artists": [],
+      "tracks": []
+    },
     "GET /library/recent": [],
     "GET /library/tracks": [],
     "GET /playlists/status": {

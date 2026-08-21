@@ -100,16 +100,7 @@ const MAX_RELOGINS = 2;
  * Keep this list short. Every entry is a call pocket makes that 404s in
  * production.
  */
-const KNOWN_DRIFT = new Map([
-  [
-    "GET /library/canonical",
-    "canonical library; added in Aurral 2.5.0, pin is 2.2.0 (#199)",
-  ],
-  [
-    "GET /library/refresh/${jobId}",
-    "canonical library scan; added in Aurral 2.5.0, pin is 2.2.0 (#199)",
-  ],
-]);
+const KNOWN_DRIFT = new Map([]);
 
 /**
  * Top-level keys the client cannot function without, asserted against the live
