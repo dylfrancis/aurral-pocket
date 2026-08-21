@@ -18,6 +18,7 @@ import {
   type ReleaseGroupTrack,
 } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
+import { libraryAlbumsRef } from "@/lib/library-read";
 import { useAudioPreview } from "@/hooks/library/use-audio-preview";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
@@ -75,7 +76,9 @@ export function ReleaseGroupSheet({
     onSuccess: () => {
       if (artistId) {
         queryClient.invalidateQueries({
-          queryKey: libraryKeys.albums(artistId),
+          queryKey: libraryKeys.albums(
+            libraryAlbumsRef({ artistId, artistMbid })!,
+          ),
         });
       }
       sheetRef.current?.dismiss();

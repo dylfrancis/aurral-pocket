@@ -2,6 +2,20 @@ jest.mock("@/lib/api/library", () => ({
   getLibraryAlbums: jest.fn(),
 }));
 
+// The read path is a build-time constant, so the tests swap it through the
+// module to cover the canonical branch as well as the shipped legacy one.
+let mockReadsCanonical = false;
+jest.mock("@/lib/library-read", () => ({
+  get READS_CANONICAL() {
+    return mockReadsCanonical;
+  },
+  get LIBRARY_READ() {
+    return mockReadsCanonical
+      ? { readPath: "canonical", source: "all" }
+      : ({} as Record<string, never>);
+  },
+}));
+
 import React from "react";
 import { renderHook, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -41,9 +55,10 @@ function makeWrapper() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockReadsCanonical = false;
 });
 
-describe("useLibraryAlbums", () => {
+describe("useLibraryAlbums on the legacy read path", () => {
   it("drops unmonitored albums, keeping monitored ones", async () => {
     mockGetLibraryAlbums.mockResolvedValue([
       makeAlbum({ id: "monitored", mbid: "mb-monitored", monitored: true }),
@@ -76,8 +91,52 @@ describe("useLibraryAlbums", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.map((a) => a.id)).toEqual(["downloading"]);
   });
+});
 
-  it("does not fetch when artistId is undefined", async () => {
+describe("useLibraryAlbums on the canonical read path", () => {
+  beforeEach(() => {
+    mockReadsCanonical = true;
+  });
+
+  it("keeps unmonitored albums", async () => {
+    // The canonical library returns only albums it found files for, and it
+    // leaves monitored false for albums scanned from the Aurral root. The
+    // legacy filter would hide every one of them.
+    mockGetLibraryAlbums.mockResolvedValue([
+      makeAlbum({ id: "from-lidarr", mbid: "mb-lidarr", monitored: true }),
+      makeAlbum({ id: "from-aurral", mbid: "mb-aurral", monitored: false }),
+    ]);
+
+    const { wrapper } = makeWrapper();
+    const { result } = await renderHook(() => useLibraryAlbums("mb-artist"), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.map((a) => a.id)).toEqual([
+      "from-lidarr",
+      "from-aurral",
+    ]);
+  });
+
+  it("sends the canonical read path to the API", async () => {
+    mockGetLibraryAlbums.mockResolvedValue([]);
+
+    const { wrapper } = makeWrapper();
+    const { result } = await renderHook(() => useLibraryAlbums("mb-artist"), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockGetLibraryAlbums).toHaveBeenCalledWith("mb-artist", {
+      readPath: "canonical",
+      source: "all",
+    });
+  });
+});
+
+describe("useLibraryAlbums", () => {
+  it("does not fetch when the artist reference is undefined", async () => {
     const { wrapper } = makeWrapper();
     const { result } = await renderHook(() => useLibraryAlbums(undefined), {
       wrapper,

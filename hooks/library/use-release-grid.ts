@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
+import { libraryAlbumsRef } from "@/lib/library-read";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import {
   ALBUM_SORT_OPTIONS,
@@ -83,7 +84,7 @@ export function useReleaseGrid<T>(config: ReleaseGridConfig<T>) {
     data: rawAlbums,
     isLoading: albumsLoading,
     refetch,
-  } = useLibraryAlbums(artistId);
+  } = useLibraryAlbums(libraryAlbumsRef({ artistId, artistMbid }));
   const {
     albums: typedAlbums,
     otherReleases,
