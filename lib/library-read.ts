@@ -23,6 +23,11 @@ import type { LibraryReadOptions } from "@/lib/types/library";
  *   screen shows it at 0%, and useResearchMissingAlbums counts it.
  * - A track with no file drives the missing marker in TrackRow.
  *
+ * One exception: the artist list reads the canonical paginated route through
+ * use-library-artists, because only that route pages (Aurral 2.6.0 caps a
+ * read at 100 items). The list accepts the first gap above — a fileless
+ * artist is missing until a scan finds its first file.
+ *
  * Switch this to `{ readPath: "canonical", source: "all" }` once the server
  * can return the wanted records too, or once the screens read the wanted set
  * separately. Everything below the screens already handles both paths. See

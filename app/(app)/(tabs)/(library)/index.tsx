@@ -66,7 +66,12 @@ const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
 export default function LibraryScreen() {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
-  const { data: artists, refetch, isRefetching } = useLibraryArtistsSuspense();
+  const {
+    data: artists,
+    refetch,
+    isRefetching,
+    isFetchingNextPage,
+  } = useLibraryArtistsSuspense();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("alpha");
@@ -255,7 +260,9 @@ export default function LibraryScreen() {
           }}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
+              // Draining the next page also counts as refetching; without the
+              // guard the pull spinner stays visible for the whole drain.
+              refreshing={isRefetching && !isFetchingNextPage}
               onRefresh={handleRefresh}
               tintColor={colors.brand}
             />

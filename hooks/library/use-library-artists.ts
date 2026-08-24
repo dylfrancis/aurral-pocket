@@ -1,34 +1,91 @@
+import { useEffect } from "react";
 import {
-  queryOptions,
-  useQuery,
-  useSuspenseQuery,
+  infiniteQueryOptions,
+  useInfiniteQuery,
+  useSuspenseInfiniteQuery,
 } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
-import { getLibraryArtists } from "@/lib/api/library";
-import { LIBRARY_READ } from "@/lib/library-read";
+import { getCanonicalLibraryPage } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 
-export function libraryArtistsQueryOptions() {
-  return queryOptions({
+/** The server caps a canonical page at 100 items, so 100 is the fewest requests. */
+const PAGE_SIZE = 100;
+
+/**
+ * The artist list reads the canonical library through its paginated route.
+ *
+ * Aurral 2.6.0 bounded canonical reads: a request returns at most 100 items,
+ * so one query cannot carry the whole library. The screen still needs every
+ * artist — search, sort, and the alphabet index all run on the client over
+ * the full list — so the hooks below drain the remaining pages eagerly. The
+ * first page paints immediately and the rest stream in behind it.
+ *
+ * Known gap, accepted for this list: the canonical library is built from
+ * media files, so an artist with no files yet (added a minute ago, still
+ * downloading) is missing until a scan finds its first file. The artist
+ * screen, albums, and tracks still read the legacy path — see
+ * lib/library-read.ts.
+ *
+ * The server's page order is not depended on: the screen re-sorts the
+ * flattened list, so pages may arrive in any order the server chooses.
+ */
+function libraryArtistsInfiniteQueryOptions() {
+  return infiniteQueryOptions({
     queryKey: libraryKeys.artists(),
-    queryFn: () => getLibraryArtists(LIBRARY_READ),
+    queryFn: ({ pageParam }) =>
+      getCanonicalLibraryPage({
+        kind: "artists",
+        source: "all",
+        page: pageParam,
+        pageSize: PAGE_SIZE,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
+    select: (data) => data.pages.flatMap((page) => page.artists),
     throwOnError: (_error, query) => query.state.data === undefined,
   });
+}
+
+/**
+ * Fetch the next page as soon as the previous one lands.
+ *
+ * `cancelRefetch: false` lets two mounted consumers of this query share one
+ * in-flight request instead of restarting each other's. The error guard
+ * stops the loop when a page fails — React Query has already retried it —
+ * so a failing server is not hammered; pull-to-refresh starts the drain
+ * again.
+ */
+function useDrainRemainingPages(query: {
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  isError: boolean;
+  fetchNextPage: (options?: { cancelRefetch?: boolean }) => Promise<unknown>;
+}) {
+  const { hasNextPage, isFetchingNextPage, isError, fetchNextPage } = query;
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage || isError) return;
+    void fetchNextPage({ cancelRefetch: false });
+  }, [hasNextPage, isFetchingNextPage, isError, fetchNextPage]);
 }
 
 export function useLibraryArtists() {
   const { serverUrl, token } = useAuth();
 
-  return useQuery({
-    ...libraryArtistsQueryOptions(),
+  const query = useInfiniteQuery({
+    ...libraryArtistsInfiniteQueryOptions(),
     enabled: !!serverUrl && !!token,
   });
+  useDrainRemainingPages(query);
+  return query;
 }
 
 /**
  * Suspense variant. Caller must be inside a Suspense + ErrorBoundary, and
- * inside the `(app)` route group (auth is guaranteed there).
+ * inside the `(app)` route group (auth is guaranteed there). Suspends only on
+ * the first page; the drain never suspends.
  */
 export function useLibraryArtistsSuspense() {
-  return useSuspenseQuery(libraryArtistsQueryOptions());
+  const query = useSuspenseInfiniteQuery(libraryArtistsInfiniteQueryOptions());
+  useDrainRemainingPages(query);
+  return query;
 }
