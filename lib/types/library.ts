@@ -180,6 +180,44 @@ export type CanonicalPageParams = {
   albumId?: string;
 };
 
+/** The metadata JSON the canonical library stores per artist. */
+export type CanonicalArtistMetadata = {
+  foreignArtistId?: string;
+  monitored?: boolean;
+  monitor?: string;
+  added?: string;
+} & Record<string, unknown>;
+
+/**
+ * One artist as GET /library/canonical returns it: the raw canonical library
+ * row. Unlike the read adapter behind /library/artists?readPath=canonical,
+ * this route does not adapt rows to the legacy shape — the name lives in
+ * `name` (there is no `artistName`), the counts are flat (no `statistics`),
+ * and `id` is a number. getCanonicalLibraryPage maps these to `Artist` before
+ * anything else sees them.
+ */
+export type CanonicalArtistItem = {
+  id: number | string;
+  identityKey?: string;
+  mbid?: string | null;
+  name?: string;
+  sortName?: string | null;
+  metadata?: CanonicalArtistMetadata | null;
+  albumCount?: number;
+  trackCount?: number;
+  sizeOnDisk?: number;
+  sources?: LibrarySource[];
+  available?: boolean;
+  /** Present when the request is authenticated. */
+  userFavorite?: boolean;
+};
+
+/**
+ * A canonical page after getCanonicalLibraryPage mapped it. `artists` carries
+ * the legacy shape the screens read. `albums` and `tracks` are still the raw
+ * canonical rows — they do not match the legacy Album and Track types, so
+ * they stay `unknown[]` until a caller needs them and maps them the same way.
+ */
 export type CanonicalPage = {
   kind: CanonicalPageKind;
   page: number;
@@ -187,8 +225,8 @@ export type CanonicalPage = {
   total: number;
   hasMore: boolean;
   artists: Artist[];
-  albums: Album[];
-  tracks: Track[];
+  albums: unknown[];
+  tracks: unknown[];
   genres?: CanonicalGenre[];
 };
 

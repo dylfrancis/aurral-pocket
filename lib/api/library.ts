@@ -9,6 +9,7 @@ import type {
   ArtistTag,
   PreviewTrack,
   DownloadStatusMap,
+  CanonicalArtistItem,
   CanonicalPage,
   CanonicalPageParams,
   LibraryReadOptions,
@@ -86,6 +87,45 @@ export async function getLibraryTracks(
   return r.data;
 }
 
+/** The response as the server sends it, before the artists are mapped. */
+type CanonicalPageWire = Omit<CanonicalPage, "artists"> & {
+  artists?: CanonicalArtistItem[];
+};
+
+/**
+ * Map a raw canonical artist row to the legacy shape the screens read.
+ *
+ * The field choices mirror the server's own read adapter
+ * (canonicalArtistProjection in backend/services/libraryQueryService.js), so
+ * both read paths present an artist the same way. A file-scanned artist can
+ * carry no metadata at all: it has no MBID, no added date, and was never
+ * monitored, so every fallback here must hold.
+ */
+function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
+  const metadata = item.metadata ?? {};
+  return {
+    id: String(item.id),
+    canonicalId: String(item.id),
+    mbid: item.mbid ?? "",
+    foreignArtistId:
+      metadata.foreignArtistId ??
+      item.mbid ??
+      item.identityKey ??
+      String(item.id),
+    artistName: item.name ?? item.sortName ?? "",
+    monitored: metadata.monitored === true,
+    monitorOption: metadata.monitor ?? "none",
+    addedAt: metadata.added ?? null,
+    statistics: {
+      albumCount: item.albumCount ?? 0,
+      trackCount: item.trackCount ?? 0,
+      sizeOnDisk: item.sizeOnDisk ?? 0,
+    },
+    sources: item.sources,
+    available: item.available,
+  };
+}
+
 /**
  * Read one page of the canonical library.
  *
@@ -93,8 +133,13 @@ export async function getLibraryTracks(
  * route answers 400 without both), so `pageSize` always goes on the wire.
  * 100 is the server's cap, and was its default while the parameter was still
  * optional, so the fallback preserves the pre-2.6 page size.
+ *
+ * The route returns raw canonical rows, so the artists are mapped to the
+ * legacy shape here — nothing above this function may see a raw row.
  */
-export async function getCanonicalLibraryPage(params: CanonicalPageParams) {
+export async function getCanonicalLibraryPage(
+  params: CanonicalPageParams,
+): Promise<CanonicalPage> {
   const query: Record<string, string> = {
     kind: params.kind,
     pageSize: String(params.pageSize ?? 100),
@@ -109,10 +154,13 @@ export async function getCanonicalLibraryPage(params: CanonicalPageParams) {
   if (params.artistId) query.artistId = params.artistId;
   if (params.albumId) query.albumId = params.albumId;
 
-  const r = await api.get<CanonicalPage>("/library/canonical", {
+  const r = await api.get<CanonicalPageWire>("/library/canonical", {
     params: query,
   });
-  return r.data;
+  return {
+    ...r.data,
+    artists: (r.data.artists ?? []).map(canonicalArtistToArtist),
+  };
 }
 
 /** Queue a rescan of the canonical library. Returns 202 with a job id. */
