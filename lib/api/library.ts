@@ -86,13 +86,22 @@ export async function getLibraryTracks(
   return r.data;
 }
 
-/** Read one page of the canonical library. The server caps `pageSize` at 100. */
+/**
+ * Read one page of the canonical library.
+ *
+ * Aurral 2.6.0 made `kind` and `pageSize` mandatory ("bounded reads" — the
+ * route answers 400 without both), so `pageSize` always goes on the wire.
+ * 100 is the server's cap, and was its default while the parameter was still
+ * optional, so the fallback preserves the pre-2.6 page size.
+ */
 export async function getCanonicalLibraryPage(params: CanonicalPageParams) {
-  const query: Record<string, string> = { kind: params.kind };
+  const query: Record<string, string> = {
+    kind: params.kind,
+    pageSize: String(params.pageSize ?? 100),
+  };
   if (params.source) query.source = params.source;
   if (params.availableOnly) query.availableOnly = "true";
   if (params.page != null) query.page = String(params.page);
-  if (params.pageSize != null) query.pageSize = String(params.pageSize);
   if (params.query) query.query = params.query;
   if (params.genre) query.genre = params.genre;
   if (params.sort) query.sort = params.sort;

@@ -167,7 +167,10 @@ export type CanonicalPageParams = {
   source?: LibrarySource;
   availableOnly?: boolean;
   page?: number;
-  /** The server caps this at 100. */
+  /**
+   * The server caps this at 100 and rejects requests without it since Aurral
+   * 2.6.0; the client fills in 100 when the caller leaves it unset.
+   */
   pageSize?: number;
   query?: string;
   genre?: string;

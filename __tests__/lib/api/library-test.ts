@@ -289,7 +289,16 @@ describe("getCanonicalLibraryPage", () => {
 
     await getCanonicalLibraryPage({ kind: "artists", availableOnly: false });
     expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
-      params: { kind: "artists" },
+      params: { kind: "artists", pageSize: "100" },
+    });
+  });
+
+  it("defaults pageSize to 100 because Aurral 2.6 rejects requests without it", async () => {
+    mockApi.get.mockResolvedValue({ data: { kind: "genres" } });
+
+    await getCanonicalLibraryPage({ kind: "genres" });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
+      params: { kind: "genres", pageSize: "100" },
     });
   });
 });
