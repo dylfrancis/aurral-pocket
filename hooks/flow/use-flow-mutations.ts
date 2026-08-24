@@ -7,6 +7,10 @@ import {
   deleteFlow,
   deleteSharedPlaylist,
   deleteSharedPlaylistTrack,
+  queueTrackQualityUpgrade,
+  researchMissingTracks,
+  searchAllQualityUpgrades,
+  searchPlaylistQualityUpgrades,
   setFlowEnabled,
   setRetryCyclePaused,
   startFlow,
@@ -164,6 +168,45 @@ export function useDeleteSharedPlaylistTrack() {
       playlistId: string;
       jobId: string;
     }) => deleteSharedPlaylistTrack(playlistId, jobId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSearchAllQualityUpgrades() {
+  const invalidate = useFlowInvalidate();
+  return useMutation({
+    mutationFn: () => searchAllQualityUpgrades(),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSearchPlaylistQualityUpgrades() {
+  const invalidate = useFlowInvalidate();
+  return useMutation({
+    mutationFn: (playlistId: string) =>
+      searchPlaylistQualityUpgrades(playlistId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useQueueTrackQualityUpgrade() {
+  const invalidate = useFlowInvalidate();
+  return useMutation({
+    mutationFn: ({
+      playlistId,
+      jobId,
+    }: {
+      playlistId: string;
+      jobId: string;
+    }) => queueTrackQualityUpgrade(playlistId, jobId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useResearchMissingTracks() {
+  const invalidate = useFlowInvalidate();
+  return useMutation({
+    mutationFn: () => researchMissingTracks(),
     onSuccess: invalidate,
   });
 }

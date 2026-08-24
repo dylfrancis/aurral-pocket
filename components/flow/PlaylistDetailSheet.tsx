@@ -15,6 +15,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { TrackRow } from "./TrackRow";
@@ -26,6 +27,7 @@ import {
   usePlaylistJobs,
   usePlaylistStats,
   useRetryCyclePaused,
+  useSearchPlaylistQualityUpgrades,
   useSetRetryCyclePaused,
   useSharedPlaylist,
 } from "@/hooks/flow";
@@ -61,6 +63,7 @@ export function PlaylistDetailSheet({
   const deletePlaylist = useDeleteSharedPlaylist();
   const deleteTrack = useDeleteSharedPlaylistTrack();
   const setRetryPaused = useSetRetryCyclePaused();
+  const searchUpgrades = useSearchPlaylistQualityUpgrades();
 
   const renderScrollComponent = useBottomSheetScrollableCreator();
 
@@ -107,6 +110,23 @@ export function PlaylistDetailSheet({
     setRetryPaused.mutate({
       playlistId: playlist.id,
       paused: !retryPaused,
+    });
+  };
+
+  const handleSearchUpgrades = () => {
+    if (!playlist) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    searchUpgrades.mutate(playlist.id, {
+      onSuccess: () =>
+        Burnt.toast({
+          title: "Checking for quality upgrades",
+          preset: "done",
+        }),
+      onError: () =>
+        Burnt.toast({
+          title: "Couldn't start the upgrade check",
+          preset: "error",
+        }),
     });
   };
 
@@ -189,6 +209,13 @@ export function PlaylistDetailSheet({
             color={colors.text}
             loading={setRetryPaused.isPending}
             onPress={handleToggleRetryPaused}
+          />
+          <ActionRow
+            icon="arrow-up-circle-outline"
+            label="Search for Upgrades"
+            color={colors.text}
+            loading={searchUpgrades.isPending}
+            onPress={handleSearchUpgrades}
           />
           <ActionRow
             icon="trash-outline"

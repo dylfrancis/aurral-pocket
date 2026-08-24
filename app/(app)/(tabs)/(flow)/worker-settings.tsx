@@ -2,12 +2,19 @@ import { useEffect, useRef } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import type { ErrorBoundaryProps } from "expo-router";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import * as Burnt from "burnt";
 import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SegmentedRow } from "@/components/flow/SegmentedRow";
-import { useUpdateWorkerSettings, useWorkerSettings } from "@/hooks/flow";
+import {
+  useResearchMissingTracks,
+  useSearchAllQualityUpgrades,
+  useUpdateWorkerSettings,
+  useWorkerSettings,
+} from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { WorkerSettings } from "@/lib/types/flow";
@@ -27,6 +34,8 @@ export default function WorkerSettingsScreen() {
   const colors = Colors[useColorScheme()];
   const { data } = useWorkerSettings();
   const update = useUpdateWorkerSettings();
+  const researchMissing = useResearchMissingTracks();
+  const searchUpgrades = useSearchAllQualityUpgrades();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -40,6 +49,39 @@ export default function WorkerSettingsScreen() {
     debounceTimer.current = setTimeout(() => {
       update.mutate(next);
     }, 300);
+  };
+
+  const handleResearchMissing = () => {
+    researchMissing.mutate(undefined, {
+      onSuccess: (requeued) =>
+        Burnt.toast({
+          title:
+            requeued > 0
+              ? `Re-queued ${requeued} track${requeued === 1 ? "" : "s"}`
+              : "No missing tracks found",
+          preset: "done",
+        }),
+      onError: () =>
+        Burnt.toast({
+          title: "Couldn't re-search missing tracks",
+          preset: "error",
+        }),
+    });
+  };
+
+  const handleSearchUpgrades = () => {
+    searchUpgrades.mutate(undefined, {
+      onSuccess: ({ playlistCount }) =>
+        Burnt.toast({
+          title: `Checking ${playlistCount} playlist${playlistCount === 1 ? "" : "s"} for upgrades`,
+          preset: "done",
+        }),
+      onError: () =>
+        Burnt.toast({
+          title: "Couldn't start the upgrade check",
+          preset: "error",
+        }),
+    });
   };
 
   return (
@@ -69,6 +111,28 @@ export default function WorkerSettingsScreen() {
           value={data.existingFileMode}
           options={EXISTING_FILE_MODE_OPTIONS}
           onChange={(existingFileMode) => apply({ existingFileMode })}
+        />
+      </Section>
+
+      <Section
+        title="Missing Tracks"
+        subtitle="Search again for tracks that never downloaded, across all flows and playlists."
+      >
+        <Button
+          title="Re-search Missing"
+          loading={researchMissing.isPending}
+          onPress={handleResearchMissing}
+        />
+      </Section>
+
+      <Section
+        title="Quality Upgrades"
+        subtitle="Look for better copies of finished tracks that sit below your quality profile."
+      >
+        <Button
+          title="Search for Upgrades"
+          loading={searchUpgrades.isPending}
+          onPress={handleSearchUpgrades}
         />
       </Section>
     </ScrollView>

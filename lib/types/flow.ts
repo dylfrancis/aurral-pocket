@@ -63,6 +63,16 @@ export type SharedPlaylist = {
 export type FlowJobStatus =
   "pending" | "downloading" | "blocked" | "done" | "failed";
 
+/**
+ * Where a finished track sits relative to the server's quality profile.
+ * "preferred" is at or above the cutoff tier. "upgrade" is an enabled tier
+ * below the cutoff. "below-floor" is a disabled or unclassifiable tier.
+ * "external" files live outside Aurral's storage, so Aurral will not replace
+ * them.
+ */
+export type JobQualityState =
+  "preferred" | "upgrade" | "below-floor" | "external";
+
 export type FlowJob = {
   id: string;
   playlistType: string;
@@ -74,7 +84,27 @@ export type FlowJob = {
   finalPath?: string | null;
   reason?: string | null;
   createdAt?: number;
+  /**
+   * Quality decoration from Aurral 2.5+ (decorateJobQuality on the server).
+   * Optional because older Aurral versions do not send it. qualityState is
+   * null until the job is done. qualityLabel falls back to "Unknown" when the
+   * server could not classify the file.
+   */
+  qualityLabel?: string;
+  qualityState?: JobQualityState | null;
 };
+
+/**
+ * True when the server would accept a quality-upgrade request for this job.
+ * Mirrors queueQualityUpgrade on the server: the track must be done, owned by
+ * Aurral, and below the profile's cutoff tier.
+ */
+export function isUpgradeCandidate(
+  job: Pick<FlowJob, "status" | "qualityState">,
+): boolean {
+  if (job.status !== "done") return false;
+  return job.qualityState === "upgrade" || job.qualityState === "below-floor";
+}
 
 export type PlaylistStats = {
   total: number;

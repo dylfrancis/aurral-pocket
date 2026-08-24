@@ -1,11 +1,14 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Burnt from "burnt";
+import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { StatusBadge } from "./StatusBadge";
-import { useFlowAudioPreview } from "@/hooks/flow";
+import { useFlowAudioPreview, useQueueTrackQualityUpgrade } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import type { FlowJob } from "@/lib/types/flow";
+import { ApiError } from "@/lib/api/client";
+import { isUpgradeCandidate, type FlowJob } from "@/lib/types/flow";
 
 type Props = {
   job: FlowJob;
@@ -15,6 +18,7 @@ type Props = {
 export function TrackRow({ job, onLongPress }: Props) {
   const colors = Colors[useColorScheme()];
   const { activeJobId, isPlaying, progress, toggle } = useFlowAudioPreview();
+  const queueUpgrade = useQueueTrackQualityUpgrade();
   const isActive = activeJobId === job.id;
   const playable = job.status === "done";
 
@@ -23,9 +27,43 @@ export function TrackRow({ job, onLongPress }: Props) {
     toggle(job.id);
   };
 
+  const handleUpgrade = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    queueUpgrade.mutate(
+      { playlistId: job.playlistType, jobId: job.id },
+      {
+        onSuccess: (outcome) => {
+          Burnt.toast({
+            title:
+              outcome === "already-queued"
+                ? "Upgrade already queued"
+                : "Upgrade queued",
+            preset: "done",
+          });
+        },
+        onError: (error) => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Burnt.toast({
+            title:
+              error instanceof ApiError && error.status === 409
+                ? "No upgrade available for this track"
+                : "Couldn't queue the upgrade",
+            preset: "error",
+          });
+        },
+      },
+    );
+  };
+
   const subtitle = job.albumName
     ? `${job.artistName} · ${job.albumName}`
     : job.artistName;
+
+  // "Unknown" is the server's fallback when it could not classify the file;
+  // showing it adds noise without information.
+  const qualityKnown = !!job.qualityLabel && job.qualityLabel !== "Unknown";
+  const qualityColor =
+    job.qualityState === "preferred" ? colors.brand : colors.subtle;
 
   return (
     <Pressable
@@ -76,7 +114,42 @@ export function TrackRow({ job, onLongPress }: Props) {
           </View>
         ) : null}
       </View>
+      {qualityKnown ? (
+        <View
+          style={[
+            styles.qualityBadge,
+            { backgroundColor: `${qualityColor}20` },
+          ]}
+        >
+          <Text
+            variant="caption"
+            style={[styles.qualityText, { color: qualityColor }]}
+          >
+            {job.qualityLabel}
+          </Text>
+        </View>
+      ) : null}
       <StatusBadge status={job.status} />
+      {isUpgradeCandidate(job) ? (
+        <Pressable
+          onPress={handleUpgrade}
+          disabled={queueUpgrade.isPending}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Search for a quality upgrade of ${job.trackName}`}
+          style={({ pressed }) => [pressed ? { opacity: 0.6 } : null]}
+        >
+          {queueUpgrade.isPending ? (
+            <ActivityIndicator size={18} color={colors.brand} />
+          ) : (
+            <Ionicons
+              name="arrow-up-circle-outline"
+              size={20}
+              color={colors.brand}
+            />
+          )}
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -102,6 +175,15 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
+    ...Fonts.medium,
+  },
+  qualityBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  qualityText: {
+    fontSize: 10,
     ...Fonts.medium,
   },
   progressBar: {

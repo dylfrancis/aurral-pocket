@@ -196,6 +196,62 @@ export function getFlowArtworkSource(
 }
 
 /**
+ * Quality-upgrade searches run on the server's background queue (Aurral
+ * 2.5.0). The response only acknowledges the request; progress arrives
+ * through the status and jobs polls as upgrade jobs appear.
+ */
+export async function searchAllQualityUpgrades(): Promise<{
+  playlistCount: number;
+}> {
+  const r = await api.post<{
+    success: boolean;
+    queued: number;
+    scheduled: boolean;
+    playlistCount: number;
+  }>(`${FLOW}/quality-upgrades`);
+  return { playlistCount: r.data.playlistCount };
+}
+
+export async function searchPlaylistQualityUpgrades(
+  playlistId: string,
+): Promise<void> {
+  await api.post(`${FLOW}/quality-upgrades/${encodeURIComponent(playlistId)}`);
+}
+
+export type TrackUpgradeOutcome = "queued" | "already-queued";
+
+/**
+ * Queue an upgrade for one track. The server answers 409 when the track is
+ * not eligible: already at the preferred tier, an external file, or no
+ * upgrade source is configured.
+ */
+export async function queueTrackQualityUpgrade(
+  playlistId: string,
+  jobId: string,
+): Promise<TrackUpgradeOutcome> {
+  const r = await api.post<{
+    success: boolean;
+    queued: number;
+    alreadyQueued?: boolean;
+    jobId: string;
+  }>(
+    `${FLOW}/quality-upgrades/${encodeURIComponent(playlistId)}/${encodeURIComponent(jobId)}`,
+  );
+  return r.data.alreadyQueued ? "already-queued" : "queued";
+}
+
+/**
+ * Search again for every missing track across the playlists the user can
+ * access. Returns the number of tracks the server re-queued.
+ */
+export async function researchMissingTracks(): Promise<number> {
+  const r = await api.post<{ success: boolean; requeued: number }>(
+    `${FLOW}/research-missing`,
+  );
+  return r.data.requeued;
+}
+
+/**
  * Blocked download jobs wait for a decision before Aurral imports them. The
  * jobId comes from an activity entry with status "blocked".
  */
