@@ -1,5 +1,5 @@
 {
-  "aurralVersion": "2.5.1",
+  "aurralVersion": "2.6.1",
   "shapes": {
     "GET /auth/me": {
       "expiresAt": "number",
@@ -40,38 +40,19 @@
       "enrichmentCompletedAt": "null",
       "enrichmentProgressMessage": "null",
       "enrichmentStartedAt": "null",
-      "fallbackGenres": [
-        {
-          "artists": [
-            {
-              "genres": ["string"],
-              "id": "string",
-              "mbid": "string",
-              "metaText": "string",
-              "name": "string",
-              "navigateTo": "string",
-              "sortName": "string",
-              "source": "string",
-              "tags": ["string"],
-              "type": "string"
-            }
-          ],
-          "name": "string",
-          "tags": ["string"]
-        }
-      ],
+      "fallbackGenres": [],
       "globalTop": [],
       "isEnriching": "boolean",
       "isUpdating": "boolean",
-      "lastUpdated": "string",
+      "lastUpdated": "null",
       "playlistsUpdating": "boolean",
       "provider": "string",
       "recommendationCount": "number",
       "recommendationQuality": "null",
       "recommendations": [],
       "stale": "boolean",
-      "topGenres": ["string"],
-      "topTags": ["string"]
+      "topGenres": [],
+      "topTags": []
     },
     "GET /discover/feedback": {
       "feedback": []
@@ -166,8 +147,8 @@
           "activeBaseUrl": "string",
           "configuredProvider": "string",
           "failoverActive": "boolean",
-          "lastCheckedAt": "null",
-          "lastFailureAt": "null",
+          "lastCheckedAt": "string",
+          "lastFailureAt": "string",
           "lastFailureReason": "string",
           "lastSuccessAt": "null"
         }
@@ -250,9 +231,17 @@
     "GET /library/canonical": {
       "albums": [],
       "artists": [],
+      "genres": [],
+      "hasMore": "boolean",
+      "items": [],
+      "kind": "string",
+      "page": "number",
+      "pageSize": "number",
+      "total": "number",
       "tracks": []
     },
     "GET /library/recent": [],
+    "GET /library/recent-releases": [],
     "GET /library/tracks": [],
     "GET /playlists/status": {
       "capabilities": {
