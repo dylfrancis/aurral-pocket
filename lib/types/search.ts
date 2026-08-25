@@ -43,15 +43,50 @@ export type UnifiedSearchEntry = {
   score?: number;
 };
 
+/** Raw album entry as `/search/unified` returns it in the catalog results. */
+export type UnifiedSearchAlbumEntry = {
+  type: "album";
+  source: string;
+  id: string;
+  key: string;
+  title: string;
+  artistName: string;
+  artistMbid: string | null;
+  primaryType: string | null;
+  secondaryTypes: string[];
+  releaseDate: string | null;
+  coverUrl: string | null;
+  inLibrary: boolean;
+  score: number;
+};
+
+/** Raw track entry as `/search/unified` returns it in the library results. */
+export type UnifiedSearchTrackEntry = {
+  type: "track";
+  source: string;
+  id: string;
+  key: string;
+  title: string;
+  artistName: string;
+  albumTitle: string | null;
+  streamPath: string | null;
+  inLibrary: boolean;
+  score: number;
+};
+
 export type UnifiedSearchResponse = {
   query: string;
   mode: string;
   top?: UnifiedSearchEntry | null;
-  library?: { artists?: UnifiedSearchEntry[]; tracks?: unknown[] };
+  library?: {
+    artists?: UnifiedSearchEntry[];
+    tracks?: UnifiedSearchTrackEntry[];
+  };
   catalog?: {
     artists?: UnifiedSearchEntry[];
-    albums?: unknown[];
-    tracks?: unknown[];
+    albums?: UnifiedSearchAlbumEntry[];
+    /** Empty through 2.6 — the catalog search returns no tracks yet. */
+    tracks?: UnifiedSearchTrackEntry[];
   };
 };
 

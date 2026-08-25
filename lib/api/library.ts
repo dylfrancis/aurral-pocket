@@ -9,6 +9,7 @@ import type {
   ArtistTag,
   PreviewTrack,
   DownloadStatusMap,
+  CanonicalArtistItem,
   CanonicalPage,
   CanonicalPageParams,
   LibraryReadOptions,
@@ -86,13 +87,63 @@ export async function getLibraryTracks(
   return r.data;
 }
 
-/** Read one page of the canonical library. The server caps `pageSize` at 100. */
-export async function getCanonicalLibraryPage(params: CanonicalPageParams) {
-  const query: Record<string, string> = { kind: params.kind };
+type CanonicalPageWire = Omit<CanonicalPage, "artists"> & {
+  artists?: CanonicalArtistItem[];
+};
+
+/**
+ * The field choices mirror the server's own read adapter
+ * (canonicalArtistProjection in backend/services/libraryQueryService.js), so
+ * both read paths present an artist the same way. A file-scanned artist can
+ * carry no metadata at all: it has no MBID, no added date, and was never
+ * monitored, so every fallback here must hold.
+ */
+function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
+  const metadata = item.metadata ?? {};
+  return {
+    id: String(item.id),
+    canonicalId: String(item.id),
+    mbid: item.mbid ?? "",
+    foreignArtistId:
+      metadata.foreignArtistId ??
+      item.mbid ??
+      item.identityKey ??
+      String(item.id),
+    artistName: item.name ?? item.sortName ?? "",
+    monitored: metadata.monitored === true,
+    monitorOption: metadata.monitor ?? "none",
+    addedAt: metadata.added ?? null,
+    statistics: {
+      albumCount: item.albumCount ?? 0,
+      trackCount: item.trackCount ?? 0,
+      sizeOnDisk: item.sizeOnDisk ?? 0,
+    },
+    sources: item.sources,
+    available: item.available,
+  };
+}
+
+/**
+ * Read one page of the canonical library.
+ *
+ * Aurral 2.6.0 made `kind` and `pageSize` mandatory ("bounded reads" — the
+ * route answers 400 without both), so `pageSize` always goes on the wire.
+ * 100 is the server's cap, and was its default while the parameter was still
+ * optional, so the fallback preserves the pre-2.6 page size.
+ *
+ * Nothing above this function sees a raw canonical row — see
+ * CanonicalArtistItem.
+ */
+export async function getCanonicalLibraryPage(
+  params: CanonicalPageParams,
+): Promise<CanonicalPage> {
+  const query: Record<string, string> = {
+    kind: params.kind,
+    pageSize: String(params.pageSize ?? 100),
+  };
   if (params.source) query.source = params.source;
   if (params.availableOnly) query.availableOnly = "true";
   if (params.page != null) query.page = String(params.page);
-  if (params.pageSize != null) query.pageSize = String(params.pageSize);
   if (params.query) query.query = params.query;
   if (params.genre) query.genre = params.genre;
   if (params.sort) query.sort = params.sort;
@@ -100,10 +151,13 @@ export async function getCanonicalLibraryPage(params: CanonicalPageParams) {
   if (params.artistId) query.artistId = params.artistId;
   if (params.albumId) query.albumId = params.albumId;
 
-  const r = await api.get<CanonicalPage>("/library/canonical", {
+  const r = await api.get<CanonicalPageWire>("/library/canonical", {
     params: query,
   });
-  return r.data;
+  return {
+    ...r.data,
+    artists: (r.data.artists ?? []).map(canonicalArtistToArtist),
+  };
 }
 
 /** Queue a rescan of the canonical library. Returns 202 with a job id. */
@@ -113,7 +167,7 @@ export async function refreshCanonicalLibrary() {
 }
 
 /** Poll one queued rescan. The server returns 404 for an unknown job id. */
-export async function getCanonicalLibraryRefresh(jobId: string) {
+export async function getCanonicalLibraryRefresh(jobId: number) {
   const r = await api.get<LibraryScanStatus>(`/library/refresh/${jobId}`);
   return r.data;
 }
@@ -176,9 +230,10 @@ export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {
   return r.data;
 }
 
+/** The server honors only `monitored`; it ignores every other key. */
 export async function updateLibraryAlbum(
   albumId: string,
-  data: Partial<Album> & Record<string, unknown>,
+  data: Partial<Album>,
 ) {
   const r = await api.put<Album>(`/library/albums/${albumId}`, data);
   return r.data;
@@ -337,10 +392,21 @@ export type RequestAlbumPayload = {
   triggerSearch?: boolean;
 };
 
+/**
+ * POST /library/albums/request answers 201 with one shape: the resolved
+ * artist and album, what got created, and whether a search started.
+ */
 export type RequestAlbumResponse = {
-  album?: Album;
-  createdArtist?: boolean;
-} & Record<string, unknown>;
+  success: boolean;
+  artist: Artist;
+  album: Album;
+  createdArtist: boolean;
+  createdAlbum: boolean;
+  triggeredSearch: boolean;
+  status: "available" | "searching" | "inLibrary";
+  /** The route hardcodes false today; queued adds arrive elsewhere. */
+  queued: boolean;
+};
 
 export async function requestAlbumFromSearch(payload: RequestAlbumPayload) {
   const r = await api.post<RequestAlbumResponse>(

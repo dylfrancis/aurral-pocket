@@ -23,7 +23,7 @@ const isFinished = (status?: string) =>
  */
 export function useLibraryRefresh() {
   const queryClient = useQueryClient();
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<number | null>(null);
 
   const start = useMutation({
     mutationFn: refreshCanonicalLibrary,

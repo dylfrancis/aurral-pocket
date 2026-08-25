@@ -81,6 +81,17 @@ const SYNTHETIC = {
 };
 
 /**
+ * Query strings for routes that reject a bare probe. Aurral 2.6.0 made `kind`
+ * and `pageSize` mandatory on /library/canonical ("bounded reads"), so a probe
+ * without them answers 400 and the route silently drops out of shape coverage.
+ * The values mirror what the client always sends, so the recorded shape is the
+ * envelope pocket actually reads rather than the parameter-less legacy body.
+ */
+const REQUIRED_QUERY = new Map([
+  ["GET /library/canonical", "kind=artists&pageSize=100"],
+]);
+
+/**
  * Probed last, for two reasons:
  *   /auth/logout ends the session we authenticated with. Left in file order it
  *   sorts near the front, every later route answers 401, and 401 reads as
@@ -478,7 +489,8 @@ async function main() {
   const shapes = new Map();
 
   for (const route of routes) {
-    const path = `/api${concretize(route.raw)}`;
+    const query = REQUIRED_QUERY.get(`${route.method} ${route.raw}`);
+    const path = `/api${concretize(route.raw)}${query ? `?${query}` : ""}`;
     let result;
     try {
       result = await request(route.method, path, token);

@@ -53,10 +53,10 @@ describe("useLibraryRefresh", () => {
   it("polls the job the server returned", async () => {
     mockRefresh.mockResolvedValue({
       queued: true,
-      jobId: "job-1",
-      status: { status: "queued" },
+      jobId: 1,
+      status: { jobId: 1, status: "queued", error: null },
     });
-    mockStatus.mockResolvedValue({ status: "running" });
+    mockStatus.mockResolvedValue({ jobId: 1, status: "running", error: null });
 
     const { wrapper } = makeWrapper();
     const { result } = await renderHook(() => useLibraryRefresh(), {
@@ -68,17 +68,21 @@ describe("useLibraryRefresh", () => {
     });
 
     await waitFor(() => expect(result.current.status?.status).toBe("running"));
-    expect(mockStatus).toHaveBeenCalledWith("job-1");
+    expect(mockStatus).toHaveBeenCalledWith(1);
     expect(result.current.isScanning).toBe(true);
   });
 
   it("stops scanning and refreshes the library once the scan completes", async () => {
     mockRefresh.mockResolvedValue({
       queued: true,
-      jobId: "job-2",
-      status: { status: "queued" },
+      jobId: 2,
+      status: { jobId: 2, status: "queued", error: null },
     });
-    mockStatus.mockResolvedValue({ status: "completed" });
+    mockStatus.mockResolvedValue({
+      jobId: 2,
+      status: "completed",
+      error: null,
+    });
 
     const { wrapper, client } = makeWrapper();
     const invalidate = jest.spyOn(client, "invalidateQueries");
@@ -97,9 +101,9 @@ describe("useLibraryRefresh", () => {
     const [call] = invalidate.mock.calls;
     const predicate = call[0]!.predicate!;
     expect(predicate({ queryKey: ["library", "artists"] } as never)).toBe(true);
-    expect(
-      predicate({ queryKey: ["library", "refresh", "job-2"] } as never),
-    ).toBe(false);
+    expect(predicate({ queryKey: ["library", "refresh", 2] } as never)).toBe(
+      false,
+    );
   });
 
   it("surfaces the error when the server has no scan endpoint", async () => {

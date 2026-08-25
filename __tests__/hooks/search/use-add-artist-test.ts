@@ -20,6 +20,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addArtist } from "@/lib/api/search";
 import { useAddArtist } from "@/hooks/search/use-add-artist";
 import { discoverKeys, libraryKeys } from "@/lib/query-keys";
+import type { Artist, CanonicalPage } from "@/lib/types/library";
 
 const mockUseMutation = useMutation as jest.Mock;
 const mockAddArtist = addArtist as jest.Mock;
@@ -88,6 +89,55 @@ describe("useAddArtist", () => {
       libraryKeys.artist("abc-123"),
       mockArtist,
     );
+  });
+
+  it("appends the artist to the last loaded page of the artists cache", () => {
+    useAddArtist();
+    const { config } = mockUseMutation.mock.results[0].value;
+
+    config.onSuccess({
+      queued: false,
+      foreignArtistId: "abc-123",
+      artistName: "Radiohead",
+      artist: mockArtist,
+    });
+
+    const artistsCall = mockSetQueryData.mock.calls.find(
+      ([key]) => JSON.stringify(key) === JSON.stringify(libraryKeys.artists()),
+    );
+    expect(artistsCall).toBeDefined();
+    const updater = artistsCall![1];
+
+    const makePage = (
+      overrides: Partial<CanonicalPage> = {},
+    ): CanonicalPage => ({
+      kind: "artists",
+      page: 1,
+      pageSize: 100,
+      total: 1,
+      hasMore: true,
+      artists: [],
+      albums: [],
+      tracks: [],
+      ...overrides,
+    });
+    const existing: Artist = {
+      ...mockArtist,
+      id: "existing-1",
+      artistName: "Existing",
+    };
+    const updated = updater({
+      pages: [
+        makePage(),
+        makePage({ page: 2, hasMore: false, artists: [existing] }),
+      ],
+      pageParams: [1, 2],
+    });
+
+    expect(updated.pages[0].artists).toEqual([]);
+    expect(updated.pages[1].artists).toEqual([existing, mockArtist]);
+    // An empty cache stays untouched; there is no page to append to.
+    expect(updater(undefined)).toBeUndefined();
   });
 
   it("creates placeholder artist in cache when queued", () => {

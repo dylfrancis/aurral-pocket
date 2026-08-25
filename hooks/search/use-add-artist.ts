@@ -1,4 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import { addArtist } from "@/lib/api/search";
 import { discoverKeys, libraryKeys } from "@/lib/query-keys";
 import type {
@@ -6,7 +10,7 @@ import type {
   AddArtistResponse,
   RecentlyAddedArtist,
 } from "@/lib/types/search";
-import type { Artist } from "@/lib/types/library";
+import type { Artist, CanonicalPage } from "@/lib/types/library";
 
 function toArtist(data: AddArtistResponse): Artist {
   if (data.artist) return data.artist as Artist;
@@ -29,10 +33,23 @@ export function useAddArtist(onSuccess?: () => void) {
     mutationFn: (params: AddArtistRequest) => addArtist(params),
     onSuccess: (data: AddArtistResponse) => {
       const artist = toArtist(data);
-      queryClient.setQueryData<Artist[]>(libraryKeys.artists(), (old) => [
-        ...(old ?? []),
-        artist,
-      ]);
+      // Which page the optimistic entry lands in does not matter — the list
+      // sorts client-side. It survives only until the next refetch: the
+      // canonical library omits artists that have no files yet, and this one
+      // was added seconds ago.
+      queryClient.setQueryData<InfiniteData<CanonicalPage>>(
+        libraryKeys.artists(),
+        (old) => {
+          if (!old || old.pages.length === 0) return old;
+          const pages = [...old.pages];
+          const last = pages.length - 1;
+          pages[last] = {
+            ...pages[last],
+            artists: [...pages[last].artists, artist],
+          };
+          return { ...old, pages };
+        },
+      );
       queryClient.setQueryData(libraryKeys.artist(artist.mbid), artist);
 
       // A queued (202) response means the artist was newly added but isn't yet

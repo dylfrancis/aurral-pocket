@@ -289,14 +289,115 @@ describe("getCanonicalLibraryPage", () => {
 
     await getCanonicalLibraryPage({ kind: "artists", availableOnly: false });
     expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
-      params: { kind: "artists" },
+      params: { kind: "artists", pageSize: "100" },
     });
+  });
+
+  it("defaults pageSize to 100 because Aurral 2.6 rejects requests without it", async () => {
+    mockApi.get.mockResolvedValue({ data: { kind: "genres" } });
+
+    await getCanonicalLibraryPage({ kind: "genres" });
+    expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
+      params: { kind: "genres", pageSize: "100" },
+    });
+  });
+
+  it("maps raw canonical artist rows to the legacy Artist shape", async () => {
+    // The canonical route returns raw library rows: the name lives in `name`,
+    // the counts are flat, and the id is a number. Reading `artistName` off a
+    // raw row crashed the library screen's sort.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "artists",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [
+          {
+            id: 7,
+            identityKey: "artist:radiohead",
+            mbid: "mb-1",
+            name: "Radiohead",
+            sortName: "Radiohead",
+            metadata: {
+              foreignArtistId: "fa-1",
+              monitored: true,
+              monitor: "all",
+              added: "2020-01-01T00:00:00Z",
+            },
+            albumCount: 3,
+            trackCount: 30,
+            sizeOnDisk: 123,
+            sources: ["lidarr"],
+            available: true,
+          },
+        ],
+        albums: [],
+        tracks: [],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({ kind: "artists" });
+    expect(page.artists).toEqual([
+      {
+        id: "7",
+        canonicalId: "7",
+        mbid: "mb-1",
+        foreignArtistId: "fa-1",
+        artistName: "Radiohead",
+        monitored: true,
+        monitorOption: "all",
+        addedAt: "2020-01-01T00:00:00Z",
+        statistics: { albumCount: 3, trackCount: 30, sizeOnDisk: 123 },
+        sources: ["lidarr"],
+        available: true,
+      },
+    ]);
+  });
+
+  it("fills defaults for a file-scanned artist that carries no metadata", async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "artists",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [
+          { id: 8, identityKey: "artist:unknown", mbid: null, name: "Unknown" },
+        ],
+        albums: [],
+        tracks: [],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({ kind: "artists" });
+    expect(page.artists).toEqual([
+      {
+        id: "8",
+        canonicalId: "8",
+        mbid: "",
+        foreignArtistId: "artist:unknown",
+        artistName: "Unknown",
+        monitored: false,
+        monitorOption: "none",
+        addedAt: null,
+        statistics: { albumCount: 0, trackCount: 0, sizeOnDisk: 0 },
+        sources: undefined,
+        available: undefined,
+      },
+    ]);
   });
 });
 
 describe("canonical library scan", () => {
   it("queues a scan", async () => {
-    const job = { queued: true, jobId: "job-1", status: { status: "queued" } };
+    const job = {
+      queued: true,
+      jobId: 1,
+      status: { jobId: 1, status: "queued", error: null },
+    };
     mockApi.post.mockResolvedValue({ data: job });
 
     const result = await refreshCanonicalLibrary();
@@ -305,10 +406,11 @@ describe("canonical library scan", () => {
   });
 
   it("reads one scan status", async () => {
-    mockApi.get.mockResolvedValue({ data: { status: "running" } });
+    const status = { jobId: 1, status: "running", error: null };
+    mockApi.get.mockResolvedValue({ data: status });
 
-    const result = await getCanonicalLibraryRefresh("job-1");
-    expect(mockApi.get).toHaveBeenCalledWith("/library/refresh/job-1");
-    expect(result).toEqual({ status: "running" });
+    const result = await getCanonicalLibraryRefresh(1);
+    expect(mockApi.get).toHaveBeenCalledWith("/library/refresh/1");
+    expect(result).toEqual(status);
   });
 });

@@ -167,7 +167,7 @@ export type CanonicalPageParams = {
   source?: LibrarySource;
   availableOnly?: boolean;
   page?: number;
-  /** The server caps this at 100. */
+  /** Capped at 100 by the server; getCanonicalLibraryPage fills it in when unset. */
   pageSize?: number;
   query?: string;
   genre?: string;
@@ -177,6 +177,162 @@ export type CanonicalPageParams = {
   albumId?: string;
 };
 
+// The canonical metadata bags below are declared partially, by design. A
+// Lidarr-managed artist or album stores the whole Lidarr payload; a
+// file-scanned entity stores `{ tags }` read from its file. Only the keys
+// pocket or the server reads are declared — an undeclared key still arrives
+// on the wire, it just cannot be read without widening the type here.
+
+/** File tags as the scanner stored them (music-metadata's common tags). */
+export type CanonicalFileTags = {
+  title?: string;
+  artist?: string;
+  album?: string;
+  albumartist?: string;
+  date?: string;
+  releasedate?: string;
+};
+
+/** One provider image inside stored metadata; the server reads the URLs. */
+export type CanonicalMetadataImage = {
+  url?: string;
+  remoteUrl?: string;
+  imageUrl?: string;
+  coverType?: string;
+};
+
+export type CanonicalArtistMetadata = {
+  foreignArtistId?: string;
+  monitored?: boolean;
+  monitor?: string;
+  added?: string;
+  librarySource?: "lidarr";
+  tags?: CanonicalFileTags;
+};
+
+/** The page route derives an album's `coverUrl` from `images`. */
+export type CanonicalAlbumMetadata = {
+  librarySource?: "lidarr";
+  images?: CanonicalMetadataImage[];
+  tags?: CanonicalFileTags;
+};
+
+/** Lidarr track payloads are stored without a `librarySource` marker. */
+export type CanonicalTrackMetadata = {
+  tags?: CanonicalFileTags;
+};
+
+/**
+ * The quality the indexing scanner recorded. The file scanner writes the
+ * declared keys; the Lidarr indexer stores Lidarr's mediaInfo object
+ * instead, whose keys arrive undeclared.
+ */
+export type CanonicalMediaQuality = {
+  format?: string | null;
+  bitrate?: number | null;
+  sampleRate?: number | null;
+  bitsPerSample?: number | null;
+};
+
+/**
+ * One artist as GET /library/canonical returns it: the raw canonical library
+ * row. Unlike the read adapter behind /library/artists?readPath=canonical,
+ * this route does not adapt rows to the legacy shape. getCanonicalLibraryPage
+ * maps these to `Artist` before anything else sees them.
+ */
+export type CanonicalArtistItem = {
+  id: number | string;
+  identityKey?: string;
+  mbid?: string | null;
+  name?: string;
+  sortName?: string | null;
+  metadata?: CanonicalArtistMetadata | null;
+  albumCount?: number;
+  trackCount?: number;
+  sizeOnDisk?: number;
+  sources?: LibrarySource[];
+  available?: boolean;
+  /** Present when the request is authenticated. */
+  userFavorite?: boolean;
+};
+
+/**
+ * One media file on a canonical track. The server strips every key that ends
+ * in "path" from this route, so a file never carries its filesystem path.
+ */
+export type CanonicalTrackFile = {
+  id: number | string;
+  albumId?: number | string | null;
+  source?: LibrarySource;
+  format?: string | null;
+  size?: number | null;
+  mtimeMs?: number | null;
+  durationMs?: number | null;
+  quality?: CanonicalMediaQuality | null;
+  available?: boolean;
+};
+
+/**
+ * One album as GET /library/canonical returns it: the raw canonical library
+ * row. It does not match the legacy Album type — map it before treating it as
+ * one. `trackCount`, `availableTrackCount`, and `coverUrl` are added by the
+ * page route on top of the stored row.
+ */
+export type CanonicalAlbumItem = {
+  id: number | string;
+  identityKey?: string;
+  mbid?: string | null;
+  releaseGroupMbid?: string | null;
+  artistId?: number | string;
+  title?: string;
+  albumArtist?: string | null;
+  releaseDate?: string | null;
+  metadata?: CanonicalAlbumMetadata | null;
+  trackIds?: (number | string)[];
+  sources?: LibrarySource[];
+  available?: boolean;
+  trackCount?: number;
+  availableTrackCount?: number;
+  /** An image-proxy URL derived from the metadata images; null without one. */
+  coverUrl?: string | null;
+  /** Present when the request is authenticated. */
+  userFavorite?: boolean;
+};
+
+/**
+ * One track as GET /library/canonical returns it: the raw canonical library
+ * row. It does not match the legacy Track type — map it before treating it as
+ * one. A track can appear on several albums; `albums` carries its position on
+ * each.
+ */
+export type CanonicalTrackItem = {
+  id: number | string;
+  identityKey?: string;
+  mbid?: string | null;
+  title?: string;
+  artistName?: string;
+  metadata?: CanonicalTrackMetadata | null;
+  albums?: {
+    albumId: number | string;
+    discNumber?: number | null;
+    trackNumber?: number | null;
+  }[];
+  files?: CanonicalTrackFile[];
+  sources?: LibrarySource[];
+  available?: boolean;
+  /** Present when the request is authenticated. */
+  userFavorite?: boolean;
+};
+
+/**
+ * A canonical page after getCanonicalLibraryPage mapped it. `artists` carries
+ * the legacy shape the screens read. `albums` and `tracks` are still the raw
+ * canonical rows — no caller reads them yet, so nothing maps them.
+ *
+ * On album and track pages, `artists` holds the related artists for the page
+ * items. The server sends those without counts, so their statistics map to
+ * zero.
+ */
 export type CanonicalPage = {
   kind: CanonicalPageKind;
   page: number;
@@ -184,18 +340,20 @@ export type CanonicalPage = {
   total: number;
   hasMore: boolean;
   artists: Artist[];
-  albums: Album[];
-  tracks: Track[];
+  albums: CanonicalAlbumItem[];
+  tracks: CanonicalTrackItem[];
   genres?: CanonicalGenre[];
 };
 
+/** One scan's status as GET /library/refresh/:jobId reports it. */
 export type LibraryScanStatus = {
+  jobId: number;
   status: "queued" | "running" | "completed" | "failed" | "unknown";
-  jobId?: string;
-} & Record<string, unknown>;
+  error: string | null;
+};
 
 export type LibraryScanJob = {
   queued: boolean;
-  jobId: string;
+  jobId: number;
   status: LibraryScanStatus;
 };
