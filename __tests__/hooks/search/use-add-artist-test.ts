@@ -20,6 +20,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addArtist } from "@/lib/api/search";
 import { useAddArtist } from "@/hooks/search/use-add-artist";
 import { discoverKeys, libraryKeys } from "@/lib/query-keys";
+import type { Artist, CanonicalPage } from "@/lib/types/library";
 
 const mockUseMutation = useMutation as jest.Mock;
 const mockAddArtist = addArtist as jest.Mock;
@@ -107,18 +108,24 @@ describe("useAddArtist", () => {
     expect(artistsCall).toBeDefined();
     const updater = artistsCall![1];
 
-    const makePage = (overrides: Record<string, unknown> = {}) => ({
+    const makePage = (
+      overrides: Partial<CanonicalPage> = {},
+    ): CanonicalPage => ({
       kind: "artists",
       page: 1,
       pageSize: 100,
       total: 1,
       hasMore: true,
-      artists: [] as unknown[],
+      artists: [],
       albums: [],
       tracks: [],
       ...overrides,
     });
-    const existing = { id: "existing-1", artistName: "Existing" };
+    const existing: Artist = {
+      ...mockArtist,
+      id: "existing-1",
+      artistName: "Existing",
+    };
     const updated = updater({
       pages: [
         makePage(),

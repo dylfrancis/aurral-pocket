@@ -345,13 +345,15 @@ export type CanonicalPage = {
   genres?: CanonicalGenre[];
 };
 
+/** One scan's status as GET /library/refresh/:jobId reports it. */
 export type LibraryScanStatus = {
+  jobId: number;
   status: "queued" | "running" | "completed" | "failed" | "unknown";
-  jobId?: string;
-} & Record<string, unknown>;
+  error: string | null;
+};
 
 export type LibraryScanJob = {
   queued: boolean;
-  jobId: string;
+  jobId: number;
   status: LibraryScanStatus;
 };

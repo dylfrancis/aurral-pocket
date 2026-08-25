@@ -393,7 +393,11 @@ describe("getCanonicalLibraryPage", () => {
 
 describe("canonical library scan", () => {
   it("queues a scan", async () => {
-    const job = { queued: true, jobId: "job-1", status: { status: "queued" } };
+    const job = {
+      queued: true,
+      jobId: 1,
+      status: { jobId: 1, status: "queued", error: null },
+    };
     mockApi.post.mockResolvedValue({ data: job });
 
     const result = await refreshCanonicalLibrary();
@@ -402,10 +406,11 @@ describe("canonical library scan", () => {
   });
 
   it("reads one scan status", async () => {
-    mockApi.get.mockResolvedValue({ data: { status: "running" } });
+    const status = { jobId: 1, status: "running", error: null };
+    mockApi.get.mockResolvedValue({ data: status });
 
-    const result = await getCanonicalLibraryRefresh("job-1");
-    expect(mockApi.get).toHaveBeenCalledWith("/library/refresh/job-1");
-    expect(result).toEqual({ status: "running" });
+    const result = await getCanonicalLibraryRefresh(1);
+    expect(mockApi.get).toHaveBeenCalledWith("/library/refresh/1");
+    expect(result).toEqual(status);
   });
 });

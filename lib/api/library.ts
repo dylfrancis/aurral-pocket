@@ -167,7 +167,7 @@ export async function refreshCanonicalLibrary() {
 }
 
 /** Poll one queued rescan. The server returns 404 for an unknown job id. */
-export async function getCanonicalLibraryRefresh(jobId: string) {
+export async function getCanonicalLibraryRefresh(jobId: number) {
   const r = await api.get<LibraryScanStatus>(`/library/refresh/${jobId}`);
   return r.data;
 }
@@ -230,9 +230,10 @@ export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {
   return r.data;
 }
 
+/** The server honors only `monitored`; it ignores every other key. */
 export async function updateLibraryAlbum(
   albumId: string,
-  data: Partial<Album> & Record<string, unknown>,
+  data: Partial<Album>,
 ) {
   const r = await api.put<Album>(`/library/albums/${albumId}`, data);
   return r.data;
@@ -391,10 +392,21 @@ export type RequestAlbumPayload = {
   triggerSearch?: boolean;
 };
 
+/**
+ * POST /library/albums/request answers 201 with one shape: the resolved
+ * artist and album, what got created, and whether a search started.
+ */
 export type RequestAlbumResponse = {
-  album?: Album;
-  createdArtist?: boolean;
-} & Record<string, unknown>;
+  success: boolean;
+  artist: Artist;
+  album: Album;
+  createdArtist: boolean;
+  createdAlbum: boolean;
+  triggeredSearch: boolean;
+  status: "available" | "searching" | "inLibrary";
+  /** The route hardcodes false today; queued adds arrive elsewhere. */
+  queued: boolean;
+};
 
 export async function requestAlbumFromSearch(payload: RequestAlbumPayload) {
   const r = await api.post<RequestAlbumResponse>(
