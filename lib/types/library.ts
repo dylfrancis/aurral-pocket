@@ -177,12 +177,62 @@ export type CanonicalPageParams = {
   albumId?: string;
 };
 
+// The canonical metadata bags below are declared partially, by design. A
+// Lidarr-managed artist or album stores the whole Lidarr payload; a
+// file-scanned entity stores `{ tags }` read from its file. Only the keys
+// pocket or the server reads are declared — an undeclared key still arrives
+// on the wire, it just cannot be read without widening the type here.
+
+/** File tags as the scanner stored them (music-metadata's common tags). */
+export type CanonicalFileTags = {
+  title?: string;
+  artist?: string;
+  album?: string;
+  albumartist?: string;
+  date?: string;
+  releasedate?: string;
+};
+
+/** One provider image inside stored metadata; the server reads the URLs. */
+export type CanonicalMetadataImage = {
+  url?: string;
+  remoteUrl?: string;
+  imageUrl?: string;
+  coverType?: string;
+};
+
 export type CanonicalArtistMetadata = {
   foreignArtistId?: string;
   monitored?: boolean;
   monitor?: string;
   added?: string;
-} & Record<string, unknown>;
+  librarySource?: "lidarr";
+  tags?: CanonicalFileTags;
+};
+
+/** The page route derives an album's `coverUrl` from `images`. */
+export type CanonicalAlbumMetadata = {
+  librarySource?: "lidarr";
+  images?: CanonicalMetadataImage[];
+  tags?: CanonicalFileTags;
+};
+
+/** Lidarr track payloads are stored without a `librarySource` marker. */
+export type CanonicalTrackMetadata = {
+  tags?: CanonicalFileTags;
+};
+
+/**
+ * The quality the indexing scanner recorded. The file scanner writes the
+ * declared keys; the Lidarr indexer stores Lidarr's mediaInfo object
+ * instead, whose keys arrive undeclared.
+ */
+export type CanonicalMediaQuality = {
+  format?: string | null;
+  bitrate?: number | null;
+  sampleRate?: number | null;
+  bitsPerSample?: number | null;
+};
 
 /**
  * One artist as GET /library/canonical returns it: the raw canonical library
@@ -218,7 +268,7 @@ export type CanonicalTrackFile = {
   size?: number | null;
   mtimeMs?: number | null;
   durationMs?: number | null;
-  quality?: Record<string, unknown> | null;
+  quality?: CanonicalMediaQuality | null;
   available?: boolean;
 };
 
@@ -237,7 +287,7 @@ export type CanonicalAlbumItem = {
   title?: string;
   albumArtist?: string | null;
   releaseDate?: string | null;
-  metadata?: Record<string, unknown> | null;
+  metadata?: CanonicalAlbumMetadata | null;
   trackIds?: (number | string)[];
   sources?: LibrarySource[];
   available?: boolean;
@@ -261,7 +311,7 @@ export type CanonicalTrackItem = {
   mbid?: string | null;
   title?: string;
   artistName?: string;
-  metadata?: Record<string, unknown> | null;
+  metadata?: CanonicalTrackMetadata | null;
   albums?: {
     albumId: number | string;
     discNumber?: number | null;
