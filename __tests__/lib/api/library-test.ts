@@ -9,11 +9,10 @@ jest.mock("@/lib/api/client", () => ({
 
 import { api } from "@/lib/api/client";
 import {
-  getLibraryArtists,
   getLibraryArtist,
-  getLibraryAlbums,
-  getLibraryTracks,
   getCanonicalLibraryPage,
+  getCanonicalAlbumTracks,
+  getCanonicalArtistAlbums,
   refreshCanonicalLibrary,
   getCanonicalLibraryRefresh,
   getArtistCover,
@@ -35,44 +34,6 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-describe("getLibraryArtists", () => {
-  it("calls GET /library/artists and returns data", async () => {
-    const artists = [{ id: "1", artistName: "Test" }];
-    mockApi.get.mockResolvedValue({ data: artists });
-
-    const result = await getLibraryArtists();
-    expect(mockApi.get).toHaveBeenCalledWith("/library/artists");
-    expect(result).toEqual(artists);
-  });
-});
-
-describe("getLibraryArtists on the canonical read path", () => {
-  it("sends readPath and source", async () => {
-    mockApi.get.mockResolvedValue({ data: [] });
-
-    await getLibraryArtists({ readPath: "canonical" });
-    expect(mockApi.get).toHaveBeenCalledWith("/library/artists", {
-      params: { readPath: "canonical", source: "all" },
-    });
-  });
-
-  it("sends the requested source", async () => {
-    mockApi.get.mockResolvedValue({ data: [] });
-
-    await getLibraryArtists({ readPath: "canonical", source: "aurral" });
-    expect(mockApi.get).toHaveBeenCalledWith("/library/artists", {
-      params: { readPath: "canonical", source: "aurral" },
-    });
-  });
-
-  it("ignores a source without a canonical read path", async () => {
-    mockApi.get.mockResolvedValue({ data: [] });
-
-    await getLibraryArtists({ source: "aurral" });
-    expect(mockApi.get).toHaveBeenCalledWith("/library/artists");
-  });
-});
-
 describe("getLibraryArtist", () => {
   it("calls GET /library/artists/:mbid", async () => {
     const artist = { id: "1", mbid: "abc-123", artistName: "Test" };
@@ -81,32 +42,6 @@ describe("getLibraryArtist", () => {
     const result = await getLibraryArtist("abc-123");
     expect(mockApi.get).toHaveBeenCalledWith("/library/artists/abc-123");
     expect(result).toEqual(artist);
-  });
-});
-
-describe("getLibraryAlbums", () => {
-  it("calls GET /library/albums with artistId param", async () => {
-    const albums = [{ id: "1", albumName: "Album" }];
-    mockApi.get.mockResolvedValue({ data: albums });
-
-    const result = await getLibraryAlbums("42");
-    expect(mockApi.get).toHaveBeenCalledWith("/library/albums", {
-      params: { artistId: "42" },
-    });
-    expect(result).toEqual(albums);
-  });
-});
-
-describe("getLibraryTracks", () => {
-  it("calls GET /library/tracks with albumId param", async () => {
-    const tracks = [{ id: "1", trackName: "Song" }];
-    mockApi.get.mockResolvedValue({ data: tracks });
-
-    const result = await getLibraryTracks("99");
-    expect(mockApi.get).toHaveBeenCalledWith("/library/tracks", {
-      params: { albumId: "99" },
-    });
-    expect(result).toEqual(tracks);
   });
 });
 
@@ -209,35 +144,6 @@ describe("requestAlbumFromSearch", () => {
   it("propagates errors", async () => {
     mockApi.post.mockRejectedValue(new Error("409"));
     await expect(requestAlbumFromSearch(payload)).rejects.toThrow("409");
-  });
-});
-
-describe("canonical read path parameters", () => {
-  it("adds readPath and source to the album request", async () => {
-    mockApi.get.mockResolvedValue({ data: [] });
-
-    await getLibraryAlbums("mb-artist", { readPath: "canonical" });
-    expect(mockApi.get).toHaveBeenCalledWith("/library/albums", {
-      params: { artistId: "mb-artist", readPath: "canonical", source: "all" },
-    });
-  });
-
-  it("adds readPath and source to the track request", async () => {
-    mockApi.get.mockResolvedValue({ data: [] });
-
-    await getLibraryTracks("mb-album", { readPath: "canonical" });
-    expect(mockApi.get).toHaveBeenCalledWith("/library/tracks", {
-      params: { albumId: "mb-album", readPath: "canonical", source: "all" },
-    });
-  });
-
-  it("leaves the legacy album request unchanged", async () => {
-    mockApi.get.mockResolvedValue({ data: [] });
-
-    await getLibraryAlbums("42");
-    expect(mockApi.get).toHaveBeenCalledWith("/library/albums", {
-      params: { artistId: "42" },
-    });
   });
 });
 
@@ -356,6 +262,289 @@ describe("getCanonicalLibraryPage", () => {
     ]);
   });
 
+  it("maps raw canonical album rows to the legacy Album shape", async () => {
+    // The canonical route returns raw album rows plus the counts the page
+    // route adds (trackCount, availableTrackCount). The screens read the
+    // legacy Album shape, so the page must map every row before returning.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "albums",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [
+          {
+            id: 12,
+            identityKey: "album:in-rainbows",
+            mbid: "mb-album-1",
+            releaseGroupMbid: "mb-rg-1",
+            artistId: 7,
+            title: "In Rainbows",
+            albumArtist: "Radiohead",
+            releaseDate: "2007-10-10",
+            metadata: { monitored: true },
+            trackCount: 10,
+            availableTrackCount: 5,
+            sources: ["lidarr"],
+            available: true,
+          },
+        ],
+        tracks: [],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({ kind: "albums" });
+    expect(page.albums).toEqual([
+      {
+        id: "12",
+        canonicalId: "12",
+        artistId: "7",
+        artistName: "Radiohead",
+        mbid: "mb-album-1",
+        foreignAlbumId: "mb-album-1",
+        albumName: "In Rainbows",
+        title: "In Rainbows",
+        releaseDate: "2007-10-10",
+        monitored: true,
+        statistics: {
+          trackCount: 10,
+          trackFileCount: 5,
+          sizeOnDisk: 0,
+          percentOfTracks: 50,
+        },
+        sources: ["lidarr"],
+        available: true,
+      },
+    ]);
+  });
+
+  it("maps a wanted album with no files to zero percent", async () => {
+    // A monitored album that is still downloading has canonical track rows
+    // but no media files. The artist screen must keep showing it at 0%.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "albums",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [
+          {
+            id: 13,
+            identityKey: "album:wanted",
+            mbid: null,
+            releaseGroupMbid: "mb-rg-2",
+            artistId: 7,
+            title: "Wanted Album",
+            albumArtist: "Radiohead",
+            releaseDate: null,
+            metadata: { monitored: true },
+            trackCount: 8,
+            availableTrackCount: 0,
+            sources: ["lidarr"],
+            available: false,
+          },
+        ],
+        tracks: [],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({ kind: "albums" });
+    expect(page.albums).toEqual([
+      {
+        id: "13",
+        canonicalId: "13",
+        artistId: "7",
+        artistName: "Radiohead",
+        mbid: "mb-rg-2",
+        foreignAlbumId: "mb-rg-2",
+        albumName: "Wanted Album",
+        title: "Wanted Album",
+        releaseDate: null,
+        monitored: true,
+        statistics: {
+          trackCount: 8,
+          trackFileCount: 0,
+          sizeOnDisk: 0,
+          percentOfTracks: 0,
+        },
+        sources: ["lidarr"],
+        available: false,
+      },
+    ]);
+  });
+
+  it("maps raw canonical track rows to the legacy Track shape", async () => {
+    // Track pages are read per album. The mapper matches the track's album
+    // link against the requested albumId for the track number, and derives
+    // streamPath the same way the server's read adapter does.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "tracks",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [],
+        tracks: [
+          {
+            id: 31,
+            identityKey: "song:weird-fishes",
+            mbid: "mb-track-1",
+            title: "Weird Fishes",
+            artistName: "Radiohead",
+            albums: [
+              { albumId: 99, discNumber: 1, trackNumber: 9 },
+              { albumId: 12, discNumber: 1, trackNumber: 4 },
+            ],
+            files: [
+              {
+                id: 501,
+                albumId: 12,
+                source: "lidarr",
+                format: "flac",
+                size: 31457280,
+                quality: { format: "FLAC", bitrate: 1024000 },
+                available: true,
+              },
+            ],
+            sources: ["lidarr"],
+            available: true,
+          },
+        ],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({
+      kind: "tracks",
+      albumId: "12",
+    });
+    expect(page.tracks).toEqual([
+      {
+        id: "31",
+        mbid: "mb-track-1",
+        trackName: "Weird Fishes",
+        title: "Weird Fishes",
+        trackNumber: 4,
+        hasFile: true,
+        size: 31457280,
+        quality: "FLAC",
+        streamPath: "/library/canonical-stream/12/31",
+        streamFormat: "flac",
+        sources: ["lidarr"],
+        available: true,
+      },
+    ]);
+  });
+
+  it("maps a wanted track with no file to a null streamPath", async () => {
+    // A track the library wants but does not own drives the missing marker
+    // in the track list, and must never look playable.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "tracks",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [],
+        tracks: [
+          {
+            id: 32,
+            identityKey: "song:wanted",
+            mbid: null,
+            title: "Wanted Track",
+            albums: [{ albumId: 12, discNumber: 1, trackNumber: 5 }],
+            files: [],
+            sources: ["lidarr"],
+            available: false,
+          },
+        ],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({
+      kind: "tracks",
+      albumId: "12",
+    });
+    expect(page.tracks).toEqual([
+      {
+        id: "32",
+        mbid: "",
+        trackName: "Wanted Track",
+        title: "Wanted Track",
+        trackNumber: 5,
+        hasFile: false,
+        size: 0,
+        quality: null,
+        streamPath: null,
+        streamFormat: null,
+        sources: ["lidarr"],
+        available: false,
+      },
+    ]);
+  });
+
+  it("streams from an available unscoped file when the album-scoped file is unavailable", async () => {
+    // A file scanned without an album link can still serve the track. The
+    // pick order mirrors the server adapter: available album-scoped file,
+    // then available unscoped file, then any file.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "tracks",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [],
+        tracks: [
+          {
+            id: 33,
+            identityKey: "song:two-files",
+            mbid: "mb-track-3",
+            title: "Two Files",
+            albums: [{ albumId: 12, discNumber: 1, trackNumber: 6 }],
+            files: [
+              {
+                id: 601,
+                albumId: 12,
+                format: "mp3",
+                size: 100,
+                available: false,
+              },
+              {
+                id: 602,
+                albumId: null,
+                format: "flac",
+                size: 200,
+                available: true,
+              },
+            ],
+            sources: ["aurral"],
+            available: true,
+          },
+        ],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({
+      kind: "tracks",
+      albumId: "12",
+    });
+    expect(page.tracks[0]).toMatchObject({
+      hasFile: true,
+      size: 200,
+      streamFormat: "flac",
+      streamPath: "/library/canonical-stream/12/33",
+    });
+  });
+
   it("fills defaults for a file-scanned artist that carries no metadata", async () => {
     mockApi.get.mockResolvedValue({
       data: {
@@ -388,6 +577,187 @@ describe("getCanonicalLibraryPage", () => {
         available: undefined,
       },
     ]);
+  });
+});
+
+function trackRow(id: number, title: string) {
+  return {
+    id,
+    identityKey: `song:${id}`,
+    mbid: `mb-${id}`,
+    title,
+    albums: [{ albumId: 12, discNumber: 1, trackNumber: 1 }],
+    files: [
+      { id: id * 10, albumId: 12, format: "flac", size: 1, available: true },
+    ],
+    sources: ["lidarr"],
+    available: true,
+  };
+}
+
+function trackPage(page: number, hasMore: boolean, rows: unknown[]) {
+  return {
+    data: {
+      kind: "tracks",
+      page,
+      pageSize: 100,
+      total: 150,
+      hasMore,
+      artists: [],
+      albums: [],
+      tracks: rows,
+    },
+  };
+}
+
+function artistRow(id: number, mbid: string | null, name: string) {
+  return { id, identityKey: `artist:${id}`, mbid, name };
+}
+
+function artistPage(page: number, hasMore: boolean, rows: unknown[]) {
+  return {
+    data: {
+      kind: "artists",
+      page,
+      pageSize: 100,
+      total: 150,
+      hasMore,
+      artists: rows,
+      albums: [],
+      tracks: [],
+    },
+  };
+}
+
+function albumRow(id: number, title: string) {
+  return {
+    id,
+    identityKey: `album:${id}`,
+    mbid: `mb-alb-${id}`,
+    releaseGroupMbid: `mb-rg-${id}`,
+    artistId: 7,
+    title,
+    albumArtist: "Radiohead",
+    releaseDate: null,
+    metadata: { monitored: true },
+    trackCount: 10,
+    availableTrackCount: 10,
+    available: true,
+  };
+}
+
+function albumPage(page: number, hasMore: boolean, rows: unknown[]) {
+  return {
+    data: {
+      kind: "albums",
+      page,
+      pageSize: 100,
+      total: 150,
+      hasMore,
+      artists: [],
+      albums: rows,
+      tracks: [],
+    },
+  };
+}
+
+describe("getCanonicalArtistAlbums", () => {
+  it("resolves the artist by MBID, then drains that artist's albums", async () => {
+    // The paged canonical route matches artistId against the canonical
+    // numeric id only, and the screens hold an MBID. The read walks the
+    // artist pages to translate one into the other.
+    mockApi.get
+      .mockResolvedValueOnce(
+        artistPage(1, false, [
+          artistRow(6, "mb-other", "Other"),
+          artistRow(7, "mb-artist-1", "Radiohead"),
+        ]),
+      )
+      .mockResolvedValueOnce(albumPage(1, true, [albumRow(12, "In Rainbows")]))
+      .mockResolvedValueOnce(albumPage(2, false, [albumRow(13, "Kid A")]));
+
+    const albums = await getCanonicalArtistAlbums("mb-artist-1");
+
+    expect(mockApi.get).toHaveBeenNthCalledWith(2, "/library/canonical", {
+      params: {
+        kind: "albums",
+        pageSize: "100",
+        source: "all",
+        page: "1",
+        artistId: "7",
+      },
+    });
+    expect(albums.map((a) => a.title)).toEqual(["In Rainbows", "Kid A"]);
+    expect(albums[0].canonicalId).toBe("12");
+  });
+
+  it("returns no albums when the canonical library has not indexed the artist yet", async () => {
+    // An artist added a minute ago is not in the canonical library until a
+    // scan runs. The screen shows an empty album list and keeps polling.
+    mockApi.get.mockResolvedValueOnce(
+      artistPage(1, false, [artistRow(6, "mb-other", "Other")]),
+    );
+
+    const albums = await getCanonicalArtistAlbums("mb-artist-1");
+
+    expect(albums).toEqual([]);
+    expect(mockApi.get).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to a canonical-id match for an artist with no MBID", async () => {
+    // A file-scanned artist has no MBID, so the library list navigates by
+    // its canonical id, and that id is the reference that arrives here.
+    mockApi.get
+      .mockResolvedValueOnce(
+        artistPage(1, false, [artistRow(8, null, "Unknown")]),
+      )
+      .mockResolvedValueOnce(albumPage(1, false, [albumRow(14, "Tape")]));
+
+    const albums = await getCanonicalArtistAlbums("8");
+
+    expect(mockApi.get).toHaveBeenNthCalledWith(2, "/library/canonical", {
+      params: {
+        kind: "albums",
+        pageSize: "100",
+        source: "all",
+        page: "1",
+        artistId: "8",
+      },
+    });
+    expect(albums.map((a) => a.title)).toEqual(["Tape"]);
+  });
+});
+
+describe("getCanonicalAlbumTracks", () => {
+  it("drains every page of an album's tracks in order", async () => {
+    // Aurral 2.6 caps a canonical read at 100 items, and box sets exceed
+    // that. The read must follow hasMore until the album is complete.
+    mockApi.get
+      .mockResolvedValueOnce(trackPage(1, true, [trackRow(31, "One")]))
+      .mockResolvedValueOnce(trackPage(2, false, [trackRow(32, "Two")]));
+
+    const tracks = await getCanonicalAlbumTracks("12");
+
+    expect(mockApi.get).toHaveBeenNthCalledWith(1, "/library/canonical", {
+      params: {
+        kind: "tracks",
+        pageSize: "100",
+        source: "all",
+        page: "1",
+        albumId: "12",
+      },
+    });
+    expect(mockApi.get).toHaveBeenNthCalledWith(2, "/library/canonical", {
+      params: {
+        kind: "tracks",
+        pageSize: "100",
+        source: "all",
+        page: "2",
+        albumId: "12",
+      },
+    });
+    expect(tracks.map((t) => t.title)).toEqual(["One", "Two"]);
+    expect(tracks[0].streamPath).toBe("/library/canonical-stream/12/31");
   });
 });
 

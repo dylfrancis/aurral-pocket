@@ -18,8 +18,14 @@ const mockStatus = getCanonicalLibraryRefresh as jest.Mock;
 const clients: QueryClient[] = [];
 
 function makeWrapper() {
+  // gcTime 0 on mutations too: their default is five minutes, and the GC
+  // timer re-arms on unmount after the afterEach clear, so a mutation kept
+  // the jest process alive for five minutes after the suite passed.
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+      mutations: { gcTime: 0 },
+    },
   });
   clients.push(client);
   function Wrapper({ children }: { children: React.ReactNode }) {

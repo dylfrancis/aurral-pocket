@@ -1,45 +1,38 @@
-import type { LibraryReadOptions } from "@/lib/types/library";
-
 /**
- * The read path the library screens use.
+ * How the library screens address records on the canonical read path.
  *
  * Server 2.5.0 added the canonical library. It is a dedicated database of
  * owned artists, albums, and tracks, scanned from the Aurral root and from the
  * root folders that Lidarr reports.
  *
- * The screens still read the legacy path, because the canonical library is
- * built from media files. Its base query starts `FROM library_media_files` and
- * joins the rest, so a record with no file never appears, whatever the
- * availableOnly flag says. The three library routes also hardcode
- * availableOnly, so a client cannot ask for the missing records.
+ * The screens read it through the paged `/library/canonical` route. Server
+ * 2.6.0 made that route return wanted (fileless) records by default, which
+ * removed the reason the screens once stayed on the legacy path (see issue
+ * #199 and commit be3d497). The legacy-shaped adapter routes
+ * (`?readPath=canonical`) still hardcode availableOnly on the server, so the
+ * hooks drain the paged route instead — see getCanonicalArtistAlbums and
+ * getCanonicalAlbumTracks. The legacy read machinery is retired (issue #214).
  *
- * The library screens manage wanted music as well as owned music, and they
- * need the records the canonical library omits:
+ * The wanted-music behaviors the screens rely on hold on this path:
  *
- * - An artist added a minute ago has no files yet. On the canonical path the
- *   library list would not show it, and the artist screen polls for exactly
- *   that state.
- * - A monitored album that is still downloading has no files yet. The artist
- *   screen shows it at 0%, and useResearchMissingAlbums counts it.
- * - A track with no file drives the missing marker in TrackRow.
+ * - A monitored album that is still downloading arrives with available:
+ *   false and percentOfTracks 0. The artist screen shows it at 0%, and
+ *   useResearchMissingAlbums counts it.
+ * - A track with no file arrives with hasFile: false and a null streamPath,
+ *   which drives the missing marker in TrackRow.
+ * - An artist added a minute ago appears after the next canonical scan
+ *   indexes it. Until then the artist screen reads an empty album list and
+ *   keeps polling.
  *
- * One exception: the artist list reads the canonical paginated route through
- * use-library-artists, because only that route pages (Aurral 2.6.0 caps a
- * read at 100 items). The list accepts the first gap above — a fileless
- * artist is missing until a scan finds its first file.
+ * One exception: artist detail stays on the legacy single-artist route,
+ * because the server has no canonical route for a single artist. See
+ * getLibraryArtist.
  *
- * Switch this to `{ readPath: "canonical", source: "all" }` once the server
- * can return the wanted records too, or once the screens read the wanted set
- * separately. Everything below the screens already handles both paths. See
- * issue #199.
- *
- * `source` stays "all" until the server ships split Lidarr and Aurral
- * ownership modes.
+ * Every caller must resolve references through the functions below. The
+ * result is both the request parameter and the React Query key, so a
+ * mismatch between the two would leave a cache entry that no mutation can
+ * invalidate.
  */
-export const LIBRARY_READ: LibraryReadOptions = {};
-
-/** True when the library screens read from the canonical library. */
-export const READS_CANONICAL: boolean = LIBRARY_READ.readPath === "canonical";
 
 type ArtistReference = {
   /** The Lidarr artist id. */
@@ -51,34 +44,17 @@ type ArtistReference = {
 /**
  * Pick the identifier that addresses an artist's albums.
  *
- * The two read paths do not share an artist identifier. Lidarr ids are unique
- * to Lidarr, and the canonical library assigns its own ids. The MusicBrainz id
- * is the only identifier both understand, and the canonical route matches it,
- * so the canonical path addresses albums by MBID.
- *
- * Every caller must resolve the reference through this function. The result is
- * both the request parameter and the React Query key, so a mismatch between
- * the two would leave a cache entry that no mutation can invalidate.
+ * The MusicBrainz id is the only identifier the legacy artist detail and the
+ * canonical library share, so it leads. The paged canonical route itself
+ * matches only canonical numeric ids, so getCanonicalArtistAlbums translates
+ * the MBID by walking the artist pages. The artist-id fallback carries the
+ * canonical id when a file-scanned artist has no MBID; a Lidarr id in that
+ * position matches nothing and reads as an empty album list.
  */
-export function resolveAlbumsRef(
-  canonical: boolean,
-  { artistId, artistMbid }: ArtistReference,
-): string | undefined {
-  if (canonical) return artistMbid || artistId;
-  return artistId;
+export function libraryAlbumsRef({ artistId, artistMbid }: ArtistReference) {
+  return artistMbid || artistId;
 }
 
-export function libraryAlbumsRef(reference: ArtistReference) {
-  return resolveAlbumsRef(READS_CANONICAL, reference);
-}
-
-/**
- * Pick the identifier that addresses an album's tracks.
- *
- * The canonical route matches an album id, an MBID, or a foreign album id. A
- * Lidarr album id matches none of them, so the canonical path prefers the
- * MBID, then the canonical album id.
- */
 type AlbumReference = {
   /** The Lidarr album id. */
   albumId?: string;
@@ -88,14 +64,18 @@ type AlbumReference = {
   canonicalAlbumId?: string;
 };
 
-export function resolveTracksRef(
-  canonical: boolean,
-  { albumId, albumMbid, canonicalAlbumId }: AlbumReference,
-): string | undefined {
-  if (canonical) return albumMbid || canonicalAlbumId || albumId;
-  return albumId;
-}
-
-export function libraryTracksRef(reference: AlbumReference) {
-  return resolveTracksRef(READS_CANONICAL, reference);
+/**
+ * Pick the identifier that addresses an album's tracks.
+ *
+ * The paged canonical route matches only the canonical album id, so it
+ * leads. The fallbacks keep a caller that skipped the canonical id from
+ * crashing: an MBID or Lidarr id matches nothing and reads as an empty
+ * track list.
+ */
+export function libraryTracksRef({
+  albumId,
+  albumMbid,
+  canonicalAlbumId,
+}: AlbumReference) {
+  return canonicalAlbumId || albumMbid || albumId;
 }

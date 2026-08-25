@@ -11,20 +11,8 @@ export type ArtistStatistics = {
   sizeOnDisk: number;
 };
 
-/**
- * Which database the server reads from. The default (legacy) path reads from
- * Lidarr. The canonical path reads from the canonical library, a dedicated
- * database of owned artists, albums, and tracks. The server added it in 2.5.0.
- */
-export type LibraryReadPath = "canonical";
-
-/** Which scanner owns the records. Canonical read path only. */
+/** Which scanner owns the records in the canonical library. */
 export type LibrarySource = "aurral" | "lidarr" | "all";
-
-export type LibraryReadOptions = {
-  readPath?: LibraryReadPath;
-  source?: LibrarySource;
-};
 
 export type Artist = {
   id: string;
@@ -213,6 +201,7 @@ export type CanonicalArtistMetadata = {
 /** The page route derives an album's `coverUrl` from `images`. */
 export type CanonicalAlbumMetadata = {
   librarySource?: "lidarr";
+  monitored?: boolean;
   images?: CanonicalMetadataImage[];
   tags?: CanonicalFileTags;
 };
@@ -325,9 +314,9 @@ export type CanonicalTrackItem = {
 };
 
 /**
- * A canonical page after getCanonicalLibraryPage mapped it. `artists` carries
- * the legacy shape the screens read. `albums` and `tracks` are still the raw
- * canonical rows — no caller reads them yet, so nothing maps them.
+ * A canonical page after getCanonicalLibraryPage mapped it. Every collection
+ * carries the legacy shape the screens read; nothing above the API layer
+ * sees a raw canonical row.
  *
  * On album and track pages, `artists` holds the related artists for the page
  * items. The server sends those without counts, so their statistics map to
@@ -340,8 +329,8 @@ export type CanonicalPage = {
   total: number;
   hasMore: boolean;
   artists: Artist[];
-  albums: CanonicalAlbumItem[];
-  tracks: CanonicalTrackItem[];
+  albums: Album[];
+  tracks: Track[];
   genres?: CanonicalGenre[];
 };
 
