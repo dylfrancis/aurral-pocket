@@ -9,10 +9,12 @@ import type {
   ArtistTag,
   PreviewTrack,
   DownloadStatusMap,
+  CanonicalAlbumItem,
   CanonicalArtistItem,
   CanonicalPage,
   CanonicalPageParams,
-  LibraryReadOptions,
+  CanonicalTrackFile,
+  CanonicalTrackItem,
   LibraryScanJob,
   LibraryScanStatus,
 } from "@/lib/types/library";
@@ -24,29 +26,6 @@ type ArtistDetailsResponse = {
 };
 
 /**
- * Build the opt-in query parameters for the canonical read path. Returns an
- * empty object on the legacy path so those requests stay byte-identical.
- *
- * `source` defaults to "all" because the server defaults it per route, and the
- * defaults disagree: /library/albums and /library/artists default to "all",
- * while the read adapter defaults to "lidarr". Sending it explicitly removes
- * the ambiguity.
- */
-function readPathParams(options: LibraryReadOptions = {}) {
-  if (options.readPath !== "canonical") return {};
-  return { readPath: "canonical", source: options.source ?? "all" };
-}
-
-export async function getLibraryArtists(options: LibraryReadOptions = {}) {
-  const params = readPathParams(options);
-  const r =
-    Object.keys(params).length > 0
-      ? await api.get<Artist[]>("/library/artists", { params })
-      : await api.get<Artist[]>("/library/artists");
-  return r.data;
-}
-
-/**
  * The server has no canonical route for a single artist, so this always reads
  * the legacy path. Artists that exist only in the canonical library return 404,
  * and artists whose id is not a UUID return 400.
@@ -56,39 +35,13 @@ export async function getLibraryArtist(mbid: string) {
   return r.data;
 }
 
-/**
- * On the canonical read path the server matches `artistId` against the
- * canonical artist id or the artist MBID. A Lidarr artist id matches neither,
- * so canonical callers must pass a canonical id or an MBID.
- */
-export async function getLibraryAlbums(
-  artistId: string,
-  options: LibraryReadOptions = {},
-) {
-  const r = await api.get<Album[]>("/library/albums", {
-    params: { artistId, ...readPathParams(options) },
-  });
-  return r.data;
-}
-
-/**
- * On the canonical read path the server matches `albumId` against the
- * canonical album id, its MBID, or its foreign album id, and returns only
- * albums that have files. Responses carry `streamPath` instead of a
- * filesystem path.
- */
-export async function getLibraryTracks(
-  albumId: string,
-  options: LibraryReadOptions = {},
-) {
-  const r = await api.get<Track[]>("/library/tracks", {
-    params: { albumId, ...readPathParams(options) },
-  });
-  return r.data;
-}
-
-type CanonicalPageWire = Omit<CanonicalPage, "artists"> & {
+type CanonicalPageWire = Omit<
+  CanonicalPage,
+  "artists" | "albums" | "tracks"
+> & {
   artists?: CanonicalArtistItem[];
+  albums?: CanonicalAlbumItem[];
+  tracks?: CanonicalTrackItem[];
 };
 
 /**
@@ -120,6 +73,104 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
     },
     sources: item.sources,
     available: item.available,
+  };
+}
+
+/**
+ * The field choices mirror the server's own read adapter (buildAlbum in
+ * backend/services/canonicalLibraryReadAdapter.js), with one deviation:
+ * percentOfTracks is the real file ratio from the counts the page route
+ * adds, because the screens shipped against Lidarr's real percentages and
+ * useResearchMissingAlbums reads partial progress from it.
+ */
+function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
+  const metadata = item.metadata ?? {};
+  const trackCount = item.trackCount ?? 0;
+  const trackFileCount = item.availableTrackCount ?? 0;
+  return {
+    id: String(item.id),
+    canonicalId: String(item.id),
+    artistId: item.artistId != null ? String(item.artistId) : "",
+    artistName: item.albumArtist ?? "",
+    mbid: item.mbid ?? item.releaseGroupMbid ?? "",
+    foreignAlbumId:
+      item.mbid ?? item.releaseGroupMbid ?? item.identityKey ?? String(item.id),
+    albumName: item.title ?? "",
+    title: item.title ?? "",
+    releaseDate: item.releaseDate ?? null,
+    monitored: metadata.monitored === true,
+    statistics: {
+      trackCount,
+      trackFileCount,
+      sizeOnDisk: 0,
+      percentOfTracks:
+        trackCount > 0 ? Math.round((trackFileCount / trackCount) * 100) : 0,
+    },
+    sources: item.sources,
+    available: item.available,
+  };
+}
+
+/**
+ * Pick the file that represents a track on one album: an available file
+ * scoped to that album, then an available unscoped file, then any file.
+ * Mirrors firstAvailableFile in the server's read adapter.
+ */
+function firstAvailableFile(
+  item: CanonicalTrackItem,
+  albumId: string | undefined,
+): CanonicalTrackFile | null {
+  const files = item.files ?? [];
+  const scoped = files.filter(
+    (file) => file.albumId != null && String(file.albumId) === albumId,
+  );
+  const unscoped = files.filter((file) => file.albumId == null);
+  return (
+    scoped.find((file) => file.available) ??
+    unscoped.find((file) => file.available) ??
+    scoped[0] ??
+    unscoped[0] ??
+    null
+  );
+}
+
+/**
+ * The field choices mirror the server's own read adapter (buildTrack in
+ * backend/services/canonicalLibraryReadAdapter.js), and streamPath mirrors
+ * the canonical branch of GET /library/tracks. This is the one place the
+ * client knows the canonical-stream route shape; the paged route sends raw
+ * files instead of a streamPath, so the client has to derive it. One
+ * deviation from buildTrack: quality maps to the recorded format string,
+ * because the legacy Track type declares `quality: string | null`.
+ */
+function canonicalTrackToTrack(
+  item: CanonicalTrackItem,
+  requestedAlbumId?: string,
+): Track {
+  const albumId =
+    requestedAlbumId ??
+    (item.albums?.[0] != null ? String(item.albums[0].albumId) : undefined);
+  const relation = (item.albums ?? []).find(
+    (entry) => String(entry.albumId) === albumId,
+  );
+  const file = firstAvailableFile(item, albumId);
+  const hasFile = file?.available === true;
+  return {
+    id: String(item.id),
+    mbid: item.mbid ?? "",
+    trackName: item.title ?? "",
+    title: item.title ?? "",
+    trackNumber: relation?.trackNumber ?? 0,
+    hasFile,
+    size: Number(file?.size ?? 0),
+    quality: file?.quality?.format ?? null,
+    streamPath:
+      hasFile && albumId
+        ? `/library/canonical-stream/${encodeURIComponent(albumId)}/${encodeURIComponent(String(item.id))}`
+        : null,
+    streamFormat: file?.format ?? null,
+    sources: item.sources,
+    available: hasFile,
   };
 }
 
@@ -157,7 +208,95 @@ export async function getCanonicalLibraryPage(
   return {
     ...r.data,
     artists: (r.data.artists ?? []).map(canonicalArtistToArtist),
+    albums: (r.data.albums ?? []).map(canonicalAlbumToAlbum),
+    tracks: (r.data.tracks ?? []).map((item) =>
+      canonicalTrackToTrack(item, params.albumId),
+    ),
   };
+}
+
+/**
+ * Find one canonical artist by walking the artist pages.
+ *
+ * The paged route matches artistId against the canonical numeric id only,
+ * and the screens hold an MBID, so the translation happens here. An MBID
+ * match wins as soon as a page contains it. A reference that matches no
+ * MBID falls back to a canonical-id match after the walk, because a
+ * file-scanned artist has no MBID and is addressed by its canonical id.
+ */
+async function findCanonicalArtist(artistRef: string): Promise<Artist | null> {
+  const seen: Artist[] = [];
+  let page = 1;
+  for (;;) {
+    const result = await getCanonicalLibraryPage({
+      kind: "artists",
+      source: "all",
+      page,
+    });
+    const byMbid = result.artists.find(
+      (artist) => artist.mbid && artist.mbid === artistRef,
+    );
+    if (byMbid) return byMbid;
+    seen.push(...result.artists);
+    if (!result.hasMore) break;
+    page += 1;
+  }
+  return (
+    seen.find((artist) => (artist.canonicalId ?? artist.id) === artistRef) ??
+    null
+  );
+}
+
+/**
+ * Read every album of one artist from the paged canonical route.
+ *
+ * `artistRef` is an artist MBID, or a canonical artist id when the artist
+ * has no MBID. An artist the canonical library has not indexed yet reads as
+ * an empty list — the artist screen shows no albums and keeps polling.
+ */
+export async function getCanonicalArtistAlbums(
+  artistRef: string,
+): Promise<Album[]> {
+  const artist = await findCanonicalArtist(artistRef);
+  if (!artist) return [];
+  const artistId = artist.canonicalId ?? artist.id;
+  const albums: Album[] = [];
+  let page = 1;
+  for (;;) {
+    const result = await getCanonicalLibraryPage({
+      kind: "albums",
+      source: "all",
+      page,
+      artistId,
+    });
+    albums.push(...result.albums);
+    if (!result.hasMore) return albums;
+    page += 1;
+  }
+}
+
+/**
+ * Read every track of one canonical album, following the page cursor.
+ * Aurral 2.6 caps a canonical read at 100 items, and box sets exceed that.
+ * `canonicalAlbumId` must be the album's canonical id — the paged route
+ * matches nothing else.
+ */
+export async function getCanonicalAlbumTracks(
+  canonicalAlbumId: string,
+): Promise<Track[]> {
+  const tracks: Track[] = [];
+  let page = 1;
+  for (;;) {
+    const result = await getCanonicalLibraryPage({
+      kind: "tracks",
+      source: "all",
+      page,
+      albumId: canonicalAlbumId,
+    });
+    tracks.push(...result.tracks);
+    if (!result.hasMore) return tracks;
+    page += 1;
+  }
 }
 
 /** Queue a rescan of the canonical library. Returns 202 with a job id. */

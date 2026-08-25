@@ -147,8 +147,8 @@
           "activeBaseUrl": "string",
           "configuredProvider": "string",
           "failoverActive": "boolean",
-          "lastCheckedAt": "string",
-          "lastFailureAt": "string",
+          "lastCheckedAt": "null",
+          "lastFailureAt": "null",
           "lastFailureReason": "string",
           "lastSuccessAt": "null"
         }
@@ -227,7 +227,6 @@
       },
       "ytdlpConfigured": "boolean"
     },
-    "GET /library/artists": [],
     "GET /library/canonical": {
       "albums": [],
       "artists": [],
@@ -242,7 +241,6 @@
     },
     "GET /library/recent": [],
     "GET /library/recent-releases": [],
-    "GET /library/tracks": [],
     "GET /playlists/status": {
       "capabilities": {
         "availableSources": [],
