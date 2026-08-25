@@ -213,10 +213,81 @@ export type CanonicalArtistItem = {
 };
 
 /**
+ * One media file on a canonical track. The server strips every key that ends
+ * in "path" from this route, so a file never carries its filesystem path.
+ */
+export type CanonicalTrackFile = {
+  id: number | string;
+  albumId?: number | string | null;
+  source?: LibrarySource;
+  format?: string | null;
+  size?: number | null;
+  mtimeMs?: number | null;
+  durationMs?: number | null;
+  quality?: Record<string, unknown> | null;
+  available?: boolean;
+};
+
+/**
+ * One album as GET /library/canonical returns it: the raw canonical library
+ * row. It does not match the legacy Album type — map it before treating it as
+ * one. `trackCount`, `availableTrackCount`, and `coverUrl` are added by the
+ * page route on top of the stored row.
+ */
+export type CanonicalAlbumItem = {
+  id: number | string;
+  identityKey?: string;
+  mbid?: string | null;
+  releaseGroupMbid?: string | null;
+  artistId?: number | string;
+  title?: string;
+  albumArtist?: string | null;
+  releaseDate?: string | null;
+  metadata?: Record<string, unknown> | null;
+  trackIds?: (number | string)[];
+  sources?: LibrarySource[];
+  available?: boolean;
+  trackCount?: number;
+  availableTrackCount?: number;
+  /** An image-proxy URL derived from the metadata images; null without one. */
+  coverUrl?: string | null;
+  /** Present when the request is authenticated. */
+  userFavorite?: boolean;
+};
+
+/**
+ * One track as GET /library/canonical returns it: the raw canonical library
+ * row. It does not match the legacy Track type — map it before treating it as
+ * one. A track can appear on several albums; `albums` carries its position on
+ * each.
+ */
+export type CanonicalTrackItem = {
+  id: number | string;
+  identityKey?: string;
+  mbid?: string | null;
+  title?: string;
+  artistName?: string;
+  metadata?: Record<string, unknown> | null;
+  albums?: {
+    albumId: number | string;
+    discNumber?: number | null;
+    trackNumber?: number | null;
+  }[];
+  files?: CanonicalTrackFile[];
+  sources?: LibrarySource[];
+  available?: boolean;
+  /** Present when the request is authenticated. */
+  userFavorite?: boolean;
+};
+
+/**
  * A canonical page after getCanonicalLibraryPage mapped it. `artists` carries
  * the legacy shape the screens read. `albums` and `tracks` are still the raw
- * canonical rows — they do not match the legacy Album and Track types, so
- * they stay `unknown[]` until a caller needs them and maps them the same way.
+ * canonical rows — no caller reads them yet, so nothing maps them.
+ *
+ * On album and track pages, `artists` holds the related artists for the page
+ * items. The server sends those without counts, so their statistics map to
+ * zero.
  */
 export type CanonicalPage = {
   kind: CanonicalPageKind;
@@ -225,8 +296,8 @@ export type CanonicalPage = {
   total: number;
   hasMore: boolean;
   artists: Artist[];
-  albums: unknown[];
-  tracks: unknown[];
+  albums: CanonicalAlbumItem[];
+  tracks: CanonicalTrackItem[];
   genres?: CanonicalGenre[];
 };
 
