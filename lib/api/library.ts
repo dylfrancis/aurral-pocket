@@ -87,14 +87,11 @@ export async function getLibraryTracks(
   return r.data;
 }
 
-/** The response as the server sends it, before the artists are mapped. */
 type CanonicalPageWire = Omit<CanonicalPage, "artists"> & {
   artists?: CanonicalArtistItem[];
 };
 
 /**
- * Map a raw canonical artist row to the legacy shape the screens read.
- *
  * The field choices mirror the server's own read adapter
  * (canonicalArtistProjection in backend/services/libraryQueryService.js), so
  * both read paths present an artist the same way. A file-scanned artist can
@@ -134,8 +131,8 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
  * 100 is the server's cap, and was its default while the parameter was still
  * optional, so the fallback preserves the pre-2.6 page size.
  *
- * The route returns raw canonical rows, so the artists are mapped to the
- * legacy shape here — nothing above this function may see a raw row.
+ * Nothing above this function sees a raw canonical row — see
+ * CanonicalArtistItem.
  */
 export async function getCanonicalLibraryPage(
   params: CanonicalPageParams,

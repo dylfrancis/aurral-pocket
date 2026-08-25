@@ -167,10 +167,7 @@ export type CanonicalPageParams = {
   source?: LibrarySource;
   availableOnly?: boolean;
   page?: number;
-  /**
-   * The server caps this at 100 and rejects requests without it since Aurral
-   * 2.6.0; the client fills in 100 when the caller leaves it unset.
-   */
+  /** Capped at 100 by the server; getCanonicalLibraryPage fills it in when unset. */
   pageSize?: number;
   query?: string;
   genre?: string;
@@ -180,7 +177,6 @@ export type CanonicalPageParams = {
   albumId?: string;
 };
 
-/** The metadata JSON the canonical library stores per artist. */
 export type CanonicalArtistMetadata = {
   foreignArtistId?: string;
   monitored?: boolean;
@@ -191,10 +187,8 @@ export type CanonicalArtistMetadata = {
 /**
  * One artist as GET /library/canonical returns it: the raw canonical library
  * row. Unlike the read adapter behind /library/artists?readPath=canonical,
- * this route does not adapt rows to the legacy shape — the name lives in
- * `name` (there is no `artistName`), the counts are flat (no `statistics`),
- * and `id` is a number. getCanonicalLibraryPage maps these to `Artist` before
- * anything else sees them.
+ * this route does not adapt rows to the legacy shape. getCanonicalLibraryPage
+ * maps these to `Artist` before anything else sees them.
  */
 export type CanonicalArtistItem = {
   id: number | string;

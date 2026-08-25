@@ -8,23 +8,19 @@ import { useAuth } from "@/contexts/auth-context";
 import { getCanonicalLibraryPage } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 
-/** The server caps a canonical page at 100 items, so 100 is the fewest requests. */
+/** The server's page cap, so the drain takes the fewest requests. */
 const PAGE_SIZE = 100;
 
 /**
  * The artist list reads the canonical library through its paginated route.
  *
- * Aurral 2.6.0 bounded canonical reads: a request returns at most 100 items,
- * so one query cannot carry the whole library. The screen still needs every
- * artist — search, sort, and the alphabet index all run on the client over
- * the full list — so the hooks below drain the remaining pages eagerly. The
- * first page paints immediately and the rest stream in behind it.
+ * Aurral 2.6.0 bounded canonical reads, so one query cannot carry the whole
+ * library. The screen still needs every artist — search, sort, and the
+ * alphabet index all run on the client over the full list — so the hooks
+ * below drain the remaining pages eagerly.
  *
- * Known gap, accepted for this list: the canonical library is built from
- * media files, so an artist with no files yet (added a minute ago, still
- * downloading) is missing until a scan finds its first file. The artist
- * screen, albums, and tracks still read the legacy path — see
- * lib/library-read.ts.
+ * Known gap, accepted for this list: an artist with no files yet is missing
+ * until a scan finds its first file — see lib/library-read.ts.
  *
  * The server's page order is not depended on: the screen re-sorts the
  * flattened list, so pages may arrive in any order the server chooses.
@@ -47,8 +43,6 @@ function libraryArtistsInfiniteQueryOptions() {
 }
 
 /**
- * Fetch the next page as soon as the previous one lands.
- *
  * `cancelRefetch: false` lets two mounted consumers of this query share one
  * in-flight request instead of restarting each other's. The error guard
  * stops the loop when a page fails — React Query has already retried it —
