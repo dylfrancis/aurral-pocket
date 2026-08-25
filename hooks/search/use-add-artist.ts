@@ -33,11 +33,10 @@ export function useAddArtist(onSuccess?: () => void) {
     mutationFn: (params: AddArtistRequest) => addArtist(params),
     onSuccess: (data: AddArtistResponse) => {
       const artist = toArtist(data);
-      // The artists cache holds the canonical library's paginated shape, so
-      // the optimistic entry goes into the last loaded page; the list sorts
-      // client-side, so its position in the pages does not matter. The entry
-      // survives only until the next refetch: the canonical library omits
-      // artists that have no files yet, and this one was added seconds ago.
+      // Which page the optimistic entry lands in does not matter — the list
+      // sorts client-side. It survives only until the next refetch: the
+      // canonical library omits artists that have no files yet, and this one
+      // was added seconds ago.
       queryClient.setQueryData<InfiniteData<CanonicalPage>>(
         libraryKeys.artists(),
         (old) => {

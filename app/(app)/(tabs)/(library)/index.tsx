@@ -260,8 +260,6 @@ export default function LibraryScreen() {
           }}
           refreshControl={
             <RefreshControl
-              // Draining the next page also counts as refetching; without the
-              // guard the pull spinner stays visible for the whole drain.
               refreshing={isRefetching && !isFetchingNextPage}
               onRefresh={handleRefresh}
               tintColor={colors.brand}
