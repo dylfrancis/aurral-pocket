@@ -31,8 +31,20 @@ export function useAudioPreview() {
   const toggle = useCallback(
     async (trackId: string, previewUrl: string, meta: PreviewMetadata = {}) => {
       if (status.currentId === trackId) {
-        await (status.isPlaying ? pause() : resume());
-        return;
+        if (status.isPlaying) {
+          await pause();
+          return;
+        }
+        if (status.isPaused) {
+          await resume();
+          return;
+        }
+        // Still loading: the play is already on its way, so the tap has
+        // nothing to add. Restarting doubles the wait; pausing reads as
+        // broken. The row shows a spinner meanwhile.
+        if (status.isBuffering) return;
+        // Finished: the engine sits stopped at the end of the clip, and
+        // resuming there produces silence. Fall through and start it over.
       }
 
       await playItem({
@@ -45,7 +57,7 @@ export function useAudioPreview() {
         artwork: meta.artwork ?? null,
       });
     },
-    [status.currentId, status.isPlaying],
+    [status.currentId, status.isPlaying, status.isPaused, status.isBuffering],
   );
 
   return { playingId, loadingId, progress: status.progress, toggle, stop };

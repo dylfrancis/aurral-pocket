@@ -31,8 +31,17 @@ export function FlowAudioPreviewProvider({
   const toggle = useCallback(
     async (jobId: string) => {
       if (status.currentId === jobId) {
-        await (status.isPlaying ? pause() : resume());
-        return;
+        if (status.isPlaying) {
+          await pause();
+          return;
+        }
+        if (status.isPaused) {
+          await resume();
+          return;
+        }
+        // Loading: the play is already on its way. Finished: the engine sits
+        // stopped at the end, so fall through and start the job over.
+        if (status.isBuffering) return;
       }
 
       const url = getFlowStreamUrl(jobId);
@@ -48,7 +57,7 @@ export function FlowAudioPreviewProvider({
         artwork: null,
       });
     },
-    [status.currentId, status.isPlaying],
+    [status.currentId, status.isPlaying, status.isPaused, status.isBuffering],
   );
 
   const stop = useCallback(() => {

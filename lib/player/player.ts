@@ -96,6 +96,13 @@ export type PlayerStatus = {
   currentId: string | null;
   isPlaying: boolean;
   isBuffering: boolean;
+  /**
+   * Paused mid-item, so resume continues it. A finished item is not paused:
+   * the engine sits stopped at its end, and resuming there produces silence.
+   * A caller that sees the current id with every flag false must reload the
+   * item, not resume it.
+   */
+  isPaused: boolean;
   /** How far through the item, from 0 to 1. Zero while the length is unknown. */
   progress: number;
 };
@@ -107,6 +114,7 @@ export function usePlayerStatus(): PlayerStatus {
     currentId: state.currentTrack?.id ?? null,
     isPlaying: state.currentState === "playing",
     isBuffering: state.currentState === "buffering",
+    isPaused: state.currentState === "paused",
     progress:
       state.totalDuration > 0 ? state.currentPosition / state.totalDuration : 0,
   };

@@ -438,6 +438,7 @@ export function ArtistDetailLayout({
           tracks={preview.tracks ?? []}
           isLoading={preview.isLoading}
           playingId={preview.playingId}
+          loadingId={preview.loadingId}
           progress={preview.progress}
           onToggle={preview.toggle}
           onAddToPlaylist={canAddToPlaylist ? handleAddToPlaylist : undefined}

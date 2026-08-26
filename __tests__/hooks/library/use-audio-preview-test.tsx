@@ -96,6 +96,58 @@ describe("useAudioPreview", () => {
     expect(player.playSong).not.toHaveBeenCalled();
   });
 
+  it("replays a clip that already finished instead of resuming at its end", async () => {
+    // After a clip ends the engine sits stopped at the final position with
+    // the track still current. Resuming there produces silence, which reads
+    // as "the button is broken". A finished clip starts over.
+    nowPlaying.mockReturnValue({
+      ...IDLE,
+      currentTrack: {
+        id: "track-1",
+        title: "",
+        artist: "",
+        album: "",
+        duration: 0,
+        url: "",
+      },
+      currentState: "stopped",
+    });
+    const { result } = await renderHook(() => useAudioPreview());
+
+    await act(async () => {
+      await result.current.toggle("track-1", "https://preview.example/1.mp3");
+    });
+
+    expect(player.playSong).toHaveBeenCalledWith("track-1", "playlist-1");
+    expect(player.play).not.toHaveBeenCalled();
+  });
+
+  it("ignores a tap on the clip that is still loading", async () => {
+    // The load is already in flight. Restarting it doubles the wait, and
+    // pausing it reads as broken. The row shows a spinner instead.
+    nowPlaying.mockReturnValue({
+      ...IDLE,
+      currentTrack: {
+        id: "track-1",
+        title: "",
+        artist: "",
+        album: "",
+        duration: 0,
+        url: "",
+      },
+      currentState: "buffering",
+    });
+    const { result } = await renderHook(() => useAudioPreview());
+
+    await act(async () => {
+      await result.current.toggle("track-1", "https://preview.example/1.mp3");
+    });
+
+    expect(player.playSong).not.toHaveBeenCalled();
+    expect(player.play).not.toHaveBeenCalled();
+    expect(player.pause).not.toHaveBeenCalled();
+  });
+
   it("reports which clip is sounding and how far it has run", async () => {
     sounding("track-1");
 
