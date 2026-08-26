@@ -105,6 +105,36 @@ describe("playItem", () => {
     expect(player.playSong).toHaveBeenCalledWith("preview-9", "playlist-1");
   });
 
+  it("keeps rapid plays in order, so the last tap wins", async () => {
+    // Taps are not awaited by the UI. Without serialization two overlapping
+    // plays interleave: one adds its track to the other's playlist, or plays
+    // against a playlist that was just deleted — and the first tap can finish
+    // last, ending playback on the wrong track.
+    let resolveFirst!: (id: string) => void;
+    queue.createPlaylist
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce("playlist-2");
+
+    const first = playItem(clip);
+    const second = playItem({ ...clip, id: "clip-2" });
+    await new Promise((resolve) => setImmediate(resolve));
+    resolveFirst("playlist-1");
+    await Promise.all([first, second]);
+
+    expect(queue.addTracksToPlaylist).toHaveBeenNthCalledWith(1, "playlist-1", [
+      expect.objectContaining({ id: "preview-9" }),
+    ]);
+    expect(queue.addTracksToPlaylist).toHaveBeenNthCalledWith(2, "playlist-2", [
+      expect.objectContaining({ id: "clip-2" }),
+    ]);
+    expect(player.playSong).toHaveBeenLastCalledWith("clip-2", "playlist-2");
+  });
+
   it("replaces what is playing rather than stacking playlists", async () => {
     // One engine holds one thing, so a clip and a library track cannot sound
     // at the same time. Starting either one ends the other.

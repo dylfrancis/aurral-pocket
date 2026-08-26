@@ -26,6 +26,7 @@ const PLAYLIST_NAME = "Aurral";
 
 let currentPlaylistId: string | null = null;
 let configureOnce: Promise<void> | null = null;
+let lastPlay: Promise<void> = Promise.resolve();
 
 function configureEngine(): Promise<void> {
   configureOnce ??= TrackPlayer.configure({
@@ -40,17 +41,29 @@ function configureEngine(): Promise<void> {
 /**
  * Play one item, replacing whatever is playing. Callers that hold a library
  * track should use playTrack instead.
+ *
+ * Taps are not awaited by the UI, so overlapping calls are chained: each
+ * replacement runs whole, and the last tap wins. Interleaved, one call could
+ * play against a playlist another call just deleted.
  */
-export async function playItem(item: PlayerTrack): Promise<void> {
+export function playItem(item: PlayerTrack): Promise<void> {
+  const run = lastPlay.then(() => replaceAndPlay(item));
+  // A failed play must not wedge every later one.
+  lastPlay = run.catch(() => {});
+  return run;
+}
+
+async function replaceAndPlay(item: PlayerTrack): Promise<void> {
   await configureEngine();
 
   if (currentPlaylistId) {
     await PlayerQueue.deletePlaylist(currentPlaylistId);
   }
-  currentPlaylistId = await PlayerQueue.createPlaylist(PLAYLIST_NAME);
-  await PlayerQueue.addTracksToPlaylist(currentPlaylistId, [item]);
-  await PlayerQueue.loadPlaylist(currentPlaylistId);
-  await TrackPlayer.playSong(item.id, currentPlaylistId);
+  const playlistId = await PlayerQueue.createPlaylist(PLAYLIST_NAME);
+  currentPlaylistId = playlistId;
+  await PlayerQueue.addTracksToPlaylist(playlistId, [item]);
+  await PlayerQueue.loadPlaylist(playlistId);
+  await TrackPlayer.playSong(item.id, playlistId);
   // playSong only cues. Without an explicit play() the track sits silent on
   // the lock screen until the user presses play there.
   await TrackPlayer.play();
