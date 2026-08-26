@@ -40,12 +40,28 @@ jest.mock("react-native-nitro-player", () => ({
     deletePlaylist: jest.fn(() => Promise.resolve()),
     addTracksToPlaylist: jest.fn(() => Promise.resolve()),
     loadPlaylist: jest.fn(() => Promise.resolve()),
+    reorderTrackInPlaylist: jest.fn(() => Promise.resolve()),
   },
   TrackPlayer: {
     configure: jest.fn(() => Promise.resolve()),
     playSong: jest.fn(() => Promise.resolve()),
     play: jest.fn(() => Promise.resolve()),
     pause: jest.fn(() => Promise.resolve()),
+    skipToNext: jest.fn(() => Promise.resolve()),
+    skipToPrevious: jest.fn(() => Promise.resolve()),
+    seek: jest.fn(() => Promise.resolve()),
+    setRepeatMode: jest.fn(() => Promise.resolve()),
+    getState: jest.fn(() =>
+      Promise.resolve({
+        currentTrack: null,
+        currentPosition: 0,
+        totalDuration: 0,
+        currentState: "stopped",
+        currentPlaylistId: null,
+        currentIndex: -1,
+        currentPlayingType: "not-playing",
+      }),
+    ),
   },
   useNowPlaying: jest.fn(() => ({
     currentTrack: null,
@@ -56,6 +72,17 @@ jest.mock("react-native-nitro-player", () => ({
     currentIndex: -1,
     currentPlayingType: "not-playing",
   })),
+}));
+
+// The player facade deep-imports the engine's callback manager (see
+// lib/player/player.ts). Under Jest that path resolves to the real file — and
+// the real native engine behind it — so it is mocked separately here.
+jest.mock("react-native-nitro-player/src/hooks/callbackManager", () => ({
+  callbackManager: {
+    subscribeToTrackChange: jest.fn(() => () => {}),
+    subscribeToPlaybackState: jest.fn(() => () => {}),
+    subscribeToPlaybackProgressChange: jest.fn(() => () => {}),
+  },
 }));
 
 jest.mock("burnt", () => ({

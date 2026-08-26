@@ -11,12 +11,26 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
-import { pause, playItem, playTrack, resume } from "@/lib/player/player";
+import {
+  next,
+  onProgress,
+  onTrackCompleted,
+  onTrackStarted,
+  pause,
+  previous,
+  playAlbumFromTrack,
+  playItem,
+  resume,
+  setRepeatMode,
+  setShuffle,
+} from "@/lib/player/player";
 import type { Track } from "@/lib/types/library";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
+import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
 
 const queue = PlayerQueue as jest.Mocked<typeof PlayerQueue>;
 const player = TrackPlayer as jest.Mocked<typeof TrackPlayer>;
+const manager = callbackManager as jest.Mocked<typeof callbackManager>;
 
 function track(overrides: Partial<Track> = {}): Track {
   return {
@@ -41,6 +55,21 @@ const album = {
   artworkUrl: "https://art.example/kid-a.jpg",
 };
 
+type EngineState = Awaited<ReturnType<typeof TrackPlayer.getState>>;
+
+function playerState(overrides: Partial<EngineState> = {}): EngineState {
+  return {
+    currentTrack: null,
+    currentPosition: 0,
+    totalDuration: 240,
+    currentState: "playing",
+    currentPlaylistId: "playlist-1",
+    currentIndex: 1,
+    currentPlayingType: "playlist",
+    ...overrides,
+  };
+}
+
 const clip = {
   id: "preview-9",
   title: "Idioteque",
@@ -58,40 +87,86 @@ beforeEach(() => {
   queue.createPlaylist.mockResolvedValue("playlist-1");
 });
 
-describe("playTrack", () => {
-  it("plays the track the engine was handed", async () => {
-    await expect(playTrack(track(), album)).resolves.toBe(true);
+describe("playAlbumFromTrack", () => {
+  it("queues the whole album in order and starts at the tapped track", async () => {
+    const albumTracks = [
+      track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
+      track({ id: "72", trackNumber: 2, streamPath: "/stream/12/72" }),
+      track({ id: "73", trackNumber: 3, streamPath: "/stream/12/73" }),
+    ];
+
+    await expect(
+      playAlbumFromTrack(albumTracks, albumTracks[1], album),
+    ).resolves.toBe(true);
 
     // The notification is what drives the lock screen and headset buttons.
     expect(player.configure).toHaveBeenCalledWith(
       expect.objectContaining({ showInNotification: true }),
     );
+    // The whole album enters the queue in order — not just the remainder —
+    // so previous can walk back past the tapped track and repeat-all cycles
+    // the full album.
     expect(queue.addTracksToPlaylist).toHaveBeenCalledWith("playlist-1", [
-      {
-        id: "77",
-        title: "Everything In Its Right Place",
-        artist: "Radiohead",
-        album: "Kid A",
-        duration: 0,
-        url: "https://test.example/api/library/canonical-stream/12/77?token=test-token-123",
-        artwork: "https://art.example/kid-a.jpg",
-      },
+      expect.objectContaining({ id: "71" }),
+      expect.objectContaining({ id: "72" }),
+      expect.objectContaining({ id: "73" }),
     ]);
     expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1");
-    expect(player.playSong).toHaveBeenCalledWith("77", "playlist-1");
-    // playSong only cues: the engine starts audio only when something was
-    // already playing. Without this call the track sits silent on the lock
-    // screen until the user presses play there.
+    expect(player.playSong).toHaveBeenCalledWith("72", "playlist-1");
     expect(player.play).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves the engine alone when Aurral cannot stream the track", async () => {
-    await expect(playTrack(track({ streamPath: null }), album)).resolves.toBe(
-      false,
+  it("keeps tracks without a file out of the queue", async () => {
+    const albumTracks = [
+      track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
+      track({ id: "72", trackNumber: 2, streamPath: null, hasFile: false }),
+      track({ id: "73", trackNumber: 3, streamPath: "/stream/12/73" }),
+    ];
+
+    await expect(
+      playAlbumFromTrack(albumTracks, albumTracks[0], album),
+    ).resolves.toBe(true);
+
+    expect(queue.addTracksToPlaylist).toHaveBeenCalledWith("playlist-1", [
+      expect.objectContaining({ id: "71" }),
+      expect.objectContaining({ id: "73" }),
+    ]);
+  });
+
+  it("queues just the tapped track when the list does not contain it", async () => {
+    // A stale or still-loading track list must not produce silence: playSong
+    // with an id that is not in the playlist plays nothing yet reports true.
+    const albumTracks = [
+      track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
+    ];
+    const tapped = track({
+      id: "99",
+      trackNumber: 9,
+      streamPath: "/stream/12/99",
+    });
+
+    await expect(playAlbumFromTrack(albumTracks, tapped, album)).resolves.toBe(
+      true,
     );
 
-    expect(player.playSong).not.toHaveBeenCalled();
+    expect(queue.addTracksToPlaylist).toHaveBeenCalledWith("playlist-1", [
+      expect.objectContaining({ id: "99" }),
+    ]);
+    expect(player.playSong).toHaveBeenCalledWith("99", "playlist-1");
+  });
+
+  it("leaves the engine alone when the tapped track has no file", async () => {
+    const albumTracks = [
+      track({ id: "71", trackNumber: 1, streamPath: null, hasFile: false }),
+      track({ id: "72", trackNumber: 2, streamPath: "/stream/12/72" }),
+    ];
+
+    await expect(
+      playAlbumFromTrack(albumTracks, albumTracks[0], album),
+    ).resolves.toBe(false);
+
     expect(queue.createPlaylist).not.toHaveBeenCalled();
+    expect(player.playSong).not.toHaveBeenCalled();
   });
 });
 
@@ -141,7 +216,7 @@ describe("playItem", () => {
     await playItem(clip);
     queue.createPlaylist.mockResolvedValue("playlist-2");
 
-    await playTrack(track(), album);
+    await playAlbumFromTrack([track()], track(), album);
 
     expect(queue.deletePlaylist).toHaveBeenCalledWith("playlist-1");
     expect(player.playSong).toHaveBeenLastCalledWith("77", "playlist-2");
@@ -159,5 +234,212 @@ describe("transport", () => {
     await resume();
 
     expect(player.play).toHaveBeenCalledTimes(1);
+  });
+
+  it("advances to the next queued track", async () => {
+    await next();
+
+    expect(player.skipToNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes back one track when the current one just started", async () => {
+    player.getState.mockResolvedValue(playerState({ currentPosition: 1 }));
+
+    await previous();
+
+    expect(player.skipToPrevious).toHaveBeenCalledTimes(1);
+    expect(player.seek).not.toHaveBeenCalled();
+  });
+
+  it("restarts the current track after three seconds of playback", async () => {
+    player.getState.mockResolvedValue(playerState({ currentPosition: 10 }));
+
+    await previous();
+
+    expect(player.seek).toHaveBeenCalledWith(0);
+    expect(player.skipToPrevious).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["off", "off"],
+    ["all", "Playlist"],
+    ["one", "track"],
+  ] as const)("repeat %s puts the engine in %s mode", async (mode, engine) => {
+    await setRepeatMode(mode);
+
+    expect(player.setRepeatMode).toHaveBeenCalledWith(engine);
+  });
+});
+
+describe("shuffle", () => {
+  // Twelve tracks: one already played, one current, ten upcoming. Ten because
+  // the shuffle is genuinely random — the odds of it reproducing the album
+  // order (a false failure below) are 1 in 10!, about one in 3.6 million.
+  const albumIds = Array.from({ length: 12 }, (_, i) => String(i + 1));
+  const albumTracks = albumIds.map((id) =>
+    track({ id, trackNumber: Number(id), streamPath: `/stream/12/${id}` }),
+  );
+
+  // A stateful stand-in for the engine playlist, so the tests assert on the
+  // order the queue ends up in — not on which reorder calls produced it.
+  let playlistIds: string[] = [];
+
+  beforeEach(async () => {
+    playlistIds = [];
+    queue.addTracksToPlaylist.mockImplementation((_, tracks) => {
+      // Each play builds a fresh playlist, so arrival replaces the old order.
+      playlistIds = tracks.map((t) => t.id);
+      return Promise.resolve();
+    });
+    queue.reorderTrackInPlaylist.mockImplementation((_, trackId, newIndex) => {
+      playlistIds.splice(playlistIds.indexOf(trackId), 1);
+      playlistIds.splice(newIndex, 0, trackId);
+      return Promise.resolve();
+    });
+
+    await playAlbumFromTrack(albumTracks, albumTracks[1], album);
+    // Track "2" is playing: "1" has been heard, "3" through "12" are upcoming.
+    player.getState.mockResolvedValue(
+      playerState({ currentTrack: { ...clip, id: "2" }, currentIndex: 1 }),
+    );
+  });
+
+  it("randomizes the upcoming order and leaves the current track alone", async () => {
+    await setShuffle(true);
+
+    expect(playlistIds.slice(0, 2)).toEqual(["1", "2"]);
+    expect([...playlistIds].sort()).toEqual([...albumIds].sort());
+    expect(playlistIds.slice(2)).not.toEqual(albumIds.slice(2));
+  });
+
+  it("restores the original order on unshuffle", async () => {
+    await setShuffle(true);
+
+    await setShuffle(false);
+
+    expect(playlistIds).toEqual(albumIds);
+  });
+
+  it("keeps shuffle on when a new play rebuilds the queue", async () => {
+    await setShuffle(true);
+
+    await playAlbumFromTrack(albumTracks, albumTracks[0], album);
+
+    expect(playlistIds[0]).toBe("1");
+    expect([...playlistIds].sort()).toEqual([...albumIds].sort());
+    expect(playlistIds.slice(1)).not.toEqual(albumIds.slice(1));
+
+    // And unshuffle still restores the new queue's album order.
+    await setShuffle(false);
+    expect(playlistIds).toEqual(albumIds);
+  });
+});
+
+describe("playback events", () => {
+  // The facade wires itself into the engine's callback manager once, on the
+  // first subscription. Capturing what it registered lets the tests play the
+  // engine's part. beforeAll runs before the clearAllMocks in the root
+  // beforeEach, so the registration calls are still recorded here.
+  let engine: {
+    trackChange: Parameters<typeof manager.subscribeToTrackChange>[0];
+    progress: Parameters<typeof manager.subscribeToPlaybackProgressChange>[0];
+    stateChange: Parameters<typeof manager.subscribeToPlaybackState>[0];
+  };
+
+  beforeAll(() => {
+    onTrackStarted(() => {})();
+    // The facade wires once per module. If an earlier subscription beat this
+    // one, clearAllMocks already wiped the calls and the captures below would
+    // throw a bare TypeError — fail with the cause instead.
+    expect(manager.subscribeToTrackChange).toHaveBeenCalledTimes(1);
+    engine = {
+      trackChange: manager.subscribeToTrackChange.mock.calls[0][0],
+      progress: manager.subscribeToPlaybackProgressChange.mock.calls[0][0],
+      stateChange: manager.subscribeToPlaybackState.mock.calls[0][0],
+    };
+  });
+
+  it("emits track-started when the engine moves onto a track", () => {
+    const started: string[] = [];
+    const unsubscribe = onTrackStarted((track) => started.push(track.id));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+
+    expect(started).toEqual(["42"]);
+    unsubscribe();
+  });
+
+  it("emits progress against the track that is playing", () => {
+    const seen: { trackId: string; position: number; duration: number }[] = [];
+    const unsubscribe = onProgress((progress) => seen.push(progress));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+    engine.progress(30, 240, false);
+
+    expect(seen).toEqual([{ trackId: "42", position: 30, duration: 240 }]);
+    unsubscribe();
+  });
+
+  it("emits track-completed when a track plays to its end", () => {
+    const completed: string[] = [];
+    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+    // The engine reports the end of one track as the start of the next,
+    // reason "end".
+    engine.trackChange({ ...clip, id: "43" }, "end");
+
+    expect(completed).toEqual(["42"]);
+    unsubscribe();
+  });
+
+  it("does not complete a track the listener skipped away from", () => {
+    const completed: string[] = [];
+    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+    engine.trackChange({ ...clip, id: "43" }, "skip");
+
+    expect(completed).toEqual([]);
+    unsubscribe();
+  });
+
+  it("completes the last track when the queue runs out", () => {
+    const completed: string[] = [];
+    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+    // No next track to change onto — the engine just stops, reason "end".
+    engine.stateChange("stopped", "end");
+
+    expect(completed).toEqual(["42"]);
+    unsubscribe();
+  });
+
+  it("completes the last track when the engine only pauses at its end", () => {
+    // iOS never reports the queue running out: the player pauses at the final
+    // track's end with no reason, exactly like a user pause. The position
+    // tells them apart.
+    const completed: string[] = [];
+    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+    engine.progress(239.2, 240, false);
+    engine.stateChange("paused", undefined);
+
+    expect(completed).toEqual(["42"]);
+    unsubscribe();
+  });
+
+  it("does not complete a track paused midway", () => {
+    const completed: string[] = [];
+    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+    engine.progress(120, 240, false);
+    engine.stateChange("paused", undefined);
+
+    expect(completed).toEqual([]);
+    unsubscribe();
   });
 });
