@@ -54,7 +54,6 @@
       "expo-font",
       "expo-image",
       "expo-web-browser",
-      "expo-audio",
       "expo-status-bar",
       "expo-asset",
       [
@@ -69,7 +68,8 @@
         {
           "microphonePermission": "Allow Aurral to use the microphone to identify the song playing around you."
         }
-      ]
+      ],
+      "./plugins/with-background-audio.js"
     ],
     "experiments": {
       "typedRoutes": true,

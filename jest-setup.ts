@@ -31,6 +31,33 @@ jest.mock("@/modules/shazam", () => ({
   addLevelListener: jest.fn(() => null),
 }));
 
+// The audio engine builds its native objects at import time, which throws
+// under Jest. Mock the whole module so any importer is safe. The player facade
+// test drives these same functions.
+jest.mock("react-native-nitro-player", () => ({
+  PlayerQueue: {
+    createPlaylist: jest.fn(() => Promise.resolve("playlist-1")),
+    deletePlaylist: jest.fn(() => Promise.resolve()),
+    addTracksToPlaylist: jest.fn(() => Promise.resolve()),
+    loadPlaylist: jest.fn(() => Promise.resolve()),
+  },
+  TrackPlayer: {
+    configure: jest.fn(() => Promise.resolve()),
+    playSong: jest.fn(() => Promise.resolve()),
+    play: jest.fn(() => Promise.resolve()),
+    pause: jest.fn(() => Promise.resolve()),
+  },
+  useNowPlaying: jest.fn(() => ({
+    currentTrack: null,
+    currentPosition: 0,
+    totalDuration: 0,
+    currentState: "stopped",
+    currentPlaylistId: null,
+    currentIndex: -1,
+    currentPlayingType: "not-playing",
+  })),
+}));
+
 jest.mock("burnt", () => ({
   toast: jest.fn(),
   alert: jest.fn(),

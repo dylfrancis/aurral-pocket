@@ -8,23 +8,32 @@ import type { Track } from "@/lib/types/library";
 
 type TrackRowProps = {
   track: Track;
+  onPress?: () => void;
   onLongPress?: () => void;
 };
 
 export const TrackRow = React.memo(function TrackRow({
   track,
+  onPress,
   onLongPress,
 }: TrackRowProps) {
   const colors = Colors[useColorScheme()];
 
+  // A track without a streamPath has no file Aurral can read, so it cannot
+  // play. That includes a track Lidarr owns while Aurral has no path to it,
+  // which still shows a checkmark. Tapping such a row does nothing.
+  const playable = !!track.streamPath && !!onPress;
+  const interactive = playable || !!onLongPress;
+
   return (
     <Pressable
+      onPress={playable ? onPress : undefined}
       onLongPress={onLongPress}
-      disabled={!onLongPress}
+      disabled={!interactive}
       style={({ pressed }) => [
         styles.row,
         { borderBottomColor: colors.separator },
-        pressed && onLongPress ? { opacity: 0.6 } : null,
+        pressed && interactive ? { opacity: 0.6 } : null,
       ]}
     >
       <Text variant="caption" style={[styles.number, { color: colors.subtle }]}>

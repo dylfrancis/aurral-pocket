@@ -24,6 +24,7 @@ import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import { triggerAlbumSearch, deleteAlbum } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import { libraryAlbumsRef, libraryTracksRef } from "@/lib/library-read";
+import { playTrack } from "@/lib/player/player";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import * as Haptics from "expo-haptics";
@@ -237,14 +238,14 @@ export function AlbumSheet({
                 >
                   Tracks
                 </Text>
-                {canAddTracks ? (
-                  <Text
-                    variant="caption"
-                    style={[styles.trackHint, { color: colors.subtle }]}
-                  >
-                    Long-press a track to add it to a playlist.
-                  </Text>
-                ) : null}
+                <Text
+                  variant="caption"
+                  style={[styles.trackHint, { color: colors.subtle }]}
+                >
+                  {canAddTracks
+                    ? "Tap a track to play it. Long-press to add it to a playlist."
+                    : "Tap a track to play it."}
+                </Text>
                 {isLoading ? (
                   <ActivityIndicator
                     style={styles.loader}
@@ -255,6 +256,13 @@ export function AlbumSheet({
                     <TrackRow
                       key={track.id}
                       track={track}
+                      onPress={() =>
+                        void playTrack(track, {
+                          albumTitle: album.albumName,
+                          artistName: artistName ?? album.artistName,
+                          artworkUrl: null,
+                        })
+                      }
                       onLongPress={
                         canAddTracks
                           ? () =>

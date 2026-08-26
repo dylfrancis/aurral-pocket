@@ -14,8 +14,8 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
 // Imported from the hook modules, not the @/hooks/flow barrel: the barrel
-// pulls in use-flow-audio-preview and with it expo-audio, which artist-page
-// consumers of this sheet do not otherwise load.
+// pulls in use-flow-audio-preview and with it the audio engine, which
+// artist-page consumers of this sheet do not otherwise load.
 import {
   useAddSharedPlaylistTracks,
   useCreateSharedPlaylist,

@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, buildAuthenticatedUrl } from "./client";
 import type {
   Flow,
   FlowFormValues,
@@ -173,15 +173,15 @@ function authedSource(uri: string, token: string | null): FlowAuthedSource {
     : { uri };
 }
 
-export function getFlowStreamSource(
-  jobId: string,
-  token: string | null,
-): FlowAuthedSource {
-  const base = api.defaults.baseURL;
-  return authedSource(
-    `${base}${FLOW}/stream/${encodeURIComponent(jobId)}`,
-    token,
-  );
+/**
+ * The URL that streams a finished download job.
+ *
+ * The audio engine plays a URL and cannot attach an Authorization header, so
+ * the token travels in the query string here. Artwork still uses a header,
+ * because expo-image can send one. Returns null while signed out.
+ */
+export function getFlowStreamUrl(jobId: string): string | null {
+  return buildAuthenticatedUrl(`${FLOW}/stream/${encodeURIComponent(jobId)}`);
 }
 
 export function getFlowArtworkSource(
