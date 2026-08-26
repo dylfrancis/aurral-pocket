@@ -8,23 +8,31 @@ import type { Track } from "@/lib/types/library";
 
 type TrackRowProps = {
   track: Track;
+  onPress?: () => void;
   onLongPress?: () => void;
 };
 
 export const TrackRow = React.memo(function TrackRow({
   track,
+  onPress,
   onLongPress,
 }: TrackRowProps) {
   const colors = Colors[useColorScheme()];
 
+  // Every tap reaches the screen, unplayable tracks included — the screen
+  // explains why one cannot play. Swallowing it here would make an
+  // unplayable track look like a broken player.
+  const interactive = !!onPress || !!onLongPress;
+
   return (
     <Pressable
+      onPress={onPress}
       onLongPress={onLongPress}
-      disabled={!onLongPress}
+      disabled={!interactive}
       style={({ pressed }) => [
         styles.row,
         { borderBottomColor: colors.separator },
-        pressed && onLongPress ? { opacity: 0.6 } : null,
+        pressed && interactive ? { opacity: 0.6 } : null,
       ]}
     >
       <Text variant="caption" style={[styles.number, { color: colors.subtle }]}>

@@ -16,17 +16,29 @@ export function usePreviewPlayer(
     staleTime: 30 * 60 * 1000,
   });
 
-  const { playingId, progress, toggle: toggleAudio, stop } = useAudioPreview();
+  const {
+    playingId,
+    loadingId,
+    progress,
+    toggle: toggleAudio,
+    stop,
+  } = useAudioPreview();
 
   const toggle = useCallback(
-    (track: PreviewTrack) => toggleAudio(track.id, track.preview_url),
-    [toggleAudio],
+    (track: PreviewTrack) =>
+      toggleAudio(track.id, track.preview_url, {
+        title: track.title,
+        artist: artistName,
+        album: track.album ?? undefined,
+      }),
+    [artistName, toggleAudio],
   );
 
   return {
     tracks,
     isLoading,
     playingId,
+    loadingId,
     progress,
     toggle,
     stop,

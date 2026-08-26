@@ -1,108 +1,74 @@
-import {
-  createContext,
-  ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
-} from "expo-audio";
-import { useAuth } from "@/contexts/auth-context";
-import { getFlowStreamSource } from "@/lib/api/flow";
+import { createContext, ReactNode, useCallback, useContext } from "react";
+import { getFlowStreamUrl } from "@/lib/api/flow";
+import { pause, playItem, resume, usePlayerStatus } from "@/lib/player/player";
 
 type FlowAudioPreviewContextValue = {
   activeJobId: string | null;
   isPlaying: boolean;
   isLoading: boolean;
   progress: number;
-  toggle: (jobId: string) => void;
+  toggle: (jobId: string) => Promise<void>;
   stop: () => void;
 };
 
 const FlowAudioPreviewContext =
   createContext<FlowAudioPreviewContextValue | null>(null);
 
+/**
+ * Play a finished download job. Jobs run through the same engine as owned
+ * tracks and preview clips, so only one of them sounds at a time.
+ */
 export function FlowAudioPreviewProvider({
   children,
 }: {
   children: ReactNode;
 }) {
-  const { token } = useAuth();
-  const player = useAudioPlayer(null, { updateInterval: 500 });
-  const status = useAudioPlayerStatus(player);
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  const audioModeSet = useRef(false);
-
-  useEffect(() => {
-    if (status.didJustFinish) setActiveJobId(null);
-  }, [status.didJustFinish]);
+  const status = usePlayerStatus();
 
   const toggle = useCallback(
     async (jobId: string) => {
-      if (!token) return;
-      if (!audioModeSet.current) {
-        await setAudioModeAsync({ playsInSilentMode: true });
-        audioModeSet.current = true;
-      }
-      if (activeJobId === jobId) {
-        if (status.playing) {
-          player.pause();
-        } else {
-          player.play();
+      if (status.currentId === jobId) {
+        if (status.isPlaying) {
+          await pause();
+          return;
         }
-        return;
+        if (status.isPaused) {
+          await resume();
+          return;
+        }
+        // Loading: the play is already on its way. Finished: stopped at the
+        // end, so fall through and start the job over.
+        if (status.isBuffering) return;
       }
-      const source = getFlowStreamSource(jobId, token);
-      try {
-        player.replace(source);
-        player.play();
-        setActiveJobId(jobId);
-      } catch {
-        // ignore replace errors; cleared by user changing track
-      }
+
+      const url = getFlowStreamUrl(jobId);
+      if (!url) return;
+
+      await playItem({
+        id: jobId,
+        title: "Flow preview",
+        artist: "Aurral",
+        album: "Flow",
+        duration: 0,
+        url,
+        artwork: null,
+      });
     },
-    [activeJobId, player, status.playing, token],
+    [status.currentId, status.isPlaying, status.isPaused, status.isBuffering],
   );
 
   const stop = useCallback(() => {
-    try {
-      player.pause();
-    } catch {
-      // player may not be ready
-    }
-    setActiveJobId(null);
-  }, [player]);
+    void pause();
+  }, []);
 
-  useEffect(() => {
-    return () => {
-      try {
-        player.pause();
-      } catch {
-        // unmount path
-      }
-    };
-  }, [player]);
-
-  const progress =
-    status.duration > 0 ? status.currentTime / status.duration : 0;
-
-  const value = useMemo<FlowAudioPreviewContextValue>(
-    () => ({
-      activeJobId,
-      isPlaying: !!status.playing,
-      isLoading: !!status.isBuffering && !status.playing,
-      progress,
-      toggle,
-      stop,
-    }),
-    [activeJobId, status.playing, status.isBuffering, progress, toggle, stop],
-  );
+  const value: FlowAudioPreviewContextValue = {
+    activeJobId: status.currentId,
+    isPlaying: status.isPlaying,
+    isLoading: status.isBuffering,
+    progress: status.progress,
+    toggle,
+    stop,
+  };
 
   return (
     <FlowAudioPreviewContext.Provider value={value}>

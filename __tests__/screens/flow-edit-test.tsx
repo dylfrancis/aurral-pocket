@@ -1,3 +1,15 @@
+jest.mock("expo-secure-store", () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
+}));
+
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+}));
+
 jest.mock("@/lib/api/flow", () => ({
   getFlowStatus: jest.fn(),
   createFlow: jest.fn(),
@@ -12,7 +24,7 @@ jest.mock("@/lib/api/flow", () => ({
   setRetryCyclePaused: jest.fn(),
   getWorkerSettings: jest.fn(),
   updateWorkerSettings: jest.fn(),
-  getFlowStreamSource: jest.fn(),
+  getFlowStreamUrl: jest.fn(),
   getFlowArtworkSource: jest.fn(),
 }));
 
@@ -30,12 +42,6 @@ jest.mock("expo-haptics", () => ({
   notificationAsync: jest.fn(() => Promise.resolve()),
   ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
   NotificationFeedbackType: { Success: "success", Error: "error" },
-}));
-
-jest.mock("expo-audio", () => ({
-  setAudioModeAsync: jest.fn(() => Promise.resolve()),
-  useAudioPlayer: jest.fn(() => ({})),
-  useAudioPlayerStatus: jest.fn(() => ({})),
 }));
 
 jest.mock("expo-localization", () => ({

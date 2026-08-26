@@ -30,8 +30,7 @@ let baseURL = "";
 let authToken: string | null = null;
 let onSessionExpired: (() => void) | null = null;
 let onAuthRefreshed:
-  | ((token: string, userJson: string, expiresAt: number) => void)
-  | null = null;
+  ((token: string, userJson: string, expiresAt: number) => void) | null = null;
 let reAuthPromise: Promise<boolean> | null = null;
 let resolveModalReAuth: ((success: boolean) => void) | null = null;
 const defaultTimeoutMs = 60_000;
@@ -53,6 +52,18 @@ export function absolutizeImageUrl(
 
 export function setAuthToken(token: string | null) {
   authToken = token;
+}
+
+/**
+ * Build an absolute URL that authenticates itself. The audio engine plays a
+ * URL and cannot attach an Authorization header, so the session token travels
+ * in the query string — the same way the Aurral web player streams. Returns
+ * null when the token or the server address is missing, so a caller never
+ * hands the engine a URL the server answers with 401.
+ */
+export function buildAuthenticatedUrl(path: string): string | null {
+  if (!authToken || !baseURL) return null;
+  return buildUrl(path, { token: authToken });
 }
 
 export function setOnSessionExpired(cb: (() => void) | null) {

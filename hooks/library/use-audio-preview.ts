@@ -1,49 +1,61 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  useAudioPlayer,
-  useAudioPlayerStatus,
-  setAudioModeAsync,
-} from "expo-audio";
+import { useCallback } from "react";
+import { pause, playItem, resume, usePlayerStatus } from "@/lib/player/player";
 
+/** What the notification shows while a clip plays. */
+export type PreviewMetadata = {
+  title?: string;
+  artist?: string;
+  album?: string;
+  artwork?: string | null;
+};
+
+/**
+ * Play a thirty-second clip.
+ *
+ * Clips run through the same engine as owned tracks, so a clip and a library
+ * track can never sound at once: starting either one replaces the other. See
+ * lib/player/player.ts.
+ */
 export function useAudioPreview() {
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const player = useAudioPlayer(null);
-  const status = useAudioPlayerStatus(player);
-  const audioModeSet = useRef(false);
+  const status = usePlayerStatus();
 
-  const progress =
-    status.duration > 0 ? status.currentTime / status.duration : 0;
-
-  useEffect(() => {
-    if (status.didJustFinish) {
-      setPlayingId(null);
-    }
-  }, [status.didJustFinish]);
+  const playingId = status.isPlaying ? status.currentId : null;
+  // Rows show a spinner for this clip; a loading row that looks idle invites
+  // a second tap.
+  const loadingId = status.isBuffering ? status.currentId : null;
 
   const stop = useCallback(() => {
-    player.pause();
-    setPlayingId(null);
-  }, [player]);
+    void pause();
+  }, []);
 
   const toggle = useCallback(
-    async (trackId: string, previewUrl: string) => {
-      if (!audioModeSet.current) {
-        await setAudioModeAsync({ playsInSilentMode: true });
-        audioModeSet.current = true;
+    async (trackId: string, previewUrl: string, meta: PreviewMetadata = {}) => {
+      if (status.currentId === trackId) {
+        if (status.isPlaying) {
+          await pause();
+          return;
+        }
+        if (status.isPaused) {
+          await resume();
+          return;
+        }
+        // Loading: the play is already on its way. Finished: stopped at the
+        // end, so fall through and start the clip over.
+        if (status.isBuffering) return;
       }
 
-      if (playingId === trackId) {
-        player.pause();
-        setPlayingId(null);
-        return;
-      }
-
-      player.replace({ uri: previewUrl });
-      player.play();
-      setPlayingId(trackId);
+      await playItem({
+        id: trackId,
+        title: meta.title || "Preview",
+        artist: meta.artist || "Unknown Artist",
+        album: meta.album || "Unknown Album",
+        duration: 0,
+        url: previewUrl,
+        artwork: meta.artwork ?? null,
+      });
     },
-    [playingId, player],
+    [status.currentId, status.isPlaying, status.isPaused, status.isBuffering],
   );
 
-  return { playingId, progress, toggle, stop };
+  return { playingId, loadingId, progress: status.progress, toggle, stop };
 }

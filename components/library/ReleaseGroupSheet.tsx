@@ -88,6 +88,7 @@ export function ReleaseGroupSheet({
   // Preview player
   const {
     playingId,
+    loadingId,
     progress,
     toggle: toggleAudio,
     stop: stopPreview,
@@ -238,6 +239,7 @@ export function ReleaseGroupSheet({
                         track={track}
                         hasPreview={!!track.preview_url}
                         isPlaying={isPlaying}
+                        isLoading={loadingId === trackId}
                         progress={isPlaying ? progress : 0}
                         onToggle={() => togglePreview(track)}
                         onLongPress={
@@ -276,6 +278,7 @@ const ReleaseGroupTrackRow = React.memo(function ReleaseGroupTrackRow({
   track,
   hasPreview,
   isPlaying,
+  isLoading,
   progress,
   onToggle,
   onLongPress,
@@ -283,6 +286,7 @@ const ReleaseGroupTrackRow = React.memo(function ReleaseGroupTrackRow({
   track: ReleaseGroupTrack;
   hasPreview: boolean;
   isPlaying: boolean;
+  isLoading: boolean;
   progress: number;
   onToggle: () => void;
   onLongPress?: () => void;
@@ -315,12 +319,16 @@ const ReleaseGroupTrackRow = React.memo(function ReleaseGroupTrackRow({
             },
           ]}
         >
-          <Ionicons
-            name={isPlaying ? "pause" : "play"}
-            size={12}
-            color={isPlaying ? colors.buttonPrimaryText : colors.text}
-            style={isPlaying ? undefined : styles.playIcon}
-          />
+          {isLoading ? (
+            <ActivityIndicator size="small" color={colors.text} />
+          ) : (
+            <Ionicons
+              name={isPlaying ? "pause" : "play"}
+              size={12}
+              color={isPlaying ? colors.buttonPrimaryText : colors.text}
+              style={isPlaying ? undefined : styles.playIcon}
+            />
+          )}
         </Pressable>
       )}
       <View style={styles.trackMeta}>

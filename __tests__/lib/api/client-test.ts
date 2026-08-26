@@ -17,6 +17,7 @@ jest.mock("expo/fetch", () => ({
 import {
   ApiError,
   api,
+  buildAuthenticatedUrl,
   notifyReAuthResult,
   setAuthToken,
   setBaseUrl,
@@ -133,6 +134,35 @@ describe("auth token on outgoing requests", () => {
     expect(
       (init?.headers as Record<string, string>).Authorization,
     ).toBeUndefined();
+  });
+});
+
+describe("buildAuthenticatedUrl", () => {
+  it("carries the session token in the query string", () => {
+    setAuthToken("test-token-123");
+
+    expect(buildAuthenticatedUrl("/library/canonical-stream/1/2")).toBe(
+      "https://test.example/api/library/canonical-stream/1/2?token=test-token-123",
+    );
+  });
+
+  it("escapes a token that contains URL punctuation", () => {
+    setAuthToken("a+b/c=d");
+
+    expect(buildAuthenticatedUrl("/ping")).toBe(
+      "https://test.example/api/ping?token=a%2Bb%2Fc%3Dd",
+    );
+  });
+
+  it("returns null without a token, because the server would answer 401", () => {
+    expect(buildAuthenticatedUrl("/ping")).toBeNull();
+  });
+
+  it("returns null before the server address is known", () => {
+    setBaseUrl("");
+    setAuthToken("test-token-123");
+
+    expect(buildAuthenticatedUrl("/ping")).toBeNull();
   });
 });
 

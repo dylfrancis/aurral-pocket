@@ -11,6 +11,8 @@ type TopTracksSectionProps = {
   tracks: PreviewTrack[];
   isLoading?: boolean;
   playingId: string | null;
+  /** The clip the player is still downloading; its row shows a spinner. */
+  loadingId?: string | null;
   progress: number;
   onToggle: (track: PreviewTrack) => void;
   /** Rows show a "+" button on the right when this is set. */
@@ -21,6 +23,7 @@ export function TopTracksSection({
   tracks,
   isLoading,
   playingId,
+  loadingId,
   progress,
   onToggle,
   onAddToPlaylist,
@@ -53,6 +56,7 @@ export function TopTracksSection({
           key={track.id}
           track={track}
           isPlaying={playingId === track.id}
+          isLoading={loadingId === track.id}
           progress={playingId === track.id ? progress : 0}
           onToggle={() => {
             void Haptics.selectionAsync();

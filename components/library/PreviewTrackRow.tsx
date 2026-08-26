@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -9,6 +9,8 @@ import type { PreviewTrack } from "@/lib/types/library";
 type PreviewTrackRowProps = {
   track: PreviewTrack;
   isPlaying: boolean;
+  /** The clip is still downloading; the play button becomes a spinner. */
+  isLoading?: boolean;
   progress: number;
   onToggle: () => void;
   /** Shows a "+" button on the right of the row when set. */
@@ -18,6 +20,7 @@ type PreviewTrackRowProps = {
 export const PreviewTrackRow = React.memo(function PreviewTrackRow({
   track,
   isPlaying,
+  isLoading = false,
   progress,
   onToggle,
   onAdd,
@@ -38,12 +41,16 @@ export const PreviewTrackRow = React.memo(function PreviewTrackRow({
           { backgroundColor: isPlaying ? colors.brand : colors.separator },
         ]}
       >
-        <Ionicons
-          name={isPlaying ? "pause" : "play"}
-          size={14}
-          color={isPlaying ? colors.buttonPrimaryText : colors.text}
-          style={isPlaying ? undefined : styles.playIcon}
-        />
+        {isLoading ? (
+          <ActivityIndicator size="small" color={colors.text} />
+        ) : (
+          <Ionicons
+            name={isPlaying ? "pause" : "play"}
+            size={14}
+            color={isPlaying ? colors.buttonPrimaryText : colors.text}
+            style={isPlaying ? undefined : styles.playIcon}
+          />
+        )}
       </View>
       <View style={styles.meta}>
         <Text

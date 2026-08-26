@@ -3,44 +3,39 @@ jest.mock("@/lib/api/client", () => ({
     defaults: { baseURL: "https://example.com/api" },
     post: jest.fn(),
   },
+  buildAuthenticatedUrl: jest.fn(
+    (path: string) => `https://example.com/api${path}?token=secret`,
+  ),
 }));
 
-import { api } from "@/lib/api/client";
+import { api, buildAuthenticatedUrl } from "@/lib/api/client";
 import {
   addSharedPlaylistTracks,
   createSharedPlaylist,
-  getFlowStreamSource,
+  getFlowStreamUrl,
   getFlowArtworkSource,
 } from "@/lib/api/flow";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 
-describe("getFlowStreamSource", () => {
-  it("returns the stream URL with no headers when token is null", () => {
-    const source = getFlowStreamSource("job-1", null);
-    expect(source).toEqual({
-      uri: "https://example.com/api/playlists/stream/job-1",
-    });
-  });
-
-  it("attaches a Bearer Authorization header when a token is provided", () => {
-    const source = getFlowStreamSource("job-1", "secret");
-    expect(source).toEqual({
-      uri: "https://example.com/api/playlists/stream/job-1",
-      headers: { Authorization: "Bearer secret" },
-    });
-  });
-
-  it("does not put the token in the URL", () => {
-    const { uri } = getFlowStreamSource("job-1", "secret");
-    expect(uri).not.toContain("token=");
-    expect(uri).not.toContain("secret");
+describe("getFlowStreamUrl", () => {
+  it("returns a URL that authenticates itself", () => {
+    expect(getFlowStreamUrl("job-1")).toBe(
+      "https://example.com/api/playlists/stream/job-1?token=secret",
+    );
   });
 
   it("encodes the job id", () => {
-    const { uri } = getFlowStreamSource("job/1?weird", "secret");
-    expect(uri).toBe(
-      "https://example.com/api/playlists/stream/job%2F1%3Fweird",
+    getFlowStreamUrl("job/1?weird");
+
+    expect(buildAuthenticatedUrl).toHaveBeenCalledWith(
+      "/playlists/stream/job%2F1%3Fweird",
     );
+  });
+
+  it("returns null while signed out", () => {
+    (buildAuthenticatedUrl as jest.Mock).mockReturnValueOnce(null);
+
+    expect(getFlowStreamUrl("job-1")).toBeNull();
   });
 });
 
