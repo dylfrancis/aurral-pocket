@@ -377,6 +377,109 @@ describe("getCanonicalLibraryPage", () => {
     ]);
   });
 
+  it("falls back to Lidarr's statistics when Aurral cannot see the files", async () => {
+    // Aurral marks a Lidarr file available only when it can stat the path on
+    // its own filesystem. Without a shared mount every canonical count is 0,
+    // while Lidarr itself has the album complete. The web UI reads Lidarr's
+    // own statistics for its status dot; the mapper falls back the same way.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "albums",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [
+          {
+            id: 14,
+            identityKey: "album:unseen",
+            mbid: "mb-album-3",
+            releaseGroupMbid: "mb-rg-3",
+            artistId: 7,
+            title: "Unseen Album",
+            albumArtist: "Radiohead",
+            releaseDate: "2003-06-09",
+            metadata: {
+              monitored: true,
+              librarySource: "lidarr",
+              statistics: {
+                trackCount: 10,
+                trackFileCount: 10,
+                sizeOnDisk: 350000000,
+                percentOfTracks: 100,
+              },
+            },
+            trackCount: 10,
+            availableTrackCount: 0,
+            sources: ["lidarr"],
+            available: false,
+          },
+        ],
+        tracks: [],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({ kind: "albums" });
+    expect(page.albums[0].statistics).toEqual({
+      trackCount: 10,
+      trackFileCount: 0,
+      sizeOnDisk: 350000000,
+      percentOfTracks: 100,
+    });
+  });
+
+  it("keeps the canonical percent when it is larger than Lidarr's", async () => {
+    // An album Aurral downloaded itself can be more complete than Lidarr
+    // believes. The larger value wins, so an Aurral-only album never loses
+    // its real ratio to a stale Lidarr statistic.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "albums",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [
+          {
+            id: 15,
+            identityKey: "album:mixed",
+            mbid: "mb-album-4",
+            releaseGroupMbid: "mb-rg-4",
+            artistId: 7,
+            title: "Mixed Album",
+            albumArtist: "Radiohead",
+            releaseDate: "2011-02-18",
+            metadata: {
+              monitored: true,
+              librarySource: "lidarr",
+              statistics: {
+                trackCount: 4,
+                trackFileCount: 2,
+                sizeOnDisk: 90000000,
+                percentOfTracks: 50,
+              },
+            },
+            trackCount: 4,
+            availableTrackCount: 3,
+            sources: ["lidarr", "aurral"],
+            available: true,
+          },
+        ],
+        tracks: [],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({ kind: "albums" });
+    expect(page.albums[0].statistics).toEqual({
+      trackCount: 4,
+      trackFileCount: 3,
+      sizeOnDisk: 90000000,
+      percentOfTracks: 75,
+    });
+  });
+
   it("maps raw canonical track rows to the legacy Track shape", async () => {
     // Track pages are read per album. The mapper matches the track's album
     // link against the requested albumId for the track number, and derives
@@ -488,6 +591,48 @@ describe("getCanonicalLibraryPage", () => {
         available: false,
       },
     ]);
+  });
+
+  it("marks a track Lidarr owns as present even though Aurral cannot stream it", async () => {
+    // The stored Lidarr track payload carries Lidarr's own hasFile flag.
+    // When Aurral cannot see the file, the track keeps its checkmark — the
+    // web UI shows the same — but streamPath stays null, because Aurral
+    // cannot serve a file it cannot read.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "tracks",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [],
+        tracks: [
+          {
+            id: 34,
+            identityKey: "song:unseen",
+            mbid: "mb-track-4",
+            title: "Unseen Track",
+            metadata: { hasFile: true },
+            albums: [{ albumId: 12, discNumber: 1, trackNumber: 7 }],
+            files: [],
+            sources: ["lidarr"],
+            available: false,
+          },
+        ],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({
+      kind: "tracks",
+      albumId: "12",
+    });
+    expect(page.tracks[0]).toMatchObject({
+      hasFile: true,
+      streamPath: null,
+      streamFormat: null,
+      available: false,
+    });
   });
 
   it("streams from an available unscoped file when the album-scoped file is unavailable", async () => {

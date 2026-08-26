@@ -18,8 +18,14 @@
  * - A monitored album that is still downloading arrives with available:
  *   false and percentOfTracks 0. The artist screen shows it at 0%, and
  *   useResearchMissingAlbums counts it.
- * - A track with no file arrives with hasFile: false and a null streamPath,
+ * - A track nobody has arrives with hasFile: false and a null streamPath,
  *   which drives the missing marker in TrackRow.
+ * - The canonical file counts only see files Aurral can stat. When Lidarr's
+ *   music folder is not mounted into Aurral, the mappers fall back to
+ *   Lidarr's own statistics from the stored payload, so a Lidarr-complete
+ *   album still reads as downloaded. streamPath stays null there — Aurral
+ *   cannot stream a file it cannot read. See canonicalAlbumToAlbum and
+ *   canonicalTrackToTrack.
  * - An artist added a minute ago appears after the next canonical scan
  *   indexes it. Until then the artist screen reads an empty album list and
  *   keeps polling.

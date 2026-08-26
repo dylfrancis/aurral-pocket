@@ -198,17 +198,32 @@ export type CanonicalArtistMetadata = {
   tags?: CanonicalFileTags;
 };
 
+/**
+ * Lidarr's own album statistics, stored inside the synced payload. They
+ * describe what Lidarr has, not what Aurral can read. The album mapper
+ * falls back to them when Aurral cannot see the files.
+ */
+export type CanonicalLidarrAlbumStatistics = {
+  trackCount?: number;
+  trackFileCount?: number;
+  sizeOnDisk?: number;
+  percentOfTracks?: number;
+};
+
 /** The page route derives an album's `coverUrl` from `images`. */
 export type CanonicalAlbumMetadata = {
   librarySource?: "lidarr";
   monitored?: boolean;
   images?: CanonicalMetadataImage[];
   tags?: CanonicalFileTags;
+  statistics?: CanonicalLidarrAlbumStatistics;
 };
 
 /** Lidarr track payloads are stored without a `librarySource` marker. */
 export type CanonicalTrackMetadata = {
   tags?: CanonicalFileTags;
+  /** Lidarr's flag: Lidarr has a file, whether or not Aurral can read it. */
+  hasFile?: boolean;
 };
 
 /**

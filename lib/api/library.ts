@@ -82,11 +82,23 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
  * percentOfTracks is the real file ratio from the counts the page route
  * adds, because the screens shipped against Lidarr's real percentages and
  * useResearchMissingAlbums reads partial progress from it.
+ *
+ * The canonical counts only see files Aurral can stat on its own
+ * filesystem. When Lidarr's music folder is not mounted into Aurral, every
+ * canonical count is 0 even though Lidarr has the files. The stored Lidarr
+ * payload carries Lidarr's own statistics, and the Aurral web UI derives
+ * its status dot from them. The mapper takes the larger percent of the two
+ * views, so a Lidarr-complete album reads 100% and an Aurral-only album
+ * keeps its real ratio. sizeOnDisk comes from Lidarr's statistics — the
+ * canonical album row carries no size.
  */
 function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
   const metadata = item.metadata ?? {};
+  const lidarrStatistics = metadata.statistics ?? {};
   const trackCount = item.trackCount ?? 0;
   const trackFileCount = item.availableTrackCount ?? 0;
+  const canonicalPercent =
+    trackCount > 0 ? Math.round((trackFileCount / trackCount) * 100) : 0;
   return {
     id: String(item.id),
     canonicalId: String(item.id),
@@ -102,9 +114,11 @@ function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
     statistics: {
       trackCount,
       trackFileCount,
-      sizeOnDisk: 0,
-      percentOfTracks:
-        trackCount > 0 ? Math.round((trackFileCount / trackCount) * 100) : 0,
+      sizeOnDisk: lidarrStatistics.sizeOnDisk ?? 0,
+      percentOfTracks: Math.max(
+        canonicalPercent,
+        lidarrStatistics.percentOfTracks ?? 0,
+      ),
     },
     sources: item.sources,
     available: item.available,
@@ -142,6 +156,13 @@ function firstAvailableFile(
  * files instead of a streamPath, so the client has to derive it. One
  * deviation from buildTrack: quality maps to the recorded format string,
  * because the legacy Track type declares `quality: string | null`.
+ *
+ * hasFile and streamPath carry two different truths. hasFile means someone
+ * has the file: Aurral, or Lidarr through the hasFile flag in the stored
+ * track payload. It drives the checkmark in the track list, so the app
+ * matches the web UI when Aurral cannot see Lidarr's files. streamPath and
+ * available stay tied to a file Aurral can read, because Aurral cannot
+ * stream a file it cannot stat.
  */
 function canonicalTrackToTrack(
   item: CanonicalTrackItem,
@@ -154,7 +175,8 @@ function canonicalTrackToTrack(
     (entry) => String(entry.albumId) === albumId,
   );
   const file = firstAvailableFile(item, albumId);
-  const hasFile = file?.available === true;
+  const streamable = file?.available === true;
+  const hasFile = streamable || item.metadata?.hasFile === true;
   return {
     id: String(item.id),
     mbid: item.mbid ?? "",
@@ -165,12 +187,12 @@ function canonicalTrackToTrack(
     size: Number(file?.size ?? 0),
     quality: file?.quality?.format ?? null,
     streamPath:
-      hasFile && albumId
+      streamable && albumId
         ? `/library/canonical-stream/${encodeURIComponent(albumId)}/${encodeURIComponent(String(item.id))}`
         : null,
     streamFormat: file?.format ?? null,
     sources: item.sources,
-    available: hasFile,
+    available: streamable,
   };
 }
 
