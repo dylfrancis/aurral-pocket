@@ -19,15 +19,14 @@ export const TrackRow = React.memo(function TrackRow({
 }: TrackRowProps) {
   const colors = Colors[useColorScheme()];
 
-  // A track without a streamPath has no file Aurral can read, so it cannot
-  // play. That includes a track Lidarr owns while Aurral has no path to it,
-  // which still shows a checkmark. Tapping such a row does nothing.
-  const playable = !!track.streamPath && !!onPress;
-  const interactive = playable || !!onLongPress;
+  // Every tap reaches the screen, including a tap on a track with no
+  // streamPath. The screen explains why that one cannot play. Swallowing the
+  // tap here would make an unplayable track look like a broken player.
+  const interactive = !!onPress || !!onLongPress;
 
   return (
     <Pressable
-      onPress={playable ? onPress : undefined}
+      onPress={onPress}
       onLongPress={onLongPress}
       disabled={!interactive}
       style={({ pressed }) => [

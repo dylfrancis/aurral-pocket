@@ -20,6 +20,9 @@ export function useAudioPreview() {
   const status = usePlayerStatus();
 
   const playingId = status.isPlaying ? status.currentId : null;
+  // A clip takes time to download. Without this the row looks idle while it
+  // loads, and the reflex is to tap again.
+  const loadingId = status.isBuffering ? status.currentId : null;
 
   const stop = useCallback(() => {
     void pause();
@@ -45,5 +48,5 @@ export function useAudioPreview() {
     [status.currentId, status.isPlaying],
   );
 
-  return { playingId, progress: status.progress, toggle, stop };
+  return { playingId, loadingId, progress: status.progress, toggle, stop };
 }

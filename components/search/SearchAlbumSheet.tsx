@@ -104,6 +104,7 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
 
   const {
     playingId,
+    loadingId,
     progress,
     toggle: toggleAudio,
     stop: stopPreview,
@@ -338,6 +339,7 @@ export function SearchAlbumSheet({ album, sheetRef }: Props) {
                         track={track}
                         hasPreview={!!track.preview_url}
                         isPlaying={isPlaying}
+                        isLoading={loadingId === trackId}
                         progress={isPlaying ? progress : 0}
                         onToggle={() => togglePreview(track)}
                         onLongPress={
@@ -456,6 +458,7 @@ const TrackPreviewRow = React.memo(function TrackPreviewRow({
   track,
   hasPreview,
   isPlaying,
+  isLoading,
   progress,
   onToggle,
   onLongPress,
@@ -463,6 +466,7 @@ const TrackPreviewRow = React.memo(function TrackPreviewRow({
   track: ReleaseGroupTrack;
   hasPreview: boolean;
   isPlaying: boolean;
+  isLoading: boolean;
   progress: number;
   onToggle: () => void;
   onLongPress?: () => void;
@@ -498,12 +502,16 @@ const TrackPreviewRow = React.memo(function TrackPreviewRow({
             },
           ]}
         >
-          <Ionicons
-            name={isPlaying ? "pause" : "play"}
-            size={12}
-            color={isPlaying ? colors.buttonPrimaryText : colors.text}
-            style={isPlaying ? undefined : styles.playIcon}
-          />
+          {isLoading ? (
+            <ActivityIndicator size="small" color={colors.text} />
+          ) : (
+            <Ionicons
+              name={isPlaying ? "pause" : "play"}
+              size={12}
+              color={isPlaying ? colors.buttonPrimaryText : colors.text}
+              style={isPlaying ? undefined : styles.playIcon}
+            />
+          )}
         </Pressable>
       )}
       <View style={styles.trackMeta}>

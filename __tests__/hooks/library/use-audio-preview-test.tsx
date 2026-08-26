@@ -111,6 +111,28 @@ describe("useAudioPreview", () => {
     const { result } = await renderHook(() => useAudioPreview());
 
     expect(result.current.playingId).toBeNull();
+    expect(result.current.loadingId).toBeNull();
+  });
+
+  it("names the clip it is still loading, so the row can show a spinner", async () => {
+    // A row that looks idle while the clip downloads invites a second tap.
+    nowPlaying.mockReturnValue({
+      ...IDLE,
+      currentTrack: {
+        id: "track-1",
+        title: "",
+        artist: "",
+        album: "",
+        duration: 0,
+        url: "",
+      },
+      currentState: "buffering",
+    });
+
+    const { result } = await renderHook(() => useAudioPreview());
+
+    expect(result.current.loadingId).toBe("track-1");
+    expect(result.current.playingId).toBeNull();
   });
 
   it("stops the player when the screen asks it to", async () => {

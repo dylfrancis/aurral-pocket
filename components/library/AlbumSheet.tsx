@@ -24,7 +24,7 @@ import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import { triggerAlbumSearch, deleteAlbum } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import { libraryAlbumsRef, libraryTracksRef } from "@/lib/library-read";
-import { playTrack } from "@/lib/player/player";
+import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import * as Haptics from "expo-haptics";
@@ -62,6 +62,8 @@ export function AlbumSheet({
   // needs the artistName prop, not only the permission.
   const { canAddToPlaylist, ...addToPlaylist } = useAddToPlaylist();
   const canAddTracks = canAddToPlaylist && !!artistName;
+
+  const play = usePlayTrack();
 
   const year = album?.releaseDate
     ? new Date(album.releaseDate).getFullYear()
@@ -257,7 +259,7 @@ export function AlbumSheet({
                       key={track.id}
                       track={track}
                       onPress={() =>
-                        void playTrack(track, {
+                        void play(track, {
                           albumTitle: album.albumName,
                           artistName: artistName ?? album.artistName,
                           artworkUrl: null,

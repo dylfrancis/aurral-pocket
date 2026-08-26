@@ -48,9 +48,10 @@ describe("TrackRow", () => {
     expect(onPress).toHaveBeenCalled();
   });
 
-  it("stays silent for a track Aurral cannot stream", async () => {
-    // Lidarr owns the file but Aurral cannot read it. The row keeps its
-    // checkmark and its quality badge. Tapping it must do nothing.
+  it("reports a tap on a track Aurral cannot stream, so the screen can explain why", async () => {
+    // Lidarr owns the file but Aurral cannot read it, so streamPath is null.
+    // Swallowing the tap here would make an unplayable track look identical
+    // to a broken player. The screen decides what to say.
     const onPress = jest.fn();
     const { getByText } = await render(
       <TrackRow track={{ ...TRACK, streamPath: null }} onPress={onPress} />,
@@ -58,6 +59,6 @@ describe("TrackRow", () => {
 
     await fireEvent.press(getByText("Weird Fishes"));
 
-    expect(onPress).not.toHaveBeenCalled();
+    expect(onPress).toHaveBeenCalled();
   });
 });
