@@ -13,7 +13,8 @@ import {
 // The engine's native callbacks hold a single listener each — registering
 // directly on TrackPlayer would clobber the engine's own hooks (useNowPlaying
 // and friends), which all multiplex through this manager. The manager is not
-// re-exported from the package root, so this reaches into its module.
+// re-exported from the package root, so this reaches into its module; the
+// dependency is pinned to an exact version because this path is internal.
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
 
 /**
@@ -40,6 +41,8 @@ let lastPlay: Promise<void> = Promise.resolve();
  */
 let queueOrder: PlayerTrack[] = [];
 let originalOrder: PlayerTrack[] = [];
+/** Shuffle survives queue rebuilds — a new play comes out shuffled too. */
+let shuffleOn = false;
 
 function configureEngine(): Promise<void> {
   configureOnce ??= TrackPlayer.configure({
@@ -85,7 +88,14 @@ export async function playAlbumFromTrack(
     .map((track) => toPlayerTrack(track, album))
     .filter((item): item is PlayerTrack => item !== null);
 
-  const run = lastPlay.then(() => replaceAndPlay(items, startItem.id));
+  // A stale or still-loading track list may not hold the tapped track, and
+  // playSong with an id that is not in the playlist plays nothing. Queue the
+  // tapped track alone rather than silence.
+  const queued = items.some((item) => item.id === startItem.id)
+    ? items
+    : [startItem];
+
+  const run = lastPlay.then(() => replaceAndPlay(queued, startItem.id));
   lastPlay = run.catch(() => {});
   await run;
   return true;
@@ -108,6 +118,11 @@ async function replaceAndPlay(
   await PlayerQueue.loadPlaylist(playlistId);
   await TrackPlayer.playSong(startId, playlistId);
   await TrackPlayer.play();
+  // A queue rebuilt while shuffle is on must come out shuffled. The started
+  // id is known here, so no engine-state round trip is needed.
+  if (shuffleOn) {
+    await shuffleUpcomingAfter(startId, playlistId);
+  }
 }
 
 export async function pause(): Promise<void> {
@@ -140,6 +155,22 @@ const trackCompletedListeners = new Set<Listener<PlayerTrack>>();
 let engineEventsWired = false;
 /** The current track per the last track-change event. */
 let currentEventTrack: PlayerTrack | null = null;
+/** The last progress report, for spotting a pause that is really the end. */
+let lastProgress: PlaybackProgress | null = null;
+
+/**
+ * How close to a track's known end still counts as the end. Progress reports
+ * arrive about once a second, so the last one can sit shy of the duration.
+ */
+const TRACK_END_EPSILON_SECONDS = 2;
+
+function isAtTrackEnd(): boolean {
+  return (
+    lastProgress !== null &&
+    lastProgress.duration > 0 &&
+    lastProgress.position >= lastProgress.duration - TRACK_END_EPSILON_SECONDS
+  );
+}
 
 function wireEngineEvents(): void {
   if (engineEventsWired) return;
@@ -152,6 +183,7 @@ function wireEngineEvents(): void {
       // reason "end". A skip is not a completion.
       const completed = reason === "end" ? currentEventTrack : null;
       currentEventTrack = started;
+      lastProgress = null;
       if (completed) {
         trackCompletedListeners.forEach((listener) => listener(completed));
       }
@@ -166,17 +198,26 @@ function wireEngineEvents(): void {
         position,
         duration: totalDuration,
       };
+      lastProgress = progress;
       progressListeners.forEach((listener) => listener(progress));
     },
   );
   callbackManager.subscribeToPlaybackState(
     function handleStateChange(state, reason): void {
-      // The last track has no next track to change onto — its completion
-      // arrives as the engine stopping, reason "end".
-      if (state !== "stopped" || reason !== "end") return;
+      // The last track has no next track to change onto. Android reports its
+      // completion as the engine stopping, reason "end". iOS reports nothing:
+      // the player just pauses at the track's end with no reason, exactly
+      // like a user pause — the position tells them apart.
+      const endedNaturally = state === "stopped" && reason === "end";
+      const endedSilently =
+        (state === "stopped" || state === "paused") &&
+        reason === undefined &&
+        isAtTrackEnd();
+      if (!endedNaturally && !endedSilently) return;
       const completed = currentEventTrack;
       if (!completed) return;
       currentEventTrack = null;
+      lastProgress = null;
       trackCompletedListeners.forEach((listener) => listener(completed));
     },
   );
@@ -238,6 +279,7 @@ export function onTrackCompleted(listener: Listener<PlayerTrack>): () => void {
  * playlist that a pending play is about to delete would land on the wrong one.
  */
 export function setShuffle(on: boolean): Promise<void> {
+  shuffleOn = on;
   const run = lastPlay.then(function reorder(): Promise<void> {
     if (on) return shuffleUpcoming();
     return restoreOriginalOrder();
@@ -248,14 +290,19 @@ export function setShuffle(on: boolean): Promise<void> {
 
 async function shuffleUpcoming(): Promise<void> {
   if (!currentPlaylistId) return;
-
   const state = await TrackPlayer.getState();
-  const currentId = state.currentTrack?.id ?? null;
+  await shuffleUpcomingAfter(state.currentTrack?.id ?? null, currentPlaylistId);
+}
+
+async function shuffleUpcomingAfter(
+  currentId: string | null,
+  playlistId: string,
+): Promise<void> {
   // Everything through the current track stays put; -1 (unknown) shuffles all.
   const upcomingStart =
     queueOrder.findIndex((item) => item.id === currentId) + 1;
 
-  await applyOrder(currentPlaylistId, [
+  await applyOrder(playlistId, [
     ...queueOrder.slice(0, upcomingStart),
     ...shuffled(queueOrder.slice(upcomingStart)),
   ]);

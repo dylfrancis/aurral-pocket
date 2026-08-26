@@ -133,6 +133,28 @@ describe("playAlbumFromTrack", () => {
     ]);
   });
 
+  it("queues just the tapped track when the list does not contain it", async () => {
+    // A stale or still-loading track list must not produce silence: playSong
+    // with an id that is not in the playlist plays nothing yet reports true.
+    const albumTracks = [
+      track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
+    ];
+    const tapped = track({
+      id: "99",
+      trackNumber: 9,
+      streamPath: "/stream/12/99",
+    });
+
+    await expect(playAlbumFromTrack(albumTracks, tapped, album)).resolves.toBe(
+      true,
+    );
+
+    expect(queue.addTracksToPlaylist).toHaveBeenCalledWith("playlist-1", [
+      expect.objectContaining({ id: "99" }),
+    ]);
+    expect(player.playSong).toHaveBeenCalledWith("99", "playlist-1");
+  });
+
   it("leaves the engine alone when the tapped track has no file", async () => {
     const albumTracks = [
       track({ id: "71", trackNumber: 1, streamPath: null, hasFile: false }),
@@ -265,7 +287,8 @@ describe("shuffle", () => {
   beforeEach(async () => {
     playlistIds = [];
     queue.addTracksToPlaylist.mockImplementation((_, tracks) => {
-      playlistIds.push(...tracks.map((t) => t.id));
+      // Each play builds a fresh playlist, so arrival replaces the old order.
+      playlistIds = tracks.map((t) => t.id);
       return Promise.resolve();
     });
     queue.reorderTrackInPlaylist.mockImplementation((_, trackId, newIndex) => {
@@ -296,6 +319,20 @@ describe("shuffle", () => {
 
     expect(playlistIds).toEqual(albumIds);
   });
+
+  it("keeps shuffle on when a new play rebuilds the queue", async () => {
+    await setShuffle(true);
+
+    await playAlbumFromTrack(albumTracks, albumTracks[0], album);
+
+    expect(playlistIds[0]).toBe("1");
+    expect([...playlistIds].sort()).toEqual([...albumIds].sort());
+    expect(playlistIds.slice(1)).not.toEqual(albumIds.slice(1));
+
+    // And unshuffle still restores the new queue's album order.
+    await setShuffle(false);
+    expect(playlistIds).toEqual(albumIds);
+  });
 });
 
 describe("playback events", () => {
@@ -311,6 +348,10 @@ describe("playback events", () => {
 
   beforeAll(() => {
     onTrackStarted(() => {})();
+    // The facade wires once per module. If an earlier subscription beat this
+    // one, clearAllMocks already wiped the calls and the captures below would
+    // throw a bare TypeError — fail with the cause instead.
+    expect(manager.subscribeToTrackChange).toHaveBeenCalledTimes(1);
     engine = {
       trackChange: manager.subscribeToTrackChange.mock.calls[0][0],
       progress: manager.subscribeToPlaybackProgressChange.mock.calls[0][0],
@@ -372,6 +413,33 @@ describe("playback events", () => {
     engine.stateChange("stopped", "end");
 
     expect(completed).toEqual(["42"]);
+    unsubscribe();
+  });
+
+  it("completes the last track when the engine only pauses at its end", () => {
+    // iOS never reports the queue running out: the player pauses at the final
+    // track's end with no reason, exactly like a user pause. The position
+    // tells them apart.
+    const completed: string[] = [];
+    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+    engine.progress(239.2, 240, false);
+    engine.stateChange("paused", undefined);
+
+    expect(completed).toEqual(["42"]);
+    unsubscribe();
+  });
+
+  it("does not complete a track paused midway", () => {
+    const completed: string[] = [];
+    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+    engine.progress(120, 240, false);
+    engine.stateChange("paused", undefined);
+
+    expect(completed).toEqual([]);
     unsubscribe();
   });
 });
