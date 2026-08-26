@@ -5,14 +5,10 @@ import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import type { Track } from "@/lib/types/library";
 
 /**
- * Play a library track and say what happened when it does not play.
- *
- * Two failures look identical to a silent tap, so both get a message:
- *
- * - Aurral has no readable file for the track. Its row still shows a
- *   checkmark, because Lidarr has the file. See canonicalTrackToTrack.
- * - The engine rejected the track. A bad stream URL and an expired session
- *   both land here.
+ * Play a library track and say what happened when it does not play. Both
+ * failures would otherwise look like a silent tap: Aurral has no readable
+ * file (the row can still show a checkmark, because Lidarr has one), or the
+ * engine rejected the track.
  */
 export function usePlayTrack() {
   return useCallback(async (track: Track, album: PlayerAlbumContext) => {

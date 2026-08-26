@@ -11,21 +11,14 @@ import {
 } from "react-native-nitro-player";
 
 /**
- * The player facade.
- *
- * This is the only module in the app that imports the audio engine. Screens,
- * hooks, and mappers call the functions below instead. Keeping the import in
- * one place means the engine can be replaced without touching the app, and it
- * keeps engine objects out of the React tree.
- *
- * Every sound in the app goes through here: owned tracks streamed from the
- * server, and the thirty-second clips that the search and flow screens play.
- * One engine holds one thing, so starting either one ends the other. That is
- * why no separate coordination between the two exists.
+ * The player facade — the only module in the app that imports the audio
+ * engine. Every sound goes through here: owned tracks and preview clips.
+ * One engine holds one thing, so starting either replaces the other; no
+ * coordination between them is needed.
  *
  * The engine plays from a playlist, so a single item still needs one. This
- * slice keeps exactly one playlist and rebuilds it per item. A real queue with
- * next and previous arrives in a later slice.
+ * slice keeps exactly one playlist and rebuilds it per item. A real queue
+ * arrives in a later slice.
  */
 
 /** The name the engine shows for the current playlist. */
@@ -45,11 +38,8 @@ function configureEngine(): Promise<void> {
 }
 
 /**
- * Play one item, replacing whatever is playing.
- *
- * Callers that hold a library track should use playTrack instead. This is the
- * entry point for a clip, whose URL comes from a preview provider rather than
- * from the canonical stream route.
+ * Play one item, replacing whatever is playing. Callers that hold a library
+ * track should use playTrack instead.
  */
 export async function playItem(item: PlayerTrack): Promise<void> {
   await configureEngine();
@@ -61,19 +51,14 @@ export async function playItem(item: PlayerTrack): Promise<void> {
   await PlayerQueue.addTracksToPlaylist(currentPlaylistId, [item]);
   await PlayerQueue.loadPlaylist(currentPlaylistId);
   await TrackPlayer.playSong(item.id, currentPlaylistId);
-  // playSong cues the track but starts audio only if something was already
-  // playing (the engine preserves the prior play state). Without this call
-  // the track sits silent on the lock screen until the user presses play
-  // there. The engine's own quick start calls play() after playSong.
+  // playSong only cues. Without an explicit play() the track sits silent on
+  // the lock screen until the user presses play there.
   await TrackPlayer.play();
 }
 
 /**
- * Play one owned track.
- *
- * Returns false when the track cannot play, which happens when Aurral has no
- * readable file for it or when the session token is gone. The caller leaves
- * the row as it is; false is not an error.
+ * Play one owned track. Returns false — not an error — when the track cannot
+ * play: Aurral has no readable file for it, or the session token is gone.
  */
 export async function playTrack(
   track: Track,
@@ -85,34 +70,29 @@ export async function playTrack(
   return true;
 }
 
-/** Pause whatever is playing. */
 export async function pause(): Promise<void> {
   await TrackPlayer.pause();
 }
 
-/** Resume the paused item. */
 export async function resume(): Promise<void> {
   await TrackPlayer.play();
 }
 
-/** What the player is doing right now, as a screen needs to read it. */
 export type PlayerStatus = {
   /** The id the caller handed playItem, or null when nothing is loaded. */
   currentId: string | null;
   isPlaying: boolean;
   isBuffering: boolean;
   /**
-   * Paused mid-item, so resume continues it. A finished item is not paused:
-   * the engine sits stopped at its end, and resuming there produces silence.
-   * A caller that sees the current id with every flag false must reload the
-   * item, not resume it.
+   * Paused mid-item, so resume continues it. A finished item is not paused —
+   * it sits stopped at its end, and resuming there produces silence. Reload
+   * instead when every flag is false.
    */
   isPaused: boolean;
   /** How far through the item, from 0 to 1. Zero while the length is unknown. */
   progress: number;
 };
 
-/** Subscribe a screen to the player. */
 export function usePlayerStatus(): PlayerStatus {
   const state = useNowPlaying();
   return {

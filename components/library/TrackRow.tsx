@@ -19,9 +19,9 @@ export const TrackRow = React.memo(function TrackRow({
 }: TrackRowProps) {
   const colors = Colors[useColorScheme()];
 
-  // Every tap reaches the screen, including a tap on a track with no
-  // streamPath. The screen explains why that one cannot play. Swallowing the
-  // tap here would make an unplayable track look like a broken player.
+  // Every tap reaches the screen, unplayable tracks included — the screen
+  // explains why one cannot play. Swallowing it here would make an
+  // unplayable track look like a broken player.
   const interactive = !!onPress || !!onLongPress;
 
   return (

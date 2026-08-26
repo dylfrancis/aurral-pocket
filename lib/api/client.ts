@@ -55,15 +55,11 @@ export function setAuthToken(token: string | null) {
 }
 
 /**
- * Build an absolute URL that authenticates itself.
- *
- * The audio engine plays a URL. It cannot attach an Authorization header, so
- * the session token travels in the query string instead. The server accepts
- * that on every token-authenticated route, and the Aurral web player streams
- * the same endpoint the same way. No password is involved.
- *
- * Returns null when the token or the server address is missing, so a caller
- * never hands the engine a URL the server answers with 401.
+ * Build an absolute URL that authenticates itself. The audio engine plays a
+ * URL and cannot attach an Authorization header, so the session token travels
+ * in the query string — the same way the Aurral web player streams. Returns
+ * null when the token or the server address is missing, so a caller never
+ * hands the engine a URL the server answers with 401.
  */
 export function buildAuthenticatedUrl(path: string): string | null {
   if (!authToken || !baseURL) return null;

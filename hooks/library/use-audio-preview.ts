@@ -20,8 +20,8 @@ export function useAudioPreview() {
   const status = usePlayerStatus();
 
   const playingId = status.isPlaying ? status.currentId : null;
-  // A clip takes time to download. Without this the row looks idle while it
-  // loads, and the reflex is to tap again.
+  // Rows show a spinner for this clip; a loading row that looks idle invites
+  // a second tap.
   const loadingId = status.isBuffering ? status.currentId : null;
 
   const stop = useCallback(() => {
@@ -39,12 +39,9 @@ export function useAudioPreview() {
           await resume();
           return;
         }
-        // Still loading: the play is already on its way, so the tap has
-        // nothing to add. Restarting doubles the wait; pausing reads as
-        // broken. The row shows a spinner meanwhile.
+        // Loading: the play is already on its way. Finished: stopped at the
+        // end, so fall through and start the clip over.
         if (status.isBuffering) return;
-        // Finished: the engine sits stopped at the end of the clip, and
-        // resuming there produces silence. Fall through and start it over.
       }
 
       await playItem({

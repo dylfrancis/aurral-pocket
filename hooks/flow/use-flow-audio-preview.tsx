@@ -15,11 +15,8 @@ const FlowAudioPreviewContext =
   createContext<FlowAudioPreviewContextValue | null>(null);
 
 /**
- * Play a finished download job.
- *
- * Jobs run through the same engine as owned tracks and preview clips, so only
- * one of them sounds at a time. The provider holds no player of its own; it
- * reads the engine through the facade. See lib/player/player.ts.
+ * Play a finished download job. Jobs run through the same engine as owned
+ * tracks and preview clips, so only one of them sounds at a time.
  */
 export function FlowAudioPreviewProvider({
   children,
@@ -39,8 +36,8 @@ export function FlowAudioPreviewProvider({
           await resume();
           return;
         }
-        // Loading: the play is already on its way. Finished: the engine sits
-        // stopped at the end, so fall through and start the job over.
+        // Loading: the play is already on its way. Finished: stopped at the
+        // end, so fall through and start the job over.
         if (status.isBuffering) return;
       }
 

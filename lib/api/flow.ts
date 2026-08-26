@@ -174,11 +174,9 @@ function authedSource(uri: string, token: string | null): FlowAuthedSource {
 }
 
 /**
- * The URL that streams a finished download job.
- *
- * The audio engine plays a URL and cannot attach an Authorization header, so
- * the token travels in the query string here. Artwork still uses a header,
- * because expo-image can send one. Returns null while signed out.
+ * The URL that streams a finished download job — self-authenticating because
+ * the audio engine sends no headers (see buildAuthenticatedUrl). Artwork
+ * keeps its header; expo-image can send one. Null while signed out.
  */
 export function getFlowStreamUrl(jobId: string): string | null {
   return buildAuthenticatedUrl(`${FLOW}/stream/${encodeURIComponent(jobId)}`);

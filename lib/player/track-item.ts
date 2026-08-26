@@ -26,16 +26,10 @@ export type PlayerAlbumContext = {
 };
 
 /**
- * Turn a library track into a playable one, or return null.
- *
- * Null means the track cannot play right now. Two cases produce it:
- *
- * - The track has no streamPath. Aurral cannot read a file for it. This
- *   includes a track that Lidarr owns while Aurral has no path to it, which
- *   the library screens still mark with a checkmark. See canonicalTrackToTrack.
- * - The session token is gone, so the stream URL would answer 401.
- *
- * A caller must treat null as "do not start playback" rather than as an error.
+ * Turn a library track into a playable one. Returns null — meaning "do not
+ * start playback", not an error — when the track has no streamPath (Aurral
+ * cannot read a file for it, even if Lidarr has one and the row shows a
+ * checkmark) or when the session token is gone.
  */
 export function toPlayerTrack(
   track: Track,
