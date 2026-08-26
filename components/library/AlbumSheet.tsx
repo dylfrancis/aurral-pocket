@@ -259,7 +259,7 @@ export function AlbumSheet({
                       key={track.id}
                       track={track}
                       onPress={() =>
-                        void play(track, {
+                        void play(tracks, track, {
                           albumTitle: album.albumName,
                           artistName: artistName ?? album.artistName,
                           artworkUrl: null,
