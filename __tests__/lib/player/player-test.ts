@@ -79,6 +79,10 @@ describe("playTrack", () => {
     ]);
     expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1");
     expect(player.playSong).toHaveBeenCalledWith("77", "playlist-1");
+    // playSong only cues: the engine starts audio only when something was
+    // already playing. Without this call the track sits silent on the lock
+    // screen until the user presses play there.
+    expect(player.play).toHaveBeenCalledTimes(1);
   });
 
   it("leaves the engine alone when Aurral cannot stream the track", async () => {

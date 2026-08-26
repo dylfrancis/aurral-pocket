@@ -119,7 +119,6 @@ describe("useAudioPreview", () => {
     });
 
     expect(player.playSong).toHaveBeenCalledWith("track-1", "playlist-1");
-    expect(player.play).not.toHaveBeenCalled();
   });
 
   it("ignores a tap on the clip that is still loading", async () => {

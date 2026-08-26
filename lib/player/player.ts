@@ -61,6 +61,11 @@ export async function playItem(item: PlayerTrack): Promise<void> {
   await PlayerQueue.addTracksToPlaylist(currentPlaylistId, [item]);
   await PlayerQueue.loadPlaylist(currentPlaylistId);
   await TrackPlayer.playSong(item.id, currentPlaylistId);
+  // playSong cues the track but starts audio only if something was already
+  // playing (the engine preserves the prior play state). Without this call
+  // the track sits silent on the lock screen until the user presses play
+  // there. The engine's own quick start calls play() after playSong.
+  await TrackPlayer.play();
 }
 
 /**
