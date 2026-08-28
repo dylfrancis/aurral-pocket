@@ -131,6 +131,10 @@ function lastSavedQueue(): Record<string, unknown> {
   return saved[saved.length - 1];
 }
 
+function engineTrack(id: string) {
+  return { id, title: "", artist: "", album: "", duration: 0 };
+}
+
 function queuedTracks(): { id: string; url: string }[] {
   const calls = mockQueue.addTracksToPlaylist.mock.calls as unknown as [
     string,
@@ -319,6 +323,21 @@ describe("saving the queue", () => {
     });
   });
 
+  it("writes a new track against its own position", async () => {
+    await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
+    engine.trackChange(engineTrack("71"));
+    engine.progress(150, 300);
+    await flush();
+
+    engine.trackChange(engineTrack("72"), "end");
+    await flush();
+
+    expect(lastSavedQueue()).toMatchObject({
+      currentId: "72",
+      positionSeconds: 0,
+    });
+  });
+
   it("does not write a preview clip", async () => {
     await facade.playItem({
       id: "preview-9",
@@ -477,5 +496,51 @@ describe("restoring the queue", () => {
 
     await expect(player.restoreSavedQueue()).resolves.toBe(false);
     expect(mockQueue.createPlaylist).not.toHaveBeenCalled();
+  });
+});
+
+describe("forgetting the queue", () => {
+  it("stops the player and empties the queue", async () => {
+    await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
+
+    await facade.forgetQueue();
+    await flush();
+
+    expect(mockPlayer.pause).toHaveBeenCalled();
+    expect(mockQueue.deletePlaylist).toHaveBeenCalledWith("playlist-1");
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
+
+    const { result } = await renderHook(() => facade.useHasQueue());
+    expect(result.current).toBe(false);
+  });
+
+  it("outlasts a save that has not landed yet", async () => {
+    // A store, because what matters is the order the writes land in, not the
+    // order they were called in.
+    const store: Record<string, string> = {};
+    let landWrite = () => {};
+    const pending = new Promise<void>((resolve) => {
+      landWrite = resolve;
+    });
+    mockStorage.setItem
+      .mockImplementationOnce(async (key: string, value: string) => {
+        await pending;
+        store[key] = value;
+      })
+      .mockImplementation(async (key: string, value: string) => {
+        store[key] = value;
+      });
+    mockStorage.removeItem.mockImplementation(async (key: string) => {
+      delete store[key];
+    });
+
+    // The play queues a write that is slow to land.
+    await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
+    const forgetting = facade.forgetQueue();
+    landWrite();
+    await forgetting;
+    await flush();
+
+    expect(store[QUEUE_KEY]).toBeUndefined();
   });
 });

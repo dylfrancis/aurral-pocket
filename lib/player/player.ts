@@ -466,6 +466,40 @@ function inSavedOrder(items: PlayerTrack[], ids: string[]): PlayerTrack[] {
 }
 
 /**
+ * Stop the player and forget the queue, in memory and in storage. Sign-out
+ * calls this, so no part of one account's listening reaches the next.
+ *
+ * The state goes first, which stops any further save, and the delete runs at
+ * the tail of the save chain — a write already queued cannot bring the record
+ * back after it.
+ */
+export function forgetQueue(): Promise<void> {
+  const run = lastPlay.then(async () => {
+    queueOrder = [];
+    originalOrder = [];
+    queueAlbumContext = null;
+    pendingRestoreSeek = null;
+    endedAtQueueEnd = false;
+    shuffleOn = false;
+    repeatMode = "off";
+    resetProgress();
+    setDisplayedTrack(null);
+    refreshQueueSnapshot();
+    notifyModesChanged();
+
+    await TrackPlayer.pause();
+    if (currentPlaylistId) {
+      await PlayerQueue.deletePlaylist(currentPlaylistId);
+      currentPlaylistId = null;
+    }
+    lastSave = lastSave.then(clearSavedQueue).catch(() => {});
+    await lastSave;
+  });
+  lastPlay = run.catch(() => {});
+  return run;
+}
+
+/**
  * How close to a track's known end still counts as the end. Progress reports
  * arrive about once a second, so the last one can sit shy of the duration.
  */
@@ -492,7 +526,6 @@ function wireEngineEvents(): void {
       currentEventTrack = started;
       lastProgress = null;
       endedAtQueueEnd = false;
-      setDisplayedTrack(started);
       // A new track starts at zero. Without this reset the scrubber keeps
       // the old track's position until the first tick arrives. A restored
       // track is the exception: it starts where it was saved, at a length
@@ -500,10 +533,13 @@ function wireEngineEvents(): void {
       const restored =
         pendingRestoreSeek?.trackId === started.id ? pendingRestoreSeek : null;
       if (!restored) pendingRestoreSeek = null;
+      // Before the track, so the save this triggers pairs the new track with
+      // its own position rather than with the last track's.
       setProgress(
         restored?.position ?? 0,
         started.duration || restored?.duration || 0,
       );
+      setDisplayedTrack(started);
       if (completed) {
         trackCompletedListeners.forEach((listener) => listener(completed));
       }
