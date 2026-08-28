@@ -529,21 +529,30 @@ describe("forgetting the queue", () => {
 
   it("forgets the queue even when the engine will not stop", async () => {
     await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
+    mockPlayer.pause.mockClear();
+    mockQueue.deletePlaylist.mockClear();
     mockPlayer.pause.mockRejectedValueOnce(new Error("engine"));
 
     await expect(facade.forgetQueue()).resolves.toBeUndefined();
     await flush();
 
+    expect(mockPlayer.pause).toHaveBeenCalledTimes(1);
+    // The playlist is left for the next play to delete.
+    expect(mockQueue.deletePlaylist).not.toHaveBeenCalled();
     expect(mockStorage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
   });
 
   it("forgets the queue even when the playlist will not delete", async () => {
     await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
+    mockPlayer.pause.mockClear();
+    mockQueue.deletePlaylist.mockClear();
     mockQueue.deletePlaylist.mockRejectedValueOnce(new Error("engine"));
 
     await expect(facade.forgetQueue()).resolves.toBeUndefined();
     await flush();
 
+    expect(mockPlayer.pause).toHaveBeenCalledTimes(1);
+    expect(mockQueue.deletePlaylist).toHaveBeenCalledWith("playlist-1");
     expect(mockStorage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
   });
 
