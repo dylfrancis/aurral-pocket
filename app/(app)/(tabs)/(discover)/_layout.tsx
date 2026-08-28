@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { TRANSPARENT_HEADER } from "@/constants/navigation";
@@ -7,61 +8,63 @@ export default function DiscoverLayout() {
   const colors = Colors[useColorScheme()];
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
-        headerTintColor: colors.text,
-        ...TRANSPARENT_HEADER,
-      }}
-    >
-      <Stack.Screen
-        name="index"
-        options={{
-          title: "Discover",
-          headerLargeTitleEnabled: true,
+    <MiniPlayerHost>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          ...TRANSPARENT_HEADER,
         }}
-      />
-      <Stack.Screen
-        name="artist/[mbid]"
-        options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
-      />
-      <Stack.Screen
-        name="list/[kind]"
-        options={{
-          headerLargeTitleEnabled: false,
-          headerBackButtonDisplayMode: "minimal",
-        }}
-      />
-      <Stack.Screen
-        name="tag-results"
-        options={({ route }) => ({
-          title: (route.params as { q?: string })?.q ?? "Results",
-          headerBackButtonDisplayMode: "minimal",
-        })}
-      />
-      <Stack.Screen
-        name="nearby-shows"
-        options={{
-          title: "Shows Near You",
-          headerLargeTitleEnabled: true,
-          headerBackButtonDisplayMode: "minimal",
-        }}
-      />
-      <Stack.Screen
-        name="artist/albums"
-        options={({ route }) => ({
-          title: (route.params as { title?: string })?.title ?? "Albums",
-          headerLargeTitleEnabled: true,
-          headerBackButtonDisplayMode: "minimal",
-        })}
-      />
-      <Stack.Screen
-        name="artist/releases"
-        options={({ route }) => ({
-          title: (route.params as { title?: string })?.title ?? "Releases",
-          headerBackButtonDisplayMode: "minimal",
-        })}
-      />
-    </Stack>
+      >
+        <Stack.Screen
+          name="index"
+          options={{
+            title: "Discover",
+            headerLargeTitleEnabled: true,
+          }}
+        />
+        <Stack.Screen
+          name="artist/[mbid]"
+          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
+        />
+        <Stack.Screen
+          name="list/[kind]"
+          options={{
+            headerLargeTitleEnabled: false,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
+          name="tag-results"
+          options={({ route }) => ({
+            title: (route.params as { q?: string })?.q ?? "Results",
+            headerBackButtonDisplayMode: "minimal",
+          })}
+        />
+        <Stack.Screen
+          name="nearby-shows"
+          options={{
+            title: "Shows Near You",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
+          name="artist/albums"
+          options={({ route }) => ({
+            title: (route.params as { title?: string })?.title ?? "Albums",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          })}
+        />
+        <Stack.Screen
+          name="artist/releases"
+          options={({ route }) => ({
+            title: (route.params as { title?: string })?.title ?? "Releases",
+            headerBackButtonDisplayMode: "minimal",
+          })}
+        />
+      </Stack>
+    </MiniPlayerHost>
   );
 }

@@ -20,7 +20,9 @@ import {
   previous,
   playAlbumFromTrack,
   playItem,
+  playQueueItem,
   resume,
+  seekTo,
   setRepeatMode,
   setShuffle,
 } from "@/lib/player/player";
@@ -268,6 +270,23 @@ describe("transport", () => {
     await setRepeatMode(mode);
 
     expect(player.setRepeatMode).toHaveBeenCalledWith(engine);
+  });
+
+  it("seeks within the current track", async () => {
+    await seekTo(87);
+
+    expect(player.seek).toHaveBeenCalledWith(87);
+  });
+
+  it("jumps to a queued track inside the current playlist", async () => {
+    await playItem(clip);
+
+    await playQueueItem("preview-9");
+
+    // The queue stays as it is — no playlist rebuild, just a jump.
+    expect(queue.createPlaylist).toHaveBeenCalledTimes(1);
+    expect(player.playSong).toHaveBeenLastCalledWith("preview-9", "playlist-1");
+    expect(player.play).toHaveBeenCalledTimes(2);
   });
 });
 

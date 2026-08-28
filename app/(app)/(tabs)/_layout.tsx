@@ -1,9 +1,11 @@
+import { MiniPlayerAccessory } from "@/components/player/MiniPlayerAccessory";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
-import { TAB_BAR_BACKGROUND } from "@/constants/navigation";
+import { HAS_LIQUID_GLASS, TAB_BAR_BACKGROUND } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useHasQueue } from "@/lib/player/player";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 
 export default function TabsLayout() {
@@ -11,6 +13,7 @@ export default function TabsLayout() {
   const hasPermission = useHasPermission();
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
+  const hasQueue = useHasQueue();
 
   // The tab set must be final on first render. A trigger whose `hidden` flag
   // flips after mount rebuilds the native tab bar, and on Android that
@@ -27,6 +30,15 @@ export default function TabsLayout() {
       labelStyle={{ ...Fonts.medium, color: colors.tabIconDefault }}
       {...TAB_BAR_BACKGROUND}
     >
+      {/* iOS 26+ hosts the mini player in the tab bar's liquid glass
+          accessory slot. Other platforms dock it per tab (MiniPlayerHost);
+          the accessory only mounts while something is queued, so no empty
+          glass capsule shows. */}
+      {HAS_LIQUID_GLASS && hasQueue && (
+        <NativeTabs.BottomAccessory>
+          <MiniPlayerAccessory />
+        </NativeTabs.BottomAccessory>
+      )}
       <NativeTabs.Trigger name="(discover)">
         <NativeTabs.Trigger.Icon sf="sparkles" md="explore" />
         <NativeTabs.Trigger.Label>Discover</NativeTabs.Trigger.Label>

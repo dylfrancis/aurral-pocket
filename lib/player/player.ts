@@ -4,6 +4,7 @@ import {
   type PlayerTrack,
 } from "@/lib/player/track-item";
 import type { Track } from "@/lib/types/library";
+import { useSyncExternalStore } from "react";
 import {
   PlayerQueue,
   TrackPlayer,
@@ -43,6 +44,8 @@ let queueOrder: PlayerTrack[] = [];
 let originalOrder: PlayerTrack[] = [];
 /** Shuffle survives queue rebuilds — a new play comes out shuffled too. */
 let shuffleOn = false;
+/** Repeat lives in the engine; this mirror is what the UI reads. */
+let repeatMode: RepeatMode = "off";
 
 function configureEngine(): Promise<void> {
   configureOnce ??= TrackPlayer.configure({
@@ -114,6 +117,13 @@ async function replaceAndPlay(
   currentPlaylistId = playlistId;
   queueOrder = items;
   originalOrder = items;
+  // The started track is known here. Showing it now — not on the engine's
+  // track-change event — makes the mini player appear with the tap. The
+  // engine's own event re-delivers the same object, which listeners can
+  // compare away.
+  endedAtQueueEnd = false;
+  setDisplayedTrack(items.find((item) => item.id === startId) ?? null);
+  refreshQueueSnapshot();
   await PlayerQueue.addTracksToPlaylist(playlistId, items);
   await PlayerQueue.loadPlaylist(playlistId);
   await TrackPlayer.playSong(startId, playlistId);
@@ -133,8 +143,45 @@ export async function resume(): Promise<void> {
   await TrackPlayer.play();
 }
 
+/**
+ * One control for a play/pause button. Pause when playing; resume when
+ * paused mid-track. After the queue plays out, resume would produce
+ * silence — restart the track the player shows instead.
+ */
+export function togglePlayback(): Promise<void> {
+  if (playbackState === "playing" || playbackState === "buffering") {
+    return pause();
+  }
+  if (endedAtQueueEnd && displayedTrack) {
+    return playQueueItem(displayedTrack.id);
+  }
+  return resume();
+}
+
 export async function next(): Promise<void> {
   await TrackPlayer.skipToNext();
+}
+
+/** Move playback to a position, in seconds, within the current track. */
+export async function seekTo(positionSeconds: number): Promise<void> {
+  await TrackPlayer.seek(positionSeconds);
+}
+
+/**
+ * Jump to a queued track without rebuilding the queue. Chained on the play
+ * queue for the same reason plays are: a jump inside a playlist that a
+ * pending play is about to delete would land on the wrong one.
+ */
+export function playQueueItem(id: string): Promise<void> {
+  const run = lastPlay.then(async () => {
+    if (!currentPlaylistId) return;
+    endedAtQueueEnd = false;
+    setDisplayedTrack(queueOrder.find((item) => item.id === id) ?? null);
+    await TrackPlayer.playSong(id, currentPlaylistId);
+    await TrackPlayer.play();
+  });
+  lastPlay = run.catch(() => {});
+  return run;
 }
 
 type Listener<T> = (value: T) => void;
@@ -152,11 +199,78 @@ const trackStartedListeners = new Set<Listener<PlayerTrack>>();
 const progressListeners = new Set<Listener<PlaybackProgress>>();
 const trackCompletedListeners = new Set<Listener<PlayerTrack>>();
 
+// Wake-up calls for the player hooks. They carry no payload — each hook
+// re-reads its snapshot below, and useSyncExternalStore drops the render
+// when the snapshot did not change.
+const displayedTrackListeners = new Set<() => void>();
+const playbackStateListeners = new Set<() => void>();
+const queueChangedListeners = new Set<() => void>();
+const modesChangedListeners = new Set<() => void>();
+const progressTickListeners = new Set<() => void>();
+
 let engineEventsWired = false;
 /** The current track per the last track-change event. */
 let currentEventTrack: PlayerTrack | null = null;
 /** The last progress report, for spotting a pause that is really the end. */
 let lastProgress: PlaybackProgress | null = null;
+
+/** What playback is doing, as the facade speaks it. */
+export type PlaybackState = "playing" | "paused" | "buffering" | "stopped";
+
+/** Shuffle and repeat together, for the controls that toggle them. */
+export type PlayerModes = { shuffle: boolean; repeat: RepeatMode };
+
+/** Position within the current track, in seconds, for progress displays. */
+export type TrackProgress = { position: number; duration: number };
+
+/** The queue in play order, with the id of the track the player is on. */
+export type QueueSnapshot = {
+  items: PlayerTrack[];
+  currentId: string | null;
+};
+
+/**
+ * The track the player UI shows. It follows the track-change events, but
+ * unlike currentEventTrack it survives the natural end of the last track —
+ * a finished queue still shows what just played, stopped at its end.
+ */
+let displayedTrack: PlayerTrack | null = null;
+/** The engine's state per its last state-change event. */
+let playbackState: PlaybackState = "stopped";
+/**
+ * True after the queue plays out. The engine then sits at the last track's
+ * end, where resume produces silence — the toggle restarts the track
+ * instead. Cleared the moment any track starts.
+ */
+let endedAtQueueEnd = false;
+/**
+ * Progress at whole-second resolution. The engine ticks several times a
+ * second; replacing this snapshot only when a display would change keeps
+ * the progress hook's consumers to one render per second.
+ */
+let progressSnapshot: TrackProgress = { position: 0, duration: 0 };
+let queueSnapshot: QueueSnapshot = { items: [], currentId: null };
+let modesSnapshot: PlayerModes = { shuffle: false, repeat: "off" };
+
+function setDisplayedTrack(track: PlayerTrack | null): void {
+  if (track === displayedTrack) return;
+  displayedTrack = track;
+  refreshQueueSnapshot();
+  displayedTrackListeners.forEach((listener) => listener());
+}
+
+function refreshQueueSnapshot(): void {
+  queueSnapshot = {
+    items: queueOrder,
+    currentId: displayedTrack?.id ?? null,
+  };
+  queueChangedListeners.forEach((listener) => listener());
+}
+
+function notifyModesChanged(): void {
+  modesSnapshot = { shuffle: shuffleOn, repeat: repeatMode };
+  modesChangedListeners.forEach((listener) => listener());
+}
 
 /**
  * How close to a track's known end still counts as the end. Progress reports
@@ -184,6 +298,12 @@ function wireEngineEvents(): void {
       const completed = reason === "end" ? currentEventTrack : null;
       currentEventTrack = started;
       lastProgress = null;
+      endedAtQueueEnd = false;
+      setDisplayedTrack(started);
+      // A new track starts at zero. Without this reset the scrubber keeps
+      // the old track's position until the first tick arrives.
+      progressSnapshot = { position: 0, duration: started.duration };
+      progressTickListeners.forEach((listener) => listener());
       if (completed) {
         trackCompletedListeners.forEach((listener) => listener(completed));
       }
@@ -200,10 +320,21 @@ function wireEngineEvents(): void {
       };
       lastProgress = progress;
       progressListeners.forEach((listener) => listener(progress));
+      // The engine ticks several times a second. The snapshot only moves at
+      // whole-second resolution, so progress displays render once a second.
+      if (
+        Math.floor(progressSnapshot.position) !== Math.floor(position) ||
+        progressSnapshot.duration !== totalDuration
+      ) {
+        progressSnapshot = { position, duration: totalDuration };
+        progressTickListeners.forEach((listener) => listener());
+      }
     },
   );
   callbackManager.subscribeToPlaybackState(
     function handleStateChange(state, reason): void {
+      playbackState = state;
+      playbackStateListeners.forEach((listener) => listener());
       // The last track has no next track to change onto. Android reports its
       // completion as the engine stopping, reason "end". iOS reports nothing:
       // the player just pauses at the track's end with no reason, exactly
@@ -218,6 +349,7 @@ function wireEngineEvents(): void {
       if (!completed) return;
       currentEventTrack = null;
       lastProgress = null;
+      endedAtQueueEnd = true;
       trackCompletedListeners.forEach((listener) => listener(completed));
     },
   );
@@ -280,6 +412,7 @@ export function onTrackCompleted(listener: Listener<PlayerTrack>): () => void {
  */
 export function setShuffle(on: boolean): Promise<void> {
   shuffleOn = on;
+  notifyModesChanged();
   const run = lastPlay.then(function reorder(): Promise<void> {
     if (on) return shuffleUpcoming();
     return restoreOriginalOrder();
@@ -337,6 +470,7 @@ async function applyOrder(
     working.splice(i, 0, id);
   }
   queueOrder = target;
+  refreshQueueSnapshot();
 }
 
 /**
@@ -355,6 +489,8 @@ const ENGINE_REPEAT_MODE = {
 } as const;
 
 export async function setRepeatMode(mode: RepeatMode): Promise<void> {
+  repeatMode = mode;
+  notifyModesChanged();
   await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[mode]);
 }
 
@@ -392,4 +528,84 @@ export function usePlayerStatus(): PlayerStatus {
     progress:
       state.totalDuration > 0 ? state.currentPosition / state.totalDuration : 0,
   };
+}
+
+/*
+ * The hooks below each subscribe to one kind of change. usePlayerStatus
+ * re-renders its consumer on every progress tick; these do not. The player
+ * bar and transport controls read track, state, queue, and modes, so a tick
+ * only reaches the components that display progress.
+ */
+
+function makeSubscribe(listeners: Set<() => void>) {
+  return function subscribe(onStoreChange: () => void): () => void {
+    wireEngineEvents();
+    listeners.add(onStoreChange);
+    return function unsubscribe(): void {
+      listeners.delete(onStoreChange);
+    };
+  };
+}
+
+const subscribeDisplayedTrack = makeSubscribe(displayedTrackListeners);
+const subscribePlaybackState = makeSubscribe(playbackStateListeners);
+const subscribeProgressTicks = makeSubscribe(progressTickListeners);
+const subscribeQueueChanged = makeSubscribe(queueChangedListeners);
+const subscribeModesChanged = makeSubscribe(modesChangedListeners);
+
+const getDisplayedTrack = () => displayedTrack;
+const getPlaybackState = () => playbackState;
+const getProgressSnapshot = () => progressSnapshot;
+const getQueueSnapshot = () => queueSnapshot;
+const getHasQueue = () => queueSnapshot.items.length > 0;
+const getModesSnapshot = () => modesSnapshot;
+
+/** The track the player is on. It stays visible after the queue runs out. */
+export function useCurrentTrack(): PlayerTrack | null {
+  return useSyncExternalStore(
+    subscribeDisplayedTrack,
+    getDisplayedTrack,
+    getDisplayedTrack,
+  );
+}
+
+/** What playback is doing. No re-render on progress ticks. */
+export function usePlaybackState(): PlaybackState {
+  return useSyncExternalStore(
+    subscribePlaybackState,
+    getPlaybackState,
+    getPlaybackState,
+  );
+}
+
+/** Position and duration, updated once a second. For progress displays only. */
+export function useProgress(): TrackProgress {
+  return useSyncExternalStore(
+    subscribeProgressTicks,
+    getProgressSnapshot,
+    getProgressSnapshot,
+  );
+}
+
+/** The queue in play order, with the id of the track the player is on. */
+export function useQueue(): QueueSnapshot {
+  return useSyncExternalStore(
+    subscribeQueueChanged,
+    getQueueSnapshot,
+    getQueueSnapshot,
+  );
+}
+
+/** True while anything is queued. Drives the player bar's visibility. */
+export function useHasQueue(): boolean {
+  return useSyncExternalStore(subscribeQueueChanged, getHasQueue, getHasQueue);
+}
+
+/** Shuffle and repeat, for the controls that toggle them. */
+export function usePlayerModes(): PlayerModes {
+  return useSyncExternalStore(
+    subscribeModesChanged,
+    getModesSnapshot,
+    getModesSnapshot,
+  );
 }
