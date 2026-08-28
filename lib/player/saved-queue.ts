@@ -182,7 +182,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asSeconds(value: unknown): number {
-  return typeof value === "number" && value > 0 ? value : 0;
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : 0;
 }
 
 function isString(value: unknown): value is string {

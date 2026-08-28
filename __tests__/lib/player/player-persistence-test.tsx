@@ -445,6 +445,19 @@ describe("restoring the queue", () => {
     expect(mockStorage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
   });
 
+  it("ignores a position and a length that are not finite", async () => {
+    mockStorage.getItem.mockResolvedValue(
+      savedRecord()
+        .replace('"positionSeconds":96', '"positionSeconds":1e400')
+        .replace('"durationSeconds":214', '"durationSeconds":1e400'),
+    );
+    const player = await freshFacade();
+
+    await expect(player.restoreSavedQueue()).resolves.toBe(true);
+
+    expect(mockPlayer.seek).not.toHaveBeenCalled();
+  });
+
   it("ignores a record written by another version", async () => {
     mockStorage.getItem.mockResolvedValue(savedRecord({ version: 99 }));
     const player = await freshFacade();
