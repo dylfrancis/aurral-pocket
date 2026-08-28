@@ -23,6 +23,7 @@ const KEYS = {
   OIDC_SESSION: "oidc_session",
   OIDC_LOGOUT_URL: "oidc_logout_url",
   PLAYBACK_QUEUE: "playback_queue",
+  PLAY_EVENT_OUTBOX: "play_event_outbox",
 } as const;
 
 export const SecureStorage = {
@@ -266,6 +267,27 @@ export const AppStorage = {
   async deletePlaybackQueue(): Promise<void> {
     try {
       await AsyncStorage.removeItem(KEYS.PLAYBACK_QUEUE);
+    } catch {}
+  },
+
+  /** Plays not yet reported. Their shape lives in lib/player/play-history.ts. */
+  async getPlayEventOutbox(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(KEYS.PLAY_EVENT_OUTBOX);
+    } catch {
+      return null;
+    }
+  },
+
+  async setPlayEventOutbox(json: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.PLAY_EVENT_OUTBOX, json);
+    } catch {}
+  },
+
+  async deletePlayEventOutbox(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.PLAY_EVENT_OUTBOX);
     } catch {}
   },
 

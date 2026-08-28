@@ -16,6 +16,13 @@ type SavedTrack = {
   album: string;
   artwork: string | null;
   streamPath: string;
+  /**
+   * Written since the play-history recorder needed them. A queue saved before
+   * that reads back without them, and its tracks report plays without ids
+   * rather than not being restored.
+   */
+  trackMbid?: string | null;
+  albumMbid?: string | null;
 };
 
 export type SavedQueue = {
@@ -90,6 +97,8 @@ function parseTrack(raw: unknown): SavedTrack | null {
     album: isString(raw.album) ? raw.album : "",
     artwork: isString(raw.artwork) ? raw.artwork : null,
     streamPath: raw.streamPath,
+    trackMbid: isString(raw.trackMbid) ? raw.trackMbid : null,
+    albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
   };
 }
 
@@ -99,6 +108,7 @@ function parseAlbum(raw: unknown): PlayerAlbumContext | null {
     albumTitle: isString(raw.albumTitle) ? raw.albumTitle : "",
     artistName: isString(raw.artistName) ? raw.artistName : "",
     artworkUrl: isString(raw.artworkUrl) ? raw.artworkUrl : null,
+    albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
     artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,
   };
 }
@@ -112,6 +122,8 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
     album: item.album,
     artwork: item.artwork,
     streamPath: item.streamPath,
+    trackMbid: item.trackMbid,
+    albumMbid: item.albumMbid,
   };
 }
 
@@ -123,14 +135,19 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
 export async function restorableTracks(
   saved: SavedQueue,
 ): Promise<PlayerTrack[]> {
-  const items = saved.items.map(toPlayableTrack).filter(isPresent);
+  const items = saved.items
+    .map((item) => toPlayableTrack(item, saved.album))
+    .filter(isPresent);
   const streams = await mapWithLimit(items, PROBE_CONCURRENCY, (item) =>
     stillStreams(item.url),
   );
   return items.filter((_, index) => streams[index]);
 }
 
-function toPlayableTrack(saved: SavedTrack): PlayerTrack | null {
+function toPlayableTrack(
+  saved: SavedTrack,
+  album: PlayerAlbumContext,
+): PlayerTrack | null {
   const url = buildAuthenticatedUrl(saved.streamPath);
   if (!url) return null;
   return {
@@ -142,6 +159,9 @@ function toPlayableTrack(saved: SavedTrack): PlayerTrack | null {
     url,
     artwork: saved.artwork,
     streamPath: saved.streamPath,
+    trackMbid: saved.trackMbid ?? null,
+    artistMbid: album.artistMbid,
+    albumMbid: saved.albumMbid ?? album.albumMbid,
   };
 }
 

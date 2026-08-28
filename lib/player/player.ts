@@ -74,7 +74,15 @@ function configureEngine(): Promise<void> {
  * play against a playlist another call just deleted.
  */
 export function playItem(item: PlayerClip): Promise<void> {
-  const track: PlayerTrack = { ...item, streamPath: null };
+  // A preview clip is not a library track: it has no ids, and no play of it
+  // is ever reported.
+  const track: PlayerTrack = {
+    ...item,
+    streamPath: null,
+    trackMbid: null,
+    artistMbid: null,
+    albumMbid: null,
+  };
   const run = lastPlay.then(() => replaceAndPlay([track], track.id, null));
   // A failed play must not wedge every later one.
   lastPlay = run.catch(() => {});
@@ -618,6 +626,9 @@ function asPlayerTrack(engineTrack: TrackItem): PlayerTrack {
     url: engineTrack.url,
     artwork: engineTrack.artwork ?? null,
     streamPath: null,
+    trackMbid: null,
+    artistMbid: null,
+    albumMbid: null,
   };
 }
 

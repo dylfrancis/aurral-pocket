@@ -1,4 +1,5 @@
-export type ListenHistoryProvider = "lastfm" | "listenbrainz" | "koito";
+export type ListenHistoryProvider =
+  "local" | "lastfm" | "listenbrainz" | "koito";
 
 export type ListenHistorySettings = {
   listenHistoryProvider: ListenHistoryProvider | null;
@@ -9,6 +10,7 @@ export type ListenHistorySettings = {
 
 export type UpdateListenHistoryPayload = {
   listenHistoryProvider: ListenHistoryProvider;
+  /** Ignored by the server for "local", which keeps no username. */
   listenHistoryUsername: string | null;
 };
 

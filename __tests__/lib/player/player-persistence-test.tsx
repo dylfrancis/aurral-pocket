@@ -69,6 +69,7 @@ const album = {
   albumTitle: "Kid A",
   artistName: "Radiohead",
   artworkUrl: "https://art.example/kid-a.jpg",
+  albumMbid: "album-mb-1",
   artistMbid: "artist-mb-1",
 };
 
@@ -251,6 +252,20 @@ describe("saving the queue", () => {
     );
   });
 
+  // A play is reported when a track ends, which can be after a restart.
+  it("writes the ids a reported play carries", async () => {
+    await facade.playAlbumFromTrack(albumTracks, albumTracks[1], album);
+    await flush();
+
+    expect(lastSavedQueue().items).toContainEqual(
+      expect.objectContaining({
+        id: "72",
+        trackMbid: "mb-72",
+        albumMbid: "album-mb-1",
+      }),
+    );
+  });
+
   it("hands the engine its own shape, without the saved path", async () => {
     await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
 
@@ -397,6 +412,24 @@ describe("restoring the queue", () => {
     await player.togglePlayback();
 
     expect(mockPlayer.seek).not.toHaveBeenCalled();
+  });
+
+  // Records written before the ids were saved must still restore. Their
+  // tracks report plays without a recording id rather than not playing.
+  it("falls back to the album for a record saved without ids", async () => {
+    mockStorage.getItem.mockResolvedValue(savedRecord());
+    const player = await freshFacade();
+
+    await player.restoreSavedQueue();
+    await flush();
+
+    expect(lastSavedQueue().items).toContainEqual(
+      expect.objectContaining({
+        id: "72",
+        trackMbid: null,
+        albumMbid: "album-mb-1",
+      }),
+    );
   });
 
   it("drops a track the server no longer streams", async () => {

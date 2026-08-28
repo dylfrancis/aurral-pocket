@@ -56,6 +56,7 @@ const album = {
   albumTitle: "Kid A",
   artistName: "Radiohead",
   artworkUrl: "https://art.example/kid-a.jpg",
+  albumMbid: "album-mb-1",
   artistMbid: "artist-mb-1",
 };
 
