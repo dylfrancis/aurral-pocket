@@ -25,7 +25,7 @@ export type PlayerAlbumContext = {
   artworkUrl: string | null;
   /**
    * The engine never sees this. The now-playing screen uses it to open the
-   * artist page. Null when the caller has no MusicBrainz id for the artist.
+   * artist page.
    */
   artistMbid: string | null;
 };

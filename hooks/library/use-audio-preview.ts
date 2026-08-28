@@ -30,9 +30,7 @@ export function useAudioPreview() {
   // a second tap.
   const loadingId = status.isBuffering ? status.currentId : null;
 
-  // pauseClip, not pause: screens fire this on blur and on navigation, and
-  // a bare pause would silence album playback that has nothing to do with
-  // the preview.
+  // Screens fire this on blur; pauseClip spares unrelated album playback.
   const stop = useCallback(() => {
     void pauseClip();
   }, []);

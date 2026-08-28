@@ -63,9 +63,7 @@ export function FlowAudioPreviewProvider({
     [status.currentId, status.isPlaying, status.isPaused, status.isBuffering],
   );
 
-  // pauseClip, not pause: the flow tab fires this whenever it loses focus,
-  // and a bare pause would silence album playback on every tab switch away
-  // from Playlists.
+  // The flow tab fires this on every blur; pauseClip spares album playback.
   const stop = useCallback(() => {
     void pauseClip();
   }, []);

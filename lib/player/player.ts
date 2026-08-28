@@ -119,10 +119,9 @@ async function replaceAndPlay(
   queueOrder = items;
   originalOrder = items;
   queueAlbumContext = album;
-  // The started track is known here. Showing it now — not on the engine's
-  // track-change event — makes the mini player appear with the tap. The
-  // engine's own event re-delivers the same object, which listeners can
-  // compare away.
+  // Show the started track now, not on the engine's track-change event, so
+  // the mini player appears with the tap. The engine's event re-delivers
+  // the same object, which listeners compare away.
   endedAtQueueEnd = false;
   setDisplayedTrack(items.find((item) => item.id === startId) ?? null);
   refreshQueueSnapshot();
@@ -142,10 +141,9 @@ export async function pause(): Promise<void> {
 }
 
 /**
- * Pause the engine only while a preview clip holds it. The preview surfaces
- * call this when they leave the screen or change context; album playback
- * must survive those moments — the queue outlives every screen. Clips are
- * the only queues without an album context.
+ * Pause the engine only while a preview clip holds it — clips are the only
+ * queues without an album context. Preview surfaces fire this on blur and
+ * on navigation, and album playback must survive those moments.
  */
 export async function pauseClip(): Promise<void> {
   if (queueAlbumContext !== null) return;
@@ -342,8 +340,7 @@ function wireEngineEvents(): void {
       };
       lastProgress = progress;
       progressListeners.forEach((listener) => listener(progress));
-      // The engine ticks several times a second. The snapshot only moves at
-      // whole-second resolution, so progress displays render once a second.
+      // Whole-second resolution — see progressSnapshot.
       if (
         Math.floor(progressSnapshot.position) !== Math.floor(position) ||
         progressSnapshot.duration !== totalDuration

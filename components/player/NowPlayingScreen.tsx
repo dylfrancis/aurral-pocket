@@ -52,11 +52,9 @@ export function NowPlayingScreen() {
   const openArtist = useCallback(() => {
     if (!artistMbid) return;
     // The sheet sits over the tabs, so it must go before the artist page
-    // (inside a tab's stack) can show. The path names the library group:
-    // a bare /artist/[mbid] resolves into the first group that has the
-    // route, which is (activity). navigate, not push: when the artist page
-    // is already in the library stack, go to it instead of stacking a
-    // duplicate on every tap.
+    // can show. The path names the library group — a bare /artist/[mbid]
+    // resolves into (activity), the first group with the route. navigate,
+    // not push: repeated taps must not stack duplicate artist pages.
     router.back();
     router.navigate({
       pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
