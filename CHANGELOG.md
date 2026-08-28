@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.12.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.11.1...v0.12.0) (2026-08-28)
+
+
+### Features
+
+* adopt Aurral 2.6.1 and page the artist list through the canonical route ([#213](https://github.com/dylfrancis/aurral-pocket/issues/213)) ([aa78fd2](https://github.com/dylfrancis/aurral-pocket/commit/aa78fd2cb9b03be58583a04af89e8a798ef39b0b))
+* **auth:** add OIDC sign-in ([#206](https://github.com/dylfrancis/aurral-pocket/issues/206)) ([#211](https://github.com/dylfrancis/aurral-pocket/issues/211)) ([6cba1d4](https://github.com/dylfrancis/aurral-pocket/commit/6cba1d47f815a9a3480e9508ee1e54b988824c0c))
+* **flow:** add a release-year range to the flow editor ([#210](https://github.com/dylfrancis/aurral-pocket/issues/210)) ([7d2f2c0](https://github.com/dylfrancis/aurral-pocket/commit/7d2f2c0cb0a392190c2a920a5c83c04cc1cd2bc1)), closes [#207](https://github.com/dylfrancis/aurral-pocket/issues/207)
+* **flow:** add the recordHistory control to flow editing ([#208](https://github.com/dylfrancis/aurral-pocket/issues/208)) ([b0f21b7](https://github.com/dylfrancis/aurral-pocket/commit/b0f21b76ca69bc2db40788b331948a5bb3f85d46)), closes [#198](https://github.com/dylfrancis/aurral-pocket/issues/198)
+* **library:** adopt the canonical library read path ([#199](https://github.com/dylfrancis/aurral-pocket/issues/199)) ([1fe5221](https://github.com/dylfrancis/aurral-pocket/commit/1fe5221404b5d6cdee7a4cce9c5190b8b6683d6b))
+* **library:** serve the screens from the paged canonical route ([#220](https://github.com/dylfrancis/aurral-pocket/issues/220)) ([486c140](https://github.com/dylfrancis/aurral-pocket/commit/486c140e3a724f9f639bc5b6706478983e059474)), closes [#214](https://github.com/dylfrancis/aurral-pocket/issues/214)
+* **player:** add the mini player and the now-playing screen ([#223](https://github.com/dylfrancis/aurral-pocket/issues/223)) ([65f8cdb](https://github.com/dylfrancis/aurral-pocket/commit/65f8cdb6f75c9b7197b9f82607cc876eb51760a7))
+* **player:** persist the playback queue across restarts ([#224](https://github.com/dylfrancis/aurral-pocket/issues/224)) ([ec44566](https://github.com/dylfrancis/aurral-pocket/commit/ec445669fb9508cbccb60146fd9f26ca36e35753))
+* **player:** play owned tracks through the Nitro engine ([#221](https://github.com/dylfrancis/aurral-pocket/issues/221)) ([e70f155](https://github.com/dylfrancis/aurral-pocket/commit/e70f155e165736c8ff9b8f57e7187a521270cd1a))
+* **player:** queue the album and add transport controls ([#222](https://github.com/dylfrancis/aurral-pocket/issues/222)) ([dd5334c](https://github.com/dylfrancis/aurral-pocket/commit/dd5334c3503d153822fa85eadeaca147cef47a2a))
+* **player:** report plays to Aurral and offer local history ([#225](https://github.com/dylfrancis/aurral-pocket/issues/225)) ([0ad19db](https://github.com/dylfrancis/aurral-pocket/commit/0ad19dbe0aef258a1ec7a3030429ff666ef4d8b7))
+* **settings:** honor the server date and time format ([#226](https://github.com/dylfrancis/aurral-pocket/issues/226)) ([df037f2](https://github.com/dylfrancis/aurral-pocket/commit/df037f27e84ffb1fde41affa9530c846d5c39abb))
+
+
+### Bug Fixes
+
+* **library:** fall back to Lidarr statistics when Aurral cannot see the files ([5c68c36](https://github.com/dylfrancis/aurral-pocket/commit/5c68c3678a509e50deac44d33035fda69cd9a3ce))
+* **library:** keep the screens on the legacy read path ([be3d497](https://github.com/dylfrancis/aurral-pocket/commit/be3d497a473dca3bdb3ffe94812660d549caf9f0))
+
 ## [0.11.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.11.0...v0.11.1) (2026-08-18)
 
 
