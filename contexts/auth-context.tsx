@@ -5,6 +5,7 @@ import {
   setOnAuthRefreshed,
   setOnSessionExpired,
 } from "@/lib/api/client";
+import { forgetQueue } from "@/lib/player/player";
 import { AppStorage, SecureStorage } from "@/lib/storage";
 import type { HealthResponse, User } from "@/lib/types/auth";
 import React, {
@@ -120,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             SecureStorage.deleteExpiresAt(),
             SecureStorage.deleteLastActiveAt(),
             AppStorage.deleteOidcSession(),
+            AppStorage.deletePlaybackQueue(),
           ]);
           return;
         }
@@ -303,6 +305,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await Promise.all([
       AppStorage.deleteServerUrl(),
       AppStorage.deleteOidcSession(),
+      forgetQueue(),
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),
       SecureStorage.deleteCredentials(),

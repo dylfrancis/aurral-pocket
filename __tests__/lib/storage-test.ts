@@ -195,3 +195,29 @@ describe("AppStorage.oidcSession", () => {
     ]);
   });
 });
+
+describe("AppStorage.playbackQueue", () => {
+  it("gets the saved queue", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue('{"version":1}');
+    expect(await AppStorage.getPlaybackQueue()).toBe('{"version":1}');
+    expect(mockAsyncStorage.getItem).toHaveBeenCalledWith("playback_queue");
+  });
+
+  it("returns null on error", async () => {
+    mockAsyncStorage.getItem.mockRejectedValue(new Error("fail"));
+    expect(await AppStorage.getPlaybackQueue()).toBeNull();
+  });
+
+  it("sets the saved queue", async () => {
+    await AppStorage.setPlaybackQueue('{"version":1}');
+    expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+      "playback_queue",
+      '{"version":1}',
+    );
+  });
+
+  it("deletes the saved queue", async () => {
+    await AppStorage.deletePlaybackQueue();
+    expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("playback_queue");
+  });
+});

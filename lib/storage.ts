@@ -22,6 +22,7 @@ const KEYS = {
   VIEW_MODES: "view_modes",
   OIDC_SESSION: "oidc_session",
   OIDC_LOGOUT_URL: "oidc_logout_url",
+  PLAYBACK_QUEUE: "playback_queue",
 } as const;
 
 export const SecureStorage = {
@@ -244,6 +245,27 @@ export const AppStorage = {
   async setViewModes(modes: Record<string, string>): Promise<void> {
     try {
       await AsyncStorage.setItem(KEYS.VIEW_MODES, JSON.stringify(modes));
+    } catch {}
+  },
+
+  /** The saved playback queue. Its shape lives in lib/player/saved-queue.ts. */
+  async getPlaybackQueue(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(KEYS.PLAYBACK_QUEUE);
+    } catch {
+      return null;
+    }
+  },
+
+  async setPlaybackQueue(json: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.PLAYBACK_QUEUE, json);
+    } catch {}
+  },
+
+  async deletePlaybackQueue(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.PLAYBACK_QUEUE);
     } catch {}
   },
 

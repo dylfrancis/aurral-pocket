@@ -2,12 +2,12 @@ import { buildAuthenticatedUrl } from "@/lib/api/client";
 import type { Track } from "@/lib/types/library";
 
 /**
- * One track as the audio engine takes it.
+ * One sound as the audio engine takes it.
  *
  * The shape matches the engine's own track type, but it is declared here so
  * that lib/player/player.ts stays the only module that imports the engine.
  */
-export type PlayerTrack = {
+export type PlayerClip = {
   id: string;
   title: string;
   artist: string;
@@ -17,6 +17,13 @@ export type PlayerTrack = {
   url: string;
   artwork: string | null;
 };
+
+/**
+ * A queued track: a clip plus the path its URL was built from. The saved
+ * queue keeps the path, because the URL's session token does not last. A
+ * preview clip has no path and is never restored.
+ */
+export type PlayerTrack = PlayerClip & { streamPath: string | null };
 
 /** The album a track is played from. The engine shows this on the lock screen. */
 export type PlayerAlbumContext = {
@@ -53,5 +60,6 @@ export function toPlayerTrack(
     duration: 0,
     url,
     artwork: album.artworkUrl || null,
+    streamPath: track.streamPath,
   };
 }
