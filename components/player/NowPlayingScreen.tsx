@@ -46,7 +46,10 @@ export function NowPlayingScreen() {
   const { items, currentId, album } = useQueue();
 
   const isPlaying = state === "playing" || state === "buffering";
-  const upNext = items.slice(items.findIndex((it) => it.id === currentId) + 1);
+  // A missing match means the engine is on an item the facade did not
+  // queue; an empty list beats presenting the whole queue as "up next".
+  const currentIndex = items.findIndex((it) => it.id === currentId);
+  const upNext = currentIndex < 0 ? [] : items.slice(currentIndex + 1);
   const artistMbid = album?.artistMbid ?? null;
 
   const openArtist = useCallback(() => {

@@ -4,7 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { seekTo, useProgress } from "@/lib/player/player";
+import { seekTo, useCurrentTrack, useProgress } from "@/lib/player/player";
 
 /**
  * How close, in seconds, the engine's reported position must come to a seek
@@ -21,9 +21,20 @@ const SEEK_SETTLE_SECONDS = 2;
  */
 export function Scrubber() {
   const colors = Colors[useColorScheme()];
+  const trackId = useCurrentTrack()?.id ?? null;
   const { position, duration } = useProgress();
   const [dragValue, setDragValue] = useState<number | null>(null);
   const [seekTarget, setSeekTarget] = useState<number | null>(null);
+  const [seekTrackId, setSeekTrackId] = useState(trackId);
+
+  // Adjust-state-during-render: a new track invalidates any drag or pending
+  // seek — the old target would otherwise stay on screen until the new
+  // track happened to reach it.
+  if (seekTrackId !== trackId) {
+    setSeekTrackId(trackId);
+    setDragValue(null);
+    setSeekTarget(null);
+  }
 
   // Adjust-state-during-render: the tick that catches up to the seek target
   // hands the thumb back to the engine. The guard keeps this from looping.
@@ -49,7 +60,9 @@ export function Scrubber() {
         onSlidingComplete={(value) => {
           setDragValue(null);
           setSeekTarget(value);
-          seekTo(value);
+          // A failed seek must not hold the thumb on a position the engine
+          // never reached.
+          seekTo(value).catch(() => setSeekTarget(null));
         }}
         minimumTrackTintColor={colors.brand}
         maximumTrackTintColor={colors.separator}

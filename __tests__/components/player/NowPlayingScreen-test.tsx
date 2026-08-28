@@ -77,6 +77,7 @@ const albumTracks = [
 ];
 
 let engine: {
+  trackChange: Parameters<typeof manager.subscribeToTrackChange>[0];
   progress: Parameters<typeof manager.subscribeToPlaybackProgressChange>[0];
   stateChange: Parameters<typeof manager.subscribeToPlaybackState>[0];
 };
@@ -84,6 +85,7 @@ let engine: {
 beforeAll(() => {
   onTrackStarted(() => {})();
   engine = {
+    trackChange: manager.subscribeToTrackChange.mock.calls[0][0],
     progress: manager.subscribeToPlaybackProgressChange.mock.calls[0][0],
     stateChange: manager.subscribeToPlaybackState.mock.calls[0][0],
   };
@@ -138,6 +140,69 @@ describe("NowPlayingScreen", () => {
     await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 120);
 
     expect(player.seek).toHaveBeenCalledWith(120);
+  });
+
+  it("drops the seek target when the track changes", async () => {
+    const { getByTestId, getByText } = await renderPlaying();
+    await act(async () => {
+      engine.progress(30, 240, false);
+    });
+    await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 120);
+    expect(getByText("2:00")).toBeTruthy();
+
+    await act(async () => {
+      engine.trackChange(
+        {
+          id: "2",
+          title: "Kid A",
+          artist: "Radiohead",
+          album: "Kid A",
+          duration: 0,
+          url: "https://test.example/2",
+          artwork: null,
+        },
+        "skip",
+      );
+    });
+
+    // The new track starts over; 2:00 belonged to the old one.
+    expect(getByText("0:00")).toBeTruthy();
+  });
+
+  it("lets the ticks take over again when a seek fails", async () => {
+    const { getByTestId, getByText } = await renderPlaying();
+    await act(async () => {
+      engine.progress(30, 240, false);
+    });
+    player.seek.mockRejectedValueOnce(new Error("engine gone"));
+
+    await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 120);
+    await act(async () => {});
+
+    expect(getByText("0:30")).toBeTruthy();
+  });
+
+  it("shows nothing up next when the playing item is not in the queue", async () => {
+    const { getByText } = await renderPlaying();
+
+    // A clip mid-transition: the engine reports an item the facade never
+    // queued, so no queue position exists.
+    await act(async () => {
+      engine.trackChange(
+        {
+          id: "unqueued-clip",
+          title: "Preview",
+          artist: "Radiohead",
+          album: "Kid A",
+          duration: 0,
+          url: "https://preview.example/9.mp3",
+          artwork: null,
+        },
+        "user_action",
+      );
+    });
+
+    expect(getByText("Nothing up next.")).toBeTruthy();
   });
 
   it("plays a tapped up-next track without rebuilding the queue", async () => {
