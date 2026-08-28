@@ -29,6 +29,11 @@ export type SavedQueue = {
   originalIds: string[];
   currentId: string | null;
   positionSeconds: number;
+  /**
+   * The current track's length. The engine learns it from the stream, so a
+   * restore has no other way to know it until playback starts.
+   */
+  durationSeconds: number;
   album: PlayerAlbumContext;
   shuffle: boolean;
   repeat: RepeatMode;
@@ -74,10 +79,8 @@ function parseSavedQueue(parsed: unknown): SavedQueue | null {
     items,
     originalIds: asArray(parsed.originalIds).filter(isString),
     currentId: isString(parsed.currentId) ? parsed.currentId : null,
-    positionSeconds:
-      typeof parsed.positionSeconds === "number" && parsed.positionSeconds > 0
-        ? parsed.positionSeconds
-        : 0,
+    positionSeconds: asSeconds(parsed.positionSeconds),
+    durationSeconds: asSeconds(parsed.durationSeconds),
     album,
     shuffle: parsed.shuffle === true,
     repeat: REPEAT_MODES.includes(parsed.repeat as RepeatMode)
@@ -194,6 +197,11 @@ async function mapWithLimit<T, R>(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/** A stored second count, or zero for anything that is not one. */
+function asSeconds(value: unknown): number {
+  return typeof value === "number" && value > 0 ? value : 0;
 }
 
 function isString(value: unknown): value is string {

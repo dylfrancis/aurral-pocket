@@ -313,9 +313,15 @@ let modesSnapshot: PlayerModes = { shuffle: false, repeat: "off" };
 /**
  * Where a restored queue has to start from, until playback begins. The engine
  * loads the track after the restore asks it to seek, so the position is asked
- * for again on the first play. Cleared by anything that moves playback.
+ * for again on the first play. The length comes along because the engine
+ * reports zero for a track it has not streamed yet. Cleared by anything that
+ * moves playback.
  */
-let pendingRestoreSeek: { trackId: string; position: number } | null = null;
+let pendingRestoreSeek: {
+  trackId: string;
+  position: number;
+  duration: number;
+} | null = null;
 
 function setProgress(position: number, duration: number): void {
   progressSnapshot = { position, duration };
@@ -377,6 +383,7 @@ function persistQueue(position?: number): void {
     originalIds: originalOrder.map((item) => item.id),
     currentId: displayedTrack?.id ?? null,
     positionSeconds: lastSavedPosition,
+    durationSeconds: progressSnapshot.duration,
     album,
     shuffle: shuffleOn,
     repeat: repeatMode,
@@ -432,7 +439,11 @@ async function restoreNow(): Promise<boolean> {
   // The saved track may be one of the dropped ones. Then the queue restarts
   // at its head rather than mid-way through a track nobody can hear.
   const current = items.find((item) => item.id === saved.currentId) ?? items[0];
-  const position = current.id === saved.currentId ? saved.positionSeconds : 0;
+  const resumed = current.id === saved.currentId;
+  const position = resumed ? saved.positionSeconds : 0;
+  // The saved length belongs to the saved track, so a fallback to the head
+  // of the queue starts with the length unknown, as a fresh play does.
+  const duration = resumed ? saved.durationSeconds : 0;
 
   restoringQueue = true;
   try {
@@ -448,8 +459,8 @@ async function restoreNow(): Promise<boolean> {
     shuffleOn = saved.shuffle;
     repeatMode = saved.repeat;
     endedAtQueueEnd = false;
-    pendingRestoreSeek = { trackId: current.id, position };
-    setProgress(position, 0);
+    pendingRestoreSeek = { trackId: current.id, position, duration };
+    setProgress(position, duration);
     setDisplayedTrack(current);
     refreshQueueSnapshot();
     notifyModesChanged();
@@ -513,11 +524,14 @@ function wireEngineEvents(): void {
       // the exception: loading its track reports a change, and the position
       // it starts from is the saved one.
       const restored =
-        pendingRestoreSeek?.trackId === started.id
-          ? pendingRestoreSeek.position
-          : 0;
+        pendingRestoreSeek?.trackId === started.id ? pendingRestoreSeek : null;
       if (!restored) pendingRestoreSeek = null;
-      setProgress(restored, started.duration);
+      // The engine reports zero for a track it has not streamed yet, and the
+      // saved length is the only one a restored track has until it plays.
+      setProgress(
+        restored?.position ?? 0,
+        started.duration || restored?.duration || 0,
+      );
       if (completed) {
         trackCompletedListeners.forEach((listener) => listener(completed));
       }

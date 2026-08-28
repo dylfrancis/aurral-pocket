@@ -51,6 +51,7 @@ jest.mock("react-native-nitro-player/src/hooks/callbackManager", () => ({
   callbackManager: mockManager,
 }));
 
+import { renderHook } from "@testing-library/react-native";
 import type { Track } from "@/lib/types/library";
 
 // Required, not imported: an import would hoist above the doubles above, and
@@ -109,6 +110,7 @@ function savedRecord(overrides: Record<string, unknown> = {}) {
     originalIds: ["71", "72", "73"],
     currentId: "72",
     positionSeconds: 96,
+    durationSeconds: 214,
     album,
     shuffle: false,
     repeat: "off",
@@ -199,6 +201,40 @@ beforeEach(() => {
   mockFetch.mockResolvedValue({ status: 206 });
 });
 
+/*
+ * These two run first, on the shared facade, because that is the only one
+ * whose hooks can be read: the isolated registry the restore tests below use
+ * loads its own React, and a hook from it is not the one the test renders.
+ * Nothing has played yet, so the facade is as cold as a restart leaves it.
+ */
+describe("what a restored player shows", () => {
+  it("shows the saved position against the saved length", async () => {
+    mockStorage.getItem.mockResolvedValue(savedRecord());
+
+    await expect(facade.restoreSavedQueue()).resolves.toBe(true);
+
+    // The scrubber reads this. Without the saved length it shows a full bar
+    // and no time, because the engine reports zero until the track streams.
+    const { result } = await renderHook(() => facade.useProgress());
+    expect(result.current).toEqual({ position: 96, duration: 214 });
+  });
+
+  it("keeps the length when the engine loads the restored track", async () => {
+    // Loading the track reports a change, carrying the length the engine has
+    // not read from the stream yet.
+    engine.trackChange({
+      id: "72",
+      title: "Kid A",
+      artist: "Radiohead",
+      album: "Kid A",
+      duration: 0,
+    });
+
+    const { result } = await renderHook(() => facade.useProgress());
+    expect(result.current).toEqual({ position: 96, duration: 214 });
+  });
+});
+
 describe("saving the queue", () => {
   it("writes the queue and the track it started on", async () => {
     await facade.playAlbumFromTrack(albumTracks, albumTracks[1], album);
@@ -273,7 +309,12 @@ describe("saving the queue", () => {
     await facade.pause();
     await flush();
 
-    expect(lastSavedQueue()).toMatchObject({ positionSeconds: 42 });
+    // The length comes along: the engine reports zero for a track it has not
+    // streamed, so a restore has no other way to know it.
+    expect(lastSavedQueue()).toMatchObject({
+      positionSeconds: 42,
+      durationSeconds: 300,
+    });
   });
 
   it("writes a new queue at the start of its track", async () => {
