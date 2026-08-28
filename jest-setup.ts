@@ -19,6 +19,14 @@ jest.mock("expo/fetch", () => ({
   fetch: jest.fn(),
 }));
 
+// AsyncStorage has no native module under Jest, and it throws at import time.
+// `lib/storage` reaches many modules indirectly, so install the mock the library
+// ships. Suites that assert on storage calls still mock it themselves.
+jest.mock("@react-native-async-storage/async-storage", () =>
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
+
 // The native ShazamKit module isn't linked under Jest; default to "unavailable"
 // so importers are safe. The hook test overrides this with a controllable mock.
 jest.mock("@/modules/shazam", () => ({

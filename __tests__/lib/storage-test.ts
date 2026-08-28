@@ -136,6 +136,44 @@ describe("AppStorage.themePreference", () => {
   });
 });
 
+describe("AppStorage.dateTimeFormat", () => {
+  it("gets a stored format", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("year-first");
+    expect(await AppStorage.getDateTimeFormat()).toBe("year-first");
+    expect(mockAsyncStorage.getItem).toHaveBeenCalledWith("date_time_format");
+  });
+
+  it("returns null when nothing stored", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    expect(await AppStorage.getDateTimeFormat()).toBeNull();
+  });
+
+  it("returns null for a format the server does not offer", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("iso-8601");
+    expect(await AppStorage.getDateTimeFormat()).toBeNull();
+  });
+
+  it("returns null on error", async () => {
+    mockAsyncStorage.getItem.mockRejectedValue(new Error("fail"));
+    expect(await AppStorage.getDateTimeFormat()).toBeNull();
+  });
+
+  it("sets the format", async () => {
+    await AppStorage.setDateTimeFormat("day-first");
+    expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+      "date_time_format",
+      "day-first",
+    );
+  });
+
+  it("deletes the format", async () => {
+    await AppStorage.deleteDateTimeFormat();
+    expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith(
+      "date_time_format",
+    );
+  });
+});
+
 describe("AppStorage.oidcSession", () => {
   it("reads the flag as a boolean", async () => {
     mockAsyncStorage.getItem.mockResolvedValue("true");

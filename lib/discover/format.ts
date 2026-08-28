@@ -1,3 +1,4 @@
+import { formatDate } from "@/lib/date-time";
 import type { BasedOnArtist, DiscoveryArtist } from "@/lib/types/search";
 
 const GENRE_SECTIONS_MAX = 4;
@@ -54,7 +55,7 @@ export function formatUpdatedAt(iso: string | null): string | null {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(undefined, {
+  return formatDate(date, {
     month: "numeric",
     day: "numeric",
     year: "numeric",
@@ -84,7 +85,7 @@ export function formatReleaseStatus(
     today.getMonth(),
     today.getDate(),
   );
-  const formatted = date.toLocaleDateString();
+  const formatted = formatDate(date);
   if (date.getTime() === start.getTime()) return "Released today";
   if (date < start) return `Released ${formatted}`;
   return `Releasing ${formatted}`;

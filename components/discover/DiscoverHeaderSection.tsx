@@ -6,6 +6,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TagPill } from "@/components/ui/TagPill";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { Colors, Fonts } from "@/constants/theme";
 import { useDiscovery } from "@/hooks/discover";
 import { formatBasedOn, formatUpdatedAt } from "@/lib/discover/format";
@@ -17,6 +18,8 @@ type Props = {
 
 export function DiscoverHeaderSection({ onTagPress, onCustomize }: Props) {
   const colors = Colors[useColorScheme()];
+  // Repaint the "updated" date when the server format changes.
+  useDateTimeFormat();
   const { data, isLoading } = useDiscovery();
 
   if (data?.configured === false) return null;

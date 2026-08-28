@@ -1,3 +1,5 @@
+import type { DateTimeFormat } from "@/lib/types/date-time";
+
 export type User = {
   id: number;
   username: string;
@@ -29,6 +31,10 @@ export type HealthResponse = {
   // omits both, which reads as "no OIDC" and leaves the password form alone.
   oidcEnabled?: boolean;
   oidcLogoutUrl?: string | null;
+  // Optional: present on Aurral 2.3.0 and later. An older or forked server
+  // omits it, which normalizes to "browser" — the device locale, which is what
+  // pocket used before the server had this setting.
+  dateTimeFormat?: DateTimeFormat;
 };
 
 export type LoginRequest = {
