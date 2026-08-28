@@ -1,6 +1,12 @@
 import { createContext, ReactNode, useCallback, useContext } from "react";
 import { getFlowStreamUrl } from "@/lib/api/flow";
-import { pause, playItem, resume, usePlayerStatus } from "@/lib/player/player";
+import {
+  pause,
+  pauseClip,
+  playItem,
+  resume,
+  usePlayerStatus,
+} from "@/lib/player/player";
 
 type FlowAudioPreviewContextValue = {
   activeJobId: string | null;
@@ -57,8 +63,11 @@ export function FlowAudioPreviewProvider({
     [status.currentId, status.isPlaying, status.isPaused, status.isBuffering],
   );
 
+  // pauseClip, not pause: the flow tab fires this whenever it loses focus,
+  // and a bare pause would silence album playback on every tab switch away
+  // from Playlists.
   const stop = useCallback(() => {
-    void pause();
+    void pauseClip();
   }, []);
 
   const value: FlowAudioPreviewContextValue = {

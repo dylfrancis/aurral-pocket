@@ -1,5 +1,11 @@
 import { useCallback } from "react";
-import { pause, playItem, resume, usePlayerStatus } from "@/lib/player/player";
+import {
+  pause,
+  pauseClip,
+  playItem,
+  resume,
+  usePlayerStatus,
+} from "@/lib/player/player";
 
 /** What the notification shows while a clip plays. */
 export type PreviewMetadata = {
@@ -24,8 +30,11 @@ export function useAudioPreview() {
   // a second tap.
   const loadingId = status.isBuffering ? status.currentId : null;
 
+  // pauseClip, not pause: screens fire this on blur and on navigation, and
+  // a bare pause would silence album playback that has nothing to do with
+  // the preview.
   const stop = useCallback(() => {
-    void pause();
+    void pauseClip();
   }, []);
 
   const toggle = useCallback(

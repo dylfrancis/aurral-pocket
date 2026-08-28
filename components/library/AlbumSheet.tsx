@@ -20,6 +20,7 @@ import {
   AddToPlaylistSheet,
   useAddToPlaylist,
 } from "@/components/flow/AddToPlaylistSheet";
+import { useCoverArtUrl } from "@/hooks/library/use-cover-art-url";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import { triggerAlbumSearch, deleteAlbum } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
@@ -64,6 +65,14 @@ export function AlbumSheet({
   const canAddTracks = canAddToPlaylist && !!artistName;
 
   const play = usePlayTrack();
+
+  // The same query that draws the sheet's cover, so it is already resolved
+  // from the cache here. The player carries this URL onto the mini player,
+  // the now-playing screen, and the lock-screen notification.
+  const { url: artworkUrl } = useCoverArtUrl({
+    type: "album",
+    mbid: album?.mbid,
+  });
 
   const year = album?.releaseDate
     ? new Date(album.releaseDate).getFullYear()
@@ -262,7 +271,8 @@ export function AlbumSheet({
                         void play(tracks, track, {
                           albumTitle: album.albumName,
                           artistName: artistName ?? album.artistName,
-                          artworkUrl: null,
+                          artworkUrl,
+                          artistMbid: artistMbid ?? null,
                         })
                       }
                       onLongPress={

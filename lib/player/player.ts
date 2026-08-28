@@ -66,7 +66,7 @@ function configureEngine(): Promise<void> {
  * play against a playlist another call just deleted.
  */
 export function playItem(item: PlayerTrack): Promise<void> {
-  const run = lastPlay.then(() => replaceAndPlay([item], item.id));
+  const run = lastPlay.then(() => replaceAndPlay([item], item.id, null));
   // A failed play must not wedge every later one.
   lastPlay = run.catch(() => {});
   return run;
@@ -98,7 +98,7 @@ export async function playAlbumFromTrack(
     ? items
     : [startItem];
 
-  const run = lastPlay.then(() => replaceAndPlay(queued, startItem.id));
+  const run = lastPlay.then(() => replaceAndPlay(queued, startItem.id, album));
   lastPlay = run.catch(() => {});
   await run;
   return true;
@@ -107,6 +107,7 @@ export async function playAlbumFromTrack(
 async function replaceAndPlay(
   items: PlayerTrack[],
   startId: string,
+  album: PlayerAlbumContext | null,
 ): Promise<void> {
   await configureEngine();
 
@@ -117,6 +118,7 @@ async function replaceAndPlay(
   currentPlaylistId = playlistId;
   queueOrder = items;
   originalOrder = items;
+  queueAlbumContext = album;
   // The started track is known here. Showing it now — not on the engine's
   // track-change event — makes the mini player appear with the tap. The
   // engine's own event re-delivers the same object, which listeners can
@@ -137,6 +139,17 @@ async function replaceAndPlay(
 
 export async function pause(): Promise<void> {
   await TrackPlayer.pause();
+}
+
+/**
+ * Pause the engine only while a preview clip holds it. The preview surfaces
+ * call this when they leave the screen or change context; album playback
+ * must survive those moments — the queue outlives every screen. Clips are
+ * the only queues without an album context.
+ */
+export async function pauseClip(): Promise<void> {
+  if (queueAlbumContext !== null) return;
+  await pause();
 }
 
 export async function resume(): Promise<void> {
@@ -227,6 +240,8 @@ export type TrackProgress = { position: number; duration: number };
 export type QueueSnapshot = {
   items: PlayerTrack[];
   currentId: string | null;
+  /** The album the queue came from. Null for a single clip. */
+  album: PlayerAlbumContext | null;
 };
 
 /**
@@ -235,6 +250,8 @@ export type QueueSnapshot = {
  * a finished queue still shows what just played, stopped at its end.
  */
 let displayedTrack: PlayerTrack | null = null;
+/** The album behind the current queue, for the queue snapshot. */
+let queueAlbumContext: PlayerAlbumContext | null = null;
 /** The engine's state per its last state-change event. */
 let playbackState: PlaybackState = "stopped";
 /**
@@ -249,7 +266,11 @@ let endedAtQueueEnd = false;
  * the progress hook's consumers to one render per second.
  */
 let progressSnapshot: TrackProgress = { position: 0, duration: 0 };
-let queueSnapshot: QueueSnapshot = { items: [], currentId: null };
+let queueSnapshot: QueueSnapshot = {
+  items: [],
+  currentId: null,
+  album: null,
+};
 let modesSnapshot: PlayerModes = { shuffle: false, repeat: "off" };
 
 function setDisplayedTrack(track: PlayerTrack | null): void {
@@ -263,6 +284,7 @@ function refreshQueueSnapshot(): void {
   queueSnapshot = {
     items: queueOrder,
     currentId: displayedTrack?.id ?? null,
+    album: queueAlbumContext,
   };
   queueChangedListeners.forEach((listener) => listener());
 }

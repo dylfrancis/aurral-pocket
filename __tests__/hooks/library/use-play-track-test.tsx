@@ -52,6 +52,7 @@ const ALBUM = {
   albumTitle: "In Rainbows",
   artistName: "Radiohead",
   artworkUrl: null,
+  artistMbid: null,
 };
 
 beforeEach(() => {

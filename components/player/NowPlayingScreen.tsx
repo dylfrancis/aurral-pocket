@@ -1,4 +1,5 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useCallback } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,13 +39,30 @@ const NEXT_REPEAT_MODE: Record<RepeatMode, RepeatMode> = {
 export function NowPlayingScreen() {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const track = useCurrentTrack();
   const state = usePlaybackState();
   const modes = usePlayerModes();
-  const { items, currentId } = useQueue();
+  const { items, currentId, album } = useQueue();
 
   const isPlaying = state === "playing" || state === "buffering";
   const upNext = items.slice(items.findIndex((it) => it.id === currentId) + 1);
+  const artistMbid = album?.artistMbid ?? null;
+
+  const openArtist = useCallback(() => {
+    if (!artistMbid) return;
+    // The sheet sits over the tabs, so it must go before the artist page
+    // (inside a tab's stack) can show. The path names the library group:
+    // a bare /artist/[mbid] resolves into the first group that has the
+    // route, which is (activity). navigate, not push: when the artist page
+    // is already in the library stack, go to it instead of stacking a
+    // duplicate on every tap.
+    router.back();
+    router.navigate({
+      pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
+      params: { mbid: artistMbid },
+    });
+  }, [artistMbid, router]);
 
   const renderUpNextRow = useCallback(
     ({ item }: { item: PlayerTrack }) => <UpNextRow item={item} />,
@@ -80,9 +98,19 @@ export function NowPlayingScreen() {
           >
             {track.title}
           </Text>
-          <Text variant="caption" numberOfLines={1} style={{ fontSize: 15 }}>
-            {track.artist} — {track.album}
-          </Text>
+          <Pressable
+            onPress={openArtist}
+            disabled={!artistMbid}
+            hitSlop={8}
+            accessibilityRole={artistMbid ? "button" : undefined}
+            accessibilityLabel={
+              artistMbid ? `View artist ${track.artist}` : undefined
+            }
+          >
+            <Text variant="caption" numberOfLines={1} style={{ fontSize: 15 }}>
+              {track.artist} · {track.album}
+            </Text>
+          </Pressable>
         </View>
         <View style={styles.scrubber}>
           <Scrubber />

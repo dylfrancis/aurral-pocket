@@ -18,6 +18,12 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: jest.fn(() => ({ top: 0, bottom: 0, left: 0, right: 0 })),
 }));
 
+const mockNavigate = jest.fn();
+const mockBack = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: jest.fn(() => ({ navigate: mockNavigate, back: mockBack })),
+}));
+
 // The community slider ships no Jest mock; a plain View exposes the same
 // callback props to fireEvent.
 jest.mock("@react-native-community/slider", () => {
@@ -61,6 +67,7 @@ const album = {
   albumTitle: "Kid A",
   artistName: "Radiohead",
   artworkUrl: "https://art.example/kid-a.jpg",
+  artistMbid: "artist-mb-1",
 };
 
 const albumTracks = [
@@ -100,7 +107,7 @@ describe("NowPlayingScreen", () => {
     const { getByText, getByLabelText } = await renderPlaying();
 
     expect(getByText("Everything In Its Right Place")).toBeTruthy();
-    expect(getByText("Radiohead — Kid A")).toBeTruthy();
+    expect(getByText("Radiohead · Kid A")).toBeTruthy();
     expect(getByLabelText("Play")).toBeTruthy();
     expect(getByLabelText("Previous track")).toBeTruthy();
     expect(getByLabelText("Next track")).toBeTruthy();
@@ -108,6 +115,18 @@ describe("NowPlayingScreen", () => {
     // Up next lists what follows the current track, in order.
     expect(getByText("Kid A")).toBeTruthy();
     expect(getByText("The National Anthem")).toBeTruthy();
+  });
+
+  it("opens the artist page from the artist line, under the sheet", async () => {
+    const { getByLabelText } = await renderPlaying();
+
+    await fireEvent.press(getByLabelText("View artist Radiohead"));
+
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith({
+      pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
+      params: { mbid: "artist-mb-1" },
+    });
   });
 
   it("seeks when the scrubber is released", async () => {
