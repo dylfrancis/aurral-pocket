@@ -272,6 +272,7 @@ export function AlbumSheet({
                           albumTitle: album.albumName,
                           artistName: artistName ?? album.artistName,
                           artworkUrl,
+                          albumMbid: album.mbid ?? null,
                           artistMbid: artistMbid ?? null,
                         })
                       }

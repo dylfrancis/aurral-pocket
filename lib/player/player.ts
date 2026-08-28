@@ -74,7 +74,15 @@ function configureEngine(): Promise<void> {
  * play against a playlist another call just deleted.
  */
 export function playItem(item: PlayerClip): Promise<void> {
-  const track: PlayerTrack = { ...item, streamPath: null };
+  // A preview clip is not a library track: it has no ids, and no play of it
+  // is ever reported.
+  const track: PlayerTrack = {
+    ...item,
+    streamPath: null,
+    trackMbid: null,
+    artistMbid: null,
+    albumMbid: null,
+  };
   const run = lastPlay.then(() => replaceAndPlay([track], track.id, null));
   // A failed play must not wedge every later one.
   lastPlay = run.catch(() => {});
@@ -526,9 +534,15 @@ function wireEngineEvents(): void {
   callbackManager.subscribeToTrackChange(
     function handleTrackChange(engineTrack, reason): void {
       const started = asPlayerTrack(engineTrack);
-      // The engine reports the end of one track as the start of the next,
-      // reason "end". A skip is not a completion.
-      const completed = reason === "end" ? currentEventTrack : null;
+      // The engine reports the end of one track as the start of the next. The
+      // reason it gives for that is not dependable: iOS calls a track running
+      // out "skip", the same word it uses for the next button. So the
+      // position decides — a track that ran out stops at its own end, and one
+      // the listener skipped away from stops wherever they left it. Read
+      // before the progress reset below, while it still describes the track
+      // that is ending.
+      const completed =
+        reason === "end" || isAtTrackEnd() ? currentEventTrack : null;
       currentEventTrack = started;
       lastProgress = null;
       endedAtQueueEnd = false;
@@ -618,6 +632,9 @@ function asPlayerTrack(engineTrack: TrackItem): PlayerTrack {
     url: engineTrack.url,
     artwork: engineTrack.artwork ?? null,
     streamPath: null,
+    trackMbid: null,
+    artistMbid: null,
+    albumMbid: null,
   };
 }
 

@@ -35,6 +35,7 @@ const album = {
   albumTitle: "Kid A",
   artistName: "Radiohead",
   artworkUrl: "https://art.example/kid-a.jpg",
+  albumMbid: "album-mb-1",
   artistMbid: "artist-mb-1",
 };
 
@@ -55,6 +56,10 @@ describe("toPlayerTrack", () => {
       // Kept so a restored queue can build a fresh URL for the track.
       streamPath: "/library/canonical-stream/12/77",
       artwork: "https://art.example/kid-a.jpg",
+      // Carried on the track so a reported play names the right recording.
+      trackMbid: "mb-track",
+      artistMbid: "artist-mb-1",
+      albumMbid: "album-mb-1",
     });
   });
 
@@ -75,6 +80,7 @@ describe("toPlayerTrack", () => {
       albumTitle: "",
       artistName: "",
       artworkUrl: null,
+      albumMbid: null,
       artistMbid: null,
     });
 

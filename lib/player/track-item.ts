@@ -19,17 +19,30 @@ export type PlayerClip = {
 };
 
 /**
- * A queued track: a clip plus the path its URL was built from. The saved
- * queue keeps the path, because the URL's session token does not last. A
- * preview clip has no path and is never restored.
+ * A queued track: a clip plus the path its URL was built from, plus the ids a
+ * play event carries. The saved queue keeps the path, because the URL's
+ * session token does not last. A preview clip has no path and is never
+ * restored.
+ *
+ * The MusicBrainz ids ride on the track rather than being read from the queue
+ * when a play is reported. A track finishes as the next one starts, and the
+ * queue can be replaced in the same moment; the track that finished still
+ * carries its own ids.
  */
-export type PlayerTrack = PlayerClip & { streamPath: string | null };
+export type PlayerTrack = PlayerClip & {
+  streamPath: string | null;
+  trackMbid: string | null;
+  artistMbid: string | null;
+  albumMbid: string | null;
+};
 
 /** The album a track is played from. The engine shows this on the lock screen. */
 export type PlayerAlbumContext = {
   albumTitle: string;
   artistName: string;
   artworkUrl: string | null;
+  /** The engine never sees this. Play events carry it. */
+  albumMbid: string | null;
   /**
    * The engine never sees this. The now-playing screen uses it to open the
    * artist page.
@@ -61,5 +74,8 @@ export function toPlayerTrack(
     url,
     artwork: album.artworkUrl || null,
     streamPath: track.streamPath,
+    trackMbid: track.mbid || null,
+    artistMbid: album.artistMbid,
+    albumMbid: album.albumMbid,
   };
 }

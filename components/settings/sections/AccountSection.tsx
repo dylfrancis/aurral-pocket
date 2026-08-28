@@ -22,9 +22,14 @@ type AccountForm = {
 };
 
 const providerOptions: { value: ListenHistoryProvider; label: string }[] = [
+  { value: "local", label: "Local only" },
   { value: "lastfm", label: "Last.fm" },
   { value: "listenbrainz", label: "ListenBrainz" },
 ];
+
+const HELPER_TEXT =
+  "Choose where your listening history comes from. Local only uses the plays " +
+  "Aurral records for you. Last.fm and ListenBrainz read an outside account.";
 
 export function AccountSection() {
   const colorScheme = useColorScheme();
@@ -51,7 +56,9 @@ export function AccountSection() {
   const provider = useWatch({ control, name: "provider" });
 
   const onSubmit = (values: AccountForm) => {
-    const trimmed = values.username.trim();
+    // The server keeps no username for "local", and answers with null. Sending
+    // one would leave the form dirty against a value that never comes back.
+    const trimmed = values.provider === "local" ? "" : values.username.trim();
     updateMutation.mutate(
       {
         listenHistoryProvider: values.provider,
@@ -86,8 +93,7 @@ export function AccountSection() {
           variant="caption"
           style={[styles.helper, { color: colors.subtle }]}
         >
-          Connect Last.fm or ListenBrainz for discovery recommendations based on
-          your listening history.
+          {HELPER_TEXT}
         </Text>
         <Skeleton width="100%" height={32} />
         <Skeleton width="100%" height={50} />
@@ -111,8 +117,7 @@ export function AccountSection() {
   return (
     <View style={styles.container}>
       <Text variant="caption" style={[styles.helper, { color: colors.subtle }]}>
-        Connect Last.fm or ListenBrainz for discovery recommendations based on
-        your listening history.
+        {HELPER_TEXT}
       </Text>
 
       <View style={styles.field}>
@@ -135,35 +140,37 @@ export function AccountSection() {
         />
       </View>
 
-      <Controller
-        control={control}
-        name="username"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <View style={styles.field}>
-            <Text
-              variant="caption"
-              style={[styles.fieldLabel, { color: colors.subtle }]}
-            >
-              Username
-            </Text>
-            <BottomSheetTextInput
-              style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
-              placeholder={
-                provider === "listenbrainz"
-                  ? "Your ListenBrainz username"
-                  : "Your Last.fm username"
-              }
-              placeholderTextColor={colors.placeholder}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!updateMutation.isPending}
-            />
-          </View>
-        )}
-      />
+      {provider === "local" ? null : (
+        <Controller
+          control={control}
+          name="username"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <View style={styles.field}>
+              <Text
+                variant="caption"
+                style={[styles.fieldLabel, { color: colors.subtle }]}
+              >
+                Username
+              </Text>
+              <BottomSheetTextInput
+                style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
+                placeholder={
+                  provider === "listenbrainz"
+                    ? "Your ListenBrainz username"
+                    : "Your Last.fm username"
+                }
+                placeholderTextColor={colors.placeholder}
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!updateMutation.isPending}
+              />
+            </View>
+          )}
+        />
+      )}
 
       <Button
         title="Save"
