@@ -62,7 +62,14 @@ export function NowPlayingScreen() {
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    // collapsable={false} keeps Fabric from flattening this view away. If it
+    // flattens, the list's ScrollView becomes a direct subview of the sheet's
+    // content container, and react-native-screens then forces that ScrollView
+    // to the full sheet size (its form-sheet ScrollView handling).
+    <View
+      collapsable={false}
+      style={[styles.screen, { backgroundColor: colors.background }]}
+    >
       <View style={styles.header}>
         <PlayerArtwork url={track.artwork} size={280} borderRadius={12} />
         <View style={styles.titles}>
@@ -151,6 +158,7 @@ export function NowPlayingScreen() {
         data={upNext}
         renderItem={renderUpNextRow}
         keyExtractor={(item) => item.id}
+        style={styles.upNextList}
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         ListEmptyComponent={
           <Text variant="caption" style={styles.upNextEmpty}>
@@ -222,6 +230,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 8,
     paddingBottom: 8,
+  },
+  // FlashList flexed itself; a core FlatList needs the bound explicitly or
+  // it sizes to its content and overflows the sheet.
+  upNextList: {
+    flex: 1,
   },
   upNextRow: {
     flexDirection: "row",
