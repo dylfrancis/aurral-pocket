@@ -4,10 +4,9 @@ jest.mock("expo-secure-store", () => ({
   deleteItemAsync: jest.fn(),
 }));
 
-// Each restore test loads the facade again, for a player that has never
-// played. That re-runs every mock factory too, so the doubles below are held
-// outside their factories — otherwise an assertion would watch one instance
-// while the facade under test called another.
+// The restore tests load the facade again, which re-runs every mock factory
+// too. The doubles are held outside their factories so both the test and the
+// facade under test keep watching the same ones.
 const mockStorage = {
   getItem: jest.fn(),
   setItem: jest.fn(),
@@ -54,8 +53,8 @@ jest.mock("react-native-nitro-player/src/hooks/callbackManager", () => ({
 import { renderHook } from "@testing-library/react-native";
 import type { Track } from "@/lib/types/library";
 
-// Required, not imported: an import would hoist above the doubles above, and
-// the mock factories that close over them would hand the facade undefined.
+// Required, not imported: an import hoists above the doubles above, and the
+// factories that close over them would hand the facade undefined.
 const { setAuthToken, setBaseUrl } =
   require("@/lib/api/client") as typeof import("@/lib/api/client");
 const facade =
@@ -95,7 +94,6 @@ const albumTracks = [
   track("73", "The National Anthem"),
 ];
 
-/** What the last session left behind, as the facade writes it. */
 function savedRecord(overrides: Record<string, unknown> = {}) {
   return JSON.stringify({
     version: 1,
@@ -118,7 +116,6 @@ function savedRecord(overrides: Record<string, unknown> = {}) {
   });
 }
 
-/** Let the chained storage writes run. */
 function flush(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve));
 }
@@ -134,7 +131,6 @@ function lastSavedQueue(): Record<string, unknown> {
   return saved[saved.length - 1];
 }
 
-/** The tracks handed to the engine by the first queue it was given. */
 function queuedTracks(): { id: string; url: string }[] {
   const calls = mockQueue.addTracksToPlaylist.mock.calls as unknown as [
     string,
@@ -147,13 +143,11 @@ function queuedIds(): string[] {
   return queuedTracks().map((item) => item.id);
 }
 
-/** The last callback a mocked subscription was given. */
 function lastCallback<T>(subscribe: jest.Mock): T {
   const calls = subscribe.mock.calls as unknown as [T][];
   return calls[calls.length - 1][0];
 }
 
-/** The engine callbacks the facade last registered, to play the engine's part. */
 function engineCallbacks() {
   return {
     trackChange: lastCallback<(engineTrack: unknown, reason?: string) => void>(
@@ -165,24 +159,18 @@ function engineCallbacks() {
   };
 }
 
-/**
- * The callbacks of the shared facade. Captured once: each test clears what
- * the mocks recorded, and the facade only ever wires itself in once.
- */
+/** Captured once: each test clears what the mocks recorded. */
 let engine: ReturnType<typeof engineCallbacks>;
 
 beforeAll(() => {
-  // Wiring is lazy — a subscription is what registers the engine callbacks.
+  // Wiring is lazy — a subscription registers the engine callbacks.
   facade.onTrackStarted(() => {})();
   engine = engineCallbacks();
 });
 
-/** A facade that has never played, for the tests that restore into one. */
 async function freshFacade(): Promise<Facade> {
   let loaded: Facade | null = null;
   await jest.isolateModulesAsync(async () => {
-    // The isolated registry gets its own API client, so the session that
-    // builds the stream URLs is set up inside it.
     const client = require("@/lib/api/client");
     client.setBaseUrl("https://test.example");
     client.setAuthToken("restored-token");
@@ -202,10 +190,9 @@ beforeEach(() => {
 });
 
 /*
- * These two run first, on the shared facade, because that is the only one
- * whose hooks can be read: the isolated registry the restore tests below use
- * loads its own React, and a hook from it is not the one the test renders.
- * Nothing has played yet, so the facade is as cold as a restart leaves it.
+ * These two run first, on the shared facade: it is the only one whose hooks
+ * can be read, because the isolated registry below loads its own React. It
+ * has played nothing yet, so it is as cold as a restart leaves it.
  */
 describe("what a restored player shows", () => {
   it("shows the saved position against the saved length", async () => {
@@ -213,15 +200,12 @@ describe("what a restored player shows", () => {
 
     await expect(facade.restoreSavedQueue()).resolves.toBe(true);
 
-    // The scrubber reads this. Without the saved length it shows a full bar
-    // and no time, because the engine reports zero until the track streams.
+    // Without the saved length the scrubber shows a full bar and no time.
     const { result } = await renderHook(() => facade.useProgress());
     expect(result.current).toEqual({ position: 96, duration: 214 });
   });
 
   it("keeps the length when the engine loads the restored track", async () => {
-    // Loading the track reports a change, carrying the length the engine has
-    // not read from the stream yet.
     engine.trackChange({
       id: "72",
       title: "Kid A",
@@ -249,7 +233,7 @@ describe("saving the queue", () => {
       shuffle: false,
       repeat: "off",
     });
-    // The path, not the URL: the token inside a URL dies with the session.
+    // The path, not the URL: a URL's token dies with the session.
     expect(saved.items).toEqual([
       expect.objectContaining({
         id: "71",
@@ -309,8 +293,6 @@ describe("saving the queue", () => {
     await facade.pause();
     await flush();
 
-    // The length comes along: the engine reports zero for a track it has not
-    // streamed, so a restore has no other way to know it.
     expect(lastSavedQueue()).toMatchObject({
       positionSeconds: 42,
       durationSeconds: 300,
@@ -331,7 +313,6 @@ describe("saving the queue", () => {
     await facade.playAlbumFromTrack(albumTracks, albumTracks[2], album);
     await flush();
 
-    // The position of the track that was playing does not follow the tap.
     expect(lastSavedQueue()).toMatchObject({
       currentId: "73",
       positionSeconds: 0,
@@ -362,11 +343,9 @@ describe("restoring the queue", () => {
     await expect(player.restoreSavedQueue()).resolves.toBe(true);
 
     expect(queuedIds()).toEqual(["71", "72", "73"]);
-    // A fresh URL for a fresh session.
     expect(queuedTracks()[1].url).toBe(
       `${STREAM_ROOT}/library/canonical-stream/12/72?token=restored-token`,
     );
-    // loadPlaylist readies the saved track; playSong and play would start it.
     expect(mockQueue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 1);
     expect(mockPlayer.playSong).not.toHaveBeenCalled();
     expect(mockPlayer.play).not.toHaveBeenCalled();
@@ -381,8 +360,6 @@ describe("restoring the queue", () => {
 
     await player.togglePlayback();
 
-    // The seek comes first: the engine readied the track only after the
-    // restore asked for the position.
     expect(mockPlayer.seek).toHaveBeenCalledWith(96);
     expect(mockPlayer.play).toHaveBeenCalledTimes(1);
     expect(mockPlayer.seek.mock.invocationCallOrder[0]).toBeLessThan(

@@ -248,10 +248,7 @@ export const AppStorage = {
     } catch {}
   },
 
-  /**
-   * The saved playback queue, as JSON. The shape lives with the player, in
-   * lib/player/saved-queue.ts — storage only moves the string.
-   */
+  /** The saved playback queue. Its shape lives in lib/player/saved-queue.ts. */
   async getPlaybackQueue(): Promise<string | null> {
     try {
       return await AsyncStorage.getItem(KEYS.PLAYBACK_QUEUE);

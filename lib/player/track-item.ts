@@ -19,12 +19,9 @@ export type PlayerClip = {
 };
 
 /**
- * A queued track: a clip plus the path its URL was built from.
- *
- * The URL carries a session token that does not outlive the session, so the
- * saved queue stores the path and builds a fresh URL on restore. A preview
- * clip has no path — it streams from a service, not from the library, and it
- * is never restored.
+ * A queued track: a clip plus the path its URL was built from. The saved
+ * queue keeps the path, because the URL's session token does not last. A
+ * preview clip has no path and is never restored.
  */
 export type PlayerTrack = PlayerClip & { streamPath: string | null };
 

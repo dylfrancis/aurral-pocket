@@ -147,7 +147,6 @@ async function replaceAndPlay(
   }
 }
 
-/** The engine's own shape. The queue's bookkeeping stays in the app. */
 function toEngineTrack(item: PlayerTrack): TrackItem {
   return {
     id: item.id,
@@ -162,8 +161,6 @@ function toEngineTrack(item: PlayerTrack): TrackItem {
 
 export async function pause(): Promise<void> {
   await TrackPlayer.pause();
-  // A pause is where a restart is most likely to start from, so the position
-  // goes to storage now rather than at the next throttled tick.
   persistQueue();
 }
 
@@ -178,9 +175,8 @@ export async function pauseClip(): Promise<void> {
 }
 
 export async function resume(): Promise<void> {
-  // A restored queue sits at the saved position, but the engine loaded the
-  // track after the restore seek asked for it. Ask once more, now that the
-  // track is ready, so play carries on from where the last session stopped.
+  // The engine loads a restored track after the restore asks it to seek, so
+  // the position is asked for once more, now that the track is ready.
   const restored = pendingRestoreSeek;
   pendingRestoreSeek = null;
   if (restored) {
@@ -310,13 +306,7 @@ let queueSnapshot: QueueSnapshot = {
   album: null,
 };
 let modesSnapshot: PlayerModes = { shuffle: false, repeat: "off" };
-/**
- * Where a restored queue has to start from, until playback begins. The engine
- * loads the track after the restore asks it to seek, so the position is asked
- * for again on the first play. The length comes along because the engine
- * reports zero for a track it has not streamed yet. Cleared by anything that
- * moves playback.
- */
+/** Where a restored queue starts from, until playback moves it. */
 let pendingRestoreSeek: {
   trackId: string;
   position: number;
@@ -352,21 +342,16 @@ function notifyModesChanged(): void {
 }
 
 /*
- * Saving and restoring the queue.
- *
- * The queue goes to storage as it changes, so a restart can put the user back
- * where they were. Only a library queue is saved: a preview clip has no album
- * and no path to build a URL from.
+ * Saving and restoring the queue. Only a library queue is saved: a preview
+ * clip has no album and no path to build a URL from.
  */
 
 /** Seconds of playback between position writes. Ticks arrive far faster. */
 const POSITION_SAVE_INTERVAL_SECONDS = 5;
 
-/** The position in the last write, so ticks in between skip the write. */
 let lastSavedPosition = 0;
 /** Writes run one at a time, so a burst of changes cannot land out of order. */
 let lastSave: Promise<void> = Promise.resolve();
-/** True while a restore sets up state, whose every step would else be saved. */
 let restoringQueue = false;
 
 function persistQueue(position?: number): void {
@@ -395,11 +380,7 @@ function currentPosition(): number {
   return lastProgress?.position ?? progressSnapshot.position;
 }
 
-/**
- * Put the position back to the start of a track. A new play saves its
- * position before the engine reports one, and the last track's position must
- * not travel to the new one — on screen or into storage.
- */
+/** A new play saves and shows its position before the engine reports one. */
 function resetProgress(): void {
   lastProgress = null;
   setProgress(0, 0);
@@ -408,12 +389,10 @@ function resetProgress(): void {
 /**
  * Bring back the queue the last session left, paused where it stopped. Call
  * once at start, after the session token is in place — the stream URLs are
- * built from it. Returns false when there is nothing to bring back, and when
- * something is already queued.
+ * built from it. Returns false when nothing comes back.
  *
- * Chained on the play queue for the same reason plays are: a restore has to
- * see whether anything is playing, and a pending play would make that answer
- * stale.
+ * Chained on the play queue for the same reason plays are: a pending play
+ * would make "is anything playing" a stale answer.
  */
 export function restoreSavedQueue(): Promise<boolean> {
   const run = lastPlay.then(restoreNow);
@@ -436,13 +415,10 @@ async function restoreNow(): Promise<boolean> {
     return false;
   }
 
-  // The saved track may be one of the dropped ones. Then the queue restarts
-  // at its head rather than mid-way through a track nobody can hear.
+  // A dropped saved track sends the queue back to its head.
   const current = items.find((item) => item.id === saved.currentId) ?? items[0];
   const resumed = current.id === saved.currentId;
   const position = resumed ? saved.positionSeconds : 0;
-  // The saved length belongs to the saved track, so a fallback to the head
-  // of the queue starts with the length unknown, as a fresh play does.
   const duration = resumed ? saved.durationSeconds : 0;
 
   restoringQueue = true;
@@ -466,8 +442,7 @@ async function restoreNow(): Promise<boolean> {
     notifyModesChanged();
 
     await PlayerQueue.addTracksToPlaylist(playlistId, items.map(toEngineTrack));
-    // loadPlaylist readies the track without playing it, which is what a
-    // restore wants: the user comes back to a paused player.
+    // loadPlaylist readies the track without playing it.
     await PlayerQueue.loadPlaylist(playlistId, items.indexOf(current));
     if (repeatMode !== "off") {
       await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[repeatMode]);
@@ -483,7 +458,6 @@ async function restoreNow(): Promise<boolean> {
   return true;
 }
 
-/** The tracks that survived, back in the album's own order. */
 function inSavedOrder(items: PlayerTrack[], ids: string[]): PlayerTrack[] {
   const ordered = ids
     .map((id) => items.find((item) => item.id === id))
@@ -520,14 +494,12 @@ function wireEngineEvents(): void {
       endedAtQueueEnd = false;
       setDisplayedTrack(started);
       // A new track starts at zero. Without this reset the scrubber keeps
-      // the old track's position until the first tick arrives. A restore is
-      // the exception: loading its track reports a change, and the position
-      // it starts from is the saved one.
+      // the old track's position until the first tick arrives. A restored
+      // track is the exception: it starts where it was saved, at a length
+      // the engine has not read from the stream yet.
       const restored =
         pendingRestoreSeek?.trackId === started.id ? pendingRestoreSeek : null;
       if (!restored) pendingRestoreSeek = null;
-      // The engine reports zero for a track it has not streamed yet, and the
-      // saved length is the only one a restored track has until it plays.
       setProgress(
         restored?.position ?? 0,
         started.duration || restored?.duration || 0,
@@ -603,7 +575,6 @@ function asPlayerTrack(engineTrack: TrackItem): PlayerTrack {
     duration: engineTrack.duration,
     url: engineTrack.url,
     artwork: engineTrack.artwork ?? null,
-    // The facade did not queue this one, so it has no path to save.
     streamPath: null,
   };
 }

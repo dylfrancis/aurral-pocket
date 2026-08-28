@@ -4,8 +4,8 @@ import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { restoreSavedQueue } from "@/lib/player/player";
 
 export default function AppLayout() {
-  // The queue the last session left comes back here, paused. This layout
-  // mounts once the session is in place, and the stream URLs need its token.
+  // This layout mounts once the session is in place, and the restored stream
+  // URLs need its token.
   useEffect(() => {
     void restoreSavedQueue();
   }, []);
