@@ -52,6 +52,8 @@ describe("toPlayerTrack", () => {
       album: "Kid A",
       duration: 0,
       url: "https://test.example/api/library/canonical-stream/12/77?token=test-token-123",
+      // Kept so a restored queue can build a fresh URL for the track.
+      streamPath: "/library/canonical-stream/12/77",
       artwork: "https://art.example/kid-a.jpg",
     });
   });

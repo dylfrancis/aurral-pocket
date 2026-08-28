@@ -1,6 +1,14 @@
 import {
+  clearSavedQueue,
+  readSavedQueue,
+  restorableTracks,
+  saveQueue,
+  toSavedTrack,
+} from "@/lib/player/saved-queue";
+import {
   toPlayerTrack,
   type PlayerAlbumContext,
+  type PlayerClip,
   type PlayerTrack,
 } from "@/lib/player/track-item";
 import type { Track } from "@/lib/types/library";
@@ -65,8 +73,9 @@ function configureEngine(): Promise<void> {
  * replacement runs whole, and the last tap wins. Interleaved, one call could
  * play against a playlist another call just deleted.
  */
-export function playItem(item: PlayerTrack): Promise<void> {
-  const run = lastPlay.then(() => replaceAndPlay([item], item.id, null));
+export function playItem(item: PlayerClip): Promise<void> {
+  const track: PlayerTrack = { ...item, streamPath: null };
+  const run = lastPlay.then(() => replaceAndPlay([track], track.id, null));
   // A failed play must not wedge every later one.
   lastPlay = run.catch(() => {});
   return run;
@@ -123,9 +132,11 @@ async function replaceAndPlay(
   // the mini player appears with the tap. The engine's event re-delivers
   // the same object, which listeners compare away.
   endedAtQueueEnd = false;
+  pendingRestoreSeek = null;
+  resetProgress();
   setDisplayedTrack(items.find((item) => item.id === startId) ?? null);
   refreshQueueSnapshot();
-  await PlayerQueue.addTracksToPlaylist(playlistId, items);
+  await PlayerQueue.addTracksToPlaylist(playlistId, items.map(toEngineTrack));
   await PlayerQueue.loadPlaylist(playlistId);
   await TrackPlayer.playSong(startId, playlistId);
   await TrackPlayer.play();
@@ -136,8 +147,24 @@ async function replaceAndPlay(
   }
 }
 
+/** The engine's own shape. The queue's bookkeeping stays in the app. */
+function toEngineTrack(item: PlayerTrack): TrackItem {
+  return {
+    id: item.id,
+    title: item.title,
+    artist: item.artist,
+    album: item.album,
+    duration: item.duration,
+    url: item.url,
+    artwork: item.artwork,
+  };
+}
+
 export async function pause(): Promise<void> {
   await TrackPlayer.pause();
+  // A pause is where a restart is most likely to start from, so the position
+  // goes to storage now rather than at the next throttled tick.
+  persistQueue();
 }
 
 /**
@@ -151,6 +178,14 @@ export async function pauseClip(): Promise<void> {
 }
 
 export async function resume(): Promise<void> {
+  // A restored queue sits at the saved position, but the engine loaded the
+  // track after the restore seek asked for it. Ask once more, now that the
+  // track is ready, so play carries on from where the last session stopped.
+  const restored = pendingRestoreSeek;
+  pendingRestoreSeek = null;
+  if (restored) {
+    await TrackPlayer.seek(restored.position);
+  }
   await TrackPlayer.play();
 }
 
@@ -170,12 +205,15 @@ export function togglePlayback(): Promise<void> {
 }
 
 export async function next(): Promise<void> {
+  pendingRestoreSeek = null;
   await TrackPlayer.skipToNext();
 }
 
 /** Move playback to a position, in seconds, within the current track. */
 export async function seekTo(positionSeconds: number): Promise<void> {
+  pendingRestoreSeek = null;
   await TrackPlayer.seek(positionSeconds);
+  persistQueue(positionSeconds);
 }
 
 /**
@@ -187,6 +225,8 @@ export function playQueueItem(id: string): Promise<void> {
   const run = lastPlay.then(async () => {
     if (!currentPlaylistId) return;
     endedAtQueueEnd = false;
+    pendingRestoreSeek = null;
+    resetProgress();
     setDisplayedTrack(queueOrder.find((item) => item.id === id) ?? null);
     await TrackPlayer.playSong(id, currentPlaylistId);
     await TrackPlayer.play();
@@ -270,6 +310,17 @@ let queueSnapshot: QueueSnapshot = {
   album: null,
 };
 let modesSnapshot: PlayerModes = { shuffle: false, repeat: "off" };
+/**
+ * Where a restored queue has to start from, until playback begins. The engine
+ * loads the track after the restore asks it to seek, so the position is asked
+ * for again on the first play. Cleared by anything that moves playback.
+ */
+let pendingRestoreSeek: { trackId: string; position: number } | null = null;
+
+function setProgress(position: number, duration: number): void {
+  progressSnapshot = { position, duration };
+  progressTickListeners.forEach((listener) => listener());
+}
 
 function setDisplayedTrack(track: PlayerTrack | null): void {
   if (track === displayedTrack) return;
@@ -285,11 +336,148 @@ function refreshQueueSnapshot(): void {
     album: queueAlbumContext,
   };
   queueChangedListeners.forEach((listener) => listener());
+  persistQueue();
 }
 
 function notifyModesChanged(): void {
   modesSnapshot = { shuffle: shuffleOn, repeat: repeatMode };
   modesChangedListeners.forEach((listener) => listener());
+  persistQueue();
+}
+
+/*
+ * Saving and restoring the queue.
+ *
+ * The queue goes to storage as it changes, so a restart can put the user back
+ * where they were. Only a library queue is saved: a preview clip has no album
+ * and no path to build a URL from.
+ */
+
+/** Seconds of playback between position writes. Ticks arrive far faster. */
+const POSITION_SAVE_INTERVAL_SECONDS = 5;
+
+/** The position in the last write, so ticks in between skip the write. */
+let lastSavedPosition = 0;
+/** Writes run one at a time, so a burst of changes cannot land out of order. */
+let lastSave: Promise<void> = Promise.resolve();
+/** True while a restore sets up state, whose every step would else be saved. */
+let restoringQueue = false;
+
+function persistQueue(position?: number): void {
+  if (restoringQueue) return;
+  const album = queueAlbumContext;
+  if (!album || queueOrder.length === 0) return;
+
+  const items = queueOrder.map(toSavedTrack).filter((item) => item !== null);
+  if (items.length === 0) return;
+
+  lastSavedPosition = position ?? currentPosition();
+  const record = {
+    items,
+    originalIds: originalOrder.map((item) => item.id),
+    currentId: displayedTrack?.id ?? null,
+    positionSeconds: lastSavedPosition,
+    album,
+    shuffle: shuffleOn,
+    repeat: repeatMode,
+  };
+  lastSave = lastSave.then(() => saveQueue(record)).catch(() => {});
+}
+
+function currentPosition(): number {
+  return lastProgress?.position ?? progressSnapshot.position;
+}
+
+/**
+ * Put the position back to the start of a track. A new play saves its
+ * position before the engine reports one, and the last track's position must
+ * not travel to the new one — on screen or into storage.
+ */
+function resetProgress(): void {
+  lastProgress = null;
+  setProgress(0, 0);
+}
+
+/**
+ * Bring back the queue the last session left, paused where it stopped. Call
+ * once at start, after the session token is in place — the stream URLs are
+ * built from it. Returns false when there is nothing to bring back, and when
+ * something is already queued.
+ *
+ * Chained on the play queue for the same reason plays are: a restore has to
+ * see whether anything is playing, and a pending play would make that answer
+ * stale.
+ */
+export function restoreSavedQueue(): Promise<boolean> {
+  const run = lastPlay.then(restoreNow);
+  lastPlay = run.then(
+    () => {},
+    () => {},
+  );
+  return run;
+}
+
+async function restoreNow(): Promise<boolean> {
+  if (queueOrder.length > 0) return false;
+
+  const saved = await readSavedQueue();
+  if (!saved) return false;
+
+  const items = await restorableTracks(saved);
+  if (items.length === 0) {
+    await clearSavedQueue();
+    return false;
+  }
+
+  // The saved track may be one of the dropped ones. Then the queue restarts
+  // at its head rather than mid-way through a track nobody can hear.
+  const current = items.find((item) => item.id === saved.currentId) ?? items[0];
+  const position = current.id === saved.currentId ? saved.positionSeconds : 0;
+
+  restoringQueue = true;
+  try {
+    await configureEngine();
+    if (currentPlaylistId) {
+      await PlayerQueue.deletePlaylist(currentPlaylistId);
+    }
+    const playlistId = await PlayerQueue.createPlaylist(PLAYLIST_NAME);
+    currentPlaylistId = playlistId;
+    queueOrder = items;
+    originalOrder = inSavedOrder(items, saved.originalIds);
+    queueAlbumContext = saved.album;
+    shuffleOn = saved.shuffle;
+    repeatMode = saved.repeat;
+    endedAtQueueEnd = false;
+    pendingRestoreSeek = { trackId: current.id, position };
+    setProgress(position, 0);
+    setDisplayedTrack(current);
+    refreshQueueSnapshot();
+    notifyModesChanged();
+
+    await PlayerQueue.addTracksToPlaylist(playlistId, items.map(toEngineTrack));
+    // loadPlaylist readies the track without playing it, which is what a
+    // restore wants: the user comes back to a paused player.
+    await PlayerQueue.loadPlaylist(playlistId, items.indexOf(current));
+    if (repeatMode !== "off") {
+      await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[repeatMode]);
+    }
+    if (position > 0) {
+      await TrackPlayer.seek(position);
+    }
+  } finally {
+    restoringQueue = false;
+  }
+
+  persistQueue(position);
+  return true;
+}
+
+/** The tracks that survived, back in the album's own order. */
+function inSavedOrder(items: PlayerTrack[], ids: string[]): PlayerTrack[] {
+  const ordered = ids
+    .map((id) => items.find((item) => item.id === id))
+    .filter((item): item is PlayerTrack => item !== undefined);
+  return ordered.length === items.length ? ordered : items;
 }
 
 /**
@@ -321,9 +509,15 @@ function wireEngineEvents(): void {
       endedAtQueueEnd = false;
       setDisplayedTrack(started);
       // A new track starts at zero. Without this reset the scrubber keeps
-      // the old track's position until the first tick arrives.
-      progressSnapshot = { position: 0, duration: started.duration };
-      progressTickListeners.forEach((listener) => listener());
+      // the old track's position until the first tick arrives. A restore is
+      // the exception: loading its track reports a change, and the position
+      // it starts from is the saved one.
+      const restored =
+        pendingRestoreSeek?.trackId === started.id
+          ? pendingRestoreSeek.position
+          : 0;
+      if (!restored) pendingRestoreSeek = null;
+      setProgress(restored, started.duration);
       if (completed) {
         trackCompletedListeners.forEach((listener) => listener(completed));
       }
@@ -347,6 +541,11 @@ function wireEngineEvents(): void {
       ) {
         progressSnapshot = { position, duration: totalDuration };
         progressTickListeners.forEach((listener) => listener());
+      }
+      if (
+        Math.abs(position - lastSavedPosition) >= POSITION_SAVE_INTERVAL_SECONDS
+      ) {
+        persistQueue(position);
       }
     },
   );
@@ -390,6 +589,8 @@ function asPlayerTrack(engineTrack: TrackItem): PlayerTrack {
     duration: engineTrack.duration,
     url: engineTrack.url,
     artwork: engineTrack.artwork ?? null,
+    // The facade did not queue this one, so it has no path to save.
+    streamPath: null,
   };
 }
 
@@ -514,6 +715,7 @@ export async function setRepeatMode(mode: RepeatMode): Promise<void> {
 }
 
 export async function previous(): Promise<void> {
+  pendingRestoreSeek = null;
   const state = await TrackPlayer.getState();
   if (state.currentPosition >= RESTART_THRESHOLD_SECONDS) {
     await TrackPlayer.seek(0);

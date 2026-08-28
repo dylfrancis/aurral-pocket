@@ -303,6 +303,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await Promise.all([
       AppStorage.deleteServerUrl(),
       AppStorage.deleteOidcSession(),
+      // The next user of this device does not inherit this queue.
+      AppStorage.deletePlaybackQueue(),
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),
       SecureStorage.deleteCredentials(),
