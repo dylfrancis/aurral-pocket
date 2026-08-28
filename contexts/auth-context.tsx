@@ -5,6 +5,7 @@ import {
   setOnAuthRefreshed,
   setOnSessionExpired,
 } from "@/lib/api/client";
+import { forgetDateTimeFormat, restoreDateTimeFormat } from "@/lib/date-time";
 import { forgetPlayHistory } from "@/lib/player/play-history";
 import { forgetQueue } from "@/lib/player/player";
 import { AppStorage, SecureStorage } from "@/lib/storage";
@@ -109,6 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           AppStorage.getOidcSession(),
         ]);
 
+        // Render the first frame with the server's format instead of the
+        // device default, which `/health` would otherwise correct a beat later.
+        await restoreDateTimeFormat();
+
         // Hard expire after 30 days of inactivity with full reset to login screen
         const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
         if (lastActive && Date.now() - lastActive > THIRTY_DAYS_MS) {
@@ -124,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             AppStorage.deleteOidcSession(),
             AppStorage.deletePlaybackQueue(),
             AppStorage.deletePlayEventOutbox(),
+            forgetDateTimeFormat(),
           ]);
           return;
         }
@@ -309,6 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       AppStorage.deleteOidcSession(),
       forgetQueue(),
       forgetPlayHistory(),
+      forgetDateTimeFormat(),
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),
       SecureStorage.deleteCredentials(),

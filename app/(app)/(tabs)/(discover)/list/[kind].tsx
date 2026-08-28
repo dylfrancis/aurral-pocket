@@ -17,6 +17,7 @@ import {
   useRecentReleases,
 } from "@/hooks/discover";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { useGridColumns } from "@/hooks/use-grid-columns";
 import { useViewMode } from "@/hooks/use-view-mode";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
@@ -26,6 +27,7 @@ import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton
 import { Chip } from "@/components/ui/Chip";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
+import { formatDate } from "@/lib/date-time";
 import { formatReleaseStatus } from "@/lib/discover/format";
 import type {
   DiscoveryArtist,
@@ -57,7 +59,7 @@ function formatAdded(date?: string | null) {
   if (!date) return undefined;
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return undefined;
-  return `Added ${d.toLocaleDateString()}`;
+  return `Added ${formatDate(d)}`;
 }
 
 const SPACER = "__spacer__" as const;
@@ -82,6 +84,8 @@ export default function DiscoverListScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const colors = Colors[useColorScheme()];
+  // Repaint the dates in this list when the server format changes.
+  useDateTimeFormat();
   const { isInLibrary } = useLibraryLookup();
 
   const kind: Kind | null = isValidKind(kindParam) ? kindParam : null;

@@ -8,6 +8,8 @@ import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { ActivityStatusBadge } from "./ActivityStatusBadge";
 import { ReviewActions } from "./ReviewActions";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useDateTimeFormat } from "@/hooks/use-date-time-format";
+import { formatDate } from "@/lib/date-time";
 import { Colors, Fonts } from "@/constants/theme";
 import type { DownloadStatusValue } from "@/lib/types/library";
 import {
@@ -82,12 +84,16 @@ export const ActivityRow = React.memo(function ActivityRow({
   onLongPress,
 }: ActivityRowProps) {
   const colors = Colors[useColorScheme()];
+  // This row is memoized, so subscribe here: a changed server format has to
+  // repaint the date even when the item props stay the same.
+  useDateTimeFormat();
 
   const artistMbid = artistMbidFor(item);
-  const requestedLabel = new Date(item.requestedAt).toLocaleDateString(
-    undefined,
-    { month: "short", day: "numeric", year: "numeric" },
-  );
+  const requestedLabel = formatDate(new Date(item.requestedAt), {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
   const subtitle = secondaryText(item);
   const jobId = reviewJobId(item);
 

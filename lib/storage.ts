@@ -1,6 +1,8 @@
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ThemePreference } from "@/lib/types/theme";
+import { DATE_TIME_FORMATS } from "@/lib/types/date-time";
+import type { DateTimeFormat } from "@/lib/types/date-time";
 
 const THEME_PREFERENCES: readonly ThemePreference[] = [
   "system",
@@ -24,6 +26,7 @@ const KEYS = {
   OIDC_LOGOUT_URL: "oidc_logout_url",
   PLAYBACK_QUEUE: "playback_queue",
   PLAY_EVENT_OUTBOX: "play_event_outbox",
+  DATE_TIME_FORMAT: "date_time_format",
 } as const;
 
 export const SecureStorage = {
@@ -227,6 +230,29 @@ export const AppStorage = {
   async deleteThemePreference(): Promise<void> {
     try {
       await AsyncStorage.removeItem(KEYS.THEME_PREFERENCE);
+    } catch {}
+  },
+
+  async getDateTimeFormat(): Promise<DateTimeFormat | null> {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.DATE_TIME_FORMAT);
+      return DATE_TIME_FORMATS.includes(value as DateTimeFormat)
+        ? (value as DateTimeFormat)
+        : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async setDateTimeFormat(format: DateTimeFormat): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.DATE_TIME_FORMAT, format);
+    } catch {}
+  },
+
+  async deleteDateTimeFormat(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.DATE_TIME_FORMAT);
     } catch {}
   },
 

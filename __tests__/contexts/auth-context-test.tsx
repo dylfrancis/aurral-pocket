@@ -191,6 +191,9 @@ describe("AuthProvider — 30-day inactivity hard expire", () => {
       "last_active_at",
     );
     expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("server_url");
+    expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith(
+      "date_time_format",
+    );
   });
 
   it("restores normally when active within 30 days", async () => {

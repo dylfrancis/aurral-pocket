@@ -1,9 +1,11 @@
 import { StyleSheet, View, ScrollView } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { Colors, Fonts } from "@/constants/theme";
 import { useRecentlyAdded } from "@/hooks/discover";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { formatDate } from "@/lib/date-time";
 import type { RecentlyAddedArtist } from "@/lib/types/search";
 import { HorizontalArtistCard } from "./HorizontalArtistCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -22,11 +24,13 @@ function formatAdded(date?: string | null) {
   if (!date) return undefined;
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return undefined;
-  return `Added ${d.toLocaleDateString()}`;
+  return `Added ${formatDate(d)}`;
 }
 
 export function RecentlyAddedSection({ onArtistPress, onViewAll }: Props) {
   const colors = Colors[useColorScheme()];
+  // Repaint the "Added" dates when the server format changes.
+  useDateTimeFormat();
   const { data, isLoading } = useRecentlyAdded();
   const { isInLibrary } = useLibraryLookup();
 

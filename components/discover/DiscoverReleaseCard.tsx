@@ -3,6 +3,7 @@ import { StyleSheet, Pressable, View } from "react-native";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { Colors, Fonts } from "@/constants/theme";
 import { formatReleaseStatus } from "@/lib/discover/format";
 import type { RecentReleaseAlbum } from "@/lib/types/search";
@@ -21,6 +22,9 @@ function DiscoverReleaseCardComponent({
   fill,
 }: DiscoverReleaseCardProps) {
   const colors = Colors[useColorScheme()];
+  // This card is memoized, so subscribe here: a changed server format has to
+  // repaint the release date even when the album prop stays the same.
+  useDateTimeFormat();
   const title = album.albumName || album.title || "Untitled";
   const coverMbid = album.mbid || album.foreignAlbumId;
   const status = formatReleaseStatus(album.releaseDate);
