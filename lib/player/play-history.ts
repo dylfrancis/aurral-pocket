@@ -20,6 +20,14 @@ import { AppStorage } from "@/lib/storage";
  * a discovery surface, not something the user chose to listen to.
  */
 
+/**
+ * Development-only trace of what the recorder does with each play. A play
+ * that is skipped or refused leaves no other mark.
+ */
+function trace(event: string, detail: Record<string, unknown>): void {
+  if (__DEV__) console.log(`[play-history] ${event}`, detail);
+}
+
 /** The value Aurral stores in a play event's `source` column. */
 const SOURCE = "pocket";
 
@@ -45,8 +53,14 @@ export function startPlayHistory(): () => void {
   });
   const stopCompleted = onTrackCompleted((track) => {
     const event = toPlayEvent(track);
+    trace("track completed", {
+      id: track.id,
+      title: track.title,
+      reported: event !== null,
+    });
     if (event) enqueue(event);
   });
+  trace("started", {});
   flushSoon();
 
   return function stop(): void {
@@ -129,11 +143,23 @@ async function flush(): Promise<void> {
 async function send(event: PlayEventInput): Promise<boolean> {
   try {
     await recordPlayEvent(event);
+    trace("sent", { trackId: event.trackId });
     return true;
   } catch (error) {
     if (error instanceof ApiError) {
-      return error.status >= 400 && error.status < 500 && error.status !== 401;
+      const discard =
+        error.status >= 400 && error.status < 500 && error.status !== 401;
+      trace(discard ? "refused, dropped" : "failed, kept", {
+        trackId: event.trackId,
+        status: error.status,
+        message: error.message,
+      });
+      return discard;
     }
+    trace("failed, kept", {
+      trackId: event.trackId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     return false;
   }
 }

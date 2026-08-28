@@ -527,6 +527,15 @@ function isAtTrackEnd(): boolean {
   );
 }
 
+/**
+ * Development-only trace of what the engine reports. Completion is read off
+ * the engine's own reason codes, which differ by platform and are not
+ * observable from a unit test.
+ */
+function trace(event: string, detail: Record<string, unknown>): void {
+  if (__DEV__) console.log(`[player] ${event}`, detail);
+}
+
 function wireEngineEvents(): void {
   if (engineEventsWired) return;
   engineEventsWired = true;
@@ -534,6 +543,12 @@ function wireEngineEvents(): void {
   callbackManager.subscribeToTrackChange(
     function handleTrackChange(engineTrack, reason): void {
       const started = asPlayerTrack(engineTrack);
+      trace("track change", {
+        reason,
+        startedId: started.id,
+        startedHasPath: started.streamPath !== null,
+        previousId: currentEventTrack?.id ?? null,
+      });
       // The engine reports the end of one track as the start of the next,
       // reason "end". A skip is not a completion.
       const completed = reason === "end" ? currentEventTrack : null;
@@ -598,6 +613,16 @@ function wireEngineEvents(): void {
         (state === "stopped" || state === "paused") &&
         reason === undefined &&
         isAtTrackEnd();
+      trace("state change", {
+        state,
+        reason,
+        endedNaturally,
+        endedSilently,
+        atTrackEnd: isAtTrackEnd(),
+        position: lastProgress?.position ?? null,
+        duration: lastProgress?.duration ?? null,
+        currentId: currentEventTrack?.id ?? null,
+      });
       if (!endedNaturally && !endedSilently) return;
       const completed = currentEventTrack;
       if (!completed) return;
