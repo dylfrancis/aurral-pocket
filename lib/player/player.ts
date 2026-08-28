@@ -487,11 +487,17 @@ export function forgetQueue(): Promise<void> {
     refreshQueueSnapshot();
     notifyModesChanged();
 
-    await TrackPlayer.pause();
-    if (currentPlaylistId) {
-      await PlayerQueue.deletePlaylist(currentPlaylistId);
-      currentPlaylistId = null;
-    }
+    // An engine that refuses to let go must not keep the record alive, and
+    // must not fail the sign-out that asked for this. A playlist left behind
+    // is deleted by the next play, which starts by deleting the current one.
+    try {
+      await TrackPlayer.pause();
+      if (currentPlaylistId) {
+        await PlayerQueue.deletePlaylist(currentPlaylistId);
+        currentPlaylistId = null;
+      }
+    } catch {}
+
     lastSave = lastSave.then(clearSavedQueue).catch(() => {});
     await lastSave;
   });

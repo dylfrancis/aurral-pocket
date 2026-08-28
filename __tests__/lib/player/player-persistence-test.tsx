@@ -527,6 +527,26 @@ describe("forgetting the queue", () => {
     expect(result.current).toBe(false);
   });
 
+  it("forgets the queue even when the engine will not stop", async () => {
+    await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
+    mockPlayer.pause.mockRejectedValueOnce(new Error("engine"));
+
+    await expect(facade.forgetQueue()).resolves.toBeUndefined();
+    await flush();
+
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
+  });
+
+  it("forgets the queue even when the playlist will not delete", async () => {
+    await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
+    mockQueue.deletePlaylist.mockRejectedValueOnce(new Error("engine"));
+
+    await expect(facade.forgetQueue()).resolves.toBeUndefined();
+    await flush();
+
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
+  });
+
   it("outlasts a save that has not landed yet", async () => {
     // A store, because what matters is the order the writes land in, not the
     // order they were called in.
