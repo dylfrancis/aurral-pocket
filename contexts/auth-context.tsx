@@ -129,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             AppStorage.deleteOidcSession(),
             AppStorage.deletePlaybackQueue(),
             AppStorage.deletePlayEventOutbox(),
+            forgetDateTimeFormat(),
           ]);
           return;
         }
