@@ -433,11 +433,26 @@ describe("playback events", () => {
     unsubscribe();
   });
 
+  // iOS calls a track running out "skip" — the same word it uses for the next
+  // button. The position is what tells them apart.
+  it("completes a track the engine calls a skip at its end", () => {
+    const completed: string[] = [];
+    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+
+    engine.trackChange({ ...clip, id: "42" }, "user_action");
+    engine.progress(239.2, 240, false);
+    engine.trackChange({ ...clip, id: "43" }, "skip");
+
+    expect(completed).toEqual(["42"]);
+    unsubscribe();
+  });
+
   it("does not complete a track the listener skipped away from", () => {
     const completed: string[] = [];
     const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
 
     engine.trackChange({ ...clip, id: "42" }, "user_action");
+    engine.progress(120, 240, false);
     engine.trackChange({ ...clip, id: "43" }, "skip");
 
     expect(completed).toEqual([]);

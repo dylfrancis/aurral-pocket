@@ -548,10 +548,19 @@ function wireEngineEvents(): void {
         startedId: started.id,
         startedHasPath: started.streamPath !== null,
         previousId: currentEventTrack?.id ?? null,
+        atTrackEnd: isAtTrackEnd(),
+        position: lastProgress?.position ?? null,
+        duration: lastProgress?.duration ?? null,
       });
-      // The engine reports the end of one track as the start of the next,
-      // reason "end". A skip is not a completion.
-      const completed = reason === "end" ? currentEventTrack : null;
+      // The engine reports the end of one track as the start of the next. The
+      // reason it gives for that is not dependable: iOS calls a track running
+      // out "skip", the same word it uses for the next button. So the
+      // position decides — a track that ran out stops at its own end, and one
+      // the listener skipped away from stops wherever they left it. Read
+      // before the progress reset below, while it still describes the track
+      // that is ending.
+      const completed =
+        reason === "end" || isAtTrackEnd() ? currentEventTrack : null;
       currentEventTrack = started;
       lastProgress = null;
       endedAtQueueEnd = false;
