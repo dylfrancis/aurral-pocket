@@ -1,7 +1,6 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { FlashList } from "@shopify/flash-list";
 import { useCallback } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import { Scrubber } from "@/components/player/Scrubber";
@@ -144,7 +143,11 @@ export function NowPlayingScreen() {
       </View>
 
       <SectionHeader title="Up Next" />
-      <FlashList
+      {/* A core FlatList, not FlashList: FlashList v2 sizes itself against
+          the sheet mid-presentation and leaves a gap above the first row
+          until the first scroll. The queue is one album, so virtualization
+          is not needed here. */}
+      <FlatList
         data={upNext}
         renderItem={renderUpNextRow}
         keyExtractor={(item) => item.id}
