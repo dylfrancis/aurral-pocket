@@ -7,7 +7,7 @@ import { IS_IOS } from "@/constants/platform";
  * automatically. On iOS 18 and earlier there is no glass, so those bars need an
  * explicit background or content scrolls under a bare bar.
  */
-const HAS_LIQUID_GLASS = IS_IOS && isLiquidGlassAvailable();
+export const HAS_LIQUID_GLASS = IS_IOS && isLiquidGlassAvailable();
 
 /**
  * On iOS, stack headers sit above native large-title behavior, so we let the

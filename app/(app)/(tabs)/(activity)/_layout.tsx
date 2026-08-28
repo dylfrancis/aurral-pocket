@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { TRANSPARENT_HEADER } from "@/constants/navigation";
@@ -25,41 +26,43 @@ export default function ActivityLayout() {
   };
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
-        headerTintColor: colors.text,
-      }}
-    >
-      <Stack.Screen name="queue" options={feedOptions} />
-      <Stack.Screen name="review" options={feedOptions} />
-      <Stack.Screen name="history" options={feedOptions} />
-      <Stack.Screen
-        name="artist/[mbid]"
-        options={{
-          ...TRANSPARENT_HEADER,
-          headerTitle: "",
-          headerBackButtonDisplayMode: "minimal",
+    <MiniPlayerHost>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
         }}
-      />
-      <Stack.Screen
-        name="artist/albums"
-        options={({ route }: any) => ({
-          ...TRANSPARENT_HEADER,
-          title: route.params?.title ?? "Albums",
-          headerLargeTitleEnabled: true,
-          headerBackButtonDisplayMode: "minimal",
-        })}
-      />
-      <Stack.Screen
-        name="artist/releases"
-        options={({ route }: any) => ({
-          ...TRANSPARENT_HEADER,
-          title: route.params?.title ?? "Releases",
-          headerLargeTitleEnabled: true,
-          headerBackButtonDisplayMode: "minimal",
-        })}
-      />
-    </Stack>
+      >
+        <Stack.Screen name="queue" options={feedOptions} />
+        <Stack.Screen name="review" options={feedOptions} />
+        <Stack.Screen name="history" options={feedOptions} />
+        <Stack.Screen
+          name="artist/[mbid]"
+          options={{
+            ...TRANSPARENT_HEADER,
+            headerTitle: "",
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
+          name="artist/albums"
+          options={({ route }: any) => ({
+            ...TRANSPARENT_HEADER,
+            title: route.params?.title ?? "Albums",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          })}
+        />
+        <Stack.Screen
+          name="artist/releases"
+          options={({ route }: any) => ({
+            ...TRANSPARENT_HEADER,
+            title: route.params?.title ?? "Releases",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          })}
+        />
+      </Stack>
+    </MiniPlayerHost>
   );
 }

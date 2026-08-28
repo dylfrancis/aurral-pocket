@@ -5,6 +5,17 @@ export default function AppLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
+      {/* The full player: a full-height sheet over the tabs, opened from
+          the mini player. The grabber and the swipe-down dismiss come from
+          the native sheet on both platforms. */}
+      <Stack.Screen
+        name="now-playing"
+        options={{
+          presentation: "formSheet",
+          sheetAllowedDetents: [1.0],
+          sheetGrabberVisible: true,
+        }}
+      />
     </Stack>
   );
 }

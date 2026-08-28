@@ -1,6 +1,12 @@
 import { createContext, ReactNode, useCallback, useContext } from "react";
 import { getFlowStreamUrl } from "@/lib/api/flow";
-import { pause, playItem, resume, usePlayerStatus } from "@/lib/player/player";
+import {
+  pause,
+  pauseClip,
+  playItem,
+  resume,
+  usePlayerStatus,
+} from "@/lib/player/player";
 
 type FlowAudioPreviewContextValue = {
   activeJobId: string | null;
@@ -57,8 +63,9 @@ export function FlowAudioPreviewProvider({
     [status.currentId, status.isPlaying, status.isPaused, status.isBuffering],
   );
 
+  // The flow tab fires this on every blur; pauseClip spares album playback.
   const stop = useCallback(() => {
-    void pause();
+    void pauseClip();
   }, []);
 
   const value: FlowAudioPreviewContextValue = {

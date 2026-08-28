@@ -17,10 +17,13 @@ import {
   onTrackCompleted,
   onTrackStarted,
   pause,
+  pauseClip,
   previous,
   playAlbumFromTrack,
   playItem,
+  playQueueItem,
   resume,
+  seekTo,
   setRepeatMode,
   setShuffle,
 } from "@/lib/player/player";
@@ -53,6 +56,7 @@ const album = {
   albumTitle: "Kid A",
   artistName: "Radiohead",
   artworkUrl: "https://art.example/kid-a.jpg",
+  artistMbid: "artist-mb-1",
 };
 
 type EngineState = Awaited<ReturnType<typeof TrackPlayer.getState>>;
@@ -268,6 +272,41 @@ describe("transport", () => {
     await setRepeatMode(mode);
 
     expect(player.setRepeatMode).toHaveBeenCalledWith(engine);
+  });
+
+  it("seeks within the current track", async () => {
+    await seekTo(87);
+
+    expect(player.seek).toHaveBeenCalledWith(87);
+  });
+
+  it("pauseClip leaves album playback alone", async () => {
+    // The preview surfaces fire their stop on blur and on navigation. Album
+    // playback must survive those moments.
+    await playAlbumFromTrack([track()], track(), album);
+
+    await pauseClip();
+
+    expect(player.pause).not.toHaveBeenCalled();
+  });
+
+  it("pauseClip pauses a playing clip", async () => {
+    await playItem(clip);
+
+    await pauseClip();
+
+    expect(player.pause).toHaveBeenCalledTimes(1);
+  });
+
+  it("jumps to a queued track inside the current playlist", async () => {
+    await playItem(clip);
+
+    await playQueueItem("preview-9");
+
+    // The queue stays as it is — no playlist rebuild, just a jump.
+    expect(queue.createPlaylist).toHaveBeenCalledTimes(1);
+    expect(player.playSong).toHaveBeenLastCalledWith("preview-9", "playlist-1");
+    expect(player.play).toHaveBeenCalledTimes(2);
   });
 });
 

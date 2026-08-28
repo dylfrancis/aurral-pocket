@@ -35,6 +35,7 @@ const album = {
   albumTitle: "Kid A",
   artistName: "Radiohead",
   artworkUrl: "https://art.example/kid-a.jpg",
+  artistMbid: "artist-mb-1",
 };
 
 beforeEach(() => {
@@ -72,6 +73,7 @@ describe("toPlayerTrack", () => {
       albumTitle: "",
       artistName: "",
       artworkUrl: null,
+      artistMbid: null,
     });
 
     expect(mapped).toMatchObject({

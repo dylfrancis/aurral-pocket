@@ -23,6 +23,11 @@ export type PlayerAlbumContext = {
   albumTitle: string;
   artistName: string;
   artworkUrl: string | null;
+  /**
+   * The engine never sees this. The now-playing screen uses it to open the
+   * artist page.
+   */
+  artistMbid: string | null;
 };
 
 /**
