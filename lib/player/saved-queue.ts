@@ -22,6 +22,7 @@ type SavedTrack = {
    * rather than not being restored.
    */
   trackMbid?: string | null;
+  artistMbid?: string | null;
   albumMbid?: string | null;
 };
 
@@ -98,6 +99,7 @@ function parseTrack(raw: unknown): SavedTrack | null {
     artwork: isString(raw.artwork) ? raw.artwork : null,
     streamPath: raw.streamPath,
     trackMbid: isString(raw.trackMbid) ? raw.trackMbid : null,
+    artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,
     albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
   };
 }
@@ -123,6 +125,7 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
     artwork: item.artwork,
     streamPath: item.streamPath,
     trackMbid: item.trackMbid,
+    artistMbid: item.artistMbid,
     albumMbid: item.albumMbid,
   };
 }
@@ -160,7 +163,7 @@ function toPlayableTrack(
     artwork: saved.artwork,
     streamPath: saved.streamPath,
     trackMbid: saved.trackMbid ?? null,
-    artistMbid: album.artistMbid,
+    artistMbid: saved.artistMbid ?? album.artistMbid,
     albumMbid: saved.albumMbid ?? album.albumMbid,
   };
 }

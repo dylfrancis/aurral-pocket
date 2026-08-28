@@ -261,6 +261,7 @@ describe("saving the queue", () => {
       expect.objectContaining({
         id: "72",
         trackMbid: "mb-72",
+        artistMbid: "artist-mb-1",
         albumMbid: "album-mb-1",
       }),
     );
@@ -427,6 +428,7 @@ describe("restoring the queue", () => {
       expect.objectContaining({
         id: "72",
         trackMbid: null,
+        artistMbid: "artist-mb-1",
         albumMbid: "album-mb-1",
       }),
     );

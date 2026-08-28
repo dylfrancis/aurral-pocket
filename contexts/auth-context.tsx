@@ -123,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             SecureStorage.deleteLastActiveAt(),
             AppStorage.deleteOidcSession(),
             AppStorage.deletePlaybackQueue(),
+            AppStorage.deletePlayEventOutbox(),
           ]);
           return;
         }
