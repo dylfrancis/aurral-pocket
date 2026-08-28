@@ -182,6 +182,30 @@ describe("NowPlayingScreen", () => {
     expect(getByText("0:30")).toBeTruthy();
   });
 
+  it("keeps a newer seek target when an older seek fails late", async () => {
+    const { getByTestId, getByText } = await renderPlaying();
+    await act(async () => {
+      engine.progress(30, 240, false);
+    });
+
+    let rejectFirstSeek!: (error: Error) => void;
+    player.seek.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectFirstSeek = reject;
+        }),
+    );
+
+    await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 120);
+    await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 200);
+    await act(async () => {
+      rejectFirstSeek(new Error("engine gone"));
+    });
+
+    // The failure belonged to the 2:00 seek; the 3:20 target stays.
+    expect(getByText("3:20")).toBeTruthy();
+  });
+
   it("shows nothing up next when the playing item is not in the queue", async () => {
     const { getByText } = await renderPlaying();
 

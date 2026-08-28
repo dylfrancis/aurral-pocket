@@ -61,8 +61,11 @@ export function Scrubber() {
           setDragValue(null);
           setSeekTarget(value);
           // A failed seek must not hold the thumb on a position the engine
-          // never reached.
-          seekTo(value).catch(() => setSeekTarget(null));
+          // never reached — and a late failure must not clear a newer
+          // seek's target, so only this seek's own value is cleared.
+          seekTo(value).catch(() =>
+            setSeekTarget((current) => (current === value ? null : current)),
+          );
         }}
         minimumTrackTintColor={colors.brand}
         maximumTrackTintColor={colors.separator}
