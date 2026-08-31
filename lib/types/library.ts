@@ -33,6 +33,10 @@ export type Artist = {
   sources?: LibrarySource[];
   /** Canonical read path only. True when at least one file exists. */
   available?: boolean;
+  /** Canonical read path only. The key the favorites API addresses this artist by. */
+  identityKey?: string;
+  /** Canonical read path only. True when the signed-in user favorited this artist. */
+  userFavorite?: boolean;
 };
 
 export type AlbumStatistics = {
@@ -83,6 +87,10 @@ export type Album = {
   sources?: LibrarySource[];
   /** Canonical read path only. True when at least one track has a file. */
   available?: boolean;
+  /** Canonical read path only. The key the favorites API addresses this album by. */
+  identityKey?: string;
+  /** Canonical read path only. True when the signed-in user favorited this album. */
+  userFavorite?: boolean;
 };
 
 export type Track = {
@@ -106,6 +114,12 @@ export type Track = {
   sources?: LibrarySource[];
   /** Canonical read path only. True when a readable file exists. */
   available?: boolean;
+  /** Canonical read path only. The artist credited on the track. */
+  artistName?: string;
+  /** Canonical read path only. The key the favorites API addresses this track by. */
+  identityKey?: string;
+  /** Canonical read path only. True when the signed-in user favorited this track. */
+  userFavorite?: boolean;
 };
 
 export type PreviewTrack = {
@@ -326,6 +340,31 @@ export type CanonicalTrackItem = {
   available?: boolean;
   /** Present when the request is authenticated. */
   userFavorite?: boolean;
+};
+
+/**
+ * GET /library/favorites, as the server sends it. The starred lists carry
+ * ids of the form `${kind}:${encodeURIComponent(identityKey)}`. `library`
+ * carries raw canonical rows for the starred entities, plus the children of
+ * starred artists and albums — the reader must intersect the two. Only the
+ * keys pocket reads are declared, per the convention above.
+ */
+export type LibraryFavoritesWire = {
+  artist?: { id: string }[];
+  album?: { id: string }[];
+  song?: { id: string }[];
+  library?: {
+    artists?: CanonicalArtistItem[];
+    albums?: CanonicalAlbumItem[];
+    tracks?: CanonicalTrackItem[];
+  };
+};
+
+/** The user's favorites after getLibraryFavorites mapped and filtered them. */
+export type LibraryFavorites = {
+  artists: Artist[];
+  albums: Album[];
+  tracks: Track[];
 };
 
 /**

@@ -258,6 +258,7 @@ describe("getCanonicalLibraryPage", () => {
         statistics: { albumCount: 3, trackCount: 30, sizeOnDisk: 123 },
         sources: ["lidarr"],
         available: true,
+        identityKey: "artist:radiohead",
       },
     ]);
   });
@@ -316,6 +317,7 @@ describe("getCanonicalLibraryPage", () => {
         },
         sources: ["lidarr"],
         available: true,
+        identityKey: "album:in-rainbows",
       },
     ]);
   });
@@ -373,6 +375,7 @@ describe("getCanonicalLibraryPage", () => {
         },
         sources: ["lidarr"],
         available: false,
+        identityKey: "album:wanted",
       },
     ]);
   });
@@ -540,6 +543,8 @@ describe("getCanonicalLibraryPage", () => {
         streamFormat: "flac",
         sources: ["lidarr"],
         available: true,
+        artistName: "Radiohead",
+        identityKey: "song:weird-fishes",
       },
     ]);
   });
@@ -589,6 +594,7 @@ describe("getCanonicalLibraryPage", () => {
         streamFormat: null,
         sources: ["lidarr"],
         available: false,
+        identityKey: "song:wanted",
       },
     ]);
   });
@@ -720,6 +726,7 @@ describe("getCanonicalLibraryPage", () => {
         statistics: { albumCount: 0, trackCount: 0, sizeOnDisk: 0 },
         sources: undefined,
         available: undefined,
+        identityKey: "artist:unknown",
       },
     ]);
   });
