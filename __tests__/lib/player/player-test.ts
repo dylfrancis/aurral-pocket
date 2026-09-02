@@ -12,12 +12,15 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
+  addToQueue,
+  forgetQueue,
   next,
   onProgress,
   onTrackCompleted,
   onTrackStarted,
   pause,
   pauseClip,
+  playNextInQueue,
   previous,
   playAlbumFromTrack,
   playItem,
@@ -372,6 +375,106 @@ describe("shuffle", () => {
     // And unshuffle still restores the new queue's album order.
     await setShuffle(false);
     expect(playlistIds).toEqual(albumIds);
+  });
+});
+
+describe("queue edits", () => {
+  const albumTracks = [
+    track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
+    track({ id: "72", trackNumber: 2, streamPath: "/stream/12/72" }),
+    track({ id: "73", trackNumber: 3, streamPath: "/stream/12/73" }),
+  ];
+  const otherAlbum = {
+    ...album,
+    albumTitle: "Amnesiac",
+    albumMbid: "album-mb-2",
+  };
+  const otherTracks = [
+    track({ id: "81", trackNumber: 1, streamPath: "/stream/13/81" }),
+    track({ id: "82", trackNumber: 2, streamPath: "/stream/13/82" }),
+  ];
+
+  // A stateful stand-in for the engine playlist, indexed inserts included,
+  // so the tests assert on the order the queue ends up in.
+  let playlistIds: string[] = [];
+
+  beforeEach(async () => {
+    playlistIds = [];
+    queue.createPlaylist.mockImplementation(() => {
+      playlistIds = [];
+      return Promise.resolve("playlist-1");
+    });
+    queue.addTracksToPlaylist.mockImplementation((_, tracks, index) => {
+      const ids = tracks.map((t) => t.id);
+      playlistIds.splice(index ?? playlistIds.length, 0, ...ids);
+      return Promise.resolve();
+    });
+    queue.reorderTrackInPlaylist.mockImplementation((_, trackId, newIndex) => {
+      playlistIds.splice(playlistIds.indexOf(trackId), 1);
+      playlistIds.splice(newIndex, 0, trackId);
+      return Promise.resolve();
+    });
+
+    // Track "72" is current: replaceAndPlay shows the started track itself.
+    await playAlbumFromTrack(albumTracks, albumTracks[1], album);
+    player.getState.mockResolvedValue(
+      playerState({ currentTrack: { ...clip, id: "72" }, currentIndex: 1 }),
+    );
+  });
+
+  it("playNextInQueue inserts right after the current track", async () => {
+    await expect(playNextInQueue(otherTracks, otherAlbum)).resolves.toBe(2);
+
+    expect(playlistIds).toEqual(["71", "72", "81", "82", "73"]);
+  });
+
+  it("addToQueue appends to the end", async () => {
+    await expect(addToQueue(otherTracks, otherAlbum)).resolves.toBe(2);
+
+    expect(playlistIds).toEqual(["71", "72", "73", "81", "82"]);
+  });
+
+  it("drops tracks the queue already holds and counts only the rest", async () => {
+    const mixed = [
+      track({ id: "73", trackNumber: 3, streamPath: "/stream/12/73" }),
+      otherTracks[0],
+    ];
+
+    await expect(addToQueue(mixed, otherAlbum)).resolves.toBe(1);
+
+    expect(playlistIds).toEqual(["71", "72", "73", "81"]);
+  });
+
+  it("returns zero and leaves the engine alone when nothing is playable", async () => {
+    const unplayable = [
+      track({ id: "90", streamPath: null, hasFile: false, available: false }),
+    ];
+    queue.addTracksToPlaylist.mockClear();
+
+    await expect(addToQueue(unplayable, otherAlbum)).resolves.toBe(0);
+
+    expect(queue.addTracksToPlaylist).not.toHaveBeenCalled();
+    expect(playlistIds).toEqual(["71", "72", "73"]);
+  });
+
+  it("starts a fresh play when nothing is queued", async () => {
+    await forgetQueue();
+
+    await expect(playNextInQueue(otherTracks, otherAlbum)).resolves.toBe(2);
+
+    expect(playlistIds).toEqual(["81", "82"]);
+    expect(player.playSong).toHaveBeenCalledWith("81", "playlist-1");
+  });
+
+  it("keeps a play-next insertion in place after unshuffle", async () => {
+    await setShuffle(true);
+    await playNextInQueue(otherTracks, otherAlbum);
+
+    await setShuffle(false);
+
+    // The original order holds the insertion right after the track that was
+    // current when it happened.
+    expect(playlistIds).toEqual(["71", "72", "81", "82", "73"]);
   });
 });
 

@@ -6,6 +6,11 @@ import {
   toSavedTrack,
 } from "@/lib/player/saved-queue";
 import {
+  insertedAt,
+  insertIndexAfter,
+  withoutQueuedIds,
+} from "@/lib/player/queue-edits";
+import {
   toPlayerTrack,
   type PlayerAlbumContext,
   type PlayerClip,
@@ -236,6 +241,102 @@ export function playQueueItem(id: string): Promise<void> {
     await TrackPlayer.play();
   });
   lastPlay = run.catch(() => {});
+  return run;
+}
+
+/**
+ * Append tracks to the end of the queue. Returns how many were queued.
+ * Zero means nothing changed: no track was playable, or every playable one
+ * was already queued. With nothing queued — or with only a preview clip in
+ * the engine — the tracks start playing instead, as a fresh play.
+ */
+export function addToQueue(
+  tracks: Track[],
+  album: PlayerAlbumContext,
+): Promise<number> {
+  return editQueue(tracks, album, "end");
+}
+
+/**
+ * Insert tracks right after the current track, so they play next. Same
+ * return value and empty-queue behavior as addToQueue.
+ */
+export function playNextInQueue(
+  tracks: Track[],
+  album: PlayerAlbumContext,
+): Promise<number> {
+  return editQueue(tracks, album, "afterCurrent");
+}
+
+/**
+ * The one queue-mutation path behind addToQueue and playNextInQueue.
+ * Chained on the play queue for the same reason plays are: an insert into a
+ * playlist that a pending play is about to delete would land on the wrong
+ * one.
+ *
+ * The engine mirrors the insert into live playback on both platforms.
+ * queueAlbumContext stays the album the queue started from — each track
+ * carries its own title, artist, album, and artwork, so the mini player and
+ * the lock screen stay honest in a mixed-album queue. A queue that already
+ * played out stays stopped; the next tap on "next" walks into the new
+ * tracks.
+ */
+function editQueue(
+  tracks: Track[],
+  album: PlayerAlbumContext,
+  position: "afterCurrent" | "end",
+): Promise<number> {
+  const run = lastPlay.then(async (): Promise<number> => {
+    const playable = tracks
+      .map((track) => toPlayerTrack(track, album))
+      .filter((item): item is PlayerTrack => item !== null);
+    const items = withoutQueuedIds(playable, queueOrder);
+    if (items.length === 0) return 0;
+
+    // No library queue to extend: a clip queue has no album context, and it
+    // must not survive behind real tracks.
+    if (
+      queueOrder.length === 0 ||
+      !currentPlaylistId ||
+      queueAlbumContext === null
+    ) {
+      await replaceAndPlay(items, items[0].id, album);
+      return items.length;
+    }
+
+    const currentId = displayedTrack?.id ?? null;
+    const insertAt =
+      position === "afterCurrent"
+        ? insertIndexAfter(queueOrder, currentId)
+        : queueOrder.length;
+    const engineItems = items.map(toEngineTrack);
+    if (insertAt === queueOrder.length) {
+      await PlayerQueue.addTracksToPlaylist(currentPlaylistId, engineItems);
+    } else {
+      await PlayerQueue.addTracksToPlaylist(
+        currentPlaylistId,
+        engineItems,
+        insertAt,
+      );
+    }
+    queueOrder = insertedAt(queueOrder, items, insertAt);
+    // Unshuffle keeps an insertion: it lands after the same track in the
+    // original order, or at the end for a plain append.
+    originalOrder =
+      position === "afterCurrent"
+        ? insertedAt(
+            originalOrder,
+            items,
+            insertIndexAfter(originalOrder, currentId),
+          )
+        : [...originalOrder, ...items];
+    refreshQueueSnapshot();
+    return items.length;
+  });
+  lastPlay = run.then(
+    () => {},
+    () => {},
+  );
   return run;
 }
 
