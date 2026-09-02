@@ -7,15 +7,21 @@ import type { PlayerTrack } from "@/lib/player/track-item";
  */
 
 /**
- * Drop tracks the queue already holds. The engine addresses tracks by id —
- * playSong, reorder, remove — so one id must not appear twice in a playlist.
+ * Drop tracks the queue already holds, and repeats within `items` itself.
+ * The engine addresses tracks by id — playSong, reorder, remove — so one id
+ * must not appear twice in a playlist, whichever side the repeat came from.
+ * A track list that names the same track twice keeps its first position.
  */
 export function withoutQueuedIds(
   items: PlayerTrack[],
   queue: PlayerTrack[],
 ): PlayerTrack[] {
   const queued = new Set(queue.map((item) => item.id));
-  return items.filter((item) => !queued.has(item.id));
+  return items.filter((item) => {
+    if (queued.has(item.id)) return false;
+    queued.add(item.id);
+    return true;
+  });
 }
 
 /**

@@ -37,6 +37,16 @@ describe("withoutQueuedIds", () => {
   it("returns empty when every track is queued", () => {
     expect(withoutQueuedIds([track("a"), track("c")], queue)).toEqual([]);
   });
+
+  it("keeps the first of a track repeated within the batch", () => {
+    // A duplicate inside one insert would write the same engine id twice,
+    // which makes playSong, remove, and reorder ambiguous afterwards.
+    const result = withoutQueuedIds(
+      [track("d"), track("e"), track("d")],
+      queue,
+    );
+    expect(result.map((item) => item.id)).toEqual(["d", "e"]);
+  });
 });
 
 describe("insertIndexAfter", () => {

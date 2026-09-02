@@ -55,7 +55,8 @@ export function useQueueActions() {
         return;
       }
       try {
-        await playAlbumFromTrack(tracks, first, album);
+        const started = await playAlbumFromTrack(tracks, first, album);
+        if (!started) toastNothingPlayable();
       } catch (error) {
         toastFailure(error);
       }
@@ -75,7 +76,8 @@ export function useQueueActions() {
       const start = playable[Math.floor(Math.random() * playable.length)];
       try {
         await setShuffle(true);
-        await playAlbumFromTrack(tracks, start, album);
+        const started = await playAlbumFromTrack(tracks, start, album);
+        if (!started) toastNothingPlayable();
       } catch (error) {
         toastFailure(error);
       }
