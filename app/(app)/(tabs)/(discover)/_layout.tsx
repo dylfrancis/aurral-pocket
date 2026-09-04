@@ -32,6 +32,10 @@ export default function DiscoverLayout() {
           options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
         />
         <Stack.Screen
+          name="release/[mbid]"
+          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
+        />
+        <Stack.Screen
           name="list/[kind]"
           options={{
             headerLargeTitleEnabled: false,

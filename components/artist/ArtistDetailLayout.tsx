@@ -9,14 +9,17 @@ import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection
 import { TopTracksSection } from "@/components/artist/TopTracksSection";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
-import { ReleaseGroupSheet } from "@/components/library/ReleaseGroupSheet";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { Colors, Fonts } from "@/constants/theme";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
-import { albumRouteParams, libraryAlbumsRef } from "@/lib/library-read";
+import {
+  albumRouteParams,
+  libraryAlbumsRef,
+  releaseRouteParams,
+} from "@/lib/library-read";
 import { useLibraryArtist } from "@/hooks/library/use-library-artist";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
@@ -234,18 +237,26 @@ export function ArtistDetailLayout({
     [openAddToPlaylist, artistName, mbid],
   );
 
-  const releaseGroupSheetRef = useRef<BottomSheetModal>(null);
-  const [selectedReleaseGroup, setSelectedReleaseGroup] =
-    useState<ReleaseGroup | null>(null);
   const addArtistSheetRef = useRef<BottomSheetModal>(null);
 
   const openReleaseGroup = useCallback(
     (rg: ReleaseGroup) => {
       stopPreview();
-      setSelectedReleaseGroup(rg);
-      releaseGroupSheetRef.current?.present();
+      router.push({
+        pathname: "/release/[mbid]",
+        params: releaseRouteParams({
+          mbid: rg.id,
+          title: rg.title,
+          artistName,
+          artistMbid: mbid,
+          artistId: libraryArtist?.id,
+          primaryType: rg["primary-type"],
+          secondaryTypes: rg["secondary-types"],
+          releaseDate: rg["first-release-date"],
+        }),
+      });
     },
-    [stopPreview],
+    [stopPreview, router, artistName, mbid, libraryArtist?.id],
   );
 
   // A bare path, so expo-router resolves it inside whichever tab group is
@@ -489,14 +500,6 @@ export function ArtistDetailLayout({
           mbid={mbid}
         />
       </Animated.ScrollView>
-
-      <ReleaseGroupSheet
-        releaseGroup={selectedReleaseGroup}
-        artistId={libraryArtist?.id}
-        artistName={artistName}
-        artistMbid={mbid}
-        sheetRef={releaseGroupSheetRef}
-      />
 
       {!inLibrary && (
         <AddArtistSheet

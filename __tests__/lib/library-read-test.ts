@@ -2,6 +2,7 @@ import {
   albumRouteParams,
   libraryAlbumsRef,
   libraryTracksRef,
+  releaseRouteParams,
 } from "@/lib/library-read";
 
 describe("libraryAlbumsRef", () => {
@@ -106,5 +107,51 @@ describe("albumRouteParams", () => {
       albumRouteParams(album, "Radiohead", "artist-mb", "failed")
         .downloadStatus,
     ).toBe("failed");
+  });
+});
+
+describe("releaseRouteParams", () => {
+  it("joins secondary types, which expo-router does not round-trip as an array", () => {
+    expect(
+      releaseRouteParams({
+        mbid: "rg-1",
+        title: "Kauai",
+        artistName: "Childish Gambino",
+        secondaryTypes: ["Mixtape/Street", "Live"],
+      }).secondaryTypes,
+    ).toBe("Mixtape/Street,Live");
+  });
+
+  it("emits empty strings for everything the caller does not know", () => {
+    expect(
+      releaseRouteParams({
+        mbid: "rg-1",
+        title: "Kauai",
+        artistName: "Childish Gambino",
+      }),
+    ).toEqual({
+      mbid: "rg-1",
+      title: "Kauai",
+      artistName: "Childish Gambino",
+      artistMbid: "",
+      artistId: "",
+      primaryType: "",
+      secondaryTypes: "",
+      releaseDate: "",
+      status: "",
+      libraryAlbumId: "",
+    });
+  });
+
+  it("carries the search-only fields when search supplies them", () => {
+    const params = releaseRouteParams({
+      mbid: "rg-1",
+      title: "Kauai",
+      artistName: "Childish Gambino",
+      status: "inLibrary",
+      libraryAlbumId: "99",
+    });
+    expect(params.status).toBe("inLibrary");
+    expect(params.libraryAlbumId).toBe("99");
   });
 });

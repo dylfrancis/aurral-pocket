@@ -133,3 +133,44 @@ export function albumRouteParams(
     downloadStatus: downloadStatus ?? "",
   };
 }
+
+/**
+ * Build the route params for the release detail page — the page for an album
+ * that is not in the library, reached from search results and from an
+ * artist's release groups.
+ *
+ * Both entry points name the same thing by a release-group MBID, but they
+ * hold different records: search knows the album's library status, an artist
+ * page knows the Lidarr artist id that can add it. The page takes the union
+ * and offers whichever actions its params support.
+ */
+export function releaseRouteParams(release: {
+  mbid: string;
+  title: string;
+  artistName: string;
+  artistMbid?: string | null;
+  /** The Lidarr artist id, when the caller knows the artist is in Lidarr. */
+  artistId?: string | null;
+  primaryType?: string | null;
+  secondaryTypes?: readonly string[];
+  releaseDate?: string | null;
+  /** Search only. Absent means the page treats the album as addable. */
+  status?: string;
+  /** Search only. Present when a re-search is possible. */
+  libraryAlbumId?: string | null;
+}) {
+  return {
+    mbid: release.mbid,
+    title: release.title,
+    artistName: release.artistName,
+    artistMbid: release.artistMbid ?? "",
+    artistId: release.artistId ?? "",
+    primaryType: release.primaryType ?? "",
+    // Joined, because expo-router does not round-trip array params the same
+    // way on both platforms. The page splits it back.
+    secondaryTypes: (release.secondaryTypes ?? []).join(","),
+    releaseDate: release.releaseDate ?? "",
+    status: release.status ?? "",
+    libraryAlbumId: release.libraryAlbumId ?? "",
+  };
+}
