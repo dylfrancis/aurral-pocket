@@ -13,6 +13,7 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomSheetView, type BottomSheetModal } from "@gorhom/bottom-sheet";
@@ -81,6 +82,11 @@ type AlbumRouteParams = {
 export function AlbumDetailScreen() {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
+  // iOS keeps a translucent header, so contentOffset 0 sits *under* the nav
+  // bar and the cover would start behind it. Android's header is opaque and
+  // the scroll view already starts below it, so it only needs breathing room.
+  const headerHeight = useHeaderHeight();
+  const heroPaddingTop = (IS_IOS ? headerHeight : 0) + 24;
   const router = useRouter();
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<AlbumRouteParams>();
@@ -285,7 +291,7 @@ export function AlbumDetailScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-        <View style={styles.hero}>
+        <View style={[styles.hero, { paddingTop: heroPaddingTop }]}>
           <CoverArtImage
             type="album"
             mbid={albumMbid}
@@ -344,6 +350,7 @@ export function AlbumDetailScreen() {
               track={track}
               onPress={() => void play(albumTracks, track, playContext)}
               onLongPress={() => openTrackActions(track)}
+              onMenuPress={() => openTrackActions(track)}
             />
           ))
         ) : (
@@ -470,7 +477,6 @@ function SheetAction({
 const styles = StyleSheet.create({
   hero: {
     alignItems: "center",
-    paddingTop: IS_IOS ? 8 : 16,
     paddingHorizontal: 24,
     gap: 8,
   },
