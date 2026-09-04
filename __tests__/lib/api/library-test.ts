@@ -21,6 +21,9 @@ import {
   updateLibraryAlbum,
   deleteAlbum,
   requestAlbumFromSearch,
+  favoriteEntityId,
+  getLibraryFavorites,
+  updateLibraryFavorites,
 } from "@/lib/api/library";
 
 const mockApi = api as unknown as {
@@ -258,6 +261,7 @@ describe("getCanonicalLibraryPage", () => {
         statistics: { albumCount: 3, trackCount: 30, sizeOnDisk: 123 },
         sources: ["lidarr"],
         available: true,
+        identityKey: "artist:radiohead",
       },
     ]);
   });
@@ -316,6 +320,7 @@ describe("getCanonicalLibraryPage", () => {
         },
         sources: ["lidarr"],
         available: true,
+        identityKey: "album:in-rainbows",
       },
     ]);
   });
@@ -373,6 +378,7 @@ describe("getCanonicalLibraryPage", () => {
         },
         sources: ["lidarr"],
         available: false,
+        identityKey: "album:wanted",
       },
     ]);
   });
@@ -540,6 +546,8 @@ describe("getCanonicalLibraryPage", () => {
         streamFormat: "flac",
         sources: ["lidarr"],
         available: true,
+        artistName: "Radiohead",
+        identityKey: "song:weird-fishes",
       },
     ]);
   });
@@ -589,6 +597,7 @@ describe("getCanonicalLibraryPage", () => {
         streamFormat: null,
         sources: ["lidarr"],
         available: false,
+        identityKey: "song:wanted",
       },
     ]);
   });
@@ -720,6 +729,7 @@ describe("getCanonicalLibraryPage", () => {
         statistics: { albumCount: 0, trackCount: 0, sizeOnDisk: 0 },
         sources: undefined,
         available: undefined,
+        identityKey: "artist:unknown",
       },
     ]);
   });
@@ -927,5 +937,111 @@ describe("canonical library scan", () => {
     const result = await getCanonicalLibraryRefresh(1);
     expect(mockApi.get).toHaveBeenCalledWith("/library/refresh/1");
     expect(result).toEqual(status);
+  });
+});
+
+describe("favoriteEntityId", () => {
+  it("prefixes the kind and percent-encodes the identity key", () => {
+    expect(favoriteEntityId("artist", "Simon & Garfunkel")).toBe(
+      "artist:Simon%20%26%20Garfunkel",
+    );
+    expect(favoriteEntityId("album", "AC/DC|Back in Black")).toBe(
+      "album:AC%2FDC%7CBack%20in%20Black",
+    );
+    expect(favoriteEntityId("song", "plain")).toBe("song:plain");
+  });
+});
+
+describe("getLibraryFavorites", () => {
+  // The server answers with every starred id, plus a `library` block that also
+  // carries the children of starred entities. Only the starred rows may escape.
+  const wire = {
+    artist: [{ id: "artist:radiohead" }],
+    album: [{ id: "album:in-rainbows" }],
+    song: [{ id: "song:nude" }],
+    library: {
+      artists: [
+        { id: "1", name: "Radiohead", identityKey: "radiohead" },
+        { id: "2", name: "Not Starred", identityKey: "portishead" },
+      ],
+      albums: [
+        { id: "10", title: "In Rainbows", identityKey: "in-rainbows" },
+        { id: "11", title: "Child Of A Starred Artist", identityKey: "kid-a" },
+      ],
+      tracks: [
+        { id: "100", title: "Nude", identityKey: "nude" },
+        {
+          id: "101",
+          title: "Child Of A Starred Album",
+          identityKey: "reckoner",
+        },
+      ],
+    },
+  };
+
+  it("keeps only the starred rows and drops the children", async () => {
+    mockApi.get.mockResolvedValue({ data: wire });
+
+    const result = await getLibraryFavorites();
+    expect(mockApi.get).toHaveBeenCalledWith("/library/favorites");
+    expect(result.artists.map((a) => a.artistName)).toEqual(["Radiohead"]);
+    expect(result.albums.map((a) => a.title)).toEqual(["In Rainbows"]);
+    expect(result.tracks.map((t) => t.title)).toEqual(["Nude"]);
+  });
+
+  it("matches on the encoded id, not the raw identity key", async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        artist: [{ id: "artist:Simon%20%26%20Garfunkel" }],
+        library: {
+          artists: [
+            {
+              id: "1",
+              name: "Simon & Garfunkel",
+              identityKey: "Simon & Garfunkel",
+            },
+          ],
+        },
+      },
+    });
+
+    const result = await getLibraryFavorites();
+    expect(result.artists.map((a) => a.artistName)).toEqual([
+      "Simon & Garfunkel",
+    ]);
+  });
+
+  it("drops rows with no identity key rather than matching them loosely", async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        artist: [{ id: "artist:undefined" }],
+        library: { artists: [{ id: "1", name: "Keyless" }] },
+      },
+    });
+
+    expect((await getLibraryFavorites()).artists).toEqual([]);
+  });
+
+  it("reads an empty response as empty sections", async () => {
+    mockApi.get.mockResolvedValue({ data: {} });
+
+    expect(await getLibraryFavorites()).toEqual({
+      artists: [],
+      albums: [],
+      tracks: [],
+    });
+  });
+});
+
+describe("updateLibraryFavorites", () => {
+  it("posts the ids and the starred flag", async () => {
+    mockApi.post.mockResolvedValue({ data: { changedIds: ["album:x"] } });
+
+    const result = await updateLibraryFavorites(["album:x"], true);
+    expect(mockApi.post).toHaveBeenCalledWith("/library/favorites", {
+      ids: ["album:x"],
+      starred: true,
+    });
+    expect(result).toEqual({ changedIds: ["album:x"] });
   });
 });

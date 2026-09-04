@@ -1,5 +1,5 @@
 {
-  "aurralVersion": "2.6.1",
+  "aurralVersion": "2.7.0",
   "shapes": {
     "GET /auth/me": {
       "expiresAt": "number",
@@ -238,6 +238,16 @@
       "pageSize": "number",
       "total": "number",
       "tracks": []
+    },
+    "GET /library/favorites": {
+      "album": [],
+      "artist": [],
+      "library": {
+        "albums": [],
+        "artists": [],
+        "tracks": []
+      },
+      "song": []
     },
     "GET /library/recent": [],
     "GET /library/recent-releases": [],

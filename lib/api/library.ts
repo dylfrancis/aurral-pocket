@@ -11,10 +11,13 @@ import type {
   DownloadStatusMap,
   CanonicalAlbumItem,
   CanonicalArtistItem,
+  CanonicalGenre,
   CanonicalPage,
   CanonicalPageParams,
   CanonicalTrackFile,
   CanonicalTrackItem,
+  LibraryFavorites,
+  LibraryFavoritesWire,
   LibraryScanJob,
   LibraryScanStatus,
 } from "@/lib/types/library";
@@ -73,6 +76,8 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
     },
     sources: item.sources,
     available: item.available,
+    identityKey: item.identityKey,
+    userFavorite: item.userFavorite,
   };
 }
 
@@ -122,6 +127,8 @@ function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
     },
     sources: item.sources,
     available: item.available,
+    identityKey: item.identityKey,
+    userFavorite: item.userFavorite,
   };
 }
 
@@ -193,6 +200,9 @@ function canonicalTrackToTrack(
     streamFormat: file?.format ?? null,
     sources: item.sources,
     available: streamable,
+    artistName: item.artistName,
+    identityKey: item.identityKey,
+    userFavorite: item.userFavorite,
   };
 }
 
@@ -319,6 +329,88 @@ export async function getCanonicalAlbumTracks(
     if (!result.hasMore) return tracks;
     page += 1;
   }
+}
+
+/**
+ * Read one canonical album by its canonical id. The paged route matches the
+ * canonical numeric id only — see libraryTracksRef. An unknown id reads as
+ * null.
+ */
+export async function getCanonicalAlbum(
+  canonicalAlbumId: string,
+): Promise<Album | null> {
+  const result = await getCanonicalLibraryPage({
+    kind: "albums",
+    source: "all",
+    albumId: canonicalAlbumId,
+    pageSize: 1,
+  });
+  return result.albums[0] ?? null;
+}
+
+/**
+ * Read the genre statistics list. The genres kind pages `items`, but it also
+ * returns the full, unpaged list in `genres` — so one bounded request reads
+ * the whole list.
+ */
+export async function getCanonicalGenres(): Promise<CanonicalGenre[]> {
+  const page = await getCanonicalLibraryPage({
+    kind: "genres",
+    source: "all",
+    pageSize: 100,
+  });
+  return page.genres ?? [];
+}
+
+/** The entity kinds the favorites API addresses. Tracks are "song". */
+export type FavoriteKind = "artist" | "album" | "song";
+
+/**
+ * Build the id the favorites API addresses an entity by. Mirrors idFor in
+ * the server's subsonicLibraryService.
+ */
+export function favoriteEntityId(kind: FavoriteKind, identityKey: string) {
+  return `${kind}:${encodeURIComponent(identityKey)}`;
+}
+
+/**
+ * Read the signed-in user's favorites. The response's `library` field also
+ * carries the children of starred artists and albums — a starred artist
+ * arrives with its whole discography. The rows are filtered down to the
+ * starred ids before mapping, so callers see only what the user starred.
+ */
+export async function getLibraryFavorites(): Promise<LibraryFavorites> {
+  const r = await api.get<LibraryFavoritesWire>("/library/favorites");
+  const starred = new Set(
+    [
+      ...(r.data.artist ?? []),
+      ...(r.data.album ?? []),
+      ...(r.data.song ?? []),
+    ].map((entry) => entry.id),
+  );
+  const library = r.data.library ?? {};
+  const keep = (kind: FavoriteKind, identityKey?: string) =>
+    !!identityKey && starred.has(favoriteEntityId(kind, identityKey));
+  return {
+    artists: (library.artists ?? [])
+      .filter((item) => keep("artist", item.identityKey))
+      .map(canonicalArtistToArtist),
+    albums: (library.albums ?? [])
+      .filter((item) => keep("album", item.identityKey))
+      .map(canonicalAlbumToAlbum),
+    tracks: (library.tracks ?? [])
+      .filter((item) => keep("song", item.identityKey))
+      .map((item) => canonicalTrackToTrack(item)),
+  };
+}
+
+/** Star or unstar entities. Build the ids with favoriteEntityId. */
+export async function updateLibraryFavorites(ids: string[], starred: boolean) {
+  const r = await api.post<{ changedIds: string[] }>("/library/favorites", {
+    ids,
+    starred,
+  });
+  return r.data;
 }
 
 /** Queue a rescan of the canonical library. Returns 202 with a job id. */
