@@ -85,3 +85,92 @@ export function libraryTracksRef({
 }: AlbumReference) {
   return canonicalAlbumId || albumMbid || albumId;
 }
+
+/**
+ * Build the route params for the album detail page.
+ *
+ * Every call site pushes through here so the `ref` path param is always the
+ * value `libraryTracksRef` produces — the page keys its tracks query on it,
+ * and a caller that built the reference differently would read a cache entry
+ * no mutation can invalidate.
+ *
+ * The rest are query params the page paints from before its own reads
+ * resolve. `artistName` and `artistMbid` override the album's own fields
+ * because an artist screen knows the artist it is showing, while a canonical
+ * album row may carry a credit string instead.
+ */
+export function albumRouteParams(
+  album: {
+    id: string;
+    canonicalId?: string;
+    mbid?: string;
+    albumName: string;
+    artistId?: string;
+    artistName?: string;
+  },
+  artistName?: string,
+  artistMbid?: string,
+  /**
+   * The download status the calling list already resolved. The page seeds its
+   * badge from it, so it cannot contradict the row that opened it while its
+   * own status query is still in flight.
+   */
+  downloadStatus?: string,
+) {
+  return {
+    ref: libraryTracksRef({
+      albumId: album.id,
+      albumMbid: album.mbid,
+      canonicalAlbumId: album.canonicalId,
+    })!,
+    albumId: album.id,
+    albumMbid: album.mbid ?? "",
+    canonicalAlbumId: album.canonicalId ?? "",
+    title: album.albumName,
+    artistName: artistName ?? album.artistName ?? "",
+    artistMbid: artistMbid ?? "",
+    artistId: album.artistId ?? "",
+    downloadStatus: downloadStatus ?? "",
+  };
+}
+
+/**
+ * Build the route params for the release detail page — the page for an album
+ * that is not in the library, reached from search results and from an
+ * artist's release groups.
+ *
+ * Both entry points name the same thing by a release-group MBID, but they
+ * hold different records: search knows the album's library status, an artist
+ * page knows the Lidarr artist id that can add it. The page takes the union
+ * and offers whichever actions its params support.
+ */
+export function releaseRouteParams(release: {
+  mbid: string;
+  title: string;
+  artistName: string;
+  artistMbid?: string | null;
+  /** The Lidarr artist id, when the caller knows the artist is in Lidarr. */
+  artistId?: string | null;
+  primaryType?: string | null;
+  secondaryTypes?: readonly string[];
+  releaseDate?: string | null;
+  /** Search only. Absent means the page treats the album as addable. */
+  status?: string;
+  /** Search only. Present when a re-search is possible. */
+  libraryAlbumId?: string | null;
+}) {
+  return {
+    mbid: release.mbid,
+    title: release.title,
+    artistName: release.artistName,
+    artistMbid: release.artistMbid ?? "",
+    artistId: release.artistId ?? "",
+    primaryType: release.primaryType ?? "",
+    // Joined, because expo-router does not round-trip array params the same
+    // way on both platforms. The page splits it back.
+    secondaryTypes: (release.secondaryTypes ?? []).join(","),
+    releaseDate: release.releaseDate ?? "",
+    status: release.status ?? "",
+    libraryAlbumId: release.libraryAlbumId ?? "",
+  };
+}

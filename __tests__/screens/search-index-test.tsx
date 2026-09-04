@@ -29,10 +29,6 @@ jest.mock("@/hooks/search/use-tag-suggestions", () => ({
   useTagSuggestions: jest.fn(() => ({ data: undefined })),
 }));
 
-jest.mock("@/components/search/SearchAlbumSheet", () => ({
-  SearchAlbumSheet: () => null,
-}));
-
 jest.mock("@expo/material-symbols/mic.xml", () => "Mic");
 
 jest.mock("@/components/shazam", () => ({
