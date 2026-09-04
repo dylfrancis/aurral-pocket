@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.12.0...v0.13.0) (2026-09-04)
+
+
+### Features
+
+* **library:** add favorites, genres, and single-album reads for 2.7.0 ([#241](https://github.com/dylfrancis/aurral-pocket/issues/241)) ([2dfa1bc](https://github.com/dylfrancis/aurral-pocket/commit/2dfa1bcaf54e04d4f35af386235a8e1dac4ef1d3)), closes [#235](https://github.com/dylfrancis/aurral-pocket/issues/235)
+* **player:** add play-next and add-to-queue queue edits ([#232](https://github.com/dylfrancis/aurral-pocket/issues/232)) ([f000e98](https://github.com/dylfrancis/aurral-pocket/commit/f000e98dc5b24aea79f6bd02dad59e15ed9b2d33))
+
 ## [0.12.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.11.1...v0.12.0) (2026-08-28)
 
 
