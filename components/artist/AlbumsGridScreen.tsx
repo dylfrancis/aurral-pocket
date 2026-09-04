@@ -33,10 +33,15 @@ export function AlbumsGridScreen() {
     (album: Album) => {
       router.push({
         pathname: "/album/[ref]",
-        params: albumRouteParams(album, grid.artistName, grid.artistMbid),
+        params: albumRouteParams(
+          album,
+          grid.artistName,
+          grid.artistMbid,
+          downloadStatuses?.[album.id]?.status,
+        ),
       });
     },
-    [router, grid.artistName, grid.artistMbid],
+    [router, grid.artistName, grid.artistMbid, downloadStatuses],
   );
 
   return (

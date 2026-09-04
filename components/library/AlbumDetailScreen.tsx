@@ -49,7 +49,7 @@ import { libraryKeys } from "@/lib/query-keys";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import { Colors, Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
-import type { Track } from "@/lib/types/library";
+import type { DownloadStatusValue, Track } from "@/lib/types/library";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
@@ -57,6 +57,7 @@ const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
 type AlbumRouteParams = {
   ref: string;
   albumId?: string;
+  downloadStatus?: string;
   albumMbid?: string;
   canonicalAlbumId?: string;
   title?: string;
@@ -99,9 +100,12 @@ export function AlbumDetailScreen() {
   const { data: downloadStatuses } = useDownloadStatuses(
     album ? [album] : undefined,
   );
-  const downloadStatus = album
-    ? downloadStatuses?.[album.id]?.status
-    : undefined;
+  // The live query wins once it has an answer; until then the status the
+  // calling row already showed stands, so the two never contradict.
+  const downloadStatus =
+    (album ? downloadStatuses?.[album.id]?.status : undefined) ??
+    (params.downloadStatus as DownloadStatusValue | undefined) ??
+    undefined;
 
   const albumMbid = params.albumMbid || album?.mbid || "";
   const title = album?.albumName || params.title || "";
@@ -164,7 +168,11 @@ export function AlbumDetailScreen() {
         (old) => ({ ...(old ?? {}), [lidarrAlbumId]: { status: "searching" } }),
       );
     },
-    onSuccess: () => {
+    // Settled, not success: a rejected search left the optimistic "searching"
+    // standing for good, because nothing refetched it. The row that launched
+    // this page polls on its own and would move on to the real status, so the
+    // two disagreed until the page was closed.
+    onSettled: () => {
       void queryClient.invalidateQueries({
         queryKey: libraryKeys.downloadStatusesAll(),
       });
@@ -317,7 +325,12 @@ export function AlbumDetailScreen() {
             </Text>
           </Pressable>
           <Text variant="caption" style={{ color: colors.subtle }}>
-            {[year, trackCount ? `${trackCount} tracks` : null]
+            {[
+              year,
+              trackCount
+                ? `${trackCount} track${trackCount === 1 ? "" : "s"}`
+                : null,
+            ]
               .filter(Boolean)
               .join(" · ")}
           </Text>

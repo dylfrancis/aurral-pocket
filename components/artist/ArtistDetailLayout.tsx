@@ -254,10 +254,15 @@ export function ArtistDetailLayout({
     (album: Album) => {
       router.push({
         pathname: "/album/[ref]",
-        params: albumRouteParams(album, artistName, mbid),
+        params: albumRouteParams(
+          album,
+          artistName,
+          mbid,
+          downloadStatuses?.[album.id]?.status,
+        ),
       });
     },
-    [router, artistName, mbid],
+    [router, artistName, mbid, downloadStatuses],
   );
 
   const deleteMutation = useMutation({

@@ -97,6 +97,14 @@ describe("albumRouteParams", () => {
       artistName: "",
       artistMbid: "",
       artistId: "",
+      downloadStatus: "",
     });
+  });
+
+  it("carries the caller's download status so the page cannot contradict the row", () => {
+    expect(
+      albumRouteParams(album, "Radiohead", "artist-mb", "failed")
+        .downloadStatus,
+    ).toBe("failed");
   });
 });
