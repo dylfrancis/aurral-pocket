@@ -1,4 +1,8 @@
-import { libraryAlbumsRef, libraryTracksRef } from "@/lib/library-read";
+import {
+  albumRouteParams,
+  libraryAlbumsRef,
+  libraryTracksRef,
+} from "@/lib/library-read";
 
 describe("libraryAlbumsRef", () => {
   it("prefers the MBID, the id the artist detail and the canonical library share", () => {
@@ -48,5 +52,51 @@ describe("libraryTracksRef", () => {
 
   it("returns undefined when no id is known", () => {
     expect(libraryTracksRef({})).toBeUndefined();
+  });
+});
+
+describe("albumRouteParams", () => {
+  const album = {
+    id: "42",
+    canonicalId: "900",
+    mbid: "rg-1",
+    albumName: "In Rainbows",
+    artistId: "7",
+    artistName: "Radiohead (credit)",
+  };
+
+  it("builds ref from libraryTracksRef so the page keys its tracks query the same way", () => {
+    expect(albumRouteParams(album).ref).toBe(
+      libraryTracksRef({
+        albumId: album.id,
+        albumMbid: album.mbid,
+        canonicalAlbumId: album.canonicalId,
+      }),
+    );
+    expect(albumRouteParams(album).ref).toBe("900");
+  });
+
+  it("lets the calling screen's artist win over the album's credit string", () => {
+    const params = albumRouteParams(album, "Radiohead", "artist-mb");
+    expect(params.artistName).toBe("Radiohead");
+    expect(params.artistMbid).toBe("artist-mb");
+  });
+
+  it("falls back to the album's own artist name when the caller has none", () => {
+    expect(albumRouteParams(album).artistName).toBe("Radiohead (credit)");
+  });
+
+  it("emits empty strings rather than undefined, which expo-router would drop", () => {
+    const params = albumRouteParams({ id: "42", albumName: "Untitled" });
+    expect(params).toEqual({
+      ref: "42",
+      albumId: "42",
+      albumMbid: "",
+      canonicalAlbumId: "",
+      title: "Untitled",
+      artistName: "",
+      artistMbid: "",
+      artistId: "",
+    });
   });
 });

@@ -28,6 +28,10 @@ export default function LibraryLayout() {
           options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
         />
         <Stack.Screen
+          name="album/[ref]"
+          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
+        />
+        <Stack.Screen
           name="artist/albums"
           options={({ route }: any) => ({
             title: route.params?.title ?? "Albums",

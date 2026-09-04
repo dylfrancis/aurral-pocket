@@ -1,11 +1,11 @@
-import { useCallback, useRef, useState } from "react";
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { useCallback } from "react";
+import { useRouter } from "expo-router";
 import { AlbumCard } from "@/components/library/AlbumCard";
-import { AlbumSheet } from "@/components/library/AlbumSheet";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { useReleaseGrid } from "@/hooks/library/use-release-grid";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
+import { albumRouteParams } from "@/lib/library-read";
 import type { Album } from "@/lib/types/library";
 
 function releaseYear(date?: string | null) {
@@ -26,14 +26,18 @@ const albumConfig = {
 export function AlbumsGridScreen() {
   const grid = useReleaseGrid<Album>(albumConfig);
   const { data: downloadStatuses } = useDownloadStatuses(grid.rawAlbums);
+  const router = useRouter();
 
-  const albumSheetRef = useRef<BottomSheetModal>(null);
-  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
-
-  const openAlbum = useCallback((album: Album) => {
-    setSelectedAlbum(album);
-    albumSheetRef.current?.present();
-  }, []);
+  // A bare path, so expo-router resolves it inside the current tab group.
+  const openAlbum = useCallback(
+    (album: Album) => {
+      router.push({
+        pathname: "/album/[ref]",
+        params: albumRouteParams(album, grid.artistName, grid.artistMbid),
+      });
+    },
+    [router, grid.artistName, grid.artistMbid],
+  );
 
   return (
     <ReleaseGrid
@@ -67,20 +71,6 @@ export function AlbumsGridScreen() {
         />
       )}
       keyExtractor={(item) => item.id}
-      bottomSheet={
-        <AlbumSheet
-          album={selectedAlbum}
-          artistName={grid.artistName}
-          artistMbid={grid.artistMbid}
-          sheetRef={albumSheetRef}
-          onDeleted={() => setSelectedAlbum(null)}
-          downloadStatus={
-            selectedAlbum
-              ? downloadStatuses?.[selectedAlbum.id]?.status
-              : undefined
-          }
-        />
-      }
     />
   );
 }

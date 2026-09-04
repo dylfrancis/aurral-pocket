@@ -7,7 +7,6 @@ import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { TopTracksSection } from "@/components/artist/TopTracksSection";
-import { AlbumSheet } from "@/components/library/AlbumSheet";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
 import { ReleaseGroupSheet } from "@/components/library/ReleaseGroupSheet";
@@ -17,7 +16,7 @@ import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
-import { libraryAlbumsRef } from "@/lib/library-read";
+import { albumRouteParams, libraryAlbumsRef } from "@/lib/library-read";
 import { useLibraryArtist } from "@/hooks/library/use-library-artist";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
@@ -41,7 +40,7 @@ import type {
 import type { SimilarArtist } from "@/lib/types/search";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
@@ -114,6 +113,7 @@ export function ArtistDetailLayout({
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { isInLibrary } = useLibraryLookup();
   const inLibrary = isInLibrary(mbid);
@@ -237,8 +237,6 @@ export function ArtistDetailLayout({
   const releaseGroupSheetRef = useRef<BottomSheetModal>(null);
   const [selectedReleaseGroup, setSelectedReleaseGroup] =
     useState<ReleaseGroup | null>(null);
-  const albumSheetRef = useRef<BottomSheetModal>(null);
-  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const addArtistSheetRef = useRef<BottomSheetModal>(null);
 
   const openReleaseGroup = useCallback(
@@ -250,10 +248,17 @@ export function ArtistDetailLayout({
     [stopPreview],
   );
 
-  const openAlbum = useCallback((album: Album) => {
-    setSelectedAlbum(album);
-    albumSheetRef.current?.present();
-  }, []);
+  // A bare path, so expo-router resolves it inside whichever tab group is
+  // showing this artist.
+  const openAlbum = useCallback(
+    (album: Album) => {
+      router.push({
+        pathname: "/album/[ref]",
+        params: albumRouteParams(album, artistName, mbid),
+      });
+    },
+    [router, artistName, mbid],
+  );
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteLibraryArtist(id),
@@ -488,21 +493,6 @@ export function ArtistDetailLayout({
         sheetRef={releaseGroupSheetRef}
       />
 
-      {inLibrary && (
-        <AlbumSheet
-          album={selectedAlbum}
-          artistName={artistName}
-          artistMbid={mbid}
-          sheetRef={albumSheetRef}
-          onDeleted={() => setSelectedAlbum(null)}
-          downloadStatus={
-            selectedAlbum
-              ? downloadStatuses?.[selectedAlbum.id]?.status
-              : undefined
-          }
-        />
-      )}
-
       {!inLibrary && (
         <AddArtistSheet
           mbid={mbid}
@@ -531,7 +521,11 @@ const styles = StyleSheet.create({
   },
 });
 
-function ScrollHeaderTitle({
+/**
+ * The nav-bar title that fades in as the hero name scrolls under it. Shared
+ * with the album page, which uses the same hero-then-title layout.
+ */
+export function ScrollHeaderTitle({
   name,
   scrollY,
 }: {

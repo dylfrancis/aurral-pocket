@@ -28,6 +28,10 @@ export default function DiscoverLayout() {
           options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
         />
         <Stack.Screen
+          name="album/[ref]"
+          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
+        />
+        <Stack.Screen
           name="list/[kind]"
           options={{
             headerLargeTitleEnabled: false,

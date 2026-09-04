@@ -45,6 +45,14 @@ export default function ActivityLayout() {
           }}
         />
         <Stack.Screen
+          name="album/[ref]"
+          options={{
+            ...TRANSPARENT_HEADER,
+            headerTitle: "",
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
           name="artist/albums"
           options={({ route }: any) => ({
             ...TRANSPARENT_HEADER,

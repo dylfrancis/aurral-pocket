@@ -85,3 +85,44 @@ export function libraryTracksRef({
 }: AlbumReference) {
   return canonicalAlbumId || albumMbid || albumId;
 }
+
+/**
+ * Build the route params for the album detail page.
+ *
+ * Every call site pushes through here so the `ref` path param is always the
+ * value `libraryTracksRef` produces — the page keys its tracks query on it,
+ * and a caller that built the reference differently would read a cache entry
+ * no mutation can invalidate.
+ *
+ * The rest are query params the page paints from before its own reads
+ * resolve. `artistName` and `artistMbid` override the album's own fields
+ * because an artist screen knows the artist it is showing, while a canonical
+ * album row may carry a credit string instead.
+ */
+export function albumRouteParams(
+  album: {
+    id: string;
+    canonicalId?: string;
+    mbid?: string;
+    albumName: string;
+    artistId?: string;
+    artistName?: string;
+  },
+  artistName?: string,
+  artistMbid?: string,
+) {
+  return {
+    ref: libraryTracksRef({
+      albumId: album.id,
+      albumMbid: album.mbid,
+      canonicalAlbumId: album.canonicalId,
+    })!,
+    albumId: album.id,
+    albumMbid: album.mbid ?? "",
+    canonicalAlbumId: album.canonicalId ?? "",
+    title: album.albumName,
+    artistName: artistName ?? album.artistName ?? "",
+    artistMbid: artistMbid ?? "",
+    artistId: album.artistId ?? "",
+  };
+}
