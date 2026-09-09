@@ -88,26 +88,6 @@ jest.mock("expo-linear-gradient", () => {
   };
 });
 
-jest.mock("@/components/library/AlbumSheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    AlbumSheet: function MockAlbumSheet() {
-      return React.createElement(View, { testID: "album-sheet" });
-    },
-  };
-});
-
-jest.mock("@/components/library/ReleaseGroupSheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    ReleaseGroupSheet: function MockReleaseGroupSheet() {
-      return React.createElement(View, { testID: "release-group-sheet" });
-    },
-  };
-});
-
 jest.mock("@/components/library/ReleaseGroupCard", () => {
   const React = require("react");
   const { Text, Pressable } = require("react-native");

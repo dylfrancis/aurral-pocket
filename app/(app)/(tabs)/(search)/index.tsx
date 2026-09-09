@@ -19,7 +19,6 @@ import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
-import { SearchAlbumSheet } from "@/components/search/SearchAlbumSheet";
 import Mic from "@expo/material-symbols/mic.xml";
 import { ShazamSheet } from "@/components/shazam";
 import { isShazamAvailable } from "@/modules/shazam";
@@ -34,6 +33,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
+import { releaseRouteParams } from "@/lib/library-read";
 import type { SearchAlbum, SearchArtist } from "@/lib/types/search";
 
 const ARTIST_PREVIEW_LIMIT = 3;
@@ -164,12 +164,27 @@ export default function SearchScreen() {
 
   const noTagResults = hasQuery && isTagSearch && previewTags.length === 0;
 
-  const sheetRef = useRef<BottomSheetModal | null>(null);
-  const [activeAlbum, setActiveAlbum] = useState<SearchAlbum | null>(null);
-  const handleAlbumPress = useCallback((album: SearchAlbum) => {
-    setActiveAlbum(album);
-    sheetRef.current?.present();
-  }, []);
+  // A bare path, so expo-router resolves it inside the search group.
+  const handleAlbumPress = useCallback(
+    (album: SearchAlbum) => {
+      router.push({
+        pathname: "/release/[mbid]",
+        params: releaseRouteParams({
+          mbid: album.id,
+          title: album.title,
+          artistName: album.artistName,
+          artistMbid: album.artistMbid,
+          artistId: album.libraryArtistId,
+          primaryType: album.primaryType,
+          secondaryTypes: album.secondaryTypes,
+          releaseDate: album.releaseDate,
+          status: album.status,
+          libraryAlbumId: album.libraryAlbumId,
+        }),
+      });
+    },
+    [router],
+  );
 
   const shazamSheetRef = useRef<BottomSheetModal | null>(null);
   const handleShazamArtist = useCallback(
@@ -333,7 +348,6 @@ export default function SearchScreen() {
       >
         {content}
       </ScrollView>
-      <SearchAlbumSheet album={activeAlbum} sheetRef={sheetRef} />
       <ShazamSheet
         sheetRef={shazamSheetRef}
         onViewArtist={handleShazamArtist}

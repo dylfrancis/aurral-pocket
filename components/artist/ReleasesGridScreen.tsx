@@ -1,10 +1,10 @@
-import { useCallback, useRef, useState } from "react";
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { useCallback } from "react";
+import { useRouter } from "expo-router";
 import { ReleaseGroupCard } from "@/components/library/ReleaseGroupCard";
-import { ReleaseGroupSheet } from "@/components/library/ReleaseGroupSheet";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { useReleaseGrid } from "@/hooks/library/use-release-grid";
+import { releaseRouteParams } from "@/lib/library-read";
 import type { ReleaseGroup } from "@/lib/types/library";
 
 function releaseYear(date?: string | null) {
@@ -22,14 +22,27 @@ const releaseConfig = {
 
 export function ReleasesGridScreen() {
   const grid = useReleaseGrid<ReleaseGroup>(releaseConfig);
+  const router = useRouter();
 
-  const rgSheetRef = useRef<BottomSheetModal>(null);
-  const [selectedRG, setSelectedRG] = useState<ReleaseGroup | null>(null);
-
-  const openReleaseGroup = useCallback((rg: ReleaseGroup) => {
-    setSelectedRG(rg);
-    rgSheetRef.current?.present();
-  }, []);
+  // A bare path, so expo-router resolves it inside the current tab group.
+  const openReleaseGroup = useCallback(
+    (rg: ReleaseGroup) => {
+      router.push({
+        pathname: "/release/[mbid]",
+        params: releaseRouteParams({
+          mbid: rg.id,
+          title: rg.title,
+          artistName: grid.artistName,
+          artistMbid: grid.artistMbid,
+          artistId: grid.artistId,
+          primaryType: rg["primary-type"],
+          secondaryTypes: rg["secondary-types"],
+          releaseDate: rg["first-release-date"],
+        }),
+      });
+    },
+    [router, grid.artistName, grid.artistMbid, grid.artistId],
+  );
 
   return (
     <ReleaseGrid
@@ -62,15 +75,6 @@ export function ReleasesGridScreen() {
         />
       )}
       keyExtractor={(item) => item.id}
-      bottomSheet={
-        <ReleaseGroupSheet
-          releaseGroup={selectedRG}
-          artistId={grid.artistId}
-          artistName={grid.artistName}
-          artistMbid={grid.artistMbid}
-          sheetRef={rgSheetRef}
-        />
-      }
     />
   );
 }

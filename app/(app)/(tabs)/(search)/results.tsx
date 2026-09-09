@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import {
@@ -9,7 +9,6 @@ import {
   type ErrorBoundaryProps,
 } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import Public from "@expo/material-symbols/public.xml";
 import Star from "@expo/material-symbols/star.xml";
 import Group from "@expo/material-symbols/group.xml";
@@ -18,7 +17,6 @@ import FilterList from "@expo/material-symbols/filter_list.xml";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumCard } from "@/components/search/SearchAlbumCard";
-import { SearchAlbumSheet } from "@/components/search/SearchAlbumSheet";
 import { TagArtistRow } from "@/components/search/TagArtistRow";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
@@ -32,6 +30,7 @@ import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useGridColumns } from "@/hooks/use-grid-columns";
 import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { releaseRouteParams } from "@/lib/library-read";
 import { Colors, Fonts } from "@/constants/theme";
 import type {
   SearchAlbum,
@@ -168,12 +167,27 @@ export default function SearchResultsScreen() {
     [router],
   );
 
-  const sheetRef = useRef<BottomSheetModal | null>(null);
-  const [activeAlbum, setActiveAlbum] = useState<SearchAlbum | null>(null);
-  const handleAlbumPress = useCallback((album: SearchAlbum) => {
-    setActiveAlbum(album);
-    sheetRef.current?.present();
-  }, []);
+  // A bare path, so expo-router resolves it inside the search group.
+  const handleAlbumPress = useCallback(
+    (album: SearchAlbum) => {
+      router.push({
+        pathname: "/release/[mbid]",
+        params: releaseRouteParams({
+          mbid: album.id,
+          title: album.title,
+          artistName: album.artistName,
+          artistMbid: album.artistMbid,
+          artistId: album.libraryArtistId,
+          primaryType: album.primaryType,
+          secondaryTypes: album.secondaryTypes,
+          releaseDate: album.releaseDate,
+          status: album.status,
+          libraryAlbumId: album.libraryAlbumId,
+        }),
+      });
+    },
+    [router],
+  );
 
   const renderArtistItem = useCallback(
     ({ item }: { item: SearchArtist }) => (
@@ -357,8 +371,6 @@ export default function SearchResultsScreen() {
           }
         />
       )}
-
-      <SearchAlbumSheet album={activeAlbum} sheetRef={sheetRef} />
     </>
   );
 }
