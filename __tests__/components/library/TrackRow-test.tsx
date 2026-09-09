@@ -64,11 +64,10 @@ describe("TrackRow", () => {
     expect(onLongPress).toHaveBeenCalled();
   });
 
-  it("renders the track name without a handler", async () => {
-    const { getByText, queryByText } = await render(<TrackRow track={TRACK} />);
+  it("renders the track name and number without a handler", async () => {
+    const { getByText } = await render(<TrackRow track={TRACK} />);
     expect(getByText("Weird Fishes")).toBeTruthy();
-    // The number gave way to the playing indicator, which needs the space.
-    expect(queryByText("4")).toBeNull();
+    expect(getByText("4")).toBeTruthy();
   });
 
   it("plays a track that Aurral can stream", async () => {
@@ -107,6 +106,14 @@ describe("playing indicator", () => {
 
     const { getByTestId } = await render(<TrackRow track={TRACK} />);
     expect(getByTestId("track-playing-indicator")).toBeTruthy();
+  });
+
+  it("takes the number's place rather than pushing the title across", async () => {
+    mockCurrentTrack.mockReturnValue({ id: "t-1" });
+    mockPlaybackState.mockReturnValue("playing");
+
+    const { queryByText } = await render(<TrackRow track={TRACK} />);
+    expect(queryByText("4")).toBeNull();
   });
 
   it("leaves every other track unmarked", async () => {

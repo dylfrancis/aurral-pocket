@@ -59,13 +59,24 @@ export const TrackRow = React.memo(function TrackRow({
         pressed && interactive ? { opacity: 0.6 } : null,
       ]}
     >
-      {/* Always rendered, so titles do not shift when playback moves. */}
-      <View style={styles.indicator}>
-        {isCurrent && (
+      {/*
+        One fixed slot holds either the number or the equaliser. Swapping
+        inside it rather than adding a second column keeps the left gutter
+        tight and stops titles shifting as playback moves between rows.
+      */}
+      <View style={styles.indexSlot}>
+        {isCurrent ? (
           <PlayingBars
             animating={playbackState === "playing"}
             color={colors.brand}
           />
+        ) : (
+          <Text
+            variant="caption"
+            style={[styles.number, { color: colors.subtle }]}
+          >
+            {track.trackNumber}
+          </Text>
         )}
       </View>
       <Text
@@ -187,11 +198,15 @@ function Bar({
 }
 
 const styles = StyleSheet.create({
-  indicator: {
-    width: 12,
-    height: BAR_MAX,
-    alignItems: "flex-start",
-    justifyContent: "flex-end",
+  indexSlot: {
+    // Wide enough for a two-digit number; the bars sit in the same box. No
+    // fixed height — the bars bring their own, and a number is taller.
+    width: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  number: {
+    ...Fonts.medium,
   },
   bars: {
     flexDirection: "row",
