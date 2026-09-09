@@ -1,10 +1,10 @@
-import { useEffect } from "react";
 import {
   infiniteQueryOptions,
   useInfiniteQuery,
   useSuspenseInfiniteQuery,
 } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
+import { useDrainRemainingPages } from "@/hooks/library/use-drain-remaining-pages";
 import { getCanonicalLibraryPage } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 
@@ -40,26 +40,6 @@ function libraryArtistsInfiniteQueryOptions() {
     select: (data) => data.pages.flatMap((page) => page.artists),
     throwOnError: (_error, query) => query.state.data === undefined,
   });
-}
-
-/**
- * `cancelRefetch: false` lets two mounted consumers of this query share one
- * in-flight request instead of restarting each other's. The error guard
- * stops the loop when a page fails — React Query has already retried it —
- * so a failing server is not hammered; pull-to-refresh starts the drain
- * again.
- */
-function useDrainRemainingPages(query: {
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
-  isError: boolean;
-  fetchNextPage: (options?: { cancelRefetch?: boolean }) => Promise<unknown>;
-}) {
-  const { hasNextPage, isFetchingNextPage, isError, fetchNextPage } = query;
-  useEffect(() => {
-    if (!hasNextPage || isFetchingNextPage || isError) return;
-    void fetchNextPage({ cancelRefetch: false });
-  }, [hasNextPage, isFetchingNextPage, isError, fetchNextPage]);
 }
 
 export function useLibraryArtists() {
