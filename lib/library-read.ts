@@ -61,6 +61,22 @@ export function libraryAlbumsRef({ artistId, artistMbid }: ArtistReference) {
   return artistMbid || artistId;
 }
 
+/**
+ * The identifier the artist route uses.
+ *
+ * The canonical read path leaves `mbid` null for artists it scanned from files
+ * that carry no MusicBrainz id, so fall back to the identifiers the server
+ * always sets. That keeps the route well formed. The artist screen still needs
+ * a real MBID to load, so those artists open on its not-found state.
+ */
+export function artistRouteId(artist: {
+  id: string;
+  mbid?: string | null;
+  foreignArtistId?: string | null;
+}) {
+  return artist.mbid || artist.foreignArtistId || artist.id;
+}
+
 type AlbumReference = {
   /** The Lidarr album id. */
   albumId?: string;
