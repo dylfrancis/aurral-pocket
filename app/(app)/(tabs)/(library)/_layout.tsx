@@ -24,6 +24,14 @@ export default function LibraryLayout() {
           }}
         />
         <Stack.Screen
+          name="artists"
+          options={{
+            title: "Artists",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
           name="artist/[mbid]"
           options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
         />

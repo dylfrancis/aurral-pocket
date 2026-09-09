@@ -24,6 +24,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
+import { artistRouteId } from "@/lib/library-read";
 import { stripArticle } from "@/lib/strings";
 import type { Artist } from "@/lib/types/library";
 
@@ -35,17 +36,6 @@ const SORT_ICONS = {
 
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
-
-/**
- * The identifier the artist route uses.
- *
- * The canonical read path leaves `mbid` null for artists it scanned from files
- * that carry no MusicBrainz id, so fall back to the identifiers the server
- * always sets. That keeps the route well formed. The artist screen still needs
- * a real MBID to load, so those artists open on its not-found state.
- */
-const artistRouteId = (artist: Artist) =>
-  artist.mbid || artist.foreignArtistId || artist.id;
 
 const byName = (a: Artist, b: Artist) =>
   stripArticle(a.artistName).localeCompare(stripArticle(b.artistName));
@@ -63,7 +53,7 @@ const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
   { key: "albums", label: "Album Count", icon: "square.stack" },
 ];
 
-export default function LibraryScreen() {
+export default function LibraryArtistsScreen() {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
   const {
