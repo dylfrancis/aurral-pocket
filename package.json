@@ -76,7 +76,7 @@
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.0.2",
     "@react-native/jest-preset": "^0.86.2",
-    "@testing-library/react-native": "^14.0.1",
+    "@testing-library/react-native": "^14.1.0",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.10",
     "eslint": "^9.25.0",
