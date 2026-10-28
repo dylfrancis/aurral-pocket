@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.13.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.12.0...v0.13.0) (2026-10-28)
+
+
+### Features
+
+* **library:** add favorites, genres, and single-album reads for 2.7.0 ([#241](https://github.com/dylfrancis/aurral-pocket/issues/241)) ([2dfa1bc](https://github.com/dylfrancis/aurral-pocket/commit/2dfa1bcaf54e04d4f35af386235a8e1dac4ef1d3)), closes [#235](https://github.com/dylfrancis/aurral-pocket/issues/235)
+* **library:** make the library home a category list ([#244](https://github.com/dylfrancis/aurral-pocket/issues/244)) ([e3b45b9](https://github.com/dylfrancis/aurral-pocket/commit/e3b45b95f537f2e2122076dbeae32d2f6493da7d)), closes [#237](https://github.com/dylfrancis/aurral-pocket/issues/237)
+* **library:** show album detail as a route page ([#242](https://github.com/dylfrancis/aurral-pocket/issues/242)) ([c95ee87](https://github.com/dylfrancis/aurral-pocket/commit/c95ee879e3591586fc4a57128d0f268b7eee84f0))
+* **player:** add play-next and add-to-queue queue edits ([#232](https://github.com/dylfrancis/aurral-pocket/issues/232)) ([f000e98](https://github.com/dylfrancis/aurral-pocket/commit/f000e98dc5b24aea79f6bd02dad59e15ed9b2d33))
+
+
+### Bug Fixes
+
+* **discover:** read multi-artist nearby shows ([#257](https://github.com/dylfrancis/aurral-pocket/issues/257)) ([#273](https://github.com/dylfrancis/aurral-pocket/issues/273)) ([555abc2](https://github.com/dylfrancis/aurral-pocket/commit/555abc2477e11ef498bd000b5d876f4ba6ec275e))
+* **flow:** drop the flow retry action and surface flow errors ([#260](https://github.com/dylfrancis/aurral-pocket/issues/260)) ([#274](https://github.com/dylfrancis/aurral-pocket/issues/274)) ([bc9c3c6](https://github.com/dylfrancis/aurral-pocket/commit/bc9c3c627567654e737ebbfa838708cd21fd2d17))
+* **library:** request wanted albums explicitly from the canonical library ([#271](https://github.com/dylfrancis/aurral-pocket/issues/271)) ([1304c92](https://github.com/dylfrancis/aurral-pocket/commit/1304c92e7f31ce06e3dff777528b68677a9c9a63)), closes [#258](https://github.com/dylfrancis/aurral-pocket/issues/258)
+* **library:** send Lidarr album ids to Lidarr album actions ([#259](https://github.com/dylfrancis/aurral-pocket/issues/259)) ([#270](https://github.com/dylfrancis/aurral-pocket/issues/270)) ([1a8aaff](https://github.com/dylfrancis/aurral-pocket/commit/1a8aaffb1b837336c03552cd9f1de5c6d743ec44))
+
 ## [0.12.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.11.1...v0.12.0) (2026-08-28)
 
 
