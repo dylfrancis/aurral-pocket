@@ -15,6 +15,9 @@ import type {
   DiscoveryResponse,
   RecentlyAddedResponse,
   RecentReleasesResponse,
+  ConcertEvent,
+  NearbyShowEntry,
+  NearbyShowsEntryResponse,
   NearbyShowsResponse,
 } from "@/lib/types/search";
 
@@ -165,15 +168,40 @@ export function getDiscoverArtworkSource(
     : { uri };
 }
 
-export async function getNearbyShows(zipCode?: string, limit?: number) {
+export async function getNearbyShows(
+  zipCode?: string,
+  limit?: number,
+): Promise<NearbyShowsResponse> {
   const params: Record<string, string | number> = {};
   const trimmed = zipCode?.trim();
   if (trimmed) params.zip = trimmed;
   if (Number.isFinite(limit) && (limit as number) > 0) {
     params.limit = Math.floor(limit as number);
   }
-  const r = await api.get<NearbyShowsResponse>("/discover/nearby-shows", {
+  const r = await api.get<NearbyShowsEntryResponse>("/discover/nearby-shows", {
     params: Object.keys(params).length > 0 ? params : undefined,
   });
-  return r.data;
+  return {
+    configured: r.data.configured,
+    location: r.data.location,
+    shows: r.data.shows.map(normalizeNearbyShow),
+  };
+}
+
+/**
+ * Reads every server shape into one: 2.11.0 dropped each show's `artistName`
+ * and turned its `sourceType` into `sourceTypes`.
+ */
+function normalizeNearbyShow({
+  artistName,
+  artistNames,
+  sourceType,
+  sourceTypes,
+  ...show
+}: NearbyShowEntry): ConcertEvent {
+  return {
+    ...show,
+    artistNames: artistNames ?? (artistName ? [artistName] : []),
+    sourceTypes: sourceTypes ?? (sourceType ? [sourceType] : []),
+  };
 }

@@ -32,72 +32,10 @@ import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
-import {
-  isInNext30Days,
-  isInThisWeekend,
-  parseShowDate,
-} from "@/lib/discover/show-dates";
+import { filterNearbyShows } from "@/lib/discover/nearby-shows";
 import type { ConcertEvent } from "@/lib/types/search";
 
 const PAGE_LIMIT = 60;
-
-function withinDateRange(
-  show: ConcertEvent,
-  range: NearbyShowsDateRange,
-): boolean {
-  if (range === "all") return true;
-  const date = parseShowDate(show);
-  if (!date) return false;
-  return range === "weekend" ? isInThisWeekend(date) : isInNext30Days(date);
-}
-
-function matchesSource(show: ConcertEvent, source: NearbyShowsSource): boolean {
-  if (source === "all") return true;
-  return show.matchType === source;
-}
-
-function matchesQuery(show: ConcertEvent, query: string): boolean {
-  if (!query) return true;
-  const q = query.toLowerCase();
-  return (
-    show.artistName.toLowerCase().includes(q) ||
-    (show.eventName ? show.eventName.toLowerCase().includes(q) : false)
-  );
-}
-
-function compareShows(a: ConcertEvent, b: ConcertEvent, sort: NearbyShowsSort) {
-  switch (sort) {
-    case "distance": {
-      const aDist = Number.isFinite(a.distance)
-        ? (a.distance as number)
-        : Number.POSITIVE_INFINITY;
-      const bDist = Number.isFinite(b.distance)
-        ? (b.distance as number)
-        : Number.POSITIVE_INFINITY;
-      if (aDist !== bDist) return aDist - bDist;
-      return (a.dateTime || a.date || "").localeCompare(
-        b.dateTime || b.date || "",
-      );
-    }
-    case "artist":
-      return a.artistName.localeCompare(b.artistName, undefined, {
-        sensitivity: "base",
-      });
-    case "date":
-    default: {
-      const aTime = a.dateTime || a.date || "";
-      const bTime = b.dateTime || b.date || "";
-      if (aTime !== bTime) return aTime.localeCompare(bTime);
-      const aDist = Number.isFinite(a.distance)
-        ? (a.distance as number)
-        : Number.POSITIVE_INFINITY;
-      const bDist = Number.isFinite(b.distance)
-        ? (b.distance as number)
-        : Number.POSITIVE_INFINITY;
-      return aDist - bDist;
-    }
-  }
-}
 
 export default function NearbyShowsScreen() {
   const colors = Colors[useColorScheme()];
@@ -165,14 +103,16 @@ export default function NearbyShowsScreen() {
 
   const shows = useMemo(() => data?.shows ?? [], [data?.shows]);
 
-  const visibleShows = useMemo(() => {
-    return shows
-      .filter((s) => matchesSource(s, sourceFilter))
-      .filter((s) => withinDateRange(s, dateRange))
-      .filter((s) => matchesQuery(s, searchQuery))
-      .slice()
-      .sort((a, b) => compareShows(a, b, sort));
-  }, [shows, sourceFilter, dateRange, searchQuery, sort]);
+  const visibleShows = useMemo(
+    () =>
+      filterNearbyShows(shows, {
+        source: sourceFilter,
+        dateRange,
+        query: searchQuery,
+        sort,
+      }),
+    [shows, sourceFilter, dateRange, searchQuery, sort],
+  );
 
   const locationLabel =
     data?.location?.label || data?.location?.postalCode || "";
@@ -186,10 +126,7 @@ export default function NearbyShowsScreen() {
     [handleShowPress],
   );
 
-  const keyExtractor = useCallback(
-    (item: ConcertEvent) => `${item.id}-${item.artistName}`,
-    [],
-  );
+  const keyExtractor = useCallback((item: ConcertEvent) => item.id, []);
 
   const renderListHeader = () => (
     <View style={styles.listHeader}>

@@ -6,6 +6,7 @@ import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { formatShowArtists } from "@/lib/discover/nearby-shows";
 import { formatShowDateLabel } from "@/lib/discover/show-dates";
 import type { ConcertEvent } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
@@ -194,11 +195,12 @@ export function ShowsNearYouSection({
         contentContainerStyle={styles.list}
       >
         {shows.slice(0, PREVIEW_LIMIT).map((show) => {
+          const artists = formatShowArtists(show);
           const date = formatShowDateLabel(show);
           const where = formatShowLocation(show);
           return (
             <Card
-              key={`${show.id}-${show.artistName}`}
+              key={show.id}
               bordered
               pressedOpacity={0.85}
               style={styles.showCard}
@@ -210,7 +212,7 @@ export function ShowsNearYouSection({
                   style={[styles.showArtist, { color: colors.subtle }]}
                   numberOfLines={1}
                 >
-                  {show.artistName}
+                  {artists}
                 </Text>
                 {Number.isFinite(show.distance) && (
                   <Text
@@ -229,7 +231,7 @@ export function ShowsNearYouSection({
                 ]}
                 numberOfLines={2}
               >
-                {show.eventName || show.artistName}
+                {show.eventName || artists}
               </Text>
               {!!date && (
                 <View style={styles.showRow}>

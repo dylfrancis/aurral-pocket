@@ -416,4 +416,66 @@ describe("getNearbyShows", () => {
     mockApi.get.mockRejectedValue(new Error("503"));
     await expect(getNearbyShows()).rejects.toThrow("503");
   });
+
+  // The same event as each server version sends it.
+  const event = {
+    id: "vvG1",
+    eventName: "Boygenius with Japanese Breakfast",
+    date: "2026-11-14",
+    dateTime: "2026-11-15T01:00:00Z",
+    venueName: "Brooklyn Steel",
+    distance: 3.2,
+  };
+
+  it.each([
+    [
+      "2.4.0",
+      { ...event, artistName: "Boygenius", sourceType: "library" },
+      ["Boygenius"],
+      ["library"],
+    ],
+    [
+      "2.7.0",
+      {
+        ...event,
+        artistName: "Boygenius",
+        artistNames: ["Boygenius", "Japanese Breakfast"],
+        sourceType: "library",
+        ticketmasterEventId: "vvG1",
+      },
+      ["Boygenius", "Japanese Breakfast"],
+      ["library"],
+    ],
+    [
+      "2.12.0",
+      {
+        ...event,
+        artistNames: ["Boygenius", "Japanese Breakfast"],
+        sourceTypes: ["library", "recommended"],
+      },
+      ["Boygenius", "Japanese Breakfast"],
+      ["library", "recommended"],
+    ],
+  ])(
+    "reads a %s show into artistNames and sourceTypes",
+    async (_version, entry, artistNames, sourceTypes) => {
+      mockApi.get.mockResolvedValue({
+        data: { configured: true, location: null, shows: [entry], total: 1 },
+      });
+
+      const result = await getNearbyShows();
+
+      expect(result).toEqual({
+        configured: true,
+        location: null,
+        shows: [
+          expect.objectContaining({
+            ...event,
+            artistNames,
+            sourceTypes,
+          }),
+        ],
+      });
+    },
+  );
 });

@@ -20,7 +20,7 @@ import type { ConcertEvent } from "@/lib/types/search";
 
 const buildShow = (overrides: Partial<ConcertEvent> = {}): ConcertEvent => ({
   id: "show-1",
-  artistName: "The Strokes",
+  artistNames: ["The Strokes"],
   eventName: "The Strokes – Reality Awaits North America",
   date: "2026-07-14",
   time: "19:00:00",
@@ -29,7 +29,7 @@ const buildShow = (overrides: Partial<ConcertEvent> = {}): ConcertEvent => ({
   city: "Cincinnati",
   region: "OH",
   url: "https://example.com",
-  matchType: "library",
+  sourceTypes: ["library"],
   distance: 7,
   image: "https://example.com/promo.jpg",
   ...overrides,
@@ -73,14 +73,23 @@ describe("NearbyShowRow", () => {
   it("omits the artist subtitle when title and artist match", async () => {
     const { queryAllByText } = await render(
       <NearbyShowRow
-        show={buildShow({
-          eventName: "The Strokes",
-          artistName: "The Strokes",
-        })}
+        show={buildShow({ eventName: "The Strokes" })}
         onPress={jest.fn()}
       />,
     );
     expect(queryAllByText("The Strokes")).toHaveLength(1);
+  });
+
+  it("lists every artist on a multi-artist show", async () => {
+    const { getByText } = await render(
+      <NearbyShowRow
+        show={buildShow({
+          artistNames: ["The Strokes", "Fontaines D.C."],
+        })}
+        onPress={jest.fn()}
+      />,
+    );
+    expect(getByText("The Strokes, Fontaines D.C.")).toBeTruthy();
   });
 
   it("formats the date label as 'MMM d, yyyy at HH:mm:ss'", async () => {
@@ -107,11 +116,22 @@ describe("NearbyShowRow", () => {
   it("renders the recommended badge for recommended matches", async () => {
     const { getByText } = await render(
       <NearbyShowRow
-        show={buildShow({ matchType: "recommended" })}
+        show={buildShow({ sourceTypes: ["recommended"] })}
         onPress={jest.fn()}
       />,
     );
     expect(getByText("Recommended")).toBeTruthy();
+  });
+
+  it("shows the library badge when a show also matched a recommended artist", async () => {
+    const { getByText, queryByText } = await render(
+      <NearbyShowRow
+        show={buildShow({ sourceTypes: ["recommended", "library"] })}
+        onPress={jest.fn()}
+      />,
+    );
+    expect(getByText("Library")).toBeTruthy();
+    expect(queryByText("Recommended")).toBeNull();
   });
 
   it("calls onPress when tapped", async () => {
