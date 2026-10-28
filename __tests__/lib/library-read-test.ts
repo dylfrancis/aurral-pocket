@@ -81,6 +81,7 @@ describe("albumRouteParams", () => {
   const album = {
     id: "42",
     canonicalId: "900",
+    lidarrId: "301",
     mbid: "rg-1",
     albumName: "In Rainbows",
     artistId: "7",
@@ -98,6 +99,13 @@ describe("albumRouteParams", () => {
     expect(albumRouteParams(album).ref).toBe("900");
   });
 
+  it("hands the page Lidarr's album id for Lidarr routes, never a canonical id", () => {
+    expect(albumRouteParams(album).lidarrAlbumId).toBe("301");
+    expect(
+      albumRouteParams({ ...album, lidarrId: undefined }).lidarrAlbumId,
+    ).toBe("");
+  });
+
   it("lets the calling screen's artist win over the album's credit string", () => {
     const params = albumRouteParams(album, "Radiohead", "artist-mb");
     expect(params.artistName).toBe("Radiohead");
@@ -112,7 +120,7 @@ describe("albumRouteParams", () => {
     const params = albumRouteParams({ id: "42", albumName: "Untitled" });
     expect(params).toEqual({
       ref: "42",
-      albumId: "42",
+      lidarrAlbumId: "",
       albumMbid: "",
       canonicalAlbumId: "",
       title: "Untitled",

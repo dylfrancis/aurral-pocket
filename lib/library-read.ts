@@ -40,6 +40,8 @@
  * invalidate.
  */
 
+import type { DownloadStatusMap } from "@/lib/types/library";
+
 type ArtistReference = {
   /** The Lidarr artist id. */
   artistId?: string;
@@ -110,6 +112,11 @@ export function libraryTracksRef({
  * and a caller that built the reference differently would read a cache entry
  * no mutation can invalidate.
  *
+ * `lidarrAlbumId` is the only id the page sends to Lidarr's album routes. It
+ * comes from `lidarrId` alone: `id` and `canonicalId` are canonical ids, and
+ * Lidarr would read them as some other album. It is empty for an album Lidarr
+ * does not manage, and the page hides the Lidarr actions.
+ *
  * The rest are query params the page paints from before its own reads
  * resolve. `artistName` and `artistMbid` override the album's own fields
  * because an artist screen knows the artist it is showing, while a canonical
@@ -119,6 +126,7 @@ export function albumRouteParams(
   album: {
     id: string;
     canonicalId?: string;
+    lidarrId?: string;
     mbid?: string;
     albumName: string;
     artistId?: string;
@@ -139,7 +147,7 @@ export function albumRouteParams(
       albumMbid: album.mbid,
       canonicalAlbumId: album.canonicalId,
     })!,
-    albumId: album.id,
+    lidarrAlbumId: album.lidarrId ?? "",
     albumMbid: album.mbid ?? "",
     canonicalAlbumId: album.canonicalId ?? "",
     title: album.albumName,
@@ -148,6 +156,18 @@ export function albumRouteParams(
     artistId: album.artistId ?? "",
     downloadStatus: downloadStatus ?? "",
   };
+}
+
+/**
+ * Read one album's entry from a download status map. The map comes from
+ * Lidarr and is keyed by Lidarr album id, so an album Lidarr does not manage
+ * has no entry.
+ */
+export function albumDownloadStatus(
+  statuses: DownloadStatusMap | undefined,
+  album: { lidarrId?: string },
+) {
+  return album.lidarrId ? statuses?.[album.lidarrId]?.status : undefined;
 }
 
 /**

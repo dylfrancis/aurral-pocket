@@ -44,7 +44,7 @@ import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { deleteAlbum, triggerAlbumSearch } from "@/lib/api/library";
-import { libraryAlbumsRef } from "@/lib/library-read";
+import { albumDownloadStatus, libraryAlbumsRef } from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import { Colors, Fonts } from "@/constants/theme";
@@ -56,7 +56,7 @@ const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
 
 type AlbumRouteParams = {
   ref: string;
-  albumId?: string;
+  lidarrAlbumId?: string;
   downloadStatus?: string;
   albumMbid?: string;
   canonicalAlbumId?: string;
@@ -103,16 +103,18 @@ export function AlbumDetailScreen() {
   // The live query wins once it has an answer; until then the status the
   // calling row already showed stands, so the two never contradict.
   const downloadStatus =
-    (album ? downloadStatuses?.[album.id]?.status : undefined) ??
+    (album ? albumDownloadStatus(downloadStatuses, album) : undefined) ??
     (params.downloadStatus as DownloadStatusValue | undefined) ??
     undefined;
 
   const albumMbid = params.albumMbid || album?.mbid || "";
   const title = album?.albumName || params.title || "";
   const artistName = params.artistName || album?.artistName || "";
-  // Lidarr owns delete and re-search, so both need its id. A page opened
-  // without one — a file-scanned album — hides those two actions.
-  const lidarrAlbumId = params.albumId || "";
+  // Lidarr owns delete and re-search, so both need Lidarr's own album id.
+  // `ref` is a canonical id, and Lidarr would read it as some other album.
+  // The live record wins once it loads, as for the status above. An album
+  // Lidarr does not manage has no id, and the page hides both actions.
+  const lidarrAlbumId = (album ? album.lidarrId : params.lidarrAlbumId) || "";
 
   // Resolved from the cache the hero cover fills, so the player carries the
   // artwork onto the mini player and the lock screen.

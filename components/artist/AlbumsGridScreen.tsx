@@ -5,7 +5,7 @@ import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { useReleaseGrid } from "@/hooks/library/use-release-grid";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
-import { albumRouteParams } from "@/lib/library-read";
+import { albumDownloadStatus, albumRouteParams } from "@/lib/library-read";
 import type { Album } from "@/lib/types/library";
 
 function releaseYear(date?: string | null) {
@@ -37,7 +37,7 @@ export function AlbumsGridScreen() {
           album,
           grid.artistName,
           grid.artistMbid,
-          downloadStatuses?.[album.id]?.status,
+          albumDownloadStatus(downloadStatuses, album),
         ),
       });
     },
@@ -63,7 +63,7 @@ export function AlbumsGridScreen() {
           album={item}
           onPress={() => openAlbum(item)}
           fill
-          downloadStatus={downloadStatuses?.[item.id]?.status}
+          downloadStatus={albumDownloadStatus(downloadStatuses, item)}
         />
       )}
       renderListItem={(item) => (

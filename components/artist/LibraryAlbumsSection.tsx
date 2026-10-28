@@ -5,6 +5,7 @@ import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton
 import { EmptyState } from "@/components/library/EmptyState";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { albumDownloadStatus } from "@/lib/library-read";
 import { Colors, Fonts } from "@/constants/theme";
 import type {
   Album,
@@ -82,7 +83,10 @@ export function LibraryAlbumsSection({
                   <AlbumCard
                     album={album}
                     onPress={() => onAlbumPress(album)}
-                    downloadStatus={downloadStatuses?.[album.id]?.status}
+                    downloadStatus={albumDownloadStatus(
+                      downloadStatuses,
+                      album,
+                    )}
                   />
                 )}
                 onNavigate={onNavigate}

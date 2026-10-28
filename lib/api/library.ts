@@ -96,6 +96,11 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
  * views, so a Lidarr-complete album reads 100% and an Aurral-only album
  * keeps its real ratio. sizeOnDisk comes from Lidarr's statistics — the
  * canonical album row carries no size.
+ *
+ * `id` is the canonical id. Lidarr's album routes need Lidarr's own id, a
+ * different small integer from a different table, which a Lidarr-sourced row
+ * keeps in its stored payload. Sending the canonical id there acts on some
+ * other album, so it travels separately as `lidarrId`.
  */
 function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
   const metadata = item.metadata ?? {};
@@ -107,6 +112,10 @@ function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
   return {
     id: String(item.id),
     canonicalId: String(item.id),
+    lidarrId:
+      metadata.librarySource === "lidarr" && metadata.id != null
+        ? String(metadata.id)
+        : undefined,
     artistId: item.artistId != null ? String(item.artistId) : "",
     artistName: item.albumArtist ?? "",
     mbid: item.mbid ?? item.releaseGroupMbid ?? "",
@@ -446,15 +455,20 @@ export async function getAlbumCover(releaseGroupMbid: string) {
   return r.data;
 }
 
-export async function getDownloadStatuses(albumIds: string[]) {
+// The album routes below are Lidarr's. Each takes Lidarr album ids
+// (Album.lidarrId), never a canonical id.
+
+export async function getDownloadStatuses(lidarrAlbumIds: string[]) {
   let r = await api.get<DownloadStatusMap>("/library/downloads/status", {
-    params: { albumIds: albumIds.join(",") },
+    params: { albumIds: lidarrAlbumIds.join(",") },
   });
   return r.data;
 }
 
-export async function triggerAlbumSearch(albumId: string) {
-  const r = await api.post("/library/downloads/album/search", { albumId });
+export async function triggerAlbumSearch(lidarrAlbumId: string) {
+  const r = await api.post("/library/downloads/album/search", {
+    albumId: lidarrAlbumId,
+  });
   return r.data;
 }
 
@@ -485,15 +499,15 @@ export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {
 
 /** The server honors only `monitored`; it ignores every other key. */
 export async function updateLibraryAlbum(
-  albumId: string,
+  lidarrAlbumId: string,
   data: Partial<Album>,
 ) {
-  const r = await api.put<Album>(`/library/albums/${albumId}`, data);
+  const r = await api.put<Album>(`/library/albums/${lidarrAlbumId}`, data);
   return r.data;
 }
 
-export async function deleteAlbum(albumId: string, deleteFiles = false) {
-  const r = await api.delete(`/library/albums/${albumId}`, {
+export async function deleteAlbum(lidarrAlbumId: string, deleteFiles = false) {
+  const r = await api.delete(`/library/albums/${lidarrAlbumId}`, {
     params: { deleteFiles },
   });
   return r.data;
