@@ -1,4 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Burnt from "burnt";
+import { ApiError } from "@/lib/api/client";
 import {
   addSharedPlaylistTracks,
   convertFlowToStaticPlaylist,
@@ -7,6 +9,8 @@ import {
   deleteFlow,
   deleteSharedPlaylist,
   deleteSharedPlaylistTrack,
+  getPlaylistJobs,
+  researchSharedPlaylistTrack,
   setFlowEnabled,
   setRetryCyclePaused,
   startFlow,
@@ -19,6 +23,11 @@ import type {
   FlowStatusSnapshot,
   SharedPlaylistTrack,
 } from "@/lib/types/flow";
+
+/** An ApiError's message is the server's `error` field when it sent one. */
+function toastError(title: string, err: Error) {
+  Burnt.toast({ title, message: err.message, preset: "error" });
+}
 
 function useFlowInvalidate() {
   const queryClient = useQueryClient();
@@ -79,10 +88,14 @@ export function useSetFlowEnabled() {
       }
       return { prev };
     },
-    onError: (_err, _vars, context) => {
+    onError: (err, { enabled }, context) => {
       if (context?.prev) {
         queryClient.setQueryData(flowKeys.status(), context.prev);
       }
+      toastError(
+        enabled ? "Couldn't turn on flow" : "Couldn't turn off flow",
+        err,
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: flowKeys.status() });
@@ -97,6 +110,7 @@ export function useStartFlow() {
     mutationFn: ({ flowId, limit }: { flowId: string; limit?: number }) =>
       startFlow(flowId, limit),
     onSuccess: invalidate,
+    onError: (err) => toastError("Couldn't start flow", err),
   });
 }
 
@@ -168,16 +182,52 @@ export function useDeleteSharedPlaylistTrack() {
   });
 }
 
+/**
+ * The server refuses to requeue one track with a 409 (already downloading)
+ * or a 404 (the job belongs to another playlist). That track keeps its state.
+ */
+function isTrackRefusal(err: unknown) {
+  return err instanceof ApiError && (err.status === 404 || err.status === 409);
+}
+
+/**
+ * Resuming clears the pause flag but leaves failed tracks failed on every
+ * Aurral version, so each one is searched again here. A refused track does
+ * not stop the rest; any other failure is reported.
+ */
+async function requeueFailedTracks(playlistId: string) {
+  const jobs = await getPlaylistJobs(playlistId);
+  const results = await Promise.allSettled(
+    jobs
+      .filter((job) => job.status === "failed")
+      .map((job) => researchSharedPlaylistTrack(playlistId, job.id)),
+  );
+  const failure = results.find(
+    (result): result is PromiseRejectedResult =>
+      result.status === "rejected" && !isTrackRefusal(result.reason),
+  );
+  if (failure) throw failure.reason;
+}
+
 export function useSetRetryCyclePaused() {
   const invalidate = useFlowInvalidate();
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       playlistId,
       paused,
     }: {
       playlistId: string;
       paused: boolean;
-    }) => setRetryCyclePaused(playlistId, paused),
-    onSuccess: invalidate,
+    }) => {
+      await setRetryCyclePaused(playlistId, paused);
+      if (!paused) await requeueFailedTracks(playlistId);
+    },
+    // The pause flag may have changed even when the requeue fails.
+    onSettled: invalidate,
+    onError: (err, { paused }) =>
+      toastError(
+        paused ? "Couldn't pause retries" : "Couldn't resume retries",
+        err,
+      ),
   });
 }

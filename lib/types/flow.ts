@@ -32,7 +32,19 @@ export type Flow = {
   scheduleDays: number[];
   scheduleTime: string;
   nextRunAt: number | null;
+  /**
+   * Where the flow came from. Aurral 2.11.0 retired flows adopted from Last.fm
+   * editorial lists (`"editorial"`): they keep their tracks, but the server
+   * answers 409 to starting or enabling them. Optional because older Aurral
+   * versions do not send it.
+   */
+  type?: string | null;
 };
+
+/** Mirrors `isRetiredFlow` in Aurral's flowPlaylistConfig. */
+export function isRetiredFlow(flow: Pick<Flow, "type">): boolean {
+  return flow.type === "editorial";
+}
 
 export type SharedPlaylistTrack = {
   artistName: string;

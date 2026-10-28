@@ -30,15 +30,13 @@ import {
   useFlowStats,
   useJobsForPlaylist,
   usePlaylistJobs,
-  useRetryCyclePaused,
   useSetFlowEnabled,
-  useSetRetryCyclePaused,
   useStartFlow,
   useFlowStatus,
 } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import type { FlowJob } from "@/lib/types/flow";
+import { isRetiredFlow, type FlowJob } from "@/lib/types/flow";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -63,7 +61,6 @@ export function FlowDetailSheet({
   const jobs = useJobsForPlaylist(flowId ?? undefined);
   // Same cache entry as useJobsForPlaylist; only the initial-load flag is read.
   const jobsLoading = usePlaylistJobs(flowId ?? undefined).isLoading;
-  const retryPaused = useRetryCyclePaused(flowId ?? undefined);
   const { data: status } = useFlowStatus();
   const { stop } = useFlowAudioPreview();
 
@@ -71,7 +68,6 @@ export function FlowDetailSheet({
   const startFlow = useStartFlow();
   const deleteFlow = useDeleteFlow();
   const convertFlow = useConvertFlowToStaticPlaylist();
-  const setRetryPaused = useSetRetryCyclePaused();
 
   const renderScrollComponent = useBottomSheetScrollableCreator();
 
@@ -124,11 +120,6 @@ export function FlowDetailSheet({
     );
   };
 
-  const handleToggleRetryPaused = () => {
-    if (!flow) return;
-    setRetryPaused.mutate({ playlistId: flow.id, paused: !retryPaused });
-  };
-
   const handleDelete = () => {
     if (!flow) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -154,18 +145,22 @@ export function FlowDetailSheet({
     );
   };
 
+  const retired = flow ? isRetiredFlow(flow) : false;
+
   const headerHint = useMemo(() => {
     if (!flow) return null;
+    if (retired) return "Its source was retired. Existing tracks stay.";
     if (status?.hint) return status.hint.message;
     if (!flow.enabled) return "Disabled";
     return null;
-  }, [flow, status?.hint]);
+  }, [flow, retired, status?.hint]);
 
   const scheduleText = useMemo(() => {
     if (!flow) return "";
+    if (retired) return "No longer updates";
     if (!flow.scheduleDays?.length) return "Manual";
     return `${flow.scheduleDays.map((d) => DAY_LABELS[d]).join(", ")} · ${flow.scheduleTime}`;
-  }, [flow]);
+  }, [flow, retired]);
 
   // Flow tracks are regenerated on every run; saving one into a static
   // playlist is how it survives the next refresh (#125).
@@ -254,33 +249,44 @@ export function FlowDetailSheet({
           </View>
         ) : null}
 
-        <View style={[styles.enableRow, { borderColor: colors.separator }]}>
-          <View style={{ flex: 1 }}>
-            <Text variant="body" style={{ ...Fonts.medium }}>
-              Enabled
-            </Text>
-            <Text variant="caption">Refresh on schedule when on.</Text>
+        {retired ? null : (
+          <View style={[styles.enableRow, { borderColor: colors.separator }]}>
+            <View style={{ flex: 1 }}>
+              <Text variant="body" style={{ ...Fonts.medium }}>
+                Enabled
+              </Text>
+              <Text variant="caption">Refresh on schedule when on.</Text>
+            </View>
+            <Switch
+              key={`enabled-${switchKey}`}
+              value={flow.enabled}
+              onValueChange={(next) =>
+                setEnabled.mutate({ flowId: flow.id, enabled: next })
+              }
+              trackColor={{ false: colors.separator, true: colors.brand }}
+              thumbColor={colors.switchThumb}
+              ios_backgroundColor={colors.separator}
+            />
           </View>
-          <Switch
-            key={`enabled-${switchKey}`}
-            value={flow.enabled}
-            onValueChange={(next) =>
-              setEnabled.mutate({ flowId: flow.id, enabled: next })
-            }
-            trackColor={{ false: colors.separator, true: colors.brand }}
-            thumbColor={colors.switchThumb}
-            ios_backgroundColor={colors.separator}
-          />
-        </View>
+        )}
 
-        <View style={[styles.actions, { borderColor: colors.separator }]}>
-          <ActionRow
-            icon="play-circle-outline"
-            label="Start Now"
-            color={colors.brand}
-            loading={startFlow.isPending}
-            onPress={handleStartNow}
-          />
+        <View
+          style={[
+            styles.actions,
+            { borderColor: colors.separator },
+            // The enable row draws this border when it is shown.
+            retired && { borderTopWidth: StyleSheet.hairlineWidth },
+          ]}
+        >
+          {retired ? null : (
+            <ActionRow
+              icon="play-circle-outline"
+              label="Start Now"
+              color={colors.brand}
+              loading={startFlow.isPending}
+              onPress={handleStartNow}
+            />
+          )}
           <ActionRow
             icon="bookmark-outline"
             label="Convert to Static"
@@ -288,13 +294,6 @@ export function FlowDetailSheet({
             loading={convertFlow.isPending}
             disabled={(stats?.done ?? 0) === 0}
             onPress={handleConvert}
-          />
-          <ActionRow
-            icon={retryPaused ? "play-outline" : "pause-outline"}
-            label={retryPaused ? "Resume Retry" : "Pause Retry"}
-            color={colors.text}
-            loading={setRetryPaused.isPending}
-            onPress={handleToggleRetryPaused}
           />
           <ActionRow
             icon="trash-outline"
@@ -331,14 +330,16 @@ export function FlowDetailSheet({
           <ActivityIndicator />
         ) : (
           <Text variant="caption">
-            {flow?.enabled
-              ? "Tracks will appear once the flow runs."
-              : "Enable the flow or tap Start Now to populate tracks."}
+            {retired
+              ? "This flow no longer updates."
+              : flow?.enabled
+                ? "Tracks will appear once the flow runs."
+                : "Enable the flow or tap Start Now to populate tracks."}
           </Text>
         )}
       </View>
     ),
-    [flow?.enabled, jobsLoading],
+    [flow?.enabled, jobsLoading, retired],
   );
 
   return (
