@@ -152,6 +152,17 @@ export async function deleteSharedPlaylistTrack(
   await api.delete(`${FLOW}/shared-playlists/${playlistId}/tracks/${jobId}`);
 }
 
+/** The server answers 409 while the track is pending or downloading. */
+export async function researchSharedPlaylistTrack(
+  playlistId: string,
+  jobId: string,
+): Promise<void> {
+  await api.post(
+    `${FLOW}/shared-playlists/${playlistId}/tracks/${jobId}/research`,
+  );
+}
+
+/** Static playlists only: the server answers 404 for a flow id. */
 export async function setRetryCyclePaused(
   playlistId: string,
   paused: boolean,

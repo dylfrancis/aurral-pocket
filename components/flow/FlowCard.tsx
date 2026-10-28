@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { getFlowArtworkSource } from "@/lib/api/flow";
-import type { Flow, PlaylistStats } from "@/lib/types/flow";
+import { isRetiredFlow, type Flow, type PlaylistStats } from "@/lib/types/flow";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -25,6 +25,7 @@ type Props = {
 };
 
 function scheduleLabel(flow: Flow): string {
+  if (isRetiredFlow(flow)) return "No longer updates";
   if (!flow.scheduleDays?.length) return "Manual";
   const days = flow.scheduleDays
     .map((d) => DAY_LABELS[d] ?? "")
@@ -104,14 +105,16 @@ export function FlowCard({
             {flow.size} tracks · {scheduleLabel(flow)}
           </Text>
         </View>
-        <Switch
-          value={flow.enabled}
-          onValueChange={onToggleEnabled}
-          disabled={isDeleting}
-          trackColor={{ false: colors.separator, true: colors.brand }}
-          thumbColor={colors.switchThumb}
-          ios_backgroundColor={colors.separator}
-        />
+        {isRetiredFlow(flow) ? null : (
+          <Switch
+            value={flow.enabled}
+            onValueChange={onToggleEnabled}
+            disabled={isDeleting}
+            trackColor={{ false: colors.separator, true: colors.brand }}
+            thumbColor={colors.switchThumb}
+            ios_backgroundColor={colors.separator}
+          />
+        )}
       </View>
 
       <ProgressBar done={stats?.done ?? 0} total={flow.size} />
