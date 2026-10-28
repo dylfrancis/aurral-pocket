@@ -21,7 +21,9 @@ type Props = {
 export function GlobalTrendingSection({ onArtistPress, onViewAll }: Props) {
   const colors = Colors[useColorScheme()];
   const { data, isLoading } = useDiscovery();
-  const { isInLibrary } = useLibraryLookup();
+  const { isInLibrary } = useLibraryLookup(
+    (data?.globalTop ?? []).map((artist) => artist.id),
+  );
 
   const all = data?.globalTop ?? [];
   const artists = all.slice(0, MAX_VISIBLE);

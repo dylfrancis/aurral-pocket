@@ -31,115 +31,33 @@ beforeEach(() => {
 });
 
 describe("searchArtists", () => {
-  // Aurral 2.0 deleted /search/artists; /search/unified replaced it.
-  const unified = (artists: unknown[]) => ({
-    query: "radiohead",
-    mode: "suggest",
-    library: { artists: [] },
-    catalog: { artists },
-  });
-
-  it("calls GET /search/unified and normalises catalog artists", async () => {
-    mockApi.get.mockResolvedValue({
-      data: unified([
-        {
-          type: "artist",
-          source: "brainzmash",
-          id: "mbid-1",
-          key: "mbid-1",
-          name: "Radiohead",
-          sortName: "Radiohead",
-          inLibrary: true,
-          hasMbid: true,
-          score: 100,
-        },
-      ]),
-    });
-
-    const result = await searchArtists("radiohead");
-
-    expect(mockApi.get).toHaveBeenCalledWith("/search/unified", {
-      params: { q: "radiohead", mode: "suggest", limit: 24 },
-      timeout: 12_000,
-    });
-    expect(result).toEqual({
-      artists: [
-        {
-          id: "mbid-1",
-          name: "Radiohead",
-          sortName: "Radiohead",
-          inLibrary: true,
-          score: 100,
-        },
-      ],
-    });
-  });
-
-  it("reads catalog rather than library, which would duplicate results", async () => {
-    // catalog.artists already contains library artists, flagged inLibrary.
+  it("calls the contract's GET /search with scope=artist", async () => {
     mockApi.get.mockResolvedValue({
       data: {
-        catalog: {
-          artists: [
-            { id: "mbid-1", name: "Radiohead", hasMbid: true, inLibrary: true },
-          ],
-        },
-        library: {
-          artists: [
-            { id: "mbid-1", name: "Radiohead", hasMbid: true, inLibrary: true },
-          ],
-        },
+        scope: "artist",
+        query: "radiohead",
+        count: 1,
+        offset: 0,
+        items: [
+          {
+            type: "artist",
+            id: "mbid-1",
+            name: "Radiohead",
+            image: null,
+            tags: ["rock"],
+            inLibrary: false,
+            score: 0,
+          },
+        ],
       },
     });
 
     const result = await searchArtists("radiohead");
-    expect(result.artists).toHaveLength(1);
-  });
 
-  it("drops entries without an MBID", async () => {
-    // Every action pocket offers addresses the artist by MBID, so an entry
-    // without one cannot produce a working row.
-    mockApi.get.mockResolvedValue({
-      data: unified([
-        { id: "mbid-1", name: "Has MBID", hasMbid: true },
-        { id: "local-7", name: "No MBID", hasMbid: false },
-      ]),
+    expect(mockApi.get).toHaveBeenCalledWith("/search", {
+      params: { q: "radiohead", scope: "artist", limit: 24 },
     });
-
-    const result = await searchArtists("x");
-    expect(result.artists.map((a) => a.id)).toEqual(["mbid-1"]);
-  });
-
-  it("defaults optional fields the backend may omit", async () => {
-    mockApi.get.mockResolvedValue({
-      data: unified([{ id: "mbid-1", name: "Sparse" }]),
-    });
-
-    const result = await searchArtists("x");
-    expect(result.artists[0]).toEqual({
-      id: "mbid-1",
-      name: "Sparse",
-      sortName: "Sparse",
-      inLibrary: false,
-      score: 0,
-    });
-  });
-
-  it("allows full mode a longer timeout than suggest", async () => {
-    mockApi.get.mockResolvedValue({ data: unified([]) });
-
-    await searchArtists("test", { mode: "full", limit: 10 });
-    expect(mockApi.get).toHaveBeenCalledWith("/search/unified", {
-      params: { q: "test", mode: "full", limit: 10 },
-      timeout: 30_000,
-    });
-  });
-
-  it("returns an empty list when the response has no catalog", async () => {
-    mockApi.get.mockResolvedValue({ data: { query: "x", mode: "suggest" } });
-
-    const result = await searchArtists("x");
-    expect(result.artists).toEqual([]);
+    expect(result).toEqual({ artists: [{ id: "mbid-1", name: "Radiohead" }] });
   });
 
   it("propagates errors", async () => {
@@ -273,7 +191,6 @@ describe("getDiscovery", () => {
     topTags: [],
     topGenres: [],
     lastUpdated: null,
-    isUpdating: false,
     configured: true,
   };
 
@@ -416,58 +333,4 @@ describe("getNearbyShows", () => {
     mockApi.get.mockRejectedValue(new Error("503"));
     await expect(getNearbyShows()).rejects.toThrow("503");
   });
-
-  // The same event as each server version sends it.
-  const event = {
-    id: "vvG1",
-    eventName: "Boygenius with Japanese Breakfast",
-    date: "2026-11-14",
-    dateTime: "2026-11-15T01:00:00Z",
-    venueName: "Brooklyn Steel",
-    distance: 3.2,
-  };
-
-  it.each([
-    [
-      "2.7.0",
-      {
-        ...event,
-        artistName: "Boygenius",
-        artistNames: ["Boygenius", "Japanese Breakfast"],
-        sourceType: "library",
-        ticketmasterEventId: "vvG1",
-      },
-      ["library"],
-    ],
-    [
-      "2.12.0",
-      {
-        ...event,
-        artistNames: ["Boygenius", "Japanese Breakfast"],
-        sourceTypes: ["library", "recommended"],
-      },
-      ["library", "recommended"],
-    ],
-  ])(
-    "reads a %s show into sourceTypes",
-    async (_version, entry, sourceTypes) => {
-      mockApi.get.mockResolvedValue({
-        data: { configured: true, location: null, shows: [entry], total: 1 },
-      });
-
-      const result = await getNearbyShows();
-
-      expect(result).toEqual({
-        configured: true,
-        location: null,
-        shows: [
-          expect.objectContaining({
-            ...event,
-            artistNames: ["Boygenius", "Japanese Breakfast"],
-            sourceTypes,
-          }),
-        ],
-      });
-    },
-  );
 });

@@ -1,5 +1,5 @@
 {
-  "aurralVersion": "2.7.0",
+  "aurralVersion": "2.12.0",
   "shapes": {
     "GET /auth/me": {
       "expiresAt": "number",
@@ -20,37 +20,41 @@
     },
     "GET /discover": {
       "basedOn": [],
-      "capabilities": {
-        "arbitraryTagSearch": "boolean",
-        "flows": {
-          "discover": "boolean",
-          "focus": "boolean",
-          "mix": "boolean",
-          "trending": "boolean"
-        },
-        "genreSections": "boolean",
-        "globalTrending": "boolean",
-        "personalizedRecommendations": "boolean",
-        "relatedArtists": "boolean"
-      },
       "configured": "boolean",
-      "discoverPlaylists": [],
       "discoveryMode": "string",
-      "discoveryRunId": "null",
-      "enrichmentCompletedAt": "null",
+      "discoveryRunId": "string",
+      "enrichmentCompletedAt": "string",
       "enrichmentProgressMessage": "null",
       "enrichmentStartedAt": "null",
-      "fallbackGenres": [],
-      "globalTop": [],
+      "globalTop": [
+        {
+          "discoveryTier": "string",
+          "id": "string",
+          "image": "null",
+          "listeners": "number",
+          "matchPercent": "null",
+          "matchedTags": [],
+          "name": "string",
+          "navigateTo": "string",
+          "playcount": "number",
+          "popularityLabel": "string",
+          "popularityRank": "number",
+          "score": "number",
+          "scoreTotal": "number",
+          "sourceArtist": "null",
+          "sourceArtists": [],
+          "sourceType": "string",
+          "supportingSeeds": [],
+          "tags": [],
+          "type": "string"
+        }
+      ],
       "isEnriching": "boolean",
-      "isUpdating": "boolean",
-      "lastUpdated": "null",
-      "playlistsUpdating": "boolean",
+      "lastUpdated": "string",
       "provider": "string",
       "recommendationCount": "number",
-      "recommendationQuality": "null",
+      "recommendationQuality": "string",
       "recommendations": [],
-      "stale": "boolean",
       "topGenres": [],
       "topTags": []
     },
@@ -59,46 +63,30 @@
     },
     "GET /discover/nearby-shows": {
       "configured": "boolean",
-      "libraryShows": [],
       "location": "null",
-      "recommendedShows": [],
-      "shows": [],
-      "total": "number"
+      "shows": []
     },
     "GET /discover/tags": {
       "tags": ["string"]
     },
-    "GET /health": {
+    "GET /health/bootstrap": {
+      "api": {
+        "features": ["string"],
+        "version": "number"
+      },
       "appVersion": "string",
       "authRequired": "boolean",
       "authUser": "string",
       "dateTimeFormat": "string",
-      "discovery": {
-        "cachedImagesCount": "number",
-        "cachedImagesSizeBytes": "number",
-        "capabilities": {
-          "arbitraryTagSearch": "boolean",
-          "flows": {
-            "discover": "boolean",
-            "focus": "boolean",
-            "mix": "boolean",
-            "trending": "boolean"
-          },
-          "genreSections": "boolean",
-          "globalTrending": "boolean",
-          "personalizedRecommendations": "boolean",
-          "relatedArtists": "boolean"
-        },
-        "globalTopCount": "number",
-        "isUpdating": "boolean",
-        "lastUpdated": "null",
-        "provider": "string",
-        "recommendationsCount": "number",
-        "updatePhase": "null",
-        "updateProgress": "null",
-        "updateProgressMessage": "null"
-      },
+      "deemixConfigured": "boolean",
       "downloadSources": {
+        "deemix": {
+          "configured": "boolean",
+          "enabled": "boolean",
+          "id": "string",
+          "label": "string",
+          "priority": "number"
+        },
         "slskd": {
           "configured": "boolean",
           "enabled": "boolean",
@@ -124,12 +112,9 @@
           "priority": "number"
         }
       },
+      "googleLoginEnabled": "boolean",
       "inboxEnabled": "boolean",
       "lastfmConfigured": "boolean",
-      "library": {
-        "artistCount": "number",
-        "lastScan": "null"
-      },
       "lidarr": {
         "circuitOpen": "boolean",
         "configured": "boolean"
@@ -140,6 +125,12 @@
         "eligible": "boolean",
         "enabled": "boolean",
         "reason": "string"
+      },
+      "matcher": {
+        "available": "boolean",
+        "checked": "boolean",
+        "error": "null",
+        "policyVersion": "string"
       },
       "metadataConfigured": "boolean",
       "metadataProviders": {
@@ -159,50 +150,15 @@
       "oidcEnabled": "boolean",
       "oidcLogoutUrl": "null",
       "onboardingRequired": "boolean",
+      "plexLoginEnabled": "boolean",
       "prowlarrConfigured": "boolean",
       "proxyAuthEnabled": "boolean",
       "proxyLogoutUrl": "null",
       "rootFolderConfigured": "boolean",
       "sabnzbdConfigured": "boolean",
       "slskdConfigured": "boolean",
+      "ssoOnly": "boolean",
       "status": "string",
-      "system": {
-        "arch": "string",
-        "dataDir": "string",
-        "database": {
-          "engine": "string",
-          "label": "string",
-          "version": "string"
-        },
-        "databasePath": "string",
-        "diskSpace": [
-          {
-            "available": "boolean",
-            "freeBytes": "number",
-            "location": "string",
-            "role": "string",
-            "statTarget": "string",
-            "totalBytes": "number",
-            "usedPercent": "number"
-          }
-        ],
-        "docker": "boolean",
-        "hostname": "string",
-        "links": [
-          {
-            "label": "string",
-            "url": "string",
-            "value": "string"
-          }
-        ],
-        "mode": "string",
-        "nodeVersion": "string",
-        "platform": "string",
-        "startedAt": "string",
-        "startupDirectory": "string",
-        "uptimeSeconds": "number",
-        "version": "string"
-      },
       "ticketmasterConfigured": "boolean",
       "timestamp": "string",
       "usenetConfigured": "boolean",
@@ -221,11 +177,10 @@
         "role": "string",
         "username": "string"
       },
-      "websocket": {
-        "channels": {},
-        "clients": "number"
-      },
       "ytdlpConfigured": "boolean"
+    },
+    "GET /health/live": {
+      "status": "string"
     },
     "GET /library/canonical": {
       "albums": [],
@@ -252,16 +207,6 @@
     "GET /library/recent": [],
     "GET /library/recent-releases": [],
     "GET /playlists/status": {
-      "capabilities": {
-        "availableSources": [],
-        "lastfmRequired": "boolean",
-        "unavailableSources": {
-          "discover": "string",
-          "focus": "string",
-          "mix": "string",
-          "trending": "string"
-        }
-      },
       "flowStats": {},
       "flows": [],
       "hint": {
@@ -278,7 +223,7 @@
         "running": "boolean"
       },
       "retryCyclePausedByPlaylist": {},
-      "retryCycleScheduledByPlaylist": {},
+      "reviewCount": "number",
       "sharedPlaylistStats": {},
       "sharedPlaylists": [],
       "sharedStats": {
@@ -306,13 +251,6 @@
       "worker": {
         "activeCount": "number",
         "currentJob": "null",
-        "downloadMetrics": {
-          "avgAttemptsPerTrack": "number",
-          "avgSuccessLatencyMs": "number",
-          "completedTracks": "number"
-        },
-        "lastJobMetrics": "null",
-        "playlistRuns": {},
         "processing": "boolean",
         "running": "boolean",
         "settings": {

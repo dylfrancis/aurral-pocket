@@ -1,9 +1,18 @@
 import { formatDate } from "@/lib/date-time";
-import type { BasedOnArtist, DiscoveryArtist } from "@/lib/types/search";
+import type {
+  BasedOnArtist,
+  DiscoveryArtist,
+  RecentlyAddedArtist,
+} from "@/lib/types/search";
 
 const GENRE_SECTIONS_MAX = 4;
 const GENRE_SECTION_MIN_ARTISTS = 4;
 const GENRE_SECTION_MAX_ARTISTS = 6;
+
+/** The MBID a Recently Added entry addresses its artist by. */
+export function recentlyAddedMbid(artist: RecentlyAddedArtist): string {
+  return artist.mbid || artist.foreignArtistId || artist.id;
+}
 
 export type GenreSection = {
   genre: string;

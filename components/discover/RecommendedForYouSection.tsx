@@ -21,7 +21,11 @@ type Props = {
 export function RecommendedForYouSection({ onArtistPress, onViewAll }: Props) {
   const colors = Colors[useColorScheme()];
   const { data, isLoading } = useDiscovery();
-  const { isInLibrary } = useLibraryLookup();
+  // Every recommendation, not just the visible ones, so the genre sections
+  // and the full list share this lookup.
+  const { isInLibrary } = useLibraryLookup(
+    (data?.recommendations ?? []).map((artist) => artist.id),
+  );
 
   const all = data?.recommendations ?? [];
   const artists = all.slice(0, MAX_VISIBLE);

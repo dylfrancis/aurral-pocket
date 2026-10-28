@@ -30,7 +30,10 @@ import {
   useBlocklistMutations,
 } from "@/hooks/discover/use-blocklist";
 import { findBlockedArtist } from "@/lib/blocklist";
-import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import {
+  setArtistInLibrary,
+  useLibraryLookup,
+} from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
@@ -119,7 +122,7 @@ export function ArtistDetailLayout({
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const { isInLibrary } = useLibraryLookup();
+  const { isInLibrary } = useLibraryLookup([mbid]);
   const inLibrary = isInLibrary(mbid);
   const { data: libraryArtist, refetch: refetchArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,
@@ -280,6 +283,7 @@ export function ArtistDetailLayout({
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteLibraryArtist(id),
     onSuccess: () => {
+      setArtistInLibrary(queryClient, mbid, false);
       void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
     },
   });
@@ -491,7 +495,6 @@ export function ArtistDetailLayout({
 
         <SimilarArtistsSection
           artists={similarArtists ?? []}
-          isInLibrary={isInLibrary}
           onPress={handleSimilarPress}
         />
 

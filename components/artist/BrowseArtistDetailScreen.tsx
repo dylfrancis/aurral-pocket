@@ -10,7 +10,7 @@ export function BrowseArtistDetailScreen() {
   const { mbid, name } = useLocalSearchParams<{ mbid: string; name: string }>();
   const router = useRouter();
 
-  const { isInLibrary } = useLibraryLookup();
+  const { isInLibrary } = useLibraryLookup([mbid]);
   const inLibrary = isInLibrary(mbid!);
   const { data: libraryArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,

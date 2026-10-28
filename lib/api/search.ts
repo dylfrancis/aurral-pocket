@@ -1,10 +1,7 @@
 import { api } from "./client";
 import type {
-  SearchArtist,
   SearchArtistsResponse,
-  UnifiedSearchEntry,
-  UnifiedSearchMode,
-  UnifiedSearchResponse,
+  SearchArtistsWire,
   SearchAlbumsResponse,
   SimilarArtistsResponse,
   TagSuggestionsResponse,
@@ -15,52 +12,21 @@ import type {
   DiscoveryResponse,
   RecentlyAddedResponse,
   RecentReleasesResponse,
-  ConcertEvent,
-  NearbyShowEntry,
-  NearbyShowsEntryResponse,
   NearbyShowsResponse,
 } from "@/lib/types/search";
 
 /**
- * Aurral 2.0 deleted `GET /search/artists`; `/search/unified` replaced it.
- *
- * `unified` answers with results split across `library` and `catalog`, but
- * `catalog.artists` already contains library artists flagged `inLibrary`, so
- * reading catalog alone gives the full set with no de-duplication needed.
+ * Artist search through the app contract's `GET /search`, the route album
+ * search uses too.
  */
 export async function searchArtists(
   query: string,
-  {
-    mode = "suggest",
-    limit = 24,
-  }: { mode?: UnifiedSearchMode; limit?: number } = {},
+  limit = 24,
 ): Promise<SearchArtistsResponse> {
-  const r = await api.get<UnifiedSearchResponse>("/search/unified", {
-    params: { q: query, mode, limit },
-    // `full` searches upstream providers and is markedly slower than `suggest`;
-    // Aurral's own client allows it 30s.
-    timeout: mode === "full" ? 30_000 : 12_000,
+  const r = await api.get<SearchArtistsWire>("/search", {
+    params: { q: query, scope: "artist", limit },
   });
-  return { artists: normalizeArtists(r.data?.catalog?.artists) };
-}
-
-function normalizeArtists(
-  entries: UnifiedSearchEntry[] | undefined,
-): SearchArtist[] {
-  if (!Array.isArray(entries)) return [];
-  return (
-    entries
-      // Every action pocket offers addresses the artist by MBID, so an entry
-      // without one is not something we can render a working row for.
-      .filter((entry) => entry?.id && entry.hasMbid !== false)
-      .map((entry) => ({
-        id: entry.id,
-        name: entry.name,
-        sortName: entry.sortName ?? entry.name,
-        inLibrary: entry.inLibrary ?? false,
-        score: entry.score ?? 0,
-      }))
-  );
+  return { artists: r.data.items.map(({ id, name }) => ({ id, name })) };
 }
 
 export async function searchAlbums(query: string, limit = 24, offset = 0) {
@@ -178,27 +144,8 @@ export async function getNearbyShows(
   if (Number.isFinite(limit) && (limit as number) > 0) {
     params.limit = Math.floor(limit as number);
   }
-  const r = await api.get<NearbyShowsEntryResponse>("/discover/nearby-shows", {
+  const r = await api.get<NearbyShowsResponse>("/discover/nearby-shows", {
     params: Object.keys(params).length > 0 ? params : undefined,
   });
-  return {
-    configured: r.data.configured,
-    location: r.data.location,
-    shows: r.data.shows.map(normalizeNearbyShow),
-  };
-}
-
-/**
- * 2.11.0 turned each show's `sourceType` into `sourceTypes`. Reading
- * `sourceType` keeps 2.7.0 working until the minimum server is 2.12.0.
- */
-function normalizeNearbyShow({
-  sourceType,
-  sourceTypes,
-  ...show
-}: NearbyShowEntry): ConcertEvent {
-  return {
-    ...show,
-    sourceTypes: sourceTypes ?? (sourceType ? [sourceType] : []),
-  };
+  return r.data;
 }

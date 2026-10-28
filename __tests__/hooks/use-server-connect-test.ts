@@ -11,6 +11,7 @@ jest.mock("@/lib/api/client", () => ({
 jest.mock("@/lib/api/health", () => ({
   checkServerLive: jest.fn(),
   getServerHealth: jest.fn(),
+  SUPPORTED_API_VERSION: 1,
 }));
 
 jest.mock("@tanstack/react-query", () => ({
@@ -68,6 +69,36 @@ describe("useServerConnect", () => {
 
     expect(mockCheckServerLive).toHaveBeenCalled();
     expect(mockGetServerHealth).toHaveBeenCalled();
+  });
+
+  it("connects to a server on API version 1", async () => {
+    mockCheckServerLive.mockResolvedValue(undefined);
+    mockGetServerHealth.mockResolvedValue({
+      authRequired: true,
+      api: { version: 1, features: [] },
+    });
+
+    useServerConnect();
+    const { config } = mockUseMutation.mock.results[0].value;
+
+    await expect(config.mutationFn("https://server.com")).resolves.toEqual(
+      expect.objectContaining({ url: "https://server.com" }),
+    );
+  });
+
+  it("refuses a server on a newer API version", async () => {
+    mockCheckServerLive.mockResolvedValue(undefined);
+    mockGetServerHealth.mockResolvedValue({
+      authRequired: true,
+      api: { version: 2, features: [] },
+    });
+
+    useServerConnect();
+    const { config } = mockUseMutation.mock.results[0].value;
+
+    await expect(config.mutationFn("https://server.com")).rejects.toThrow(
+      "This server is newer than Aurral Pocket supports.",
+    );
   });
 
   it("calls setServer on success", () => {

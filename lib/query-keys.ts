@@ -5,6 +5,12 @@ export const authKeys = {
 
 export const libraryKeys = {
   artists: () => ["library", "artists"] as const,
+  // Library membership lives under `artists`, so every invalidation of the
+  // artist list refreshes it too.
+  artistLookups: () => ["library", "artists", "lookup"] as const,
+  artistLookup: (mbids: string) =>
+    ["library", "artists", "lookup", mbids] as const,
+  artistId: (mbid: string) => ["library", "artists", "id", mbid] as const,
   artist: (mbid: string) => ["library", "artist", mbid] as const,
   albums: (artistId: string) => ["library", "albums", artistId] as const,
   albumsAll: (genre = "") => ["library", "albumsAll", genre] as const,
@@ -26,8 +32,7 @@ export const libraryKeys = {
 };
 
 export const searchKeys = {
-  artists: (query: string, mode = "suggest") =>
-    ["search", "artists", query, mode] as const,
+  artists: (query: string) => ["search", "artists", query] as const,
   albums: (query: string) => ["search", "albums", query] as const,
   tagSuggestions: (query: string) => ["search", "tags", query] as const,
   artistsByTag: (tag: string, scope: string) =>

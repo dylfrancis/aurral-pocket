@@ -19,6 +19,29 @@ export type HealthLiveResponse = {
   status: string;
 };
 
+/**
+ * Capability names from Aurral's app contract (`backend/config/apiContract.ts`).
+ * A server can list names pocket does not know yet, and the app ignores them.
+ * scripts/check-api-contract.mjs reads this list and fails when Aurral adds or
+ * drops a name, so a new capability gets adopted or added here on purpose.
+ */
+export type ServerFeature =
+  | "discover"
+  | "flows"
+  | "activity"
+  | "review"
+  | "trackDownloads"
+  | "linkSearch"
+  | "downloadCancel";
+
+/** The app contract a server implements, from `GET /health/bootstrap`. */
+export type ApiContract = {
+  /** Changes only on a breaking change to the contract. */
+  version: number;
+  features: ServerFeature[];
+};
+
+/** Body of `GET /health/bootstrap`, the app contract's public entry point. */
 export type HealthResponse = {
   status: string;
   authRequired: boolean;
@@ -35,6 +58,8 @@ export type HealthResponse = {
   // omits it, which normalizes to "browser" — the device locale, which is what
   // pocket used before the server had this setting.
   dateTimeFormat?: DateTimeFormat;
+  // Absent before Aurral 2.11.0, which reads as a server with no features.
+  api?: ApiContract;
 };
 
 export type LoginRequest = {

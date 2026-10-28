@@ -59,7 +59,6 @@ const emptyDiscovery = {
   topTags: [],
   topGenres: [],
   lastUpdated: null,
-  isUpdating: false,
   configured: true,
 };
 

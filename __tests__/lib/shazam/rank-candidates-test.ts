@@ -3,13 +3,7 @@ import type { IsrcArtist } from "@/lib/api/musicbrainz";
 import type { SearchArtist } from "@/lib/types/search";
 
 function artist(id: string, name = id): SearchArtist {
-  return {
-    id,
-    name,
-    sortName: name,
-    inLibrary: false,
-    score: 0,
-  };
+  return { id, name };
 }
 
 const results = [

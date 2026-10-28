@@ -94,12 +94,7 @@ export default function SearchResultsScreen() {
     data: artistData,
     isLoading: artistLoading,
     refetch: refetchArtists,
-  } = useArtistSearch(
-    isTagSearch || resultScope !== "artist" ? "" : query,
-    // Dedicated results screen: the user is waiting on a considered answer,
-    // so search harder than the typeahead does.
-    "full",
-  );
+  } = useArtistSearch(isTagSearch || resultScope !== "artist" ? "" : query);
 
   const {
     data: albumData,
@@ -128,7 +123,6 @@ export default function SearchResultsScreen() {
     }
     setRefreshing(false);
   }, [isTagSearch, resultScope, refetchTags, refetchAlbums, refetchArtists]);
-  const { isInLibrary } = useLibraryLookup();
 
   const isLoading = isTagSearch
     ? tagLoading
@@ -139,6 +133,9 @@ export default function SearchResultsScreen() {
   const artists = artistData?.artists;
   const albums = albumData?.items;
   const tagArtists = tagData?.recommendations;
+  const { isInLibrary } = useLibraryLookup(
+    (isTagSearch ? tagArtists : artists)?.map((artist) => artist.id) ?? [],
+  );
 
   const fullData = isTagSearch
     ? tagArtists
