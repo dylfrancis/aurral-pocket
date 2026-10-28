@@ -276,8 +276,6 @@ export type DiscoveryResponse = {
   playlistsUpdating?: boolean;
   playlistsUpdateMessage?: string;
   lastUpdated: string | null;
-  isUpdating: boolean;
-  stale?: boolean;
   configured: boolean;
 };
 
