@@ -128,10 +128,14 @@ export function ReleaseDetailScreen() {
 
   // Search knows the artist only by MBID, so the library artist id it needs
   // to add an album is looked up here. An artist page passes its own.
-  const { data: lookedUpArtistId } = useQuery({
+  const needsArtistLookup = !params.artistId && !!params.artistMbid;
+  const artistIdQuery = {
     queryKey: libraryKeys.artistId(params.artistMbid ?? ""),
     queryFn: () => getLibraryArtistId(params.artistMbid!),
-    enabled: !params.artistId && !!params.artistMbid,
+  };
+  const { data: lookedUpArtistId, isLoading: artistIdLoading } = useQuery({
+    ...artistIdQuery,
+    enabled: needsArtistLookup,
   });
   const libraryArtistId = params.artistId || lookedUpArtistId || null;
 
@@ -192,8 +196,15 @@ export function ReleaseDetailScreen() {
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      if (libraryArtistId) {
-        await addLibraryAlbum(libraryArtistId, mbid, title);
+      // A tap can land before the lookup answers. Wait for it, so an artist
+      // already in the library is not sent down the new-artist path.
+      const artistId =
+        libraryArtistId ||
+        (needsArtistLookup
+          ? await queryClient.fetchQuery(artistIdQuery)
+          : null);
+      if (artistId) {
+        await addLibraryAlbum(artistId, mbid, title);
         return { createdArtist: false };
       }
       if (!params.artistMbid) {
@@ -383,14 +394,17 @@ export function ReleaseDetailScreen() {
               {action.label}
             </Text>
           </Pressable>
-          {action.kind === "add" && !libraryArtistId && !!params.artistMbid && (
-            <Text
-              variant="caption"
-              style={[styles.callout, { color: colors.subtle }]}
-            >
-              This will also add {artistName} to your library.
-            </Text>
-          )}
+          {action.kind === "add" &&
+            !libraryArtistId &&
+            !artistIdLoading &&
+            !!params.artistMbid && (
+              <Text
+                variant="caption"
+                style={[styles.callout, { color: colors.subtle }]}
+              >
+                This will also add {artistName} to your library.
+              </Text>
+            )}
         </View>
 
         {tracksLoading ? (
