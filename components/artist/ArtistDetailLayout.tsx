@@ -30,14 +30,16 @@ import {
   useBlocklistMutations,
 } from "@/hooks/discover/use-blocklist";
 import { findBlockedArtist } from "@/lib/blocklist";
-import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import {
+  setArtistInLibrary,
+  useLibraryLookup,
+} from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import type {
   Album,
-  ArtistLookupBatch,
   PreviewTrack,
   PrimaryReleaseType,
   ReleaseGroup,
@@ -281,11 +283,7 @@ export function ArtistDetailLayout({
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteLibraryArtist(id),
     onSuccess: () => {
-      // Unmark the artist in every cached lookup before the refetch lands.
-      queryClient.setQueriesData<ArtistLookupBatch>(
-        { queryKey: libraryKeys.artistLookups() },
-        (old) => (old && mbid in old ? { ...old, [mbid]: false } : old),
-      );
+      setArtistInLibrary(queryClient, mbid, false);
       void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
     },
   });

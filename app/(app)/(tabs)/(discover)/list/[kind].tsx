@@ -99,17 +99,17 @@ export default function DiscoverListScreen() {
   const discovery = useDiscovery();
   const recentlyAdded = useRecentlyAdded();
   const recentReleases = useRecentReleases();
+  const discoveryArtists =
+    (kind === "recommended"
+      ? discovery.data?.recommendations
+      : kind === "trending"
+        ? discovery.data?.globalTop
+        : undefined) ?? [];
   // The whole list, as the Discover sections pass it, so they share a lookup.
   const { isInLibrary } = useLibraryLookup(
     kind === "recently-added"
       ? (recentlyAdded.data ?? []).map(recentlyAddedMbid)
-      : (
-          (kind === "recommended"
-            ? discovery.data?.recommendations
-            : kind === "trending"
-              ? discovery.data?.globalTop
-              : undefined) ?? []
-        ).map((artist) => artist.id),
+      : discoveryArtists.map((artist) => artist.id),
   );
 
   useEffect(() => {
@@ -293,10 +293,7 @@ export default function DiscoverListScreen() {
     );
   }
 
-  const artists =
-    (kind === "recommended"
-      ? discovery.data?.recommendations
-      : discovery.data?.globalTop) ?? [];
+  const artists = discoveryArtists;
 
   return (
     <>

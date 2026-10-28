@@ -1,8 +1,13 @@
 import { useCallback } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { lookupLibraryArtists } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
+import type { ArtistLookupBatch } from "@/lib/types/library";
 
 /**
  * Library membership for the artists a screen shows, from the app contract's
@@ -10,7 +15,7 @@ import { libraryKeys } from "@/lib/query-keys";
  *
  * The set of MBIDs is the query key, in any order, so screens that show the
  * same list share one lookup. Adding or removing an artist updates every
- * cached lookup at once (useAddArtist, ArtistDetailLayout).
+ * cached lookup at once, through setArtistInLibrary.
  */
 export function useLibraryLookup(
   mbids: readonly (string | null | undefined)[],
@@ -34,4 +39,19 @@ export function useLibraryLookup(
   );
 
   return { isInLibrary };
+}
+
+/**
+ * Mark or unmark an artist in every cached lookup that asked about it, so a
+ * screen reflects an add or a removal before the next lookup answers.
+ */
+export function setArtistInLibrary(
+  queryClient: QueryClient,
+  mbid: string,
+  inLibrary: boolean,
+) {
+  queryClient.setQueriesData<ArtistLookupBatch>(
+    { queryKey: libraryKeys.artistLookups() },
+    (old) => (old && mbid in old ? { ...old, [mbid]: inLibrary } : old),
+  );
 }
