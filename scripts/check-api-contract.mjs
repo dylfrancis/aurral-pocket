@@ -42,6 +42,14 @@
  * records — so shape checking covers the routes that answer 200 without real
  * data: status, settings, lists.
  *
+ * How it uses Aurral's app contract
+ * ---------------------------------
+ * Since 2.11.0 Aurral publishes an app contract: a list of routes and fields it
+ * promises not to break within a contract version (see CONTRACT). Every probed
+ * route that is in the contract is marked as such, the fields it guarantees
+ * must be present, and the summary says how much of pocket rests on it. Routes
+ * outside it still get the existence and shape checks above.
+ *
  * Usage:
  *   AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs
  *
@@ -114,23 +122,101 @@ const MAX_RELOGINS = 2;
 const KNOWN_DRIFT = new Map([]);
 
 /**
- * Top-level keys the client cannot function without, asserted against the live
- * response on every run — including --record. The baseline compare alone would
- * miss the case #176 shipped: if upstream drops one of these and someone
- * regenerates the baseline without reading the diff, the recorded shape and
- * the server agree and the compare passes. This list does not regenerate.
+ * Aurral's app contract, version 1, as docs/src/content/docs/api/app-contract.mdx
+ * states it at the pinned tag. These are the routes Aurral promises apps. Any
+ * other route pocket calls can change in any release, so the summary counts
+ * how many of pocket's routes the contract covers. Update this with the pin.
  *
- * Only routes that answer 200 on a fresh install can appear here. The client
- * also requires GET /playlists/jobs/:id, but it needs a real playlist and
- * always 404s against a synthetic ID, so it cannot be asserted this way.
+ * Each GET route that answers 200 on a fresh install also lists the top-level
+ * fields the contract guarantees. They are asserted against the live response
+ * on every run that probes the route, including --record. The baseline compare
+ * alone would miss the case #176 shipped: if upstream drops one of these and
+ * someone regenerates the baseline without reading the diff, the recorded
+ * shape and the server agree and the compare passes. This list does not
+ * regenerate.
+ *
+ * A kind ending in "?" may also be null. A kind in place of the field map is
+ * the kind of the whole body.
  */
-const REQUIRED_KEYS = new Map([
-  ["GET /health/bootstrap", { api: "object", appVersion: "string" }],
+const CONTRACT = new Map([
+  ["POST /auth/login", null],
+  ["GET /auth/me", { user: "object", expiresAt: "number?" }],
+  [
+    "GET /health/bootstrap",
+    {
+      status: "string",
+      appVersion: "string",
+      authRequired: "boolean",
+      onboardingRequired: "boolean",
+      api: "object",
+    },
+  ],
+  [
+    "GET /discover",
+    {
+      recommendations: "array",
+      globalTop: "array",
+      basedOn: "array",
+      topTags: "array",
+      topGenres: "array",
+      recommendationCount: "number",
+      lastUpdated: "string?",
+      configured: "boolean",
+      provider: "string",
+    },
+  ],
+  ["GET /search", null],
+  ["GET /search/link", null],
+  ["GET /artists/:mbid", null],
+  ["GET /artists/release-group/:mbid", null],
+  [
+    "GET /library/canonical",
+    {
+      kind: "string",
+      page: "number",
+      pageSize: "number",
+      total: "number",
+      hasMore: "boolean",
+      items: "array",
+      artists: "array",
+      albums: "array",
+      tracks: "array",
+      genres: "array",
+    },
+  ],
+  ["GET /library/lookup/:mbid", null],
+  ["POST /library/lookup/batch", null],
+  ["POST /library/albums/lookup/batch", null],
+  ["POST /library/albums/request", null],
+  ["POST /library/downloads/track", null],
+  ["POST /playlists/flows", null],
   [
     "GET /playlists/status",
-    { flowStats: "object", flows: "array", sharedPlaylists: "array" },
+    {
+      flows: "array",
+      sharedPlaylists: "array",
+      stats: "object",
+      flowStats: "object",
+      worker: "object",
+      hint: "object",
+    },
   ],
+  ["GET /playlists/jobs", null],
+  ["GET /requests", "array"],
+  ["POST /playlists/jobs/:jobId/approve", null],
+  ["POST /playlists/jobs/:jobId/deny", null],
 ]);
+
+/**
+ * "GET /artists/${mbid}" and "GET /artists/:mbid" -> "GET /artists/:", so a
+ * pocket call site and a contract route compare equal whatever the parameter
+ * is called.
+ */
+function routePattern(key) {
+  return key.replace(/\$\{[^}]+\}|:[A-Za-z]\w*/g, ":");
+}
+
+const CONTRACT_PATTERNS = new Set([...CONTRACT.keys()].map(routePattern));
 
 /**
  * The shape of a JSON value, with every concrete value erased:
@@ -346,25 +432,45 @@ async function login() {
   return token;
 }
 
-/** Returns true on failure. Runs in both modes — see REQUIRED_KEYS. */
-function checkRequiredKeys(shapes) {
+function matchesKind(got, spec) {
+  return (
+    got === spec.replace(/\?$/, "") || (spec.endsWith("?") && got === "null")
+  );
+}
+
+/**
+ * Returns true on failure. Runs in both modes — see CONTRACT. Only routes
+ * pocket probes are checked: the contract covers routes pocket never calls.
+ */
+function checkContractFields(shapes, probed) {
   let failed = false;
-  for (const [key, required] of REQUIRED_KEYS) {
+  for (const [key, fields] of CONTRACT) {
+    if (fields === null || !probed.has(key)) continue;
     const shape = shapes.get(key);
     if (shape === undefined) {
       console.error(
-        `\nFAIL: ${key} did not answer 200 with JSON, so its required keys ` +
-          "cannot be verified.",
+        `\nFAIL: ${key} did not answer 200 with JSON, so the fields the app ` +
+          "contract guarantees cannot be verified.",
       );
       failed = true;
       continue;
     }
-    for (const [topKey, kind] of Object.entries(required)) {
-      const got = topKey in shape ? kindOf(shape[topKey]) : undefined;
-      if (got !== kind) {
+    if (typeof fields === "string") {
+      if (!matchesKind(kindOf(shape), fields)) {
         console.error(
-          `\nFAIL: ${key} must carry \`${topKey}\` (${kind}); got ` +
-            `${got ?? "no such key"}. The client reads this on the happy path — ` +
+          `\nFAIL: ${key} must answer with a JSON ${fields}; got ` +
+            `${kindOf(shape)}. Aurral's app contract guarantees it.`,
+        );
+        failed = true;
+      }
+      continue;
+    }
+    for (const [field, spec] of Object.entries(fields)) {
+      const got = field in shape ? kindOf(shape[field]) : undefined;
+      if (!matchesKind(got, spec)) {
+        console.error(
+          `\nFAIL: ${key} must carry \`${field}\` (${spec}); got ` +
+            `${got ?? "no such key"}. Aurral's app contract guarantees it — ` +
             "see #176.",
         );
         failed = true;
@@ -562,7 +668,12 @@ async function main() {
   }
 
   for (const r of ok) {
-    console.log(`  ok       ${r.method.padEnd(6)} ${r.path} (${r.status})`);
+    const tag = CONTRACT_PATTERNS.has(routePattern(`${r.method} ${r.raw}`))
+      ? "  contract"
+      : "";
+    console.log(
+      `  ok       ${r.method.padEnd(6)} ${r.path} (${r.status})${tag}`,
+    );
   }
   for (const r of moved) {
     console.log(
@@ -578,6 +689,14 @@ async function main() {
 
   console.log(
     `\n${ok.length} ok, ${moved.length} moved, ${missing.length} missing, ${known.length} known, ${routes.length} checked against ${BASE}`,
+  );
+
+  const probed = new Set(routes.map((r) => `${r.method} ${r.raw}`));
+  const patterns = new Set([...probed].map(routePattern));
+  const covered = [...patterns].filter((p) => CONTRACT_PATTERNS.has(p));
+  console.log(
+    `${covered.length} of the ${patterns.size} routes pocket calls are in ` +
+      `Aurral's app contract; the rest can change in any release.`,
   );
 
   let failed = false;
@@ -604,7 +723,7 @@ async function main() {
     failed = true;
   }
 
-  if (checkRequiredKeys(shapes)) failed = true;
+  if (checkContractFields(shapes, probed)) failed = true;
 
   if (RECORD) {
     if (failed) {
