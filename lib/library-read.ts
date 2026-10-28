@@ -13,6 +13,12 @@
  * hooks drain the paged route instead — see getCanonicalArtistAlbums and
  * getCanonicalAlbumTracks. The legacy read machinery is retired (issue #214).
  *
+ * Server 2.9.0 changed the default back: an omitted availableOnly follows the
+ * server's library view, which hides albums Lidarr wants but has no files
+ * for. The artist and album reads send `availableOnly=false` to keep them;
+ * the library home lists omit it and follow the server, as the web app does
+ * (issue #258). See CanonicalPageParams.
+ *
  * The wanted-music behaviors the screens rely on hold on this path:
  *
  * - A monitored album that is still downloading arrives with available:

@@ -7,8 +7,8 @@ import { libraryKeys } from "@/lib/query-keys";
  *
  * `artistRef` must come from `libraryAlbumsRef`. It identifies the artist on
  * the canonical read path, and it is also the query key, so mutations can
- * invalidate the same entry. The read drains the paged route, so wanted
- * (fileless) albums arrive too.
+ * invalidate the same entry. The read asks for wanted (fileless) albums
+ * explicitly, so they arrive whatever the server's library view hides.
  *
  * No monitored filter here, unlike the retired Lidarr read. The canonical
  * library copies the monitored flag from Lidarr when Lidarr indexed the

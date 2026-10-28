@@ -11,6 +11,7 @@ import { api } from "@/lib/api/client";
 import {
   getLibraryArtist,
   getCanonicalLibraryPage,
+  getCanonicalAlbum,
   getCanonicalAlbumTracks,
   getCanonicalArtistAlbums,
   refreshCanonicalLibrary,
@@ -193,12 +194,14 @@ describe("getCanonicalLibraryPage", () => {
     });
   });
 
-  it("omits availableOnly when it is false", async () => {
+  it("sends availableOnly=false rather than omitting it", async () => {
+    // Aurral 2.9 reads an omitted availableOnly as the server's library view,
+    // which hides wanted albums. Only an explicit "false" asks for them.
     mockApi.get.mockResolvedValue({ data: { kind: "artists" } });
 
     await getCanonicalLibraryPage({ kind: "artists", availableOnly: false });
     expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
-      params: { kind: "artists", pageSize: "100" },
+      params: { kind: "artists", availableOnly: "false", pageSize: "100" },
     });
   });
 
@@ -875,11 +878,23 @@ describe("getCanonicalArtistAlbums", () => {
 
     const albums = await getCanonicalArtistAlbums("mb-artist-1");
 
+    // Both reads ask for wanted records explicitly. The server's default view
+    // hides an artist whose albums are all wanted, and the wanted albums.
+    expect(mockApi.get).toHaveBeenNthCalledWith(1, "/library/canonical", {
+      params: {
+        kind: "artists",
+        pageSize: "100",
+        source: "all",
+        availableOnly: "false",
+        page: "1",
+      },
+    });
     expect(mockApi.get).toHaveBeenNthCalledWith(2, "/library/canonical", {
       params: {
         kind: "albums",
         pageSize: "100",
         source: "all",
+        availableOnly: "false",
         page: "1",
         artistId: "7",
       },
@@ -917,6 +932,7 @@ describe("getCanonicalArtistAlbums", () => {
         kind: "albums",
         pageSize: "100",
         source: "all",
+        availableOnly: "false",
         page: "1",
         artistId: "8",
       },
@@ -940,6 +956,7 @@ describe("getCanonicalAlbumTracks", () => {
         kind: "tracks",
         pageSize: "100",
         source: "all",
+        availableOnly: "false",
         page: "1",
         albumId: "12",
       },
@@ -949,12 +966,36 @@ describe("getCanonicalAlbumTracks", () => {
         kind: "tracks",
         pageSize: "100",
         source: "all",
+        availableOnly: "false",
         page: "2",
         albumId: "12",
       },
     });
     expect(tracks.map((t) => t.title)).toEqual(["One", "Two"]);
     expect(tracks[0].streamPath).toBe("/library/canonical-stream/12/31");
+  });
+});
+
+describe("getCanonicalAlbum", () => {
+  it("asks for wanted records, so a wanted album does not read as null", async () => {
+    // Aurral 2.11's default view drops an album Lidarr wants but has no files
+    // for. A null here makes the album page read the album as complete.
+    mockApi.get.mockResolvedValueOnce(
+      albumPage(1, false, [albumRow(12, "In Rainbows")]),
+    );
+
+    const album = await getCanonicalAlbum("12");
+
+    expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
+      params: {
+        kind: "albums",
+        pageSize: "1",
+        source: "all",
+        availableOnly: "false",
+        albumId: "12",
+      },
+    });
+    expect(album?.title).toBe("In Rainbows");
   });
 });
 

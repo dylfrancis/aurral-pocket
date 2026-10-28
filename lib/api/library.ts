@@ -223,6 +223,9 @@ function canonicalTrackToTrack(
  * 100 is the server's cap, and was its default while the parameter was still
  * optional, so the fallback preserves the pre-2.6 page size.
  *
+ * `availableOnly` is tri-state on the wire — see CanonicalPageParams — so
+ * `false` is sent, not dropped.
+ *
  * Nothing above this function sees a raw canonical row — see
  * CanonicalArtistItem.
  */
@@ -234,7 +237,9 @@ export async function getCanonicalLibraryPage(
     pageSize: String(params.pageSize ?? 100),
   };
   if (params.source) query.source = params.source;
-  if (params.availableOnly) query.availableOnly = "true";
+  if (params.availableOnly != null) {
+    query.availableOnly = String(params.availableOnly);
+  }
   if (params.page != null) query.page = String(params.page);
   if (params.query) query.query = params.query;
   if (params.genre) query.genre = params.genre;
@@ -264,6 +269,10 @@ export async function getCanonicalLibraryPage(
  * match wins as soon as a page contains it. A reference that matches no
  * MBID falls back to a canonical-id match after the walk, because a
  * file-scanned artist has no MBID and is addressed by its canonical id.
+ *
+ * The walk asks for wanted records, because the server's library view hides
+ * an artist whose albums are all wanted, and that artist still has albums
+ * to show.
  */
 async function findCanonicalArtist(artistRef: string): Promise<Artist | null> {
   const seen: Artist[] = [];
@@ -272,6 +281,7 @@ async function findCanonicalArtist(artistRef: string): Promise<Artist | null> {
     const result = await getCanonicalLibraryPage({
       kind: "artists",
       source: "all",
+      availableOnly: false,
       page,
     });
     const byMbid = result.artists.find(
@@ -294,6 +304,9 @@ async function findCanonicalArtist(artistRef: string): Promise<Artist | null> {
  * `artistRef` is an artist MBID, or a canonical artist id when the artist
  * has no MBID. An artist the canonical library has not indexed yet reads as
  * an empty list — the artist screen shows no albums and keeps polling.
+ *
+ * Wanted albums are part of the list: the artist screen shows them as
+ * missing, and useResearchMissingAlbums searches them.
  */
 export async function getCanonicalArtistAlbums(
   artistRef: string,
@@ -307,6 +320,7 @@ export async function getCanonicalArtistAlbums(
     const result = await getCanonicalLibraryPage({
       kind: "albums",
       source: "all",
+      availableOnly: false,
       page,
       artistId,
     });
@@ -320,7 +334,8 @@ export async function getCanonicalArtistAlbums(
  * Read every track of one canonical album, following the page cursor.
  * Aurral 2.6 caps a canonical read at 100 items, and box sets exceed that.
  * `canonicalAlbumId` must be the album's canonical id — the paged route
- * matches nothing else.
+ * matches nothing else. Tracks nobody has a file for are part of the list,
+ * so the album page can mark them missing.
  */
 export async function getCanonicalAlbumTracks(
   canonicalAlbumId: string,
@@ -331,6 +346,7 @@ export async function getCanonicalAlbumTracks(
     const result = await getCanonicalLibraryPage({
       kind: "tracks",
       source: "all",
+      availableOnly: false,
       page,
       albumId: canonicalAlbumId,
     });
@@ -343,7 +359,8 @@ export async function getCanonicalAlbumTracks(
 /**
  * Read one canonical album by its canonical id. The paged route matches the
  * canonical numeric id only — see libraryTracksRef. An unknown id reads as
- * null.
+ * null. A wanted album must not, or the album page reads it as complete, so
+ * the read asks for wanted records.
  */
 export async function getCanonicalAlbum(
   canonicalAlbumId: string,
@@ -351,6 +368,7 @@ export async function getCanonicalAlbum(
   const result = await getCanonicalLibraryPage({
     kind: "albums",
     source: "all",
+    availableOnly: false,
     albumId: canonicalAlbumId,
     pageSize: 1,
   });
