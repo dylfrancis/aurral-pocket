@@ -37,7 +37,6 @@ export function ShazamMatchResult({
   const colors = Colors[useColorScheme()];
   const hasPermission = useHasPermission();
   const canAddArtist = hasPermission("addArtist");
-  const { isInLibrary } = useLibraryLookup();
 
   const artistName = match.artist ?? "";
   // A Shazam match resolves to one specific act; a shallow suggest pass can
@@ -51,6 +50,9 @@ export function ShazamMatchResult({
     () =>
       rankCandidates(data?.artists ?? [], isrcArtist ?? null, CANDIDATE_LIMIT),
     [data?.artists, isrcArtist],
+  );
+  const { isInLibrary } = useLibraryLookup(
+    candidates.map((artist) => artist.id),
   );
 
   const settled = !isLoading && !isrcLoading;

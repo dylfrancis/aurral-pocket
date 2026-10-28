@@ -6,6 +6,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useRecentlyAdded } from "@/hooks/discover";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { formatDate } from "@/lib/date-time";
+import { recentlyAddedMbid } from "@/lib/discover/format";
 import type { RecentlyAddedArtist } from "@/lib/types/search";
 import { HorizontalArtistCard } from "./HorizontalArtistCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -32,7 +33,7 @@ export function RecentlyAddedSection({ onArtistPress, onViewAll }: Props) {
   // Repaint the "Added" dates when the server format changes.
   useDateTimeFormat();
   const { data, isLoading } = useRecentlyAdded();
-  const { isInLibrary } = useLibraryLookup();
+  const { isInLibrary } = useLibraryLookup((data ?? []).map(recentlyAddedMbid));
 
   const all = data ?? [];
   const artists = all.slice(0, MAX_VISIBLE);
@@ -63,7 +64,7 @@ export function RecentlyAddedSection({ onArtistPress, onViewAll }: Props) {
         contentContainerStyle={styles.list}
       >
         {artists.map((artist) => {
-          const mbid = artist.mbid || artist.foreignArtistId || artist.id;
+          const mbid = recentlyAddedMbid(artist);
           return (
             <HorizontalArtistCard
               key={artist.id}

@@ -424,3 +424,16 @@ export type LibraryScanJob = {
   jobId: number;
   status: LibraryScanStatus;
 };
+
+/**
+ * Body of `GET /library/lookup/:mbid`, as far as pocket reads it. The route
+ * also returns the artist and its albums.
+ */
+export type ArtistLibraryLookup = {
+  exists: boolean;
+  /** The canonical artist id; null until the canonical library indexes the artist. */
+  libraryArtistId: string | null;
+};
+
+/** Body of `POST /library/lookup/batch`: library membership by artist MBID. */
+export type ArtistLookupBatch = Record<string, boolean>;

@@ -37,6 +37,7 @@ import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import type {
   Album,
+  ArtistLookupBatch,
   PreviewTrack,
   PrimaryReleaseType,
   ReleaseGroup,
@@ -119,7 +120,7 @@ export function ArtistDetailLayout({
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const { isInLibrary } = useLibraryLookup();
+  const { isInLibrary } = useLibraryLookup([mbid]);
   const inLibrary = isInLibrary(mbid);
   const { data: libraryArtist, refetch: refetchArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,
@@ -280,6 +281,11 @@ export function ArtistDetailLayout({
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteLibraryArtist(id),
     onSuccess: () => {
+      // Unmark the artist in every cached lookup before the refetch lands.
+      queryClient.setQueriesData<ArtistLookupBatch>(
+        { queryKey: libraryKeys.artistLookups() },
+        (old) => (old && mbid in old ? { ...old, [mbid]: false } : old),
+      );
       void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
     },
   });
@@ -491,7 +497,6 @@ export function ArtistDetailLayout({
 
         <SimilarArtistsSection
           artists={similarArtists ?? []}
-          isInLibrary={isInLibrary}
           onPress={handleSimilarPress}
         />
 

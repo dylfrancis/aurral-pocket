@@ -61,7 +61,7 @@ type ArtistReference = {
  * The MusicBrainz id is the only identifier the legacy artist detail and the
  * canonical library share, so it leads. The paged canonical route itself
  * matches only canonical numeric ids, so getCanonicalArtistAlbums translates
- * the MBID by walking the artist pages. The artist-id fallback carries the
+ * the MBID through the artist lookup. The artist-id fallback carries the
  * canonical id when a file-scanned artist has no MBID; a Lidarr id in that
  * position matches nothing and reads as an empty album list.
  */

@@ -128,7 +128,6 @@ export default function SearchResultsScreen() {
     }
     setRefreshing(false);
   }, [isTagSearch, resultScope, refetchTags, refetchAlbums, refetchArtists]);
-  const { isInLibrary } = useLibraryLookup();
 
   const isLoading = isTagSearch
     ? tagLoading
@@ -139,6 +138,9 @@ export default function SearchResultsScreen() {
   const artists = artistData?.artists;
   const albums = albumData?.items;
   const tagArtists = tagData?.recommendations;
+  const { isInLibrary } = useLibraryLookup(
+    (isTagSearch ? tagArtists : artists)?.map((artist) => artist.id) ?? [],
+  );
 
   const fullData = isTagSearch
     ? tagArtists

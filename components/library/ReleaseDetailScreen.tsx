@@ -30,10 +30,10 @@ import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { useAudioPreview } from "@/hooks/library/use-audio-preview";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   addLibraryAlbum,
+  getLibraryArtistId,
   getReleaseGroupTracks,
   requestAlbumFromSearch,
   searchDeezerAlbum,
@@ -118,7 +118,6 @@ export function ReleaseDetailScreen() {
 
   const hasPermission = useHasPermission();
   const canAddAlbum = hasPermission("addAlbum");
-  const { libraryArtists } = useLibraryLookup();
   const { canAddToPlaylist, ...addToPlaylist } = useAddToPlaylist();
 
   const mbid = params.mbid;
@@ -127,13 +126,14 @@ export function ReleaseDetailScreen() {
   const status = params.status || "missing";
   const libraryAlbumId = params.libraryAlbumId || "";
 
-  // Search knows the artist only by MBID, so the Lidarr id it needs to add an
-  // album is resolved here. An artist page passes its own and skips the walk.
-  const libraryArtistId =
-    params.artistId ||
-    (params.artistMbid
-      ? (libraryArtists?.find((a) => a.mbid === params.artistMbid)?.id ?? null)
-      : null);
+  // Search knows the artist only by MBID, so the library artist id it needs
+  // to add an album is looked up here. An artist page passes its own.
+  const { data: lookedUpArtistId } = useQuery({
+    queryKey: libraryKeys.artistId(params.artistMbid ?? ""),
+    queryFn: () => getLibraryArtistId(params.artistMbid!),
+    enabled: !params.artistId && !!params.artistMbid,
+  });
+  const libraryArtistId = params.artistId || lookedUpArtistId || null;
 
   const { data: tracks, isLoading: tracksLoading } = useQuery({
     queryKey: libraryKeys.releaseGroupTracks(mbid),

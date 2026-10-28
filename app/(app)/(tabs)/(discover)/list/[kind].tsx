@@ -28,7 +28,7 @@ import { Chip } from "@/components/ui/Chip";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
 import { formatDate } from "@/lib/date-time";
-import { formatReleaseStatus } from "@/lib/discover/format";
+import { formatReleaseStatus, recentlyAddedMbid } from "@/lib/discover/format";
 import type {
   DiscoveryArtist,
   RecentlyAddedArtist,
@@ -86,7 +86,6 @@ export default function DiscoverListScreen() {
   const colors = Colors[useColorScheme()];
   // Repaint the dates in this list when the server format changes.
   useDateTimeFormat();
-  const { isInLibrary } = useLibraryLookup();
 
   const kind: Kind | null = isValidKind(kindParam) ? kindParam : null;
 
@@ -100,6 +99,18 @@ export default function DiscoverListScreen() {
   const discovery = useDiscovery();
   const recentlyAdded = useRecentlyAdded();
   const recentReleases = useRecentReleases();
+  // The whole list, as the Discover sections pass it, so they share a lookup.
+  const { isInLibrary } = useLibraryLookup(
+    kind === "recently-added"
+      ? (recentlyAdded.data ?? []).map(recentlyAddedMbid)
+      : (
+          (kind === "recommended"
+            ? discovery.data?.recommendations
+            : kind === "trending"
+              ? discovery.data?.globalTop
+              : undefined) ?? []
+        ).map((artist) => artist.id),
+  );
 
   useEffect(() => {
     navigation.setOptions({
@@ -246,7 +257,7 @@ export default function DiscoverListScreen() {
           contentInsetAdjustmentBehavior="automatic"
           renderItem={({ item }: { item: WithSpacer<RecentlyAddedArtist> }) => {
             if (item === SPACER) return <SpacerCell />;
-            const mbid = item.mbid || item.foreignArtistId || item.id;
+            const mbid = recentlyAddedMbid(item);
             if (!isGrid) {
               return (
                 <MediaRow

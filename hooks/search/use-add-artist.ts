@@ -10,7 +10,11 @@ import type {
   AddArtistResponse,
   RecentlyAddedArtist,
 } from "@/lib/types/search";
-import type { Artist, CanonicalPage } from "@/lib/types/library";
+import type {
+  Artist,
+  ArtistLookupBatch,
+  CanonicalPage,
+} from "@/lib/types/library";
 
 function toArtist(data: AddArtistResponse): Artist {
   if (data.artist) return data.artist as Artist;
@@ -51,6 +55,12 @@ export function useAddArtist(onSuccess?: () => void) {
         },
       );
       queryClient.setQueryData(libraryKeys.artist(artist.mbid), artist);
+      // Mark the artist in every cached lookup that asked about it.
+      queryClient.setQueriesData<ArtistLookupBatch>(
+        { queryKey: libraryKeys.artistLookups() },
+        (old) =>
+          old && artist.mbid in old ? { ...old, [artist.mbid]: true } : old,
+      );
 
       // A queued (202) response means the artist was newly added but isn't yet
       // reflected in the server-computed "Recently Added" list (the backend
