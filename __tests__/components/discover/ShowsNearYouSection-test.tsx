@@ -47,7 +47,8 @@ const defaultPref = {
 const show = (
   overrides: Partial<ConcertEvent> & { id: string },
 ): ConcertEvent => ({
-  artistName: "Test Artist",
+  artistNames: ["Test Artist"],
+  sourceTypes: ["library"],
   eventName: "Test Show",
   date: "2026-05-01",
   venueName: "Test Venue",

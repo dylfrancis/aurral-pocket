@@ -7,8 +7,9 @@ import { Chip } from "@/components/ui/Chip";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { formatShowArtists } from "@/lib/discover/nearby-shows";
 import { formatShowDateLabel } from "@/lib/discover/show-dates";
-import type { ConcertEvent } from "@/lib/types/search";
+import type { ConcertEvent, NearbyShowSource } from "@/lib/types/search";
 
 type Props = {
   show: ConcertEvent;
@@ -25,13 +26,15 @@ function DistancePill({ distance }: { distance: number }) {
   );
 }
 
-function SourceBadge({ sourceType }: { sourceType?: string }) {
-  if (sourceType !== "library" && sourceType !== "recommended") return null;
+/** A show with a library artist reads as Library, whatever else matched. */
+function SourceBadge({ sourceTypes }: { sourceTypes: NearbyShowSource[] }) {
+  const isLibrary = sourceTypes.includes("library");
+  if (!isLibrary && !sourceTypes.includes("recommended")) return null;
   return (
     <View style={styles.sourceBadgeWrap}>
       <Chip
-        label={sourceType === "library" ? "Library" : "Recommended"}
-        variant={sourceType === "library" ? "brand" : "subtle"}
+        label={isLibrary ? "Library" : "Recommended"}
+        variant={isLibrary ? "brand" : "subtle"}
         size="sm"
       />
     </View>
@@ -50,9 +53,10 @@ function NearbyShowRowComponent({ show, onPress }: Props) {
     .join(" – ");
 
   const hasDistance = Number.isFinite(show.distance);
+  const artists = formatShowArtists(show);
   const hasArtistSubtitle =
-    !!show.eventName && show.eventName !== show.artistName;
-  const title = show.eventName || show.artistName;
+    !!show.eventName && !!artists && show.eventName !== artists;
+  const title = show.eventName || artists;
 
   return (
     <Card onPress={onPress} bordered pressedOpacity={0.85} style={styles.card}>
@@ -84,7 +88,7 @@ function NearbyShowRowComponent({ show, onPress }: Props) {
             style={[styles.artist, { color: colors.subtle }]}
             numberOfLines={1}
           >
-            {show.artistName}
+            {artists}
           </Text>
         )}
         <Text
@@ -118,7 +122,7 @@ function NearbyShowRowComponent({ show, onPress }: Props) {
             </Text>
           </View>
         )}
-        <SourceBadge sourceType={show.matchType} />
+        <SourceBadge sourceTypes={show.sourceTypes} />
       </View>
     </Card>
   );
