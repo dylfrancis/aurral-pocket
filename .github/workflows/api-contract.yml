@@ -15,6 +15,9 @@ on:
     # Weekly, to surface upstream drift even when pocket is not being changed.
     - cron: "0 6 * * 1"
 
+permissions:
+  contents: read
+
 jobs:
   contract:
     name: Against pinned Aurral
@@ -79,8 +82,12 @@ jobs:
     name: Against Aurral latest (advisory)
     runs-on: ubuntu-latest
     # Early warning for the next Aurral release. Never blocks a merge — it
-    # reports drift we have not chosen to adopt yet.
+    # reports drift we have not chosen to adopt yet, in an `api-drift` issue
+    # rather than a red build.
     continue-on-error: true
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v7
 
@@ -118,6 +125,60 @@ jobs:
             }'
 
       - name: Check API contract
+        id: check
         env:
           AURRAL_URL: http://localhost:3001
-        run: node scripts/check-api-contract.mjs
+        run: |
+          set -o pipefail
+          node scripts/check-api-contract.mjs 2>&1 | tee "$RUNNER_TEMP/api-contract.log"
+
+      - name: Report drift
+        # Continue-on-error hid this job's failures for three weeks (#256), so
+        # the result lands in one open `api-drift` issue instead. Only main
+        # reports: a pull request's drift is its own, not the project's.
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CHECK_OUTCOME: ${{ steps.check.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          open_issue="$(gh issue list --label api-drift --state open \
+            --json number --jq '.[0].number // empty')"
+
+          if [ "$CHECK_OUTCOME" = success ]; then
+            if [ -n "$open_issue" ]; then
+              gh issue close "$open_issue" \
+                --comment "The advisory check against Aurral \`latest\` passes again: $RUN_URL"
+            fi
+            exit 0
+          fi
+
+          body="$RUNNER_TEMP/api-drift.md"
+          {
+            echo "The advisory contract check against Aurral \`latest\` fails on main."
+            echo
+            echo "Last failing run: $RUN_URL (\`${GITHUB_SHA::7}\`)"
+            echo
+            if [ "$CHECK_OUTCOME" = failure ]; then
+              # Every passing route is an "ok" line; the summary still counts them.
+              echo '```text'
+              grep -v '^  ok ' "$RUNNER_TEMP/api-contract.log" || true
+              echo '```'
+            else
+              echo "The contract check did not run: an earlier step failed, such as" \
+                "starting Aurral \`latest\` or completing onboarding. The run log names it."
+            fi
+            echo
+            echo "This issue is updated on every failing run on main and closes" \
+              "when the check passes again."
+          } > "$body"
+
+          if [ -n "$open_issue" ]; then
+            gh issue edit "$open_issue" --body-file "$body"
+          else
+            gh label create api-drift --force --color d93f0b \
+              --description "Aurral latest drifted from the pinned API contract"
+            gh issue create --label api-drift --body-file "$body" \
+              --title "Aurral latest drifts from the pinned API contract"
+          fi
