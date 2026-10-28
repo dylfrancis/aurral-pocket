@@ -19,8 +19,9 @@ const PAGE_SIZE = 100;
  * alphabet index all run on the client over the full list — so the hooks
  * below drain the remaining pages eagerly.
  *
- * Known gap, accepted for this list: an artist with no files yet is missing
- * until a scan finds its first file — see lib/library-read.ts.
+ * The read omits availableOnly, so the list follows the server's library
+ * view the way the web app's list does. From Aurral 2.9 that view can leave
+ * out an artist whose albums are all wanted — see CanonicalPageParams.
  *
  * The server's page order is not depended on: the screen re-sorts the
  * flattened list, so pages may arrive in any order the server chooses.

@@ -167,6 +167,18 @@ export type CanonicalGenre = {
 export type CanonicalPageParams = {
   kind: CanonicalPageKind;
   source?: LibrarySource;
+  /**
+   * Tri-state on the wire. `true` returns only playable records; `false`
+   * returns wanted (fileless) records too. Omitted follows the server's
+   * library view: Aurral 2.9 bound it to the "Show available music only"
+   * setting. By 2.12 it is a fixed view that keeps only playable or
+   * Aurral-monitored albums and the artists that have one, and only playable
+   * tracks. Before 2.9 an omitted value meant `false`.
+   *
+   * Library home lists omit it, so they match the web app. Reads that must
+   * show what is missing (an artist's albums, one album, its tracks) send
+   * `false`.
+   */
   availableOnly?: boolean;
   page?: number;
   /** Capped at 100 by the server; getCanonicalLibraryPage fills it in when unset. */
