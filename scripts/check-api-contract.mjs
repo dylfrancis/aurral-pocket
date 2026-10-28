@@ -50,6 +50,10 @@
  * must be present, and the summary says how much of pocket rests on it. Routes
  * outside it still get the existence and shape checks above.
  *
+ * The contract version and feature names come from GET /health/bootstrap and
+ * must match what the app knows (SUPPORTED_API_VERSION, ServerFeature), so a
+ * new version or a new feature fails the check instead of going unnoticed.
+ *
  * Usage:
  *   AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs
  *
@@ -480,6 +484,87 @@ function checkContractFields(shapes, probed) {
   return failed;
 }
 
+/**
+ * The contract version and feature names pocket knows, read from the app's own
+ * source so this check and the app cannot disagree.
+ */
+function readPocketContract() {
+  const health = readFileSync(join(API_DIR, "health.ts"), "utf8");
+  const version = Number(
+    /export const SUPPORTED_API_VERSION = (\d+);/.exec(health)?.[1],
+  );
+  const auth = readFileSync(join(ROOT, "lib", "types", "auth.ts"), "utf8");
+  const union = /export type ServerFeature =([^;]+);/.exec(auth)?.[1] ?? "";
+  const features = [...union.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  if (!Number.isInteger(version) || features.length === 0) {
+    console.error(
+      "FAIL: could not read SUPPORTED_API_VERSION from lib/api/health.ts or " +
+        "ServerFeature from lib/types/auth.ts. Update readPocketContract.",
+    );
+    process.exit(1);
+  }
+  return { version, features };
+}
+
+/**
+ * Returns true on failure. Runs in both modes.
+ *
+ * The app never hides a screen over a feature name. This check is how pocket
+ * learns that Aurral changed what it promises: a new contract version, a
+ * feature it dropped, or a feature pocket has not adopted yet. On the advisory
+ * run against Aurral `latest`, a failure here lands in the api-drift issue.
+ */
+async function checkContractVersion(token) {
+  const pocket = readPocketContract();
+  const { status, body } = await request("GET", "/api/health/bootstrap", token);
+  const api = body?.api;
+  if (status !== 200 || !api) {
+    console.error(
+      "\nFAIL: GET /health/bootstrap carries no `api` block, so the app " +
+        "contract version and features cannot be read.",
+    );
+    return true;
+  }
+
+  let failed = false;
+  if (api.version !== pocket.version) {
+    console.error(
+      `\nFAIL: Aurral serves app contract version ${api.version}, and pocket ` +
+        `supports ${pocket.version}. Connect refuses this server until pocket ` +
+        "adopts the new version and raises SUPPORTED_API_VERSION.",
+    );
+    failed = true;
+  }
+
+  const served = new Set(api.features);
+  const dropped = pocket.features.filter((name) => !served.has(name));
+  const unknown = api.features.filter(
+    (name) => !pocket.features.includes(name),
+  );
+  if (dropped.length > 0) {
+    console.error(
+      `\nFAIL: Aurral no longer lists ${dropped.join(", ")}. Stop using the ` +
+        "routes behind each one, then remove it from ServerFeature.",
+    );
+    failed = true;
+  }
+  if (unknown.length > 0) {
+    console.error(
+      `\nFAIL: Aurral lists ${unknown.join(", ")}, which pocket does not know ` +
+        "yet. Adopt each one, or add it to ServerFeature in " +
+        "lib/types/auth.ts to record that it was reviewed.",
+    );
+    failed = true;
+  }
+  if (!failed) {
+    console.log(
+      `App contract version ${api.version}; pocket knows all ` +
+        `${api.features.length} features Aurral lists.`,
+    );
+  }
+  return failed;
+}
+
 function writeBaseline(shapes) {
   const baseline = {
     aurralVersion: PINNED_VERSION,
@@ -569,6 +654,8 @@ function compareBaseline(shapes) {
 
 async function main() {
   let token = await login();
+  // Before the probes: one of them signs this session out.
+  const contractFailed = await checkContractVersion(token);
   const extracted = extractPocketRoutes();
   if (extracted.length === 0) {
     console.error("Extracted no routes from lib/api — the parser is broken.");
@@ -724,6 +811,7 @@ async function main() {
   }
 
   if (checkContractFields(shapes, probed)) failed = true;
+  if (contractFailed) failed = true;
 
   if (RECORD) {
     if (failed) {

@@ -11,6 +11,7 @@ jest.mock("@/lib/api/client", () => ({
 jest.mock("@/lib/api/health", () => ({
   checkServerLive: jest.fn(),
   getServerHealth: jest.fn(),
+  SUPPORTED_API_VERSION: 1,
 }));
 
 jest.mock("@tanstack/react-query", () => ({

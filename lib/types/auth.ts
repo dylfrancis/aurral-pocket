@@ -21,7 +21,9 @@ export type HealthLiveResponse = {
 
 /**
  * Capability names from Aurral's app contract (`backend/config/apiContract.ts`).
- * A server can list names pocket does not know yet; nothing checks for those.
+ * A server can list names pocket does not know yet, and the app ignores them.
+ * scripts/check-api-contract.mjs reads this list and fails when Aurral adds or
+ * drops a name, so a new capability gets adopted or added here on purpose.
  */
 export type ServerFeature =
   | "discover"

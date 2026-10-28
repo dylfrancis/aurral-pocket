@@ -1,10 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { setBaseUrl } from "@/lib/api/client";
-import { checkServerLive, getServerHealth } from "@/lib/api/health";
-
-/** The app contract version pocket is built against. */
-const SUPPORTED_API_VERSION = 1;
+import {
+  checkServerLive,
+  getServerHealth,
+  SUPPORTED_API_VERSION,
+} from "@/lib/api/health";
 
 function normalizeUrl(url: string): string {
   return url.trim().replace(/\/+$/, "");
