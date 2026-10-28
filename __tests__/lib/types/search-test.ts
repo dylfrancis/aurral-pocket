@@ -1,6 +1,4 @@
 import type {
-  SearchArtist,
-  SearchArtistsResponse,
   SimilarArtist,
   SimilarArtistsResponse,
   MonitorOption,
@@ -9,37 +7,6 @@ import type {
 } from "@/lib/types/search";
 
 describe("search types", () => {
-  it("SearchArtist has correct shape", () => {
-    const artist: SearchArtist = {
-      id: "mbid-1",
-      name: "Radiohead",
-      sortName: "Radiohead",
-      inLibrary: true,
-      score: 100,
-    };
-    expect(artist.id).toBe("mbid-1");
-    expect(artist.name).toBe("Radiohead");
-    expect(artist.sortName).toBe("Radiohead");
-    expect(artist.inLibrary).toBe(true);
-    expect(artist.score).toBe(100);
-  });
-
-  it("SearchArtistsResponse wraps artists with no paging metadata", () => {
-    // /search/unified is not paged, and nothing in pocket paginates artists.
-    const response: SearchArtistsResponse = {
-      artists: [
-        {
-          id: "1",
-          name: "Test",
-          sortName: "Test",
-          inLibrary: false,
-          score: 0,
-        },
-      ],
-    };
-    expect(response.artists).toHaveLength(1);
-  });
-
   it("SimilarArtist has match score", () => {
     const artist: SimilarArtist = {
       id: "mbid-3",

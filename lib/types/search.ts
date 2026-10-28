@@ -1,100 +1,29 @@
 /**
- * An artist result, normalised from Aurral's `/search/unified` response.
+ * An artist result from the app contract's `GET /search?scope=artist`.
  *
- * `id` is always a MusicBrainz ID — entries without one are dropped during
- * normalisation, because every action pocket offers on a result (open the
- * detail screen, add to library) addresses the artist by MBID.
+ * `id` is a MusicBrainz ID: every action pocket offers on a result (open the
+ * detail screen, add to library) addresses the artist by MBID. The route's
+ * `inLibrary` is always false in 2.12.0, so screens mark library artists with
+ * useLibraryLookup instead.
  *
- * There is deliberately no artwork field. `/search/unified` returns none, and
- * Aurral's own web UI shows no thumbnails in search results either; fetching
- * `/artists/:mbid/cover` per row would mean one request per result.
+ * There is deliberately no artwork field. Aurral's own web UI shows no
+ * thumbnails in search results either, and the row fetches none.
  */
 export type SearchArtist = {
   id: string;
   name: string;
-  sortName: string;
-  /**
-   * Aurral's view of library membership at query time. Pocket prefers its own
-   * `useLibraryLookup`, which updates the moment an add mutation settles rather
-   * than on the next search.
-   */
-  inLibrary: boolean;
-  score: number;
 };
 
-/**
- * `/search/unified` carries no `count`/`offset` — it is not a paged endpoint.
- * Nothing in pocket paginates artist results, so this is the whole contract.
- */
 export type SearchArtistsResponse = {
   artists: SearchArtist[];
 };
 
-/** Raw entry as `/search/unified` returns it, before normalisation. */
-export type UnifiedSearchEntry = {
-  type: string;
-  source: string;
-  id: string;
-  key: string;
-  name: string;
-  sortName?: string;
-  inLibrary?: boolean;
-  hasMbid?: boolean;
-  score?: number;
+/** Body of `GET /search?scope=artist`, as far as pocket reads it. */
+export type SearchArtistsWire = {
+  count: number;
+  offset: number;
+  items: SearchArtist[];
 };
-
-/** Raw album entry as `/search/unified` returns it in the catalog results. */
-export type UnifiedSearchAlbumEntry = {
-  type: "album";
-  source: string;
-  id: string;
-  key: string;
-  title: string;
-  artistName: string;
-  artistMbid: string | null;
-  primaryType: string | null;
-  secondaryTypes: string[];
-  releaseDate: string | null;
-  coverUrl: string | null;
-  inLibrary: boolean;
-  score: number;
-};
-
-/** Raw track entry as `/search/unified` returns it in the library results. */
-export type UnifiedSearchTrackEntry = {
-  type: "track";
-  source: string;
-  id: string;
-  key: string;
-  title: string;
-  artistName: string;
-  albumTitle: string | null;
-  streamPath: string | null;
-  inLibrary: boolean;
-  score: number;
-};
-
-export type UnifiedSearchResponse = {
-  query: string;
-  mode: string;
-  top?: UnifiedSearchEntry | null;
-  library?: {
-    artists?: UnifiedSearchEntry[];
-    tracks?: UnifiedSearchTrackEntry[];
-  };
-  catalog?: {
-    artists?: UnifiedSearchEntry[];
-    albums?: UnifiedSearchAlbumEntry[];
-    /** Empty through 2.6 — the catalog search returns no tracks yet. */
-    tracks?: UnifiedSearchTrackEntry[];
-  };
-};
-
-/**
- * `suggest` is the fast typeahead mode; `full` searches harder and returns more.
- * Mirrors how Aurral's own client picks between them.
- */
-export type UnifiedSearchMode = "suggest" | "full";
 
 export type AlbumStatus =
   | "available"

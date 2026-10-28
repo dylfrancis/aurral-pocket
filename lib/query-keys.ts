@@ -32,8 +32,7 @@ export const libraryKeys = {
 };
 
 export const searchKeys = {
-  artists: (query: string, mode = "suggest") =>
-    ["search", "artists", query, mode] as const,
+  artists: (query: string) => ["search", "artists", query] as const,
   albums: (query: string) => ["search", "albums", query] as const,
   tagSuggestions: (query: string) => ["search", "tags", query] as const,
   artistsByTag: (tag: string, scope: string) =>

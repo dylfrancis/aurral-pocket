@@ -21,11 +21,6 @@ export function rankCandidates(
   const best: SearchArtist = matched ?? {
     id: isrcArtist.mbid,
     name: isrcArtist.name,
-    sortName: isrcArtist.name,
-    inLibrary: false,
-    // Synthesised from MusicBrainz rather than ranked by Aurral, so it carries
-    // no search score.
-    score: 0,
   };
 
   return { candidates: [best], hasBestMatch: true };

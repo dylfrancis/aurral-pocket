@@ -39,9 +39,7 @@ export function ShazamMatchResult({
   const canAddArtist = hasPermission("addArtist");
 
   const artistName = match.artist ?? "";
-  // A Shazam match resolves to one specific act; a shallow suggest pass can
-  // miss it, and the user only pays this latency once per identification.
-  const { data, isLoading } = useArtistSearch(artistName, "full");
+  const { data, isLoading } = useArtistSearch(artistName);
   const { data: isrcArtist, isLoading: isrcLoading } = useIsrcArtist(
     match.isrc,
   );
@@ -215,7 +213,7 @@ function ArtistCandidateRow({
         ]}
         onPress={onView}
       >
-        {/* Candidates come from `/search/unified`, which returns no artwork. */}
+        {/* Search candidates carry no artwork (see SearchArtist). */}
         <View
           style={[
             styles.rowThumb,

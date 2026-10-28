@@ -94,12 +94,7 @@ export default function SearchResultsScreen() {
     data: artistData,
     isLoading: artistLoading,
     refetch: refetchArtists,
-  } = useArtistSearch(
-    isTagSearch || resultScope !== "artist" ? "" : query,
-    // Dedicated results screen: the user is waiting on a considered answer,
-    // so search harder than the typeahead does.
-    "full",
-  );
+  } = useArtistSearch(isTagSearch || resultScope !== "artist" ? "" : query);
 
   const {
     data: albumData,
