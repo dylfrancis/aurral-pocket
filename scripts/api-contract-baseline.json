@@ -179,6 +179,9 @@
       },
       "ytdlpConfigured": "boolean"
     },
+    "GET /health/live": {
+      "status": "string"
+    },
     "GET /library/canonical": {
       "albums": [],
       "artists": [],

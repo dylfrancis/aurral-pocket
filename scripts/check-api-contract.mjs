@@ -320,12 +320,13 @@ function extractPocketRoutes() {
     for (const m of src.matchAll(constRe)) consts.set(m[1], m[2]);
 
     for (const method of methods) {
-      const needle = `api.${method}`;
-      let from = 0;
+      // Prettier splits a long chain as `api\n  .post(...)`, so whitespace
+      // around the dot must not hide the call from the check.
+      const needle = new RegExp(String.raw`\bapi\s*\.\s*${method}\b`, "g");
       for (;;) {
-        const at = src.indexOf(needle, from);
-        if (at === -1) break;
-        from = at + needle.length;
+        const match = needle.exec(src);
+        if (match === null) break;
+        const from = match.index + match[0].length;
 
         // Skip ahead to the argument list, stepping over any generic args.
         const open = src.indexOf("(", from);
