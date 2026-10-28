@@ -333,18 +333,10 @@ export type ConcertEvent = {
 
 /**
  * Raw show entry as `/discover/nearby-shows` returns it, before normalisation.
- *
- * Before 2.5.0, an entry names one artist in `artistName`. 2.5.0 adds
- * `artistNames` and keeps `artistName` as its first. 2.11.0 drops
- * `artistName`, and replaces the show's single `sourceType` with
+ * 2.7.0 sends one `sourceType` for the whole show; 2.11.0 replaces it with
  * `sourceTypes`.
  */
-export type NearbyShowEntry = Omit<
-  ConcertEvent,
-  "artistNames" | "sourceTypes"
-> & {
-  artistName?: string | null;
-  artistNames?: string[];
+export type NearbyShowEntry = Omit<ConcertEvent, "sourceTypes"> & {
   sourceType?: NearbyShowSource;
   sourceTypes?: NearbyShowSource[];
 };

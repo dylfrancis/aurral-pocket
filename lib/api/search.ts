@@ -189,19 +189,16 @@ export async function getNearbyShows(
 }
 
 /**
- * Reads every server shape into one: 2.11.0 dropped each show's `artistName`
- * and turned its `sourceType` into `sourceTypes`.
+ * 2.11.0 turned each show's `sourceType` into `sourceTypes`. Reading
+ * `sourceType` keeps 2.7.0 working until the minimum server is 2.12.0.
  */
 function normalizeNearbyShow({
-  artistName,
-  artistNames,
   sourceType,
   sourceTypes,
   ...show
 }: NearbyShowEntry): ConcertEvent {
   return {
     ...show,
-    artistNames: artistNames ?? (artistName ? [artistName] : []),
     sourceTypes: sourceTypes ?? (sourceType ? [sourceType] : []),
   };
 }

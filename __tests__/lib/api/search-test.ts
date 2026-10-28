@@ -429,12 +429,6 @@ describe("getNearbyShows", () => {
 
   it.each([
     [
-      "2.4.0",
-      { ...event, artistName: "Boygenius", sourceType: "library" },
-      ["Boygenius"],
-      ["library"],
-    ],
-    [
       "2.7.0",
       {
         ...event,
@@ -443,7 +437,6 @@ describe("getNearbyShows", () => {
         sourceType: "library",
         ticketmasterEventId: "vvG1",
       },
-      ["Boygenius", "Japanese Breakfast"],
       ["library"],
     ],
     [
@@ -453,12 +446,11 @@ describe("getNearbyShows", () => {
         artistNames: ["Boygenius", "Japanese Breakfast"],
         sourceTypes: ["library", "recommended"],
       },
-      ["Boygenius", "Japanese Breakfast"],
       ["library", "recommended"],
     ],
   ])(
-    "reads a %s show into artistNames and sourceTypes",
-    async (_version, entry, artistNames, sourceTypes) => {
+    "reads a %s show into sourceTypes",
+    async (_version, entry, sourceTypes) => {
       mockApi.get.mockResolvedValue({
         data: { configured: true, location: null, shows: [entry], total: 1 },
       });
@@ -471,7 +463,7 @@ describe("getNearbyShows", () => {
         shows: [
           expect.objectContaining({
             ...event,
-            artistNames,
+            artistNames: ["Boygenius", "Japanese Breakfast"],
             sourceTypes,
           }),
         ],
