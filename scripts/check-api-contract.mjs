@@ -537,6 +537,13 @@ async function checkContractVersion(token) {
     failed = true;
   }
 
+  if (!Array.isArray(api.features)) {
+    console.error(
+      "\nFAIL: GET /health/bootstrap carries no `api.features` list, so the " +
+        "app contract features cannot be compared.",
+    );
+    return true;
+  }
   const served = new Set(api.features);
   const dropped = pocket.features.filter((name) => !served.has(name));
   const unknown = api.features.filter(
