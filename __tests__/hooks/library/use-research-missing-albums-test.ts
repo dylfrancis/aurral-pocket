@@ -43,9 +43,13 @@ const mockUseMutation = useMutation as jest.Mock;
 const mockTriggerAlbumSearch = triggerAlbumSearch as jest.Mock;
 const mockUpdateLibraryAlbum = updateLibraryAlbum as jest.Mock;
 
+// Canonical ids are numeric and Lidarr ids here are "a"-prefixed, so a
+// Lidarr call that received a canonical id shows up in the assertion.
 function makeAlbum(overrides: Partial<Album> = {}): Album {
   return {
-    id: "a1",
+    id: "900",
+    canonicalId: "900",
+    lidarrId: "a1",
     artistId: "art1",
     artistName: "Artist",
     mbid: "mb1",
@@ -69,7 +73,7 @@ describe("getEligibleMissingAlbums", () => {
   });
 
   it("includes monitored incomplete albums", () => {
-    const album = makeAlbum({ id: "a1", monitored: true });
+    const album = makeAlbum({ monitored: true });
     expect(getEligibleMissingAlbums([album], {})).toEqual([album]);
   });
 
@@ -87,27 +91,27 @@ describe("getEligibleMissingAlbums", () => {
     expect(getEligibleMissingAlbums([album], {})).toEqual([]);
   });
 
-  it("excludes pending albums", () => {
-    const album = makeAlbum({ id: "pending-123" });
+  it("excludes albums Lidarr does not manage", () => {
+    const album = makeAlbum({ lidarrId: undefined });
     expect(getEligibleMissingAlbums([album], {})).toEqual([]);
   });
 
   it("excludes albums already downloading", () => {
-    const album = makeAlbum({ id: "a1" });
+    const album = makeAlbum();
     expect(
       getEligibleMissingAlbums([album], { a1: { status: "downloading" } }),
     ).toEqual([]);
   });
 
   it("includes failed albums even if unmonitored", () => {
-    const album = makeAlbum({ id: "a1", monitored: false });
+    const album = makeAlbum({ monitored: false });
     expect(
       getEligibleMissingAlbums([album], { a1: { status: "failed" } }),
     ).toEqual([album]);
   });
 
   it("excludes unmonitored albums with no failed status", () => {
-    const album = makeAlbum({ id: "a1", monitored: false });
+    const album = makeAlbum({ monitored: false });
     expect(getEligibleMissingAlbums([album], {})).toEqual([]);
   });
 });
@@ -115,9 +119,10 @@ describe("getEligibleMissingAlbums", () => {
 describe("useResearchMissingAlbums", () => {
   it("reports the count of eligible missing albums", () => {
     const albums = [
-      makeAlbum({ id: "a1", monitored: true }),
+      makeAlbum({ monitored: true }),
       makeAlbum({
-        id: "a2",
+        id: "901",
+        lidarrId: "a2",
         statistics: { trackCount: 10, sizeOnDisk: 1, percentOfTracks: 100 },
       }),
     ];
@@ -125,13 +130,14 @@ describe("useResearchMissingAlbums", () => {
     expect(result.missingCount).toBe(1);
   });
 
-  it("force-monitors unmonitored albums then searches all eligible", async () => {
+  it("force-monitors unmonitored albums then searches all eligible, by Lidarr id", async () => {
     mockUpdateLibraryAlbum.mockResolvedValue({});
     mockTriggerAlbumSearch.mockResolvedValue({});
     const albums = [
-      makeAlbum({ id: "a1", monitored: true }),
+      makeAlbum({ monitored: true }),
       makeAlbum({
-        id: "a2",
+        id: "901",
+        lidarrId: "a2",
         monitored: false,
         statistics: { trackCount: 1, sizeOnDisk: 0, percentOfTracks: 0 },
       }),
@@ -142,16 +148,15 @@ describe("useResearchMissingAlbums", () => {
     const count = await config.mutationFn();
 
     expect(mockUpdateLibraryAlbum).toHaveBeenCalledTimes(1);
-    expect(mockUpdateLibraryAlbum).toHaveBeenCalledWith(
-      "a2",
-      expect.objectContaining({ monitored: true }),
-    );
-    expect(mockTriggerAlbumSearch).toHaveBeenCalledTimes(2);
+    expect(mockUpdateLibraryAlbum).toHaveBeenCalledWith("a2", {
+      monitored: true,
+    });
+    expect(mockTriggerAlbumSearch.mock.calls).toEqual([["a1"], ["a2"]]);
     expect(count).toBe(2);
   });
 
   it("optimistically marks eligible albums as searching", () => {
-    const albums = [makeAlbum({ id: "a1", monitored: true })];
+    const albums = [makeAlbum({ monitored: true })];
     useResearchMissingAlbums(albums, {});
     const { config } = mockUseMutation.mock.results[0].value;
 

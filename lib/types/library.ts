@@ -83,6 +83,12 @@ export type Album = {
   secondaryTypes?: SecondaryReleaseType[];
   /** Canonical read path only. The album id in the canonical library. */
   canonicalId?: string;
+  /**
+   * Lidarr's own id for this album. Lidarr's album routes — delete, monitor,
+   * search, download status — take this id and nothing else. Unset when
+   * Lidarr does not manage the album.
+   */
+  lidarrId?: string;
   /** Canonical read path only. The scanners that found this album. */
   sources?: LibrarySource[];
   /** Canonical read path only. True when at least one track has a file. */
@@ -226,7 +232,13 @@ export type CanonicalLidarrAlbumStatistics = {
 
 /** The page route derives an album's `coverUrl` from `images`. */
 export type CanonicalAlbumMetadata = {
-  librarySource?: "lidarr";
+  /**
+   * Lidarr's album id on a Lidarr-sourced row. An album Aurral manages
+   * itself (2.11.0+) stores its release-group MBID here instead, so read it
+   * only when `librarySource` is "lidarr".
+   */
+  id?: number | string;
+  librarySource?: "lidarr" | "aurral";
   monitored?: boolean;
   images?: CanonicalMetadataImage[];
   tags?: CanonicalFileTags;

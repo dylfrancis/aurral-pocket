@@ -16,6 +16,7 @@ import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-strea
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import {
+  albumDownloadStatus,
   albumRouteParams,
   libraryAlbumsRef,
   releaseRouteParams,
@@ -269,7 +270,7 @@ export function ArtistDetailLayout({
           album,
           artistName,
           mbid,
-          downloadStatuses?.[album.id]?.status,
+          albumDownloadStatus(downloadStatuses, album),
         ),
       });
     },

@@ -486,6 +486,48 @@ describe("getCanonicalLibraryPage", () => {
     });
   });
 
+  it("carries Lidarr's album id apart from the canonical id, for Lidarr rows only", async () => {
+    // Both ids are small integers from different tables, so a canonical id
+    // sent to a Lidarr route names some other album. An Aurral-managed row
+    // stores its MBID in the same metadata slot, and a file-scanned row has
+    // no Lidarr id at all.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "albums",
+        page: 1,
+        pageSize: 100,
+        total: 3,
+        hasMore: false,
+        artists: [],
+        albums: [
+          {
+            id: 14,
+            title: "Lidarr Album",
+            metadata: { id: 301, librarySource: "lidarr" },
+          },
+          {
+            id: 15,
+            title: "Aurral Album",
+            metadata: { id: "mb-rg-5", librarySource: "aurral" },
+          },
+          {
+            id: 16,
+            title: "Scanned Album",
+            metadata: { tags: { album: "Scanned Album" } },
+          },
+        ],
+        tracks: [],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({ kind: "albums" });
+    expect(page.albums.map(({ id, lidarrId }) => ({ id, lidarrId }))).toEqual([
+      { id: "14", lidarrId: "301" },
+      { id: "15", lidarrId: undefined },
+      { id: "16", lidarrId: undefined },
+    ]);
+  });
+
   it("maps raw canonical track rows to the legacy Track shape", async () => {
     // Track pages are read per album. The mapper matches the track's album
     // link against the requested albumId for the track number, and derives

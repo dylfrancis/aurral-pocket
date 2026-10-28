@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 import { triggerAlbumSearch, updateLibraryAlbum } from "@/lib/api/library";
+import { albumDownloadStatus } from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
 import type { Album, DownloadStatusMap } from "@/lib/types/library";
 
@@ -15,25 +16,29 @@ const ACTIVE_STATUSES = new Set([
   "processing",
 ]);
 
+type LidarrAlbum = Album & { lidarrId: string };
+
 /**
- * Albums eligible for a bulk re-search: real (non-pending) albums that are
+ * Albums eligible for a bulk re-search: albums Lidarr manages that are
  * incomplete, not already mid-download, and either previously failed or
  * monitored. Mirrors aurral's handleReSearchMissingDownloads (PR #295).
+ *
+ * Lidarr does the monitoring and the searching, so an album without a Lidarr
+ * id has nothing to search, and its canonical id must never stand in.
  */
 export function getEligibleMissingAlbums(
   albums: Album[] | undefined,
   downloadStatuses: DownloadStatusMap | undefined,
-): Album[] {
+): LidarrAlbum[] {
   if (!albums) return [];
-  return albums.filter((album) => {
-    const albumId = String(album.id ?? "");
-    if (!albumId || albumId.startsWith("pending-")) return false;
+  return albums.filter((album): album is LidarrAlbum => {
+    if (!album.lidarrId) return false;
 
     const { percentOfTracks, sizeOnDisk } = album.statistics;
     const isComplete = percentOfTracks >= 100 || sizeOnDisk > 0;
     if (isComplete) return false;
 
-    const status = downloadStatuses?.[album.id]?.status;
+    const status = albumDownloadStatus(downloadStatuses, album);
     if (status && ACTIVE_STATUSES.has(status)) return false;
 
     return status === "failed" || album.monitored;
@@ -56,11 +61,11 @@ export function useResearchMissingAlbums(
       // Force-monitor unmonitored albums first so Lidarr will search them.
       for (const album of eligibleAlbums) {
         if (!album.monitored) {
-          await updateLibraryAlbum(album.id, { ...album, monitored: true });
+          await updateLibraryAlbum(album.lidarrId, { monitored: true });
         }
       }
       await Promise.all(
-        eligibleAlbums.map((album) => triggerAlbumSearch(album.id)),
+        eligibleAlbums.map((album) => triggerAlbumSearch(album.lidarrId)),
       );
       return eligibleAlbums.length;
     },
@@ -71,7 +76,7 @@ export function useResearchMissingAlbums(
         (old) => {
           const next = { ...(old ?? {}) };
           for (const album of eligibleAlbums) {
-            next[album.id] = { status: "searching" };
+            next[album.lidarrId] = { status: "searching" };
           }
           return next;
         },
