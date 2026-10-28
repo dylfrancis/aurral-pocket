@@ -125,6 +125,7 @@ const KNOWN_DRIFT = new Map([]);
  * always 404s against a synthetic ID, so it cannot be asserted this way.
  */
 const REQUIRED_KEYS = new Map([
+  ["GET /health/bootstrap", { api: "object", appVersion: "string" }],
   [
     "GET /playlists/status",
     { flowStats: "object", flows: "array", sharedPlaylists: "array" },

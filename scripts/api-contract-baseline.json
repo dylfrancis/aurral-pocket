@@ -69,7 +69,7 @@
     "GET /discover/tags": {
       "tags": ["string"]
     },
-    "GET /health": {
+    "GET /health/bootstrap": {
       "api": {
         "features": ["string"],
         "version": "number"
@@ -79,21 +79,6 @@
       "authUser": "string",
       "dateTimeFormat": "string",
       "deemixConfigured": "boolean",
-      "discovery": {
-        "artworkLinkCount": "number",
-        "cachedImagesCount": "number",
-        "cachedImagesSizeBytes": "number",
-        "error": "null",
-        "globalTopCount": "number",
-        "isUpdating": "boolean",
-        "lastUpdated": "string",
-        "nativeImageCacheSizeBytes": "number",
-        "provider": "string",
-        "recommendationsCount": "number",
-        "updatePhase": "string",
-        "updateProgress": "null",
-        "updateProgressMessage": "string"
-      },
       "downloadSources": {
         "deemix": {
           "configured": "boolean",
@@ -130,10 +115,6 @@
       "googleLoginEnabled": "boolean",
       "inboxEnabled": "boolean",
       "lastfmConfigured": "boolean",
-      "library": {
-        "artistCount": "number",
-        "lastScan": "null"
-      },
       "lidarr": {
         "circuitOpen": "boolean",
         "configured": "boolean"
@@ -178,43 +159,6 @@
       "slskdConfigured": "boolean",
       "ssoOnly": "boolean",
       "status": "string",
-      "system": {
-        "arch": "string",
-        "dataDir": "string",
-        "database": {
-          "engine": "string",
-          "label": "string",
-          "version": "string"
-        },
-        "databasePath": "string",
-        "diskSpace": [
-          {
-            "available": "boolean",
-            "freeBytes": "number",
-            "location": "string",
-            "role": "string",
-            "statTarget": "string",
-            "totalBytes": "number",
-            "usedPercent": "number"
-          }
-        ],
-        "docker": "boolean",
-        "hostname": "string",
-        "links": [
-          {
-            "label": "string",
-            "url": "string",
-            "value": "string"
-          }
-        ],
-        "mode": "string",
-        "nodeVersion": "string",
-        "platform": "string",
-        "startedAt": "string",
-        "startupDirectory": "string",
-        "uptimeSeconds": "number",
-        "version": "string"
-      },
       "ticketmasterConfigured": "boolean",
       "timestamp": "string",
       "usenetConfigured": "boolean",
@@ -232,10 +176,6 @@
         },
         "role": "string",
         "username": "string"
-      },
-      "websocket": {
-        "channels": {},
-        "clients": "number"
       },
       "ytdlpConfigured": "boolean"
     },

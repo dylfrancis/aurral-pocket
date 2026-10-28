@@ -11,9 +11,12 @@ export function checkServerLive() {
 /**
  * Bootstrap payload for the configured server. Every response carries the
  * server's date and time setting, so adopt it here rather than in each caller.
+ *
+ * Reads `/health/bootstrap`, not `/health`: only bootstrap is part of the app
+ * contract, and `/health` adds and drops fields between releases.
  */
 export function getServerHealth() {
-  return api.get<HealthResponse>("/health").then((r) => {
+  return api.get<HealthResponse>("/health/bootstrap").then((r) => {
     setDateTimeFormat(r.data.dateTimeFormat);
     return r.data;
   });
