@@ -308,7 +308,7 @@ export type RecentReleasesResponse = RecentReleaseAlbum[];
 export type NearbyShowSource = "library" | "recommended" | "trending";
 
 /**
- * A nearby show, normalised from `/discover/nearby-shows`.
+ * A nearby show, as `/discover/nearby-shows` returns it.
  *
  * One show is one Ticketmaster event, and an event can bill several of the
  * user's artists. `sourceTypes` says why each of them matched.
@@ -329,16 +329,6 @@ export type ConcertEvent = {
   distance?: number | null;
 };
 
-/**
- * Raw show entry as `/discover/nearby-shows` returns it, before normalisation.
- * 2.7.0 sends one `sourceType` for the whole show; 2.11.0 replaces it with
- * `sourceTypes`.
- */
-export type NearbyShowEntry = Omit<ConcertEvent, "sourceTypes"> & {
-  sourceType?: NearbyShowSource;
-  sourceTypes?: NearbyShowSource[];
-};
-
 export type NearbyShowsLocation = {
   label?: string | null;
   postalCode?: string | null;
@@ -352,8 +342,4 @@ export type NearbyShowsResponse = {
   configured: boolean;
   location: NearbyShowsLocation | null;
   shows: ConcertEvent[];
-};
-
-export type NearbyShowsEntryResponse = Omit<NearbyShowsResponse, "shows"> & {
-  shows: NearbyShowEntry[];
 };

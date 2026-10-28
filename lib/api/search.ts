@@ -15,9 +15,6 @@ import type {
   DiscoveryResponse,
   RecentlyAddedResponse,
   RecentReleasesResponse,
-  ConcertEvent,
-  NearbyShowEntry,
-  NearbyShowsEntryResponse,
   NearbyShowsResponse,
 } from "@/lib/types/search";
 
@@ -178,27 +175,8 @@ export async function getNearbyShows(
   if (Number.isFinite(limit) && (limit as number) > 0) {
     params.limit = Math.floor(limit as number);
   }
-  const r = await api.get<NearbyShowsEntryResponse>("/discover/nearby-shows", {
+  const r = await api.get<NearbyShowsResponse>("/discover/nearby-shows", {
     params: Object.keys(params).length > 0 ? params : undefined,
   });
-  return {
-    configured: r.data.configured,
-    location: r.data.location,
-    shows: r.data.shows.map(normalizeNearbyShow),
-  };
-}
-
-/**
- * 2.11.0 turned each show's `sourceType` into `sourceTypes`. Reading
- * `sourceType` keeps 2.7.0 working until the minimum server is 2.12.0.
- */
-function normalizeNearbyShow({
-  sourceType,
-  sourceTypes,
-  ...show
-}: NearbyShowEntry): ConcertEvent {
-  return {
-    ...show,
-    sourceTypes: sourceTypes ?? (sourceType ? [sourceType] : []),
-  };
+  return r.data;
 }
