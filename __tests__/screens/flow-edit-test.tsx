@@ -102,6 +102,7 @@ const flow: Flow = {
   scheduleDays: [1, 3],
   scheduleTime: "09:00",
   nextRunAt: null,
+  type: null,
 };
 
 const status = {

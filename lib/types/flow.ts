@@ -33,12 +33,11 @@ export type Flow = {
   scheduleTime: string;
   nextRunAt: number | null;
   /**
-   * Where the flow came from. Aurral 2.11.0 retired flows adopted from Last.fm
-   * editorial lists (`"editorial"`): they keep their tracks, but the server
-   * answers 409 to starting or enabling them. Optional because older Aurral
-   * versions do not send it.
+   * Where the flow came from. `"editorial"` marks a flow adopted from a
+   * retired Last.fm editorial list: it keeps its tracks, but the server
+   * answers 409 to starting or enabling it.
    */
-  type?: string | null;
+  type: string | null;
 };
 
 /** Mirrors `isRetiredFlow` in Aurral's flowPlaylistConfig. */

@@ -83,6 +83,7 @@ const FLOW = {
   scheduleDays: [1],
   scheduleTime: "00:00",
   nextRunAt: null,
+  type: null,
 };
 
 const sheetRef = { current: null } as any;

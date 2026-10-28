@@ -191,9 +191,9 @@ function isTrackRefusal(err: unknown) {
 }
 
 /**
- * Resuming clears the pause flag but leaves failed tracks failed on every
- * Aurral version, so each one is searched again here. A refused track does
- * not stop the rest; any other failure is reported.
+ * Resuming clears the pause flag but leaves failed tracks failed, so each one
+ * is searched again here. A refused track does not stop the rest; any other
+ * failure is reported.
  */
 async function requeueFailedTracks(playlistId: string) {
   const jobs = await getPlaylistJobs(playlistId);
