@@ -196,7 +196,7 @@ export function ReAuthModal() {
                   secureTextEntry
                   textContentType="password"
                   returnKeyType="go"
-                  onSubmitEditing={handleSubmit(onSubmit)}
+                  onSubmitEditing={() => handleSubmit(onSubmit)()}
                   editable={!loading}
                   style={styles.input}
                 />
@@ -213,7 +213,7 @@ export function ReAuthModal() {
           {!isOidcSession && (
             <Button
               title="Continue"
-              onPress={handleSubmit(onSubmit)}
+              onPress={() => handleSubmit(onSubmit)()}
               loading={loading}
               style={styles.button}
             />

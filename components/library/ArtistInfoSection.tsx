@@ -2,10 +2,9 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
-  type NativeSyntheticEvent,
   Pressable,
   StyleSheet,
-  type TextLayoutEventData,
+  type TextLayoutEvent,
   View,
 } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -30,12 +29,9 @@ export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
   const [bioExpanded, setBioExpanded] = useState(false);
   const [bioTruncated, setBioTruncated] = useState(false);
 
-  const onBioTextLayout = useCallback(
-    (e: NativeSyntheticEvent<TextLayoutEventData>) => {
-      setBioTruncated(e.nativeEvent.lines.length >= 4);
-    },
-    [],
-  );
+  const onBioTextLayout = useCallback((e: TextLayoutEvent) => {
+    setBioTruncated(e.nativeEvent.lines.length >= 4);
+  }, []);
 
   const refreshMutation = useMutation({
     mutationFn: () => refreshLibraryArtist(artist.mbid),

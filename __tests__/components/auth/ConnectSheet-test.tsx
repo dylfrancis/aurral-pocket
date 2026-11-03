@@ -90,7 +90,7 @@ describe("ConnectSheet", () => {
   });
 
   it("renders GitHub link and opens URL on press", async () => {
-    const openURLSpy = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    const openURLSpy = jest.spyOn(Linking, "openURL").mockResolvedValue();
     const { getByText } = await render(<ConnectSheet />);
     const link = getByText("How can I get my own Aurral server?");
     expect(link).toBeTruthy();

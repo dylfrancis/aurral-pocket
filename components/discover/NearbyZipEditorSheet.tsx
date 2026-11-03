@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, StyleSheet, TextInput, View } from "react-native";
+import {
+  Keyboard,
+  StyleSheet,
+  type TextInputInstance,
+  View,
+} from "react-native";
 import * as Haptics from "expo-haptics";
 import {
   BottomSheetModal,
@@ -49,7 +54,7 @@ function NearbyZipEditorSheetContent({
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const insets = useSafeAreaInsets();
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const sheetRef = useRef<BottomSheetModal>(null);
   const [draft, setDraft] = useState(currentZip);
 

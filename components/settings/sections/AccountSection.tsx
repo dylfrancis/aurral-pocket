@@ -174,7 +174,7 @@ export function AccountSection() {
 
       <Button
         title="Save"
-        onPress={handleSubmit(onSubmit)}
+        onPress={() => handleSubmit(onSubmit)()}
         loading={updateMutation.isPending}
         disabled={!isDirty}
         style={styles.saveButton}

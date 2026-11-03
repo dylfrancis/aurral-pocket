@@ -84,7 +84,9 @@ function OidcSignInFlow({
   onSession,
 }: Omit<Props, "visible">) {
   const colors = Colors[useColorScheme()];
-  const webViewRef = useRef<WebView>(null);
+  // WebView 14 defaults its props generic to `undefined`, which turns every
+  // prop into `never` once a ref pins it. `object` leaves the props intact.
+  const webViewRef = useRef<WebView<object>>(null);
   const [phase, setPhase] = useState<Phase>("authorizing");
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
