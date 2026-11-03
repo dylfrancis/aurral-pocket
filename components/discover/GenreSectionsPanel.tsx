@@ -22,7 +22,9 @@ type Props = {
 export function GenreSectionsPanel({ onArtistPress, onViewAllGenre }: Props) {
   const colors = Colors[useColorScheme()];
   const { data } = useDiscovery();
-  const { isInLibrary } = useLibraryLookup();
+  const { isInLibrary } = useLibraryLookup(
+    (data?.recommendations ?? []).map((artist) => artist.id),
+  );
 
   const sections = useMemo(
     () =>

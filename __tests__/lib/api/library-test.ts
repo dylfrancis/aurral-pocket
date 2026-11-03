@@ -14,6 +14,7 @@ import {
   getCanonicalAlbum,
   getCanonicalAlbumTracks,
   getCanonicalArtistAlbums,
+  lookupLibraryArtists,
   refreshCanonicalLibrary,
   getCanonicalLibraryRefresh,
   getArtistCover,
@@ -810,25 +811,6 @@ function trackPage(page: number, hasMore: boolean, rows: unknown[]) {
   };
 }
 
-function artistRow(id: number, mbid: string | null, name: string) {
-  return { id, identityKey: `artist:${id}`, mbid, name };
-}
-
-function artistPage(page: number, hasMore: boolean, rows: unknown[]) {
-  return {
-    data: {
-      kind: "artists",
-      page,
-      pageSize: 100,
-      total: 150,
-      hasMore,
-      artists: rows,
-      albums: [],
-      tracks: [],
-    },
-  };
-}
-
 function albumRow(id: number, title: string) {
   return {
     id,
@@ -862,33 +844,23 @@ function albumPage(page: number, hasMore: boolean, rows: unknown[]) {
 }
 
 describe("getCanonicalArtistAlbums", () => {
-  it("resolves the artist by MBID, then drains that artist's albums", async () => {
+  it("looks the artist up by MBID, then drains that artist's albums", async () => {
     // The paged canonical route matches artistId against the canonical
-    // numeric id only, and the screens hold an MBID. The read walks the
-    // artist pages to translate one into the other.
+    // numeric id only, and the screens hold an MBID. The artist lookup
+    // translates one into the other.
     mockApi.get
-      .mockResolvedValueOnce(
-        artistPage(1, false, [
-          artistRow(6, "mb-other", "Other"),
-          artistRow(7, "mb-artist-1", "Radiohead"),
-        ]),
-      )
+      .mockResolvedValueOnce({ data: { exists: true, libraryArtistId: "7" } })
       .mockResolvedValueOnce(albumPage(1, true, [albumRow(12, "In Rainbows")]))
       .mockResolvedValueOnce(albumPage(2, false, [albumRow(13, "Kid A")]));
 
     const albums = await getCanonicalArtistAlbums("mb-artist-1");
 
-    // Both reads ask for wanted records explicitly. The server's default view
-    // hides an artist whose albums are all wanted, and the wanted albums.
-    expect(mockApi.get).toHaveBeenNthCalledWith(1, "/library/canonical", {
-      params: {
-        kind: "artists",
-        pageSize: "100",
-        source: "all",
-        availableOnly: "false",
-        page: "1",
-      },
-    });
+    expect(mockApi.get).toHaveBeenNthCalledWith(
+      1,
+      "/library/lookup/mb-artist-1",
+    );
+    // The album read asks for wanted records explicitly. The server's default
+    // view hides the wanted albums.
     expect(mockApi.get).toHaveBeenNthCalledWith(2, "/library/canonical", {
       params: {
         kind: "albums",
@@ -906,9 +878,9 @@ describe("getCanonicalArtistAlbums", () => {
   it("returns no albums when the canonical library has not indexed the artist yet", async () => {
     // An artist added a minute ago is not in the canonical library until a
     // scan runs. The screen shows an empty album list and keeps polling.
-    mockApi.get.mockResolvedValueOnce(
-      artistPage(1, false, [artistRow(6, "mb-other", "Other")]),
-    );
+    mockApi.get.mockResolvedValueOnce({
+      data: { exists: false, libraryArtistId: null },
+    });
 
     const albums = await getCanonicalArtistAlbums("mb-artist-1");
 
@@ -916,18 +888,17 @@ describe("getCanonicalArtistAlbums", () => {
     expect(mockApi.get).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to a canonical-id match for an artist with no MBID", async () => {
+  it("reads a canonical id directly for an artist with no MBID", async () => {
     // A file-scanned artist has no MBID, so the library list navigates by
     // its canonical id, and that id is the reference that arrives here.
-    mockApi.get
-      .mockResolvedValueOnce(
-        artistPage(1, false, [artistRow(8, null, "Unknown")]),
-      )
-      .mockResolvedValueOnce(albumPage(1, false, [albumRow(14, "Tape")]));
+    mockApi.get.mockResolvedValueOnce(
+      albumPage(1, false, [albumRow(14, "Tape")]),
+    );
 
     const albums = await getCanonicalArtistAlbums("8");
 
-    expect(mockApi.get).toHaveBeenNthCalledWith(2, "/library/canonical", {
+    expect(mockApi.get).toHaveBeenCalledTimes(1);
+    expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
       params: {
         kind: "albums",
         pageSize: "100",
@@ -938,6 +909,32 @@ describe("getCanonicalArtistAlbums", () => {
       },
     });
     expect(albums.map((a) => a.title)).toEqual(["Tape"]);
+  });
+});
+
+describe("lookupLibraryArtists", () => {
+  it("splits more than 100 MBIDs into batches the route accepts", async () => {
+    // The batch route answers 400 above 100 unique MBIDs.
+    const mbids = Array.from({ length: 150 }, (_, i) => `mb-${i}`);
+    mockApi.post.mockImplementation(
+      async (_path: string, { mbids: batch }: { mbids: string[] }) => ({
+        data: Object.fromEntries(
+          batch.map((mbid) => [mbid, mbid === "mb-120"]),
+        ),
+      }),
+    );
+
+    const result = await lookupLibraryArtists(mbids);
+
+    expect(
+      mockApi.post.mock.calls.map(([, body]) => body.mbids.length),
+    ).toEqual([100, 50]);
+    expect(mockApi.post).toHaveBeenCalledWith("/library/lookup/batch", {
+      mbids: mbids.slice(100),
+    });
+    expect(Object.keys(result)).toHaveLength(150);
+    expect(result["mb-120"]).toBe(true);
+    expect(result["mb-5"]).toBe(false);
   });
 });
 

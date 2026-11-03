@@ -3,6 +3,7 @@ jest.mock("@/lib/api/search", () => ({
 }));
 
 const mockSetQueryData = jest.fn();
+const mockSetQueriesData = jest.fn();
 const mockInvalidateQueries = jest.fn();
 
 jest.mock("@tanstack/react-query", () => ({
@@ -12,6 +13,7 @@ jest.mock("@tanstack/react-query", () => ({
   })),
   useQueryClient: jest.fn(() => ({
     setQueryData: mockSetQueryData,
+    setQueriesData: mockSetQueriesData,
     invalidateQueries: mockInvalidateQueries,
   })),
 }));
@@ -40,6 +42,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   (useQueryClient as jest.Mock).mockReturnValue({
     setQueryData: mockSetQueryData,
+    setQueriesData: mockSetQueriesData,
     invalidateQueries: mockInvalidateQueries,
   });
   mockUseMutation.mockImplementation((config: any) => ({
@@ -89,6 +92,32 @@ describe("useAddArtist", () => {
       libraryKeys.artist("abc-123"),
       mockArtist,
     );
+  });
+
+  it("marks the artist in cached lookups that asked about it", () => {
+    useAddArtist();
+    const { config } = mockUseMutation.mock.results[0].value;
+
+    config.onSuccess({
+      queued: false,
+      foreignArtistId: "abc-123",
+      artistName: "Radiohead",
+      artist: mockArtist,
+    });
+
+    expect(mockSetQueriesData).toHaveBeenCalledWith(
+      { queryKey: libraryKeys.artistLookups() },
+      expect.any(Function),
+    );
+    const updater = mockSetQueriesData.mock.calls[0][1];
+    expect(updater({ "abc-123": false, "def-456": false })).toEqual({
+      "abc-123": true,
+      "def-456": false,
+    });
+    // A lookup for other artists stays as it was.
+    const other = { "def-456": false };
+    expect(updater(other)).toBe(other);
+    expect(updater(undefined)).toBeUndefined();
   });
 
   it("appends the artist to the last loaded page of the artists cache", () => {

@@ -68,9 +68,10 @@ export default function SearchScreen() {
   const { data: tags } = useTagSuggestions(
     isTagSearch ? tagQuery : artistQuery,
   );
-  const { isInLibrary } = useLibraryLookup();
-
   const artists = artistData?.artists;
+  const { isInLibrary } = useLibraryLookup(
+    artists?.map((artist) => artist.id) ?? [],
+  );
   const albums = albumData?.items;
 
   const { add: addRecentSearch } = recentSearches;

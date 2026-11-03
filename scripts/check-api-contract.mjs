@@ -42,6 +42,18 @@
  * records — so shape checking covers the routes that answer 200 without real
  * data: status, settings, lists.
  *
+ * How it uses Aurral's app contract
+ * ---------------------------------
+ * Since 2.11.0 Aurral publishes an app contract: a list of routes and fields it
+ * promises not to break within a contract version (see CONTRACT). Every probed
+ * route that is in the contract is marked as such, the fields it guarantees
+ * must be present, and the summary says how much of pocket rests on it. Routes
+ * outside it still get the existence and shape checks above.
+ *
+ * The contract version and feature names come from GET /health/bootstrap and
+ * must match what the app knows (SUPPORTED_API_VERSION, ServerFeature), so a
+ * new version or a new feature fails the check instead of going unnoticed.
+ *
  * Usage:
  *   AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs
  *
@@ -114,22 +126,101 @@ const MAX_RELOGINS = 2;
 const KNOWN_DRIFT = new Map([]);
 
 /**
- * Top-level keys the client cannot function without, asserted against the live
- * response on every run — including --record. The baseline compare alone would
- * miss the case #176 shipped: if upstream drops one of these and someone
- * regenerates the baseline without reading the diff, the recorded shape and
- * the server agree and the compare passes. This list does not regenerate.
+ * Aurral's app contract, version 1, as docs/src/content/docs/api/app-contract.mdx
+ * states it at the pinned tag. These are the routes Aurral promises apps. Any
+ * other route pocket calls can change in any release, so the summary counts
+ * how many of pocket's routes the contract covers. Update this with the pin.
  *
- * Only routes that answer 200 on a fresh install can appear here. The client
- * also requires GET /playlists/jobs/:id, but it needs a real playlist and
- * always 404s against a synthetic ID, so it cannot be asserted this way.
+ * Each GET route that answers 200 on a fresh install also lists the top-level
+ * fields the contract guarantees. They are asserted against the live response
+ * on every run that probes the route, including --record. The baseline compare
+ * alone would miss the case #176 shipped: if upstream drops one of these and
+ * someone regenerates the baseline without reading the diff, the recorded
+ * shape and the server agree and the compare passes. This list does not
+ * regenerate.
+ *
+ * A kind ending in "?" may also be null. A kind in place of the field map is
+ * the kind of the whole body.
  */
-const REQUIRED_KEYS = new Map([
+const CONTRACT = new Map([
+  ["POST /auth/login", null],
+  ["GET /auth/me", { user: "object", expiresAt: "number?" }],
+  [
+    "GET /health/bootstrap",
+    {
+      status: "string",
+      appVersion: "string",
+      authRequired: "boolean",
+      onboardingRequired: "boolean",
+      api: "object",
+    },
+  ],
+  [
+    "GET /discover",
+    {
+      recommendations: "array",
+      globalTop: "array",
+      basedOn: "array",
+      topTags: "array",
+      topGenres: "array",
+      recommendationCount: "number",
+      lastUpdated: "string?",
+      configured: "boolean",
+      provider: "string",
+    },
+  ],
+  ["GET /search", null],
+  ["GET /search/link", null],
+  ["GET /artists/:mbid", null],
+  ["GET /artists/release-group/:mbid", null],
+  [
+    "GET /library/canonical",
+    {
+      kind: "string",
+      page: "number",
+      pageSize: "number",
+      total: "number",
+      hasMore: "boolean",
+      items: "array",
+      artists: "array",
+      albums: "array",
+      tracks: "array",
+      genres: "array",
+    },
+  ],
+  ["GET /library/lookup/:mbid", null],
+  ["POST /library/lookup/batch", null],
+  ["POST /library/albums/lookup/batch", null],
+  ["POST /library/albums/request", null],
+  ["POST /library/downloads/track", null],
+  ["POST /playlists/flows", null],
   [
     "GET /playlists/status",
-    { flowStats: "object", flows: "array", sharedPlaylists: "array" },
+    {
+      flows: "array",
+      sharedPlaylists: "array",
+      stats: "object",
+      flowStats: "object",
+      worker: "object",
+      hint: "object",
+    },
   ],
+  ["GET /playlists/jobs", null],
+  ["GET /requests", "array"],
+  ["POST /playlists/jobs/:jobId/approve", null],
+  ["POST /playlists/jobs/:jobId/deny", null],
 ]);
+
+/**
+ * "GET /artists/${mbid}" and "GET /artists/:mbid" -> "GET /artists/:", so a
+ * pocket call site and a contract route compare equal whatever the parameter
+ * is called.
+ */
+function routePattern(key) {
+  return key.replace(/\$\{[^}]+\}|:[A-Za-z]\w*/g, ":");
+}
+
+const CONTRACT_PATTERNS = new Set([...CONTRACT.keys()].map(routePattern));
 
 /**
  * The shape of a JSON value, with every concrete value erased:
@@ -229,12 +320,13 @@ function extractPocketRoutes() {
     for (const m of src.matchAll(constRe)) consts.set(m[1], m[2]);
 
     for (const method of methods) {
-      const needle = `api.${method}`;
-      let from = 0;
+      // Prettier splits a long chain as `api\n  .post(...)`, so whitespace
+      // around the dot must not hide the call from the check.
+      const needle = new RegExp(String.raw`\bapi\s*\.\s*${method}\b`, "g");
       for (;;) {
-        const at = src.indexOf(needle, from);
-        if (at === -1) break;
-        from = at + needle.length;
+        const match = needle.exec(src);
+        if (match === null) break;
+        const from = match.index + match[0].length;
 
         // Skip ahead to the argument list, stepping over any generic args.
         const open = src.indexOf("(", from);
@@ -345,30 +437,138 @@ async function login() {
   return token;
 }
 
-/** Returns true on failure. Runs in both modes — see REQUIRED_KEYS. */
-function checkRequiredKeys(shapes) {
+function matchesKind(got, spec) {
+  return (
+    got === spec.replace(/\?$/, "") || (spec.endsWith("?") && got === "null")
+  );
+}
+
+/**
+ * Returns true on failure. Runs in both modes — see CONTRACT. Only routes
+ * pocket probes are checked: the contract covers routes pocket never calls.
+ */
+function checkContractFields(shapes, probed) {
   let failed = false;
-  for (const [key, required] of REQUIRED_KEYS) {
+  for (const [key, fields] of CONTRACT) {
+    if (fields === null || !probed.has(key)) continue;
     const shape = shapes.get(key);
     if (shape === undefined) {
       console.error(
-        `\nFAIL: ${key} did not answer 200 with JSON, so its required keys ` +
-          "cannot be verified.",
+        `\nFAIL: ${key} did not answer 200 with JSON, so the fields the app ` +
+          "contract guarantees cannot be verified.",
       );
       failed = true;
       continue;
     }
-    for (const [topKey, kind] of Object.entries(required)) {
-      const got = topKey in shape ? kindOf(shape[topKey]) : undefined;
-      if (got !== kind) {
+    if (typeof fields === "string") {
+      if (!matchesKind(kindOf(shape), fields)) {
         console.error(
-          `\nFAIL: ${key} must carry \`${topKey}\` (${kind}); got ` +
-            `${got ?? "no such key"}. The client reads this on the happy path — ` +
+          `\nFAIL: ${key} must answer with a JSON ${fields}; got ` +
+            `${kindOf(shape)}. Aurral's app contract guarantees it.`,
+        );
+        failed = true;
+      }
+      continue;
+    }
+    for (const [field, spec] of Object.entries(fields)) {
+      const got = field in shape ? kindOf(shape[field]) : undefined;
+      if (!matchesKind(got, spec)) {
+        console.error(
+          `\nFAIL: ${key} must carry \`${field}\` (${spec}); got ` +
+            `${got ?? "no such key"}. Aurral's app contract guarantees it — ` +
             "see #176.",
         );
         failed = true;
       }
     }
+  }
+  return failed;
+}
+
+/**
+ * The contract version and feature names pocket knows, read from the app's own
+ * source so this check and the app cannot disagree.
+ */
+function readPocketContract() {
+  const health = readFileSync(join(API_DIR, "health.ts"), "utf8");
+  const version = Number(
+    /export const SUPPORTED_API_VERSION = (\d+);/.exec(health)?.[1],
+  );
+  const auth = readFileSync(join(ROOT, "lib", "types", "auth.ts"), "utf8");
+  const union = /export type ServerFeature =([^;]+);/.exec(auth)?.[1] ?? "";
+  const features = [...union.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  if (!Number.isInteger(version) || features.length === 0) {
+    console.error(
+      "FAIL: could not read SUPPORTED_API_VERSION from lib/api/health.ts or " +
+        "ServerFeature from lib/types/auth.ts. Update readPocketContract.",
+    );
+    process.exit(1);
+  }
+  return { version, features };
+}
+
+/**
+ * Returns true on failure. Runs in both modes.
+ *
+ * The app never hides a screen over a feature name. This check is how pocket
+ * learns that Aurral changed what it promises: a new contract version, a
+ * feature it dropped, or a feature pocket has not adopted yet. On the advisory
+ * run against Aurral `latest`, a failure here lands in the api-drift issue.
+ */
+async function checkContractVersion(token) {
+  const pocket = readPocketContract();
+  const { status, body } = await request("GET", "/api/health/bootstrap", token);
+  const api = body?.api;
+  if (status !== 200 || !api) {
+    console.error(
+      "\nFAIL: GET /health/bootstrap carries no `api` block, so the app " +
+        "contract version and features cannot be read.",
+    );
+    return true;
+  }
+
+  let failed = false;
+  if (api.version !== pocket.version) {
+    console.error(
+      `\nFAIL: Aurral serves app contract version ${api.version}, and pocket ` +
+        `supports ${pocket.version}. Connect refuses this server until pocket ` +
+        "adopts the new version and raises SUPPORTED_API_VERSION.",
+    );
+    failed = true;
+  }
+
+  if (!Array.isArray(api.features)) {
+    console.error(
+      "\nFAIL: GET /health/bootstrap carries no `api.features` list, so the " +
+        "app contract features cannot be compared.",
+    );
+    return true;
+  }
+  const served = new Set(api.features);
+  const dropped = pocket.features.filter((name) => !served.has(name));
+  const unknown = api.features.filter(
+    (name) => !pocket.features.includes(name),
+  );
+  if (dropped.length > 0) {
+    console.error(
+      `\nFAIL: Aurral no longer lists ${dropped.join(", ")}. Stop using the ` +
+        "routes behind each one, then remove it from ServerFeature.",
+    );
+    failed = true;
+  }
+  if (unknown.length > 0) {
+    console.error(
+      `\nFAIL: Aurral lists ${unknown.join(", ")}, which pocket does not know ` +
+        "yet. Adopt each one, or add it to ServerFeature in " +
+        "lib/types/auth.ts to record that it was reviewed.",
+    );
+    failed = true;
+  }
+  if (!failed) {
+    console.log(
+      `App contract version ${api.version}; pocket knows all ` +
+        `${api.features.length} features Aurral lists.`,
+    );
   }
   return failed;
 }
@@ -462,6 +662,8 @@ function compareBaseline(shapes) {
 
 async function main() {
   let token = await login();
+  // Before the probes: one of them signs this session out.
+  const contractFailed = await checkContractVersion(token);
   const extracted = extractPocketRoutes();
   if (extracted.length === 0) {
     console.error("Extracted no routes from lib/api — the parser is broken.");
@@ -561,7 +763,12 @@ async function main() {
   }
 
   for (const r of ok) {
-    console.log(`  ok       ${r.method.padEnd(6)} ${r.path} (${r.status})`);
+    const tag = CONTRACT_PATTERNS.has(routePattern(`${r.method} ${r.raw}`))
+      ? "  contract"
+      : "";
+    console.log(
+      `  ok       ${r.method.padEnd(6)} ${r.path} (${r.status})${tag}`,
+    );
   }
   for (const r of moved) {
     console.log(
@@ -577,6 +784,14 @@ async function main() {
 
   console.log(
     `\n${ok.length} ok, ${moved.length} moved, ${missing.length} missing, ${known.length} known, ${routes.length} checked against ${BASE}`,
+  );
+
+  const probed = new Set(routes.map((r) => `${r.method} ${r.raw}`));
+  const patterns = new Set([...probed].map(routePattern));
+  const covered = [...patterns].filter((p) => CONTRACT_PATTERNS.has(p));
+  console.log(
+    `${covered.length} of the ${patterns.size} routes pocket calls are in ` +
+      `Aurral's app contract; the rest can change in any release.`,
   );
 
   let failed = false;
@@ -603,7 +818,8 @@ async function main() {
     failed = true;
   }
 
-  if (checkRequiredKeys(shapes)) failed = true;
+  if (checkContractFields(shapes, probed)) failed = true;
+  if (contractFailed) failed = true;
 
   if (RECORD) {
     if (failed) {

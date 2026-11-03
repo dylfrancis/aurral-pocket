@@ -44,7 +44,7 @@ describe("checkServerLive", () => {
 });
 
 describe("getServerHealth", () => {
-  it("calls GET /health and returns data", async () => {
+  it("calls GET /health/bootstrap and returns data", async () => {
     const health = {
       status: "ok",
       authRequired: true,
@@ -55,7 +55,7 @@ describe("getServerHealth", () => {
 
     const result = await getServerHealth();
 
-    expect(mockGet).toHaveBeenCalledWith("/health");
+    expect(mockGet).toHaveBeenCalledWith("/health/bootstrap");
     expect(result).toEqual(health);
   });
 

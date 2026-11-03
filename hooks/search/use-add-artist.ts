@@ -3,6 +3,7 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
+import { setArtistInLibrary } from "@/hooks/search/use-library-lookup";
 import { addArtist } from "@/lib/api/search";
 import { discoverKeys, libraryKeys } from "@/lib/query-keys";
 import type {
@@ -51,6 +52,7 @@ export function useAddArtist(onSuccess?: () => void) {
         },
       );
       queryClient.setQueryData(libraryKeys.artist(artist.mbid), artist);
+      setArtistInLibrary(queryClient, artist.mbid, true);
 
       // A queued (202) response means the artist was newly added but isn't yet
       // reflected in the server-computed "Recently Added" list (the backend

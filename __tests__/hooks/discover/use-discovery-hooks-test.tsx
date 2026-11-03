@@ -76,7 +76,6 @@ describe("useDiscovery", () => {
       topTags: [],
       topGenres: [],
       lastUpdated: null,
-      isUpdating: false,
       configured: true,
     };
     mockGetDiscovery.mockResolvedValue(data);

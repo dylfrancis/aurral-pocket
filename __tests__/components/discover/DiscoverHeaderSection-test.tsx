@@ -27,7 +27,6 @@ const baseData = {
   topTags: [],
   topGenres: [],
   lastUpdated: null,
-  isUpdating: false,
   configured: true,
 };
 

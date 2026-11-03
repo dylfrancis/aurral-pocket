@@ -111,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ]);
 
         // Render the first frame with the server's format instead of the
-        // device default, which `/health` would otherwise correct a beat later.
+        // device default, which bootstrap would otherwise correct a beat later.
         await restoreDateTimeFormat();
 
         // Hard expire after 30 days of inactivity with full reset to login screen

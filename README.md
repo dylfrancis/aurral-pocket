@@ -126,6 +126,10 @@ A route counts as missing only when Aurral answers with its catch-all
 `401` — means the route exists. Endpoints that answer only via a redirect fail
 too: a compatibility shim is not a contract.
 
+Routes in Aurral's [app contract](https://docs.aurral.org/api/app-contract/) are
+marked `contract`, and the fields the contract guarantees must be present. The
+summary counts how many of pocket's routes it covers.
+
 ## Project structure
 
 ```

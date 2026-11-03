@@ -17,9 +17,6 @@ import type { SearchArtist } from "@/lib/types/search";
 const baseArtist: SearchArtist = {
   id: "mbid-123",
   name: "Radiohead",
-  sortName: "Radiohead",
-  inLibrary: false,
-  score: 0,
 };
 
 describe("SearchArtistRow", () => {

@@ -133,7 +133,6 @@ export type FlowStatusSnapshot = {
   flows: Flow[];
   sharedPlaylists: SharedPlaylist[];
   retryCyclePausedByPlaylist: Record<string, boolean>;
-  retryCycleScheduledByPlaylist: Record<string, boolean>;
   operationQueue: OperationQueueStatus;
   hint: StatusHint;
 };

@@ -2,6 +2,8 @@ import { fetch } from "expo/fetch";
 import { api } from "./client";
 import type {
   Artist,
+  ArtistLibraryLookup,
+  ArtistLookupBatch,
   Album,
   Track,
   CoverArtResponse,
@@ -262,47 +264,46 @@ export async function getCanonicalLibraryPage(
 }
 
 /**
- * Find one canonical artist by walking the artist pages.
- *
- * The paged route matches artistId against the canonical numeric id only,
- * and the screens hold an MBID, so the translation happens here. An MBID
- * match wins as soon as a page contains it. A reference that matches no
- * MBID falls back to a canonical-id match after the walk, because a
- * file-scanned artist has no MBID and is addressed by its canonical id.
- *
- * The walk asks for wanted records, because the server's library view hides
- * an artist whose albums are all wanted, and that artist still has albums
- * to show.
+ * The canonical artist id for an artist MBID, from the app contract's artist
+ * lookup. Null until the canonical library indexes the artist. Wanted artists
+ * count: the lookup reads every source, available or not.
  */
-async function findCanonicalArtist(artistRef: string): Promise<Artist | null> {
-  const seen: Artist[] = [];
-  let page = 1;
-  for (;;) {
-    const result = await getCanonicalLibraryPage({
-      kind: "artists",
-      source: "all",
-      availableOnly: false,
-      page,
-    });
-    const byMbid = result.artists.find(
-      (artist) => artist.mbid && artist.mbid === artistRef,
-    );
-    if (byMbid) return byMbid;
-    seen.push(...result.artists);
-    if (!result.hasMore) break;
-    page += 1;
+export async function getLibraryArtistId(mbid: string): Promise<string | null> {
+  const r = await api.get<ArtistLibraryLookup>(`/library/lookup/${mbid}`);
+  return r.data.libraryArtistId;
+}
+
+/** `POST /library/lookup/batch` answers 400 above 100 unique MBIDs. */
+const ARTIST_LOOKUP_BATCH_MAX = 100;
+
+/**
+ * Library membership for artist MBIDs, from the app contract's batch lookup.
+ * Larger lists go out in batches the route accepts.
+ */
+export async function lookupLibraryArtists(
+  mbids: string[],
+): Promise<ArtistLookupBatch> {
+  const batches: string[][] = [];
+  for (let i = 0; i < mbids.length; i += ARTIST_LOOKUP_BATCH_MAX) {
+    batches.push(mbids.slice(i, i + ARTIST_LOOKUP_BATCH_MAX));
   }
-  return (
-    seen.find((artist) => (artist.canonicalId ?? artist.id) === artistRef) ??
-    null
+  const results = await Promise.all(
+    batches.map((batch) =>
+      api
+        .post<ArtistLookupBatch>("/library/lookup/batch", { mbids: batch })
+        .then((r) => r.data),
+    ),
   );
+  return Object.assign({}, ...results);
 }
 
 /**
  * Read every album of one artist from the paged canonical route.
  *
  * `artistRef` is an artist MBID, or a canonical artist id when the artist
- * has no MBID. An artist the canonical library has not indexed yet reads as
+ * has no MBID. The paged route matches canonical ids only, so an MBID goes
+ * through the artist lookup first. A canonical id is numeric, which tells the
+ * two apart. An artist the canonical library has not indexed yet reads as
  * an empty list — the artist screen shows no albums and keeps polling.
  *
  * Wanted albums are part of the list: the artist screen shows them as
@@ -311,9 +312,10 @@ async function findCanonicalArtist(artistRef: string): Promise<Artist | null> {
 export async function getCanonicalArtistAlbums(
   artistRef: string,
 ): Promise<Album[]> {
-  const artist = await findCanonicalArtist(artistRef);
-  if (!artist) return [];
-  const artistId = artist.canonicalId ?? artist.id;
+  const artistId = /^\d+$/.test(artistRef)
+    ? artistRef
+    : await getLibraryArtistId(artistRef);
+  if (!artistId) return [];
   const albums: Album[] = [];
   let page = 1;
   for (;;) {

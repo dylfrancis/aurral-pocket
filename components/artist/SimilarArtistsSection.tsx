@@ -1,22 +1,22 @@
 import { FlatList, StyleSheet, View } from "react-native";
 import { SimilarArtistCard } from "@/components/search/SimilarArtistCard";
 import { Text } from "@/components/ui/Text";
+import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { SimilarArtist } from "@/lib/types/search";
 
 type SimilarArtistsSectionProps = {
   artists: SimilarArtist[];
-  isInLibrary: (mbid: string) => boolean;
   onPress: (artist: SimilarArtist) => void;
 };
 
 export function SimilarArtistsSection({
   artists,
-  isInLibrary,
   onPress,
 }: SimilarArtistsSectionProps) {
   const colors = Colors[useColorScheme()];
+  const { isInLibrary } = useLibraryLookup(artists.map((artist) => artist.id));
 
   if (artists.length === 0) return null;
 
