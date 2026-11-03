@@ -90,8 +90,13 @@ function RootLayoutNav() {
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
 
-        {/* App screens — visible when authenticated */}
-        <Stack.Protected guard={isAuthenticated}>
+        {/* App screens — visible when authenticated. A failed guard falls
+            back to "/", which (auth) has no screen for, so name the auth
+            screen to land on. */}
+        <Stack.Protected
+          guard={isAuthenticated}
+          redirectTo={serverUrl ? "/login" : "/get-started"}
+        >
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>
