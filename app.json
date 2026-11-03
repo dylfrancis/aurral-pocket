@@ -33,7 +33,8 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "extraProguardRules": "# Room 2.6.1 keeps RoomDatabase subclasses but not their constructors, and WorkManager builds WorkDatabase_Impl by reflection at startup.\n-keep class * extends androidx.room.RoomDatabase { <init>(); }"
           }
         }
       ],
