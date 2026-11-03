@@ -150,7 +150,7 @@ export default function LoginScreen() {
                 secureTextEntry
                 textContentType="password"
                 returnKeyType="go"
-                onSubmitEditing={handleSubmit(onSubmit)}
+                onSubmitEditing={() => handleSubmit(onSubmit)()}
                 editable={!loginMutation.isPending}
                 style={styles.input}
               />
@@ -213,7 +213,7 @@ export default function LoginScreen() {
 
           <Button
             title="Sign In"
-            onPress={handleSubmit(onSubmit)}
+            onPress={() => handleSubmit(onSubmit)()}
             loading={loginMutation.isPending}
             style={styles.button}
           />

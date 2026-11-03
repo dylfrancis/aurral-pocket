@@ -1,6 +1,6 @@
 import { Colors, Fonts } from "@/constants/theme";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useMemo } from "react";
 
 type Option<T extends string | number> = {

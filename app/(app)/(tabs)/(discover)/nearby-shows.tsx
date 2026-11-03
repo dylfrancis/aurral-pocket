@@ -10,9 +10,9 @@ import {
 import { Stack, type ErrorBoundaryProps } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Ionicons } from "@expo/vector-icons";
-import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
 import FilterList from "@expo/material-symbols/filter_list.xml";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";

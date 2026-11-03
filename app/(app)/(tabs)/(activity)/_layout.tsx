@@ -6,7 +6,7 @@ import { TRANSPARENT_HEADER } from "@/constants/navigation";
 
 // Queue is the tab's landing route.
 export const unstable_settings = {
-  initialRouteName: "queue",
+  anchor: "queue",
 };
 
 export default function ActivityLayout() {

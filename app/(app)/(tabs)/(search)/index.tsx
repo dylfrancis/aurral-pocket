@@ -6,10 +6,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import type {
-  NativeSyntheticEvent,
-  TextInputFocusEventData,
-} from "react-native";
+import type { NativeSyntheticEvent } from "react-native";
+import type { SearchBarTextEventData } from "react-native-screens";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Ionicons } from "@expo/vector-icons";
@@ -98,7 +96,7 @@ export default function SearchScreen() {
   // rebuilt from it, and rebuilds can drop the icon (react-native-screens
   // issue #2271).
   const handleChangeText = useCallback(
-    (e: NativeSyntheticEvent<TextInputFocusEventData>) =>
+    (e: NativeSyntheticEvent<SearchBarTextEventData>) =>
       setQuery(e.nativeEvent.text),
     [],
   );
@@ -106,7 +104,7 @@ export default function SearchScreen() {
   const handleCancelSearch = useCallback(() => setQuery(""), []);
 
   const handleSearchSubmit = useCallback(
-    (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+    (e: NativeSyntheticEvent<SearchBarTextEventData>) => {
       const q = e.nativeEvent.text.trim();
       if (q) pushResults(q);
     },

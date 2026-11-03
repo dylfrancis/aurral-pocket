@@ -1,4 +1,4 @@
-import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { NativeTabs } from "expo-router/native-tabs";
 import { StyleSheet, View } from "react-native";
 import { MiniPlayer } from "@/components/player/MiniPlayer";
 

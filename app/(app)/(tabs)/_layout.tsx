@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useHasQueue } from "@/lib/player/player";
-import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { NativeTabs } from "expo-router/native-tabs";
 
 export default function TabsLayout() {
   const { isUserResolved } = useAuth();

@@ -181,7 +181,7 @@ export function PasswordSection() {
           ) : null}
           <Button
             title="Update password"
-            onPress={handleSubmit(onSubmit)}
+            onPress={() => handleSubmit(onSubmit)()}
             disabled={!isValid}
             loading={changePassword.isPending}
           />

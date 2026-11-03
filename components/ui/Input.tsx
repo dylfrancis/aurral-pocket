@@ -1,4 +1,9 @@
-import { TextInput, type TextInputProps, StyleSheet } from "react-native";
+import {
+  TextInput,
+  type TextInputInstance,
+  type TextInputProps,
+  StyleSheet,
+} from "react-native";
 import { forwardRef } from "react";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts, Radius } from "@/constants/theme";
@@ -22,21 +27,20 @@ export const inputBaseStyle = StyleSheet.create({
   },
 }).input;
 
-export const Input = forwardRef<TextInput, TextInputProps>(function Input(
-  { style, ...rest },
-  ref,
-) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme];
+export const Input = forwardRef<TextInputInstance, TextInputProps>(
+  function Input({ style, ...rest }, ref) {
+    const colorScheme = useColorScheme();
+    const colors = Colors[colorScheme];
 
-  return (
-    <TextInput
-      ref={ref}
-      style={[inputBaseStyle, inputThemedStyle(colorScheme), style]}
-      placeholderTextColor={colors.placeholder}
-      autoCapitalize="none"
-      autoCorrect={false}
-      {...rest}
-    />
-  );
-});
+    return (
+      <TextInput
+        ref={ref}
+        style={[inputBaseStyle, inputThemedStyle(colorScheme), style]}
+        placeholderTextColor={colors.placeholder}
+        autoCapitalize="none"
+        autoCorrect={false}
+        {...rest}
+      />
+    );
+  },
+);

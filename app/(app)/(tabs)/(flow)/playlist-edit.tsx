@@ -278,7 +278,7 @@ function PlaylistEditForm({
 
         <Button
           title="Save Changes"
-          onPress={handleSubmit(onSubmit)}
+          onPress={() => handleSubmit(onSubmit)()}
           loading={isPending}
         />
       </ScrollView>

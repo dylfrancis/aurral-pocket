@@ -127,7 +127,7 @@ export const ConnectSheet = forwardRef<BottomSheetModal>(
                 keyboardType="url"
                 textContentType="URL"
                 returnKeyType="go"
-                onSubmitEditing={handleSubmit(onSubmit)}
+                onSubmitEditing={() => handleSubmit(onSubmit)()}
                 editable={!connectMutation.isPending}
               />
             )}
@@ -141,7 +141,7 @@ export const ConnectSheet = forwardRef<BottomSheetModal>(
 
           <Button
             title="Connect"
-            onPress={handleSubmit(onSubmit)}
+            onPress={() => handleSubmit(onSubmit)()}
             loading={connectMutation.isPending}
           />
         </BottomSheetView>

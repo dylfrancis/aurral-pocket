@@ -386,7 +386,7 @@ function FlowEditForm({
         <View style={{ paddingTop: 8 }}>
           <Button
             title={editingId ? "Save Changes" : "Create Flow"}
-            onPress={handleSubmit(onSubmit)}
+            onPress={() => handleSubmit(onSubmit)()}
             loading={isPending}
           />
         </View>
