@@ -40,28 +40,6 @@ jest.mock("@gorhom/bottom-sheet", () => {
   };
 });
 
-// The segmented control is native. A row of buttons stands in for it, so a
-// test can pick a provider by its label.
-jest.mock("@/components/flow/SegmentedRow", () => {
-  const React = require("react");
-
-  const { Pressable, Text } = require("react-native");
-  return {
-    SegmentedRow: ({ options, onChange }: any) =>
-      React.createElement(
-        React.Fragment,
-        null,
-        options.map((option: any) =>
-          React.createElement(
-            Pressable,
-            { key: option.value, onPress: () => onChange(option.value) },
-            React.createElement(Text, null, option.label),
-          ),
-        ),
-      ),
-  };
-});
-
 jest.mock("@/hooks/me/use-listening-history", () => ({
   useListeningHistory: jest.fn(),
   useUpdateListeningHistory: jest.fn(),
@@ -79,23 +57,17 @@ const mockUseListeningHistory = useListeningHistory as jest.Mock;
 const mockUseUpdate = useUpdateListeningHistory as jest.Mock;
 const mutate = jest.fn();
 
-function settings(
-  overrides: Partial<ListenHistorySettings> = {},
-): ListenHistorySettings {
-  return {
-    listenHistoryProvider: "lastfm",
-    listenHistoryUsername: "thom",
-    lastfmUsername: "thom",
-    listenHistoryUrl: null,
-    ...overrides,
-  };
-}
+const saved: ListenHistorySettings = {
+  lastfm: "thom",
+  listenbrainz: "thom-lb",
+  koito: "https://koito.example",
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseUpdate.mockReturnValue({ mutate, isPending: false });
   mockUseListeningHistory.mockReturnValue({
-    data: settings(),
+    data: saved,
     isPending: false,
     isError: false,
     refetch: jest.fn(),
@@ -103,55 +75,37 @@ beforeEach(() => {
 });
 
 describe("AccountSection", () => {
-  it("offers the local provider Aurral 2.5 added", async () => {
-    const { getByText } = await render(<AccountSection />);
+  it("shows the account saved for each provider", async () => {
+    const { getByLabelText } = await render(<AccountSection />);
 
-    expect(getByText("Local only")).toBeTruthy();
-  });
-
-  // The server keeps no username for "local" and answers with null.
-  it("hides the username field for local history", async () => {
-    const { getByText, queryByText } = await render(<AccountSection />);
-    expect(getByText("Username")).toBeTruthy();
-
-    fireEvent.press(getByText("Local only"));
-
-    await waitFor(() => expect(queryByText("Username")).toBeNull());
-  });
-
-  it("saves local history without a username", async () => {
-    const { getByText, queryByText } = await render(<AccountSection />);
-
-    fireEvent.press(getByText("Local only"));
-    // The form re-renders before Save comes alive: it stays disabled until the
-    // provider change makes the form dirty.
-    await waitFor(() => expect(queryByText("Username")).toBeNull());
-    fireEvent.press(getByText("Save"));
-
-    await waitFor(() =>
-      expect(mutate).toHaveBeenCalledWith(
-        {
-          listenHistoryProvider: "local",
-          listenHistoryUsername: null,
-        },
-        expect.anything(),
-      ),
+    expect(getByLabelText("Last.fm username")).toHaveDisplayValue("thom");
+    expect(getByLabelText("ListenBrainz username")).toHaveDisplayValue(
+      "thom-lb",
+    );
+    expect(getByLabelText("Koito URL")).toHaveDisplayValue(
+      "https://koito.example",
     );
   });
 
-  it("shows the username a linked account already has", async () => {
-    mockUseListeningHistory.mockReturnValue({
-      data: settings({
-        listenHistoryProvider: "listenbrainz",
-        listenHistoryUsername: "thom",
-      }),
-      isPending: false,
-      isError: false,
-      refetch: jest.fn(),
-    });
+  // An untouched provider stays out of the request, so a value set on the web
+  // since the form loaded is not written back.
+  it("saves only the providers that changed, clearing an emptied one", async () => {
+    const { getByLabelText, getByText } = await render(<AccountSection />);
 
-    const { getByDisplayValue } = await render(<AccountSection />);
+    await fireEvent.changeText(
+      getByLabelText("Last.fm username"),
+      " radiohead ",
+    );
+    await fireEvent.changeText(getByLabelText("ListenBrainz username"), "");
+    // Save stays disabled until the edits make the form dirty.
+    await waitFor(() => expect(getByText("Save")).toBeEnabled());
+    await fireEvent.press(getByText("Save"));
 
-    expect(getByDisplayValue("thom")).toBeTruthy();
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith(
+        { lastfm: "radiohead", listenbrainz: null },
+        expect.anything(),
+      ),
+    );
   });
 });

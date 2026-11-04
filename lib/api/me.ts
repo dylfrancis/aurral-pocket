@@ -13,10 +13,12 @@ export async function getMyListeningHistory() {
 }
 
 export async function updateMyListeningHistory(
-  userId: number,
   payload: UpdateListenHistoryPayload,
 ) {
-  const r = await api.patch<ListenHistorySettings>(`/users/${userId}`, payload);
+  const r = await api.patch<ListenHistorySettings>(
+    "/users/me/listening-history",
+    payload,
+  );
   return r.data;
 }
 

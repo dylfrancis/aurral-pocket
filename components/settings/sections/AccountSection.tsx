@@ -1,35 +1,65 @@
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, type KeyboardTypeOptions } from "react-native";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
-import { SegmentedRow } from "@/components/flow/SegmentedRow";
 import {
   useListeningHistory,
   useUpdateListeningHistory,
 } from "@/hooks/me/use-listening-history";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import type { ListenHistoryProvider } from "@/lib/types/me";
+import type {
+  ListenHistoryProvider,
+  ListenHistorySettings,
+  UpdateListenHistoryPayload,
+} from "@/lib/types/me";
 
-type AccountForm = {
-  provider: ListenHistoryProvider;
-  username: string;
-};
+type AccountForm = Record<ListenHistoryProvider, string>;
 
-const providerOptions: { value: ListenHistoryProvider; label: string }[] = [
-  { value: "local", label: "Local only" },
-  { value: "lastfm", label: "Last.fm" },
-  { value: "listenbrainz", label: "ListenBrainz" },
+const providerFields: {
+  name: ListenHistoryProvider;
+  label: string;
+  accessibilityLabel: string;
+  placeholder: string;
+  keyboardType?: KeyboardTypeOptions;
+}[] = [
+  {
+    name: "lastfm",
+    label: "Last.fm",
+    accessibilityLabel: "Last.fm username",
+    placeholder: "Username",
+  },
+  {
+    name: "listenbrainz",
+    label: "ListenBrainz",
+    accessibilityLabel: "ListenBrainz username",
+    placeholder: "Username",
+  },
+  {
+    name: "koito",
+    label: "Koito",
+    accessibilityLabel: "Koito URL",
+    placeholder: "https://koito.example.com:4110",
+    keyboardType: "url",
+  },
 ];
 
 const HELPER_TEXT =
-  "Choose where your listening history comes from. Local only uses the plays " +
-  "Aurral records for you. Last.fm and ListenBrainz read an outside account.";
+  "Your listening history shapes your recommendations. Add the services you " +
+  "use, or leave them all empty to use only the plays Aurral records for you.";
+
+function toForm(history: ListenHistorySettings): AccountForm {
+  return {
+    lastfm: history.lastfm ?? "",
+    listenbrainz: history.listenbrainz ?? "",
+    koito: history.koito ?? "",
+  };
+}
 
 export function AccountSection() {
   const colorScheme = useColorScheme();
@@ -41,49 +71,42 @@ export function AccountSection() {
     control,
     handleSubmit,
     reset,
-    formState: { isDirty },
+    formState: { isDirty, dirtyFields },
   } = useForm<AccountForm>({
-    defaultValues: { provider: "lastfm", username: "" },
-    values: data
-      ? {
-          provider: data.listenHistoryProvider ?? "lastfm",
-          username: data.listenHistoryUsername ?? "",
-        }
-      : undefined,
+    // No defaultValues: they would win over `values` on the first render, and
+    // reopening Settings would flash empty fields before the saved accounts.
+    values: data ? toForm(data) : undefined,
     resetOptions: { keepDirtyValues: true },
   });
 
-  const provider = useWatch({ control, name: "provider" });
-
   const onSubmit = (values: AccountForm) => {
-    // The server keeps no username for "local", and answers with null. Sending
-    // one would leave the form dirty against a value that never comes back.
-    const trimmed = values.provider === "local" ? "" : values.username.trim();
-    updateMutation.mutate(
-      {
-        listenHistoryProvider: values.provider,
-        listenHistoryUsername: trimmed || null,
+    // Only the fields the user touched, so a provider set elsewhere since this
+    // form loaded is not overwritten.
+    const payload: UpdateListenHistoryPayload = {};
+    for (const { name } of providerFields) {
+      if (dirtyFields[name]) payload[name] = values[name].trim() || null;
+    }
+    updateMutation.mutate(payload, {
+      onSuccess: (next) => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // The server's answer, not the typed values: it normalizes the Koito
+        // URL, and the form would stay dirty against a value that never comes
+        // back.
+        reset(toForm(next));
+        Burnt.toast({
+          title: "Listening history saved",
+          preset: "done",
+        });
       },
-      {
-        onSuccess: () => {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          reset({ provider: values.provider, username: trimmed });
-          Burnt.toast({
-            title: "Listening preferences saved",
-            preset: "done",
-          });
-        },
-        onError: (error) => {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          Burnt.toast({
-            title: "Couldn't save preferences",
-            message:
-              error instanceof Error ? error.message : "Please try again.",
-            preset: "error",
-          });
-        },
+      onError: (error) => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Burnt.toast({
+          title: "Couldn't save listening history",
+          message: error instanceof Error ? error.message : "Please try again.",
+          preset: "error",
+        });
       },
-    );
+    });
   };
 
   if (isPending) {
@@ -95,8 +118,9 @@ export function AccountSection() {
         >
           {HELPER_TEXT}
         </Text>
-        <Skeleton width="100%" height={32} />
-        <Skeleton width="100%" height={50} />
+        {providerFields.map(({ name }) => (
+          <Skeleton key={name} width="100%" height={50} />
+        ))}
       </View>
     );
   }
@@ -104,7 +128,7 @@ export function AccountSection() {
   if (isError) {
     return (
       <View style={styles.container}>
-        <Text variant="error">Couldn&apos;t load listening preferences.</Text>
+        <Text variant="error">Couldn&apos;t load listening history.</Text>
         <Button
           title="Tap to retry"
           variant="inline"
@@ -120,49 +144,28 @@ export function AccountSection() {
         {HELPER_TEXT}
       </Text>
 
-      <View style={styles.field}>
-        <Text
-          variant="caption"
-          style={[styles.fieldLabel, { color: colors.subtle }]}
-        >
-          Provider
-        </Text>
+      {providerFields.map((field) => (
         <Controller
+          key={field.name}
           control={control}
-          name="provider"
-          render={({ field: { value, onChange } }) => (
-            <SegmentedRow
-              value={value}
-              options={providerOptions}
-              onChange={onChange}
-            />
-          )}
-        />
-      </View>
-
-      {provider === "local" ? null : (
-        <Controller
-          control={control}
-          name="username"
+          name={field.name}
           render={({ field: { value, onChange, onBlur } }) => (
             <View style={styles.field}>
               <Text
                 variant="caption"
                 style={[styles.fieldLabel, { color: colors.subtle }]}
               >
-                Username
+                {field.label}
               </Text>
               <BottomSheetTextInput
                 style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
-                placeholder={
-                  provider === "listenbrainz"
-                    ? "Your ListenBrainz username"
-                    : "Your Last.fm username"
-                }
+                accessibilityLabel={field.accessibilityLabel}
+                placeholder={field.placeholder}
                 placeholderTextColor={colors.placeholder}
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
+                keyboardType={field.keyboardType}
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!updateMutation.isPending}
@@ -170,7 +173,7 @@ export function AccountSection() {
             </View>
           )}
         />
-      )}
+      ))}
 
       <Button
         title="Save"
