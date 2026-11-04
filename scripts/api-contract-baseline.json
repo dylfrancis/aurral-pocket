@@ -1,5 +1,5 @@
 {
-  "aurralVersion": "2.12.0",
+  "aurralVersion": "2.13.0",
   "shapes": {
     "GET /auth/me": {
       "expiresAt": "number",
@@ -28,7 +28,9 @@
       "enrichmentStartedAt": "null",
       "globalTop": [
         {
+          "discoveryDepth": "number",
           "discoveryTier": "string",
+          "firstDiscoveredAt": "null",
           "id": "string",
           "image": "null",
           "listeners": "number",
@@ -102,7 +104,8 @@
           "nzbgetConfigured": "boolean",
           "priority": "number",
           "prowlarrConfigured": "boolean",
-          "sabnzbdConfigured": "boolean"
+          "sabnzbdConfigured": "boolean",
+          "tidarrConfigured": "boolean"
         },
         "ytdlp": {
           "configured": "boolean",
@@ -278,10 +281,9 @@
       "layout": "null"
     },
     "GET /users/me/listening-history": {
-      "lastfmUsername": "null",
-      "listenHistoryProvider": "string",
-      "listenHistoryUrl": "null",
-      "listenHistoryUsername": "null"
+      "koito": "null",
+      "lastfm": "null",
+      "listenbrainz": "null"
     }
   }
 }

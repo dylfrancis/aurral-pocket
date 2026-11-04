@@ -19,7 +19,6 @@ export type Flow = {
    * (`backend/services/weeklyFlow/weeklyFlowPlaylistConfig.js`).
    */
   recordHistory?: boolean;
-  recipe?: string | null;
   /**
    * Inclusive release-year bounds for the tracks this flow picks. Each bound
    * is a 4-digit year, or null when that end of the range is open. Optional
@@ -32,18 +31,7 @@ export type Flow = {
   scheduleDays: number[];
   scheduleTime: string;
   nextRunAt: number | null;
-  /**
-   * Where the flow came from. `"editorial"` marks a flow adopted from a
-   * retired Last.fm editorial list: it keeps its tracks, but the server
-   * answers 409 to starting or enabling it.
-   */
-  type: string | null;
 };
-
-/** Mirrors `isRetiredFlow` in Aurral's flowPlaylistConfig. */
-export function isRetiredFlow(flow: Pick<Flow, "type">): boolean {
-  return flow.type === "editorial";
-}
 
 export type SharedPlaylistTrack = {
   artistName: string;

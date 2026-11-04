@@ -213,6 +213,22 @@ describe("response parsing", () => {
     });
   });
 
+  it("prefers the body's message to its error label, and keeps the body", async () => {
+    const body = {
+      error: "Forbidden",
+      message: "Permission required: accessFlow",
+    };
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({ ok: false, status: 403, body }),
+    );
+
+    await expect(api.get("/playlists/status")).rejects.toMatchObject({
+      status: 403,
+      message: "Permission required: accessFlow",
+      body,
+    });
+  });
+
   it("throws network ApiError when fetch rejects", async () => {
     mockFetch.mockRejectedValueOnce(new TypeError("network down"));
 

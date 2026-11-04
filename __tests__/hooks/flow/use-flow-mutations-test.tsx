@@ -133,7 +133,7 @@ describe("useSetRetryCyclePaused", () => {
 });
 
 describe("flow error toasts", () => {
-  const RETIRED = "This flow's source was retired, so it no longer updates";
+  const NOT_FOUND = "Flow not found";
 
   it.each([
     {
@@ -157,7 +157,7 @@ describe("flow error toasts", () => {
   ])(
     "shows the server's message when $name fails",
     async ({ request, useAction, title }) => {
-      request.mockRejectedValue(new ApiError(409, RETIRED));
+      request.mockRejectedValue(new ApiError(404, NOT_FOUND));
       const { result } = await renderHook(() => useAction(), {
         wrapper: makeWrapper(),
       });
@@ -166,7 +166,7 @@ describe("flow error toasts", () => {
 
       expect(Burnt.toast).toHaveBeenCalledWith({
         title,
-        message: RETIRED,
+        message: NOT_FOUND,
         preset: "error",
       });
     },
