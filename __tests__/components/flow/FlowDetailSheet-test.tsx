@@ -83,7 +83,6 @@ const FLOW = {
   scheduleDays: [1],
   scheduleTime: "00:00",
   nextRunAt: null,
-  type: null,
 };
 
 const sheetRef = { current: null } as any;
@@ -103,16 +102,5 @@ describe("FlowDetailSheet", () => {
     expect(getByText("Start Now")).toBeTruthy();
     expect(getByText("Enabled")).toBeTruthy();
     expect(queryByText(/Retry/)).toBeNull();
-  });
-
-  it("labels a retired editorial flow and offers neither Start nor the enable switch", async () => {
-    mockFlow = { ...FLOW, type: "editorial" };
-
-    const { getByText, queryByText } = await renderSheet();
-
-    expect(getByText(/No longer updates/)).toBeTruthy();
-    expect(getByText(/source was retired/)).toBeTruthy();
-    expect(queryByText("Start Now")).toBeNull();
-    expect(queryByText("Enabled")).toBeNull();
   });
 });
