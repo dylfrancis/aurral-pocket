@@ -1,18 +1,20 @@
-export type ListenHistoryProvider =
-  "local" | "lastfm" | "listenbrainz" | "koito";
-
+/**
+ * The outside accounts Aurral reads a user's listening history from. A user
+ * can read from several at once, and all null means local history only.
+ */
 export type ListenHistorySettings = {
-  listenHistoryProvider: ListenHistoryProvider | null;
-  listenHistoryUsername: string | null;
-  lastfmUsername: string | null;
-  listenHistoryUrl: string | null;
+  /** Last.fm username. */
+  lastfm: string | null;
+  /** ListenBrainz username. */
+  listenbrainz: string | null;
+  /** Koito base URL, normalized by the server. */
+  koito: string | null;
 };
 
-export type UpdateListenHistoryPayload = {
-  listenHistoryProvider: ListenHistoryProvider;
-  /** Ignored by the server for "local", which keeps no username. */
-  listenHistoryUsername: string | null;
-};
+export type ListenHistoryProvider = keyof ListenHistorySettings;
+
+/** Only the providers to change. Null clears one. */
+export type UpdateListenHistoryPayload = Partial<ListenHistorySettings>;
 
 export type ChangePasswordPayload = {
   currentPassword: string;

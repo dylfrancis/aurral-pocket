@@ -17,7 +17,6 @@ import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
 import Settings from "@expo/material-symbols/settings.xml";
 import { Colors, Fonts } from "@/constants/theme";
-import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
   useDiscovery,
   useDiscoverLayout,
@@ -52,8 +51,6 @@ export default function DiscoverScreen() {
   const colors = Colors[useColorScheme()];
   const router = useRouter();
   const queryClient = useQueryClient();
-  const hasPermission = useHasPermission();
-  const canAccessSettings = hasPermission("accessSettings");
 
   const { data: discovery, refetch: refetchDiscovery } = useDiscovery();
   const { refetch: refetchRecentlyAdded } = useRecentlyAdded();
@@ -218,15 +215,13 @@ export default function DiscoverScreen() {
             Identify song
           </Stack.Toolbar.Button>
         )}
-        {canAccessSettings && (
-          <Stack.Toolbar.Button
-            icon={process.env.EXPO_OS === "ios" ? "gearshape" : Settings}
-            accessibilityLabel="Settings"
-            onPress={handleOpenSettings}
-          >
-            Settings
-          </Stack.Toolbar.Button>
-        )}
+        <Stack.Toolbar.Button
+          icon={process.env.EXPO_OS === "ios" ? "gearshape" : Settings}
+          accessibilityLabel="Settings"
+          onPress={handleOpenSettings}
+        >
+          Settings
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"

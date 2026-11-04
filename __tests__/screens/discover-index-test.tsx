@@ -22,10 +22,6 @@ jest.mock("expo-router", () => ({
   useRouter: jest.fn(() => ({ push: jest.fn() })),
 }));
 
-jest.mock("@/hooks/auth/use-has-permission", () => ({
-  useHasPermission: () => () => true,
-}));
-
 jest.mock("@/hooks/discover", () => ({
   useDiscovery: jest.fn(() => ({
     data: {
