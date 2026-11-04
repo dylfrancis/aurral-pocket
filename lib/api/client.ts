@@ -227,7 +227,10 @@ async function request<T>(
       typeof parsed === "object" && parsed !== null
         ? (parsed as { error?: string; message?: string })
         : undefined;
-    const msg = errorBody?.error || errorBody?.message || response.statusText;
+    // Aurral puts the detail in `message` and a short label or code in
+    // `error`: a validation failure is `{ error: "Invalid request", message }`.
+    // Codes such as `reauth_required` stay readable on `body`.
+    const msg = errorBody?.message || errorBody?.error || response.statusText;
     throw new ApiError(response.status, msg, parsed ?? text);
   }
 

@@ -24,7 +24,10 @@ import type {
   SharedPlaylistTrack,
 } from "@/lib/types/flow";
 
-/** An ApiError's message is the server's `error` field when it sent one. */
+/**
+ * An ApiError's message is the server's `message` field, or its `error` field
+ * when the body has no `message`.
+ */
 function toastError(title: string, err: Error) {
   Burnt.toast({ title, message: err.message, preset: "error" });
 }
