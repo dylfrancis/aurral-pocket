@@ -28,11 +28,15 @@ export type HealthLiveResponse = {
 export type ServerFeature =
   | "discover"
   | "flows"
+  | "playlistCoverTemplates"
   | "activity"
   | "review"
   | "trackDownloads"
   | "linkSearch"
-  | "downloadCancel";
+  | "downloadCancel"
+  | "shareImports"
+  | "trending"
+  | "flowAutoDownload";
 
 /** The app contract a server implements, from `GET /health/bootstrap`. */
 export type ApiContract = {

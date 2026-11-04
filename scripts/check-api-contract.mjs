@@ -63,6 +63,12 @@
  *   docker run -d --name aurral -p 3001:3001 ghcr.io/lklynet/aurral:$(cat .aurral-version)
  *   curl -X POST http://localhost:3001/api/onboarding/complete ...   # see workflow
  *   AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs --record
+ *
+ * Record right after onboarding, as CI checks. Until the background download
+ * worker reports in, GET /playlists/status answers a fallback `worker` without
+ * `downloadMetrics`, `lastJobMetrics` and `operationWorker`
+ * (backend/services/downloadJobs/downloadWorker.ts). A baseline recorded later
+ * has those keys, and CI then fails them as gone.
  */
 
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -123,7 +129,16 @@ const MAX_RELOGINS = 2;
  * Keep this list short. Every entry is a call pocket makes that 404s in
  * production.
  */
-const KNOWN_DRIFT = new Map([]);
+const KNOWN_DRIFT = new Map([
+  [
+    "POST /discover/playlists/adopt",
+    "#263 — removed in Aurral 2.11.0 with the Discover mixes",
+  ],
+  [
+    "POST /discover/playlists/adopt-playlist",
+    "#263 — removed in Aurral 2.11.0 with the Discover mixes",
+  ],
+]);
 
 /**
  * Aurral's app contract, version 1, as docs/src/content/docs/api/app-contract.mdx
@@ -169,6 +184,19 @@ const CONTRACT = new Map([
       provider: "string",
     },
   ],
+  [
+    "GET /discover/trending",
+    {
+      region: "string?",
+      updatedAt: "number?",
+      songs: "object?",
+      genreShare: "object?",
+      albums: "array?",
+      artists: "array?",
+      genres: "array",
+    },
+  ],
+  ["GET /discover/trending/genres/:genreId", null],
   ["GET /search", null],
   ["GET /search/link", null],
   ["GET /artists/:mbid", null],
