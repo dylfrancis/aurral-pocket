@@ -22,6 +22,11 @@ type AlbumCardProps = {
   onPress: () => void;
   fill?: boolean;
   downloadStatus?: DownloadStatusValue;
+  /**
+   * Adds the artist under the album name, for a grid that mixes artists. An
+   * artist's own pages leave it off.
+   */
+  showArtist?: boolean;
 };
 
 export const AlbumCard = React.memo(function AlbumCard({
@@ -29,6 +34,7 @@ export const AlbumCard = React.memo(function AlbumCard({
   onPress,
   fill,
   downloadStatus,
+  showArtist = false,
 }: AlbumCardProps) {
   const colors = Colors[useColorScheme()];
 
@@ -57,6 +63,11 @@ export const AlbumCard = React.memo(function AlbumCard({
         <Text variant="body" numberOfLines={2} style={styles.albumName}>
           {album.albumName}
         </Text>
+        {showArtist && (
+          <Text variant="caption" numberOfLines={1}>
+            {album.artistName || "Unknown Artist"}
+          </Text>
+        )}
         <Text variant="caption" numberOfLines={1}>
           {year && `${year} · `}
           {trackCount} {trackCount === 1 ? "track" : "tracks"}

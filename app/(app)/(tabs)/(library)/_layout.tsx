@@ -32,6 +32,14 @@ export default function LibraryLayout() {
           }}
         />
         <Stack.Screen
+          name="albums"
+          options={{
+            title: "Albums",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
           name="artist/[mbid]"
           options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
         />

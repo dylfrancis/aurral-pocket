@@ -1,3 +1,5 @@
+import type { LibraryAlbumsParams } from "@/lib/types/library";
+
 export const authKeys = {
   me: (serverUrl: string) => ["auth", "me", serverUrl] as const,
   health: (serverUrl: string) => ["auth", "health", serverUrl] as const,
@@ -13,7 +15,11 @@ export const libraryKeys = {
   artistId: (mbid: string) => ["library", "artists", "id", mbid] as const,
   artist: (mbid: string) => ["library", "artist", mbid] as const,
   albums: (artistId: string) => ["library", "albums", artistId] as const,
-  albumsAll: (genre = "") => ["library", "albumsAll", genre] as const,
+  // Every view of the whole-library album list, whatever its search, sort or
+  // genre. A change to library membership invalidates them all.
+  albumsAllViews: () => ["library", "albumsAll"] as const,
+  albumsAll: (params: LibraryAlbumsParams) =>
+    ["library", "albumsAll", params] as const,
   album: (albumRef: string) => ["library", "album", albumRef] as const,
   genres: () => ["library", "genres"] as const,
   favorites: () => ["library", "favorites"] as const,

@@ -285,6 +285,10 @@ export function ArtistDetailLayout({
     onSuccess: () => {
       setArtistInLibrary(queryClient, mbid, false);
       void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
+      // The artist's albums leave the whole-library album list too.
+      void queryClient.invalidateQueries({
+        queryKey: libraryKeys.albumsAllViews(),
+      });
     },
   });
 

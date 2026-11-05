@@ -97,6 +97,11 @@ export type Album = {
   identityKey?: string;
   /** Canonical read path only. True when the signed-in user favorited this album. */
   userFavorite?: boolean;
+  /**
+   * Whole-library album pages only. The MBID of the library artist the album
+   * belongs to, read from the page's related artists. See useLibraryAlbumsAll.
+   */
+  artistMbid?: string;
 };
 
 export type Track = {
@@ -195,6 +200,20 @@ export type CanonicalPageParams = {
   direction?: "asc" | "desc";
   artistId?: string;
   albumId?: string;
+};
+
+/**
+ * One view of the whole-library album list, searched and sorted by the
+ * server: `sort` and `direction` go to /library/canonical as they are. Every
+ * field is always set, so two equal views share one cache entry.
+ */
+export type LibraryAlbumsParams = {
+  /** Empty for every genre. */
+  genre: string;
+  /** Trimmed search text. Empty for no search. */
+  query: string;
+  sort: "name" | "artist" | "newest";
+  direction: "asc" | "desc";
 };
 
 // The canonical metadata bags below are declared partially, by design. A
