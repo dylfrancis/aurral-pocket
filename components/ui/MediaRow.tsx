@@ -14,6 +14,8 @@ type MediaRowProps = {
   subtitle?: string;
   trailing?: React.ReactNode;
   onPress: () => void;
+  /** Loads the image from the server's artwork path. See CoverArtImage. */
+  coverUrl?: string;
 };
 
 const ARTIST_THUMB_SIZE = 48;
@@ -28,6 +30,7 @@ export const MediaRow = React.memo(function MediaRow({
   subtitle,
   trailing,
   onPress,
+  coverUrl,
 }: MediaRowProps) {
   const colors = Colors[useColorScheme()];
   const thumbSize =
@@ -42,10 +45,11 @@ export const MediaRow = React.memo(function MediaRow({
         { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      {mbid ? (
+      {mbid || coverUrl ? (
         <CoverArtImage
           type={imageType}
-          mbid={mbid}
+          mbid={mbid ?? ""}
+          coverUrl={coverUrl}
           size={thumbSize}
           borderRadius={borderRadius}
         />

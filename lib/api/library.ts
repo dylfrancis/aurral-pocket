@@ -140,6 +140,7 @@ function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
     available: item.available,
     identityKey: item.identityKey,
     userFavorite: item.userFavorite,
+    coverUrl: item.coverUrl ?? undefined,
   };
 }
 

@@ -98,6 +98,12 @@ export type Album = {
   /** Canonical read path only. True when the signed-in user favorited this album. */
   userFavorite?: boolean;
   /**
+   * Canonical read path only. The path the server serves this album's cover
+   * from, resized and cached. Loads through CoverArtImage's `coverUrl`. See
+   * CanonicalAlbumItem.
+   */
+  coverUrl?: string;
+  /**
    * Whole-library album pages only. The MBID of the library artist the album
    * belongs to, read from the page's related artists. See useLibraryAlbumsAll.
    */
@@ -261,7 +267,10 @@ export type CanonicalLidarrAlbumStatistics = {
   percentOfTracks?: number;
 };
 
-/** The page route derives an album's `coverUrl` from `images`. */
+/**
+ * The server's own artwork can fall back to the first of `images` when the
+ * files carry no cover. See CanonicalAlbumItem's `coverUrl`.
+ */
 export type CanonicalAlbumMetadata = {
   /**
    * Lidarr's album id on a Lidarr-sourced row. An album Aurral manages
@@ -354,7 +363,14 @@ export type CanonicalAlbumItem = {
   available?: boolean;
   trackCount?: number;
   availableTrackCount?: number;
-  /** An image-proxy URL derived from the metadata images; null without one. */
+  /**
+   * The server-relative path the album's cover is served from: custom
+   * artwork when the album has some (`/api/library/artwork/album/:id?v=…`),
+   * otherwise `/api/library/albums/:id/cover?v=…`. That one serves the first
+   * cover it finds in the files, a cover file beside them, the metadata
+   * image, Cover Art Archive or the artist photo, and answers 404 without
+   * one. Set on every row.
+   */
   coverUrl?: string | null;
   /** Present when the request is authenticated. */
   userFavorite?: boolean;

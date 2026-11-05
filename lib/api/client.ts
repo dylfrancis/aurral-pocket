@@ -50,6 +50,33 @@ export function absolutizeImageUrl(
   return raw.replace(/^http:\/\//, "https://");
 }
 
+export type ServerImageSource = {
+  uri: string;
+  headers?: Record<string, string>;
+};
+
+/**
+ * An expo-image source for artwork the Aurral server serves itself, such as
+ * an album's `coverUrl` (`/api/library/albums/:id/cover?v=…`).
+ *
+ * The session token rides in a header, as it does on every API request, not
+ * in the query string: the URL is expo-image's cache key, so it must not
+ * change when the token refreshes. Only a server-relative path gets the
+ * header, so the token never goes to another host. Null before the server
+ * address is known, when a relative path cannot load.
+ */
+export function serverImageSource(
+  raw: string | null | undefined,
+): ServerImageSource | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/")) return { uri: absolutizeImageUrl(raw)! };
+  if (!baseURL) return null;
+  const uri = absolutizeImageUrl(raw)!;
+  return authToken
+    ? { uri, headers: { Authorization: `Bearer ${authToken}` } }
+    : { uri };
+}
+
 export function setAuthToken(token: string | null) {
   authToken = token;
 }

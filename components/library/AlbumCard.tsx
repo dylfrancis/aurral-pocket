@@ -27,6 +27,8 @@ type AlbumCardProps = {
    * artist's own pages leave it off.
    */
   showArtist?: boolean;
+  /** Loads the cover from the server's artwork path. See CoverArtImage. */
+  coverUrl?: string;
 };
 
 export const AlbumCard = React.memo(function AlbumCard({
@@ -35,6 +37,7 @@ export const AlbumCard = React.memo(function AlbumCard({
   fill,
   downloadStatus,
   showArtist = false,
+  coverUrl,
 }: AlbumCardProps) {
   const colors = Colors[useColorScheme()];
 
@@ -56,6 +59,7 @@ export const AlbumCard = React.memo(function AlbumCard({
       <CoverArtImage
         type="album"
         mbid={album.mbid}
+        coverUrl={coverUrl}
         size={fill ? "fill" : CARD_WIDTH}
         borderRadius={10}
       />

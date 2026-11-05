@@ -52,12 +52,14 @@ export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
           onPress={() => openAlbum(item)}
           fill
           showArtist
+          coverUrl={item.coverUrl}
         />
       )}
       renderListItem={(item) => (
         <MediaRow
           imageType="album"
           mbid={item.mbid}
+          coverUrl={item.coverUrl}
           title={item.albumName}
           subtitle={item.artistName || "Unknown Artist"}
           onPress={() => openAlbum(item)}
