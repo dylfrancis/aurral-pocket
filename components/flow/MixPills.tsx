@@ -2,13 +2,14 @@ import { StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import type { MixPercent } from "@/lib/types/flow";
+import { MIX_SOURCES, type MixPercent, type MixSource } from "@/lib/types/flow";
 
 const SOURCE_MIX_COLORS_LIGHT = {
   discover: "#5e7591",
   mix: "#8b6464",
-  trending: "#6e8159",
+  trending: "#66794f",
   focus: "#7d6991",
+  newReleases: "#86704d",
 } as const;
 
 const SOURCE_MIX_COLORS_DARK = {
@@ -16,7 +17,18 @@ const SOURCE_MIX_COLORS_DARK = {
   mix: "#b78787",
   trending: "#94a578",
   focus: "#a78fbe",
+  newReleases: "#b0946c",
 } as const;
+
+const PILL_LABELS: Record<MixSource, string> = {
+  discover: "Discover",
+  mix: "Mix",
+  trending: "Trend",
+  focus: "Focus",
+  newReleases: "New Releases",
+};
+
+const PILL_LABEL_COLOR = { light: "#ffffff", dark: "#000000" } as const;
 
 export function useSourceMixColors() {
   return useColorScheme() === "dark"
@@ -24,10 +36,18 @@ export function useSourceMixColors() {
     : SOURCE_MIX_COLORS_LIGHT;
 }
 
-function MixPill({ label, color }: { label: string; color: string }) {
+function MixPill({
+  label,
+  fill,
+  labelColor,
+}: {
+  label: string;
+  fill: string;
+  labelColor: string;
+}) {
   return (
-    <View style={[styles.pill, { backgroundColor: color }]}>
-      <Text variant="caption" style={styles.label}>
+    <View style={[styles.pill, { backgroundColor: fill }]}>
+      <Text variant="caption" style={[styles.label, { color: labelColor }]}>
         {label}
       </Text>
     </View>
@@ -40,27 +60,17 @@ type Props = {
 
 export function MixPills({ mix }: Props) {
   const palette = useSourceMixColors();
-  const pills = [
-    {
-      label: `Discover ${mix.discover}%`,
-      value: mix.discover,
-      color: palette.discover,
-    },
-    { label: `Mix ${mix.mix}%`, value: mix.mix, color: palette.mix },
-    {
-      label: `Trend ${mix.trending}%`,
-      value: mix.trending,
-      color: palette.trending,
-    },
-    { label: `Focus ${mix.focus}%`, value: mix.focus, color: palette.focus },
-  ];
+  const labelColor = PILL_LABEL_COLOR[useColorScheme()];
   return (
     <View style={styles.row}>
-      {pills
-        .filter((pill) => pill.value > 0)
-        .map((pill) => (
-          <MixPill key={pill.label} label={pill.label} color={pill.color} />
-        ))}
+      {MIX_SOURCES.filter((source) => mix[source] > 0).map((source) => (
+        <MixPill
+          key={source}
+          label={`${PILL_LABELS[source]} ${mix[source]}%`}
+          fill={palette[source]}
+          labelColor={labelColor}
+        />
+      ))}
     </View>
   );
 }
@@ -80,6 +90,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     ...Fonts.semiBold,
-    color: "#ffffff",
   },
 });

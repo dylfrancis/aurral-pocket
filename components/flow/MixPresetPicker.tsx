@@ -2,7 +2,7 @@ import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { MIX_PRESETS } from "@/lib/types/flow";
+import { MIX_PRESETS, MIX_SOURCES } from "@/lib/types/flow";
 import type { MixPercent } from "@/lib/types/flow";
 
 type Props = {
@@ -11,12 +11,7 @@ type Props = {
 };
 
 function isSamePreset(a: MixPercent, b: MixPercent): boolean {
-  return (
-    a.discover === b.discover &&
-    a.mix === b.mix &&
-    a.trending === b.trending &&
-    a.focus === b.focus
-  );
+  return MIX_SOURCES.every((source) => a[source] === b[source]);
 }
 
 export function MixPresetPicker({ value, onPick }: Props) {
