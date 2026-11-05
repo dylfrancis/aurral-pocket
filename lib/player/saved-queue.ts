@@ -16,6 +16,8 @@ type SavedTrack = {
   album: string;
   artwork: string | null;
   streamPath: string;
+  /** Written since the player loads the server's cover. */
+  coverPath?: string | null;
   /**
    * Written since the play-history recorder needed them. A queue saved before
    * that reads back without them, and its tracks report plays without ids
@@ -98,6 +100,7 @@ function parseTrack(raw: unknown): SavedTrack | null {
     album: isString(raw.album) ? raw.album : "",
     artwork: isString(raw.artwork) ? raw.artwork : null,
     streamPath: raw.streamPath,
+    coverPath: isString(raw.coverPath) ? raw.coverPath : null,
     trackMbid: isString(raw.trackMbid) ? raw.trackMbid : null,
     artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,
     albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
@@ -109,6 +112,7 @@ function parseAlbum(raw: unknown): PlayerAlbumContext | null {
   return {
     albumTitle: isString(raw.albumTitle) ? raw.albumTitle : "",
     artistName: isString(raw.artistName) ? raw.artistName : "",
+    coverPath: isString(raw.coverPath) ? raw.coverPath : null,
     artworkUrl: isString(raw.artworkUrl) ? raw.artworkUrl : null,
     albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
     artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,
@@ -124,6 +128,7 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
     album: item.album,
     artwork: item.artwork,
     streamPath: item.streamPath,
+    coverPath: item.coverPath,
     trackMbid: item.trackMbid,
     artistMbid: item.artistMbid,
     albumMbid: item.albumMbid,
@@ -162,6 +167,7 @@ function toPlayableTrack(
     url,
     artwork: saved.artwork,
     streamPath: saved.streamPath,
+    coverPath: saved.coverPath ?? null,
     trackMbid: saved.trackMbid ?? null,
     artistMbid: saved.artistMbid ?? album.artistMbid,
     albumMbid: saved.albumMbid ?? album.albumMbid,

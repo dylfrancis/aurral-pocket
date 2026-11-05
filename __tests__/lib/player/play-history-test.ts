@@ -38,6 +38,7 @@ function track(overrides: Partial<PlayerTrack> = {}): PlayerTrack {
     url: "https://test.example/api/library/canonical-stream/12/77",
     artwork: null,
     streamPath: "/library/canonical-stream/12/77",
+    coverPath: null,
     trackMbid: "track-mb-1",
     artistMbid: "artist-mb-1",
     albumMbid: "album-mb-1",

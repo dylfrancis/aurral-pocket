@@ -69,6 +69,7 @@ const STREAM_ROOT = "https://test.example/api";
 const album = {
   albumTitle: "Kid A",
   artistName: "Radiohead",
+  coverPath: null,
   artworkUrl: "https://art.example/kid-a.jpg",
   albumMbid: "album-mb-1",
   artistMbid: "artist-mb-1",
@@ -106,6 +107,7 @@ function savedRecord(overrides: Record<string, unknown> = {}) {
       album: "Kid A",
       artwork: album.artworkUrl,
       streamPath: item.streamPath,
+      coverPath: null,
     })),
     originalIds: ["71", "72", "73"],
     currentId: "72",
@@ -146,10 +148,10 @@ function deletedPlaylistIds(): string[] {
   return mockQueue.deletePlaylist.mock.calls.map(([id]) => id);
 }
 
-function queuedTracks(): { id: string; url: string }[] {
+function queuedTracks(): { id: string; url: string; artwork: string | null }[] {
   const calls = mockQueue.addTracksToPlaylist.mock.calls as unknown as [
     string,
-    { id: string; url: string }[],
+    { id: string; url: string; artwork: string | null }[],
   ][];
   return calls[0][1];
 }
@@ -288,6 +290,29 @@ describe("saving the queue", () => {
       id: "71",
       url: `${STREAM_ROOT}/library/canonical-stream/12/71?token=test-token-123`,
     });
+  });
+
+  it("gives the engine the cover with a token, and saves only its path", async () => {
+    await facade.playAlbumFromTrack(albumTracks, albumTracks[0], {
+      ...album,
+      coverPath: "/api/library/albums/12/cover?v=abc",
+    });
+    await flush();
+
+    expect(queuedTracks()[0].artwork).toBe(
+      "https://test.example/api/library/albums/12/cover?v=abc&token=test-token-123",
+    );
+    const saved = savedQueues().at(-1)!;
+    expect((saved.items as Record<string, unknown>[])[0].coverPath).toBe(
+      "/api/library/albums/12/cover?v=abc",
+    );
+    expect(JSON.stringify(saved)).not.toContain("test-token-123");
+  });
+
+  it("gives the engine the MBID image for an album with no cover path", async () => {
+    await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
+
+    expect(queuedTracks()[0].artwork).toBe(album.artworkUrl);
   });
 
   it("writes the position every few seconds, not every tick", async () => {
@@ -459,6 +484,27 @@ describe("restoring the queue", () => {
 
   // Records written before the ids were saved must still restore. Their
   // tracks report plays without a recording id rather than not playing.
+  it("gives the restored cover the new session's token", async () => {
+    mockStorage.getItem.mockResolvedValue(
+      JSON.stringify({
+        ...JSON.parse(savedRecord()),
+        items: albumTracks.map((item) => ({
+          id: item.id,
+          artwork: album.artworkUrl,
+          streamPath: item.streamPath,
+          coverPath: "/api/library/albums/12/cover?v=abc",
+        })),
+      }),
+    );
+    const player = await freshFacade();
+
+    await player.restoreSavedQueue();
+
+    expect(queuedTracks()[0].artwork).toBe(
+      "https://test.example/api/library/albums/12/cover?v=abc&token=restored-token",
+    );
+  });
+
   it("falls back to the album for a record saved without ids", async () => {
     mockStorage.getItem.mockResolvedValue(savedRecord());
     const player = await freshFacade();
@@ -554,6 +600,7 @@ describe("restoring the queue", () => {
             album: "Kid A",
             artwork: null,
             streamPath: "/library/canonical-stream/12/73",
+            coverPath: null,
           },
           {
             id: "71",
@@ -562,6 +609,7 @@ describe("restoring the queue", () => {
             album: "Kid A",
             artwork: null,
             streamPath: "/library/canonical-stream/12/71",
+            coverPath: null,
           },
         ],
         originalIds: ["71", "73"],

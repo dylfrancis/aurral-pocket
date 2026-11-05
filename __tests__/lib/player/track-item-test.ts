@@ -34,6 +34,7 @@ function track(overrides: Partial<Track> = {}): Track {
 const album = {
   albumTitle: "Kid A",
   artistName: "Radiohead",
+  coverPath: null,
   artworkUrl: "https://art.example/kid-a.jpg",
   albumMbid: "album-mb-1",
   artistMbid: "artist-mb-1",
@@ -55,6 +56,7 @@ describe("toPlayerTrack", () => {
       url: "https://test.example/api/library/canonical-stream/12/77?token=test-token-123",
       // Kept so a restored queue can build a fresh URL for the track.
       streamPath: "/library/canonical-stream/12/77",
+      coverPath: null,
       artwork: "https://art.example/kid-a.jpg",
       // Carried on the track so a reported play names the right recording.
       trackMbid: "mb-track",
@@ -79,6 +81,7 @@ describe("toPlayerTrack", () => {
     const mapped = toPlayerTrack(track(), {
       albumTitle: "",
       artistName: "",
+      coverPath: null,
       artworkUrl: null,
       albumMbid: null,
       artistMbid: null,

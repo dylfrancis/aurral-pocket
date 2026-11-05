@@ -17,6 +17,7 @@ jest.mock("expo/fetch", () => ({
 import {
   ApiError,
   api,
+  authenticatedImageUrl,
   buildAuthenticatedUrl,
   notifyReAuthResult,
   serverImageSource,
@@ -164,6 +165,40 @@ describe("buildAuthenticatedUrl", () => {
     setAuthToken("test-token-123");
 
     expect(buildAuthenticatedUrl("/ping")).toBeNull();
+  });
+});
+
+describe("authenticatedImageUrl", () => {
+  it("adds the session token after the cover's version", () => {
+    setAuthToken("test-token-123");
+
+    expect(authenticatedImageUrl("/api/library/albums/12/cover?v=abc")).toBe(
+      "https://test.example/api/library/albums/12/cover?v=abc&token=test-token-123",
+    );
+  });
+
+  it("starts the query when the path has none", () => {
+    setAuthToken("test-token-123");
+
+    expect(authenticatedImageUrl("/api/library/albums/12/cover")).toBe(
+      "https://test.example/api/library/albums/12/cover?token=test-token-123",
+    );
+  });
+
+  it("never sends the session token to another host", () => {
+    setAuthToken("test-token-123");
+
+    expect(
+      authenticatedImageUrl(
+        "https://coverartarchive.org/release-group/1/front",
+      ),
+    ).toBe("https://coverartarchive.org/release-group/1/front");
+  });
+
+  it("has no URL to give while signed out, so the caller can fall back", () => {
+    setAuthToken(null);
+
+    expect(authenticatedImageUrl("/api/library/albums/12/cover")).toBeNull();
   });
 });
 

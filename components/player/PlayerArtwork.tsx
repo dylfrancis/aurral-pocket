@@ -1,32 +1,44 @@
+import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { serverImageSource } from "@/lib/api/client";
 
 type PlayerArtworkProps = {
   url: string | null;
+  /** The cover on the server. Loaded instead of `url`, which is its fallback. */
+  coverPath?: string | null;
   size: number | "fill";
   borderRadius?: number;
 };
 
 /**
- * Artwork for a queued track, straight from its URL. Queue items carry the
- * album art URL already resolved, so this skips the cover-art lookup that
- * CoverArtImage does for library entities.
+ * Artwork for a queued track. Queue items carry the image already resolved, so
+ * this skips the cover-art lookup that CoverArtImage does for library entities.
  */
 export function PlayerArtwork({
   url,
+  coverPath,
   size,
   borderRadius = 8,
 }: PlayerArtworkProps) {
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const serverSource = serverImageSource(coverPath);
+  const source =
+    serverSource && serverSource.uri !== failedUri
+      ? serverSource
+      : url
+        ? { uri: url }
+        : null;
   const colors = Colors[useColorScheme()];
   const sizeStyle =
     size === "fill"
       ? { width: "100%" as const, aspectRatio: 1 }
       : { width: size, height: size };
 
-  if (!url) {
+  if (!source) {
     return (
       <View
         style={[
@@ -46,10 +58,13 @@ export function PlayerArtwork({
 
   return (
     <Image
-      source={{ uri: url }}
+      source={source}
       style={[sizeStyle, { borderRadius }]}
       contentFit="cover"
       transition={150}
+      onError={() => {
+        if (source === serverSource) setFailedUri(serverSource.uri);
+      }}
     />
   );
 }

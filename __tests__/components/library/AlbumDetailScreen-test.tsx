@@ -20,11 +20,12 @@ jest.mock("@/hooks/library/use-play-track", () => ({
   usePlayTrack: jest.fn(() => jest.fn()),
 }));
 
+const mockPlayAlbum = jest.fn();
 jest.mock("@/hooks/library/use-queue-actions", () => ({
   useQueueActions: jest.fn(() => ({
     playNext: jest.fn(),
     addToQueue: jest.fn(),
-    playAlbum: jest.fn(),
+    playAlbum: (...args: unknown[]) => mockPlayAlbum(...args),
     shuffleAlbum: jest.fn(),
   })),
 }));
@@ -137,6 +138,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlbumDetailScreen } from "@/components/library/AlbumDetailScreen";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
+import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import {
   deleteAlbum,
   getDownloadStatuses,
@@ -147,6 +149,7 @@ import { libraryKeys } from "@/lib/query-keys";
 import type { Album } from "@/lib/types/library";
 
 const mockUseLibraryAlbum = useLibraryAlbum as jest.Mock;
+const mockUseLibraryTracks = useLibraryTracks as jest.Mock;
 const mockDeleteAlbum = deleteAlbum as jest.Mock;
 const mockTriggerAlbumSearch = triggerAlbumSearch as jest.Mock;
 const mockGetDownloadStatuses = getDownloadStatuses as jest.Mock;
@@ -192,6 +195,7 @@ async function openAlbumPage(album: Album) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseLibraryTracks.mockReturnValue({ data: [], isLoading: false });
   jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons) => {
     buttons?.find((button) => button.style === "destructive")?.onPress?.();
   });
@@ -273,6 +277,38 @@ describe("AlbumDetailScreen", () => {
     });
     await rerender(page());
     expect(heroCoverUrl()).toBe("/api/library/artwork/album/14?v=2");
+  });
+
+  it("hands the player the album's cover", async () => {
+    mockUseLibraryTracks.mockReturnValue({
+      data: [
+        {
+          id: "1",
+          mbid: "",
+          trackName: "Reckoner",
+          title: "Reckoner",
+          trackNumber: 1,
+          hasFile: true,
+          size: 1,
+          quality: null,
+          streamPath: "/library/canonical-stream/14/1",
+        },
+      ],
+      isLoading: false,
+    });
+    await openAlbumPage({
+      ...lidarrAlbum,
+      coverUrl: "/api/library/albums/14/cover?v=1",
+    });
+
+    await fireEvent.press(screen.getByText("Play"));
+
+    expect(mockPlayAlbum).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        coverPath: "/api/library/albums/14/cover?v=1",
+      }),
+    );
   });
 
   it("hides the Lidarr actions for an album Lidarr does not manage", async () => {

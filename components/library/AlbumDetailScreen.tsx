@@ -120,8 +120,7 @@ export function AlbumDetailScreen() {
   // Lidarr does not manage has no id, and the page hides both actions.
   const lidarrAlbumId = (album ? album.lidarrId : params.lidarrAlbumId) || "";
 
-  // Resolved from the cache the hero cover fills, so the player carries the
-  // artwork onto the mini player and the lock screen.
+  // For the player, when the server has no cover to give it.
   const { url: artworkUrl } = useCoverArtUrl({
     type: "album",
     mbid: albumMbid || undefined,
@@ -130,6 +129,7 @@ export function AlbumDetailScreen() {
   const playContext: PlayerAlbumContext = {
     albumTitle: title,
     artistName,
+    coverPath: coverUrl || null,
     artworkUrl,
     albumMbid: albumMbid || null,
     artistMbid: params.artistMbid || null,
