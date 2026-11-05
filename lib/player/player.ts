@@ -71,6 +71,27 @@ function configureEngine(): Promise<void> {
 }
 
 /**
+ * Delete every playlist the engine holds, not only the facade's queue. The
+ * engine saves its playlists to disk and loads them back when it starts, and
+ * each saved track keeps its stream URL, session token included. The facade
+ * forgets its playlist id on a restart, so without this every cold start
+ * leaves one more playlist behind.
+ *
+ * Pocket is the engine's only user, and a restore rebuilds the queue from
+ * pocket's own saved record, so nothing the engine kept is needed. Best
+ * effort: one playlist that will not delete does not stop the others, and a
+ * failure here must not stop the restore or the sign-out that asked for it.
+ */
+async function deleteEnginePlaylists(): Promise<void> {
+  try {
+    const deletes = PlayerQueue.getAllPlaylists().map((playlist) =>
+      PlayerQueue.deletePlaylist(playlist.id),
+    );
+    await Promise.allSettled(deletes);
+  } catch {}
+}
+
+/**
  * Play one item, replacing whatever is playing. Callers that hold a library
  * track should use playAlbumFromTrack instead.
  *
@@ -498,7 +519,8 @@ function resetProgress(): void {
 /**
  * Bring back the queue the last session left, paused where it stopped. Call
  * once at start, after the session token is in place — the stream URLs are
- * built from it. Returns false when nothing comes back.
+ * built from it — and before any play, since it first clears the playlists
+ * the engine kept. Returns false when nothing comes back.
  *
  * Chained on the play queue for the same reason plays are: a pending play
  * would make "is anything playing" a stale answer.
@@ -514,6 +536,12 @@ export function restoreSavedQueue(): Promise<boolean> {
 
 async function restoreNow(): Promise<boolean> {
   if (queueOrder.length > 0) return false;
+
+  // Nothing is queued, so every engine playlist is a leftover: an earlier
+  // process's, or one a sign-out could not delete. This runs at every launch
+  // and sign-in, before any play, so a launch with nothing to restore still
+  // clears them.
+  await deleteEnginePlaylists();
 
   const saved = await readSavedQueue();
   if (!saved) return false;
@@ -533,9 +561,6 @@ async function restoreNow(): Promise<boolean> {
   restoringQueue = true;
   try {
     await configureEngine();
-    if (currentPlaylistId) {
-      await PlayerQueue.deletePlaylist(currentPlaylistId);
-    }
     const playlistId = await PlayerQueue.createPlaylist(PLAYLIST_NAME);
     currentPlaylistId = playlistId;
     queueOrder = items;
@@ -597,15 +622,16 @@ export function forgetQueue(): Promise<void> {
     notifyModesChanged();
 
     // An engine that refuses to let go must not keep the record alive, and
-    // must not fail the sign-out that asked for this. A playlist left behind
-    // is deleted by the next play, which starts by deleting the current one.
+    // must not fail the sign-out that asked for this. Every playlist goes,
+    // not only the current one: the engine keeps earlier sessions' playlists
+    // on disk, stream URLs and session tokens included, and a sign-out with
+    // nothing played has no current one. A playlist that will not delete is
+    // deleted by the next restore, at the next sign-in or launch.
     try {
       await TrackPlayer.pause();
-      if (currentPlaylistId) {
-        await PlayerQueue.deletePlaylist(currentPlaylistId);
-        currentPlaylistId = null;
-      }
     } catch {}
+    await deleteEnginePlaylists();
+    currentPlaylistId = null;
 
     lastSave = lastSave.then(clearSavedQueue).catch(() => {});
     await lastSave;
