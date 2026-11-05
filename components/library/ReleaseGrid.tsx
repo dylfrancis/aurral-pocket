@@ -22,6 +22,7 @@ import { Colors } from "@/constants/theme";
 
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
+const DRAW_DISTANCE = 800;
 
 type ReleaseGridProps<T, Sort extends string> = {
   items: T[];
@@ -158,6 +159,14 @@ export function ReleaseGrid<T, Sort extends string = AlbumSortMode>({
         numColumns={viewMode === "grid" ? gridColumns : 1}
         ListEmptyComponent={emptyComponent}
         onEndReached={onEndReached}
+        // Two screens ahead, not FlashList's half screen, so the next page is
+        // usually in by the time a fast scroll reaches the end.
+        onEndReachedThreshold={2}
+        // Mount cells further past the viewport than FlashList's 250, so their
+        // covers start loading before they scroll in. The server's covers are
+        // at most 512px, about 1 MB each decoded, so this holds roughly ten
+        // more in memory on a phone.
+        drawDistance={DRAW_DISTANCE}
         ListFooterComponent={
           isFetchingNextPage ? (
             <ActivityIndicator color={colors.brand} style={styles.footer} />
