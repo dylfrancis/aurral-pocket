@@ -15,12 +15,22 @@ const {
  * required from API 28. FOREGROUND_SERVICE_MEDIA_PLAYBACK is required from
  * API 34, which refuses to start a media service without it. WAKE_LOCK keeps
  * the processor awake while the screen is off.
+ *
+ * The Nitro player's manifest also asks for FOREGROUND_SERVICE_DATA_SYNC, for
+ * its offline-download worker. Pocket never downloads to the device, so the
+ * permission is stripped from the merged manifest: Google Play makes every
+ * foreground service type the app declares demonstrable in review. Put it back
+ * if Pocket starts using the player's downloads.
  */
 
 const ANDROID_PLAYBACK_PERMISSIONS = [
   "android.permission.FOREGROUND_SERVICE",
   "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
   "android.permission.WAKE_LOCK",
+];
+
+const ANDROID_BLOCKED_PERMISSIONS = [
+  "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
 ];
 
 /** Add the audio background mode without dropping modes another plugin set. */
@@ -44,6 +54,11 @@ const withBackgroundAudio = (config) => {
     );
     return cfg;
   });
+
+  config = AndroidConfig.Permissions.withBlockedPermissions(
+    config,
+    ANDROID_BLOCKED_PERMISSIONS,
+  );
 
   return config;
 };
