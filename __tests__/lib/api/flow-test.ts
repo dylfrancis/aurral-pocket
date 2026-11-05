@@ -104,4 +104,11 @@ describe("getFlowArtworkSource", () => {
     expect(uri).not.toContain("token=");
     expect(uri).not.toContain("secret");
   });
+
+  it("versions the URL with the artwork revision, so a new cover is not served from cache", () => {
+    const { uri } = getFlowArtworkSource("pl-1", "secret", 1730000000000);
+    expect(uri).toBe(
+      "https://example.com/api/playlists/artwork/pl-1?v=1730000000000",
+    );
+  });
 });

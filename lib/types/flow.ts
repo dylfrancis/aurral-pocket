@@ -45,6 +45,8 @@ export type Flow = {
   scheduleDays: number[];
   scheduleTime: string;
   nextRunAt: number | null;
+  /** Status snapshot only. See SharedPlaylist. */
+  artworkRevision?: number;
 };
 
 export type SharedPlaylistTrack = {
@@ -71,6 +73,11 @@ export type SharedPlaylist = {
    * playlist. Optional because older Aurral versions do not send it.
    */
   trackIdentities?: string[];
+  /**
+   * Status snapshot only. Changes whenever the server writes new artwork, so
+   * it versions the artwork URL. Unset until the playlist first has artwork.
+   */
+  artworkRevision?: number;
 };
 
 export type FlowJobStatus =
