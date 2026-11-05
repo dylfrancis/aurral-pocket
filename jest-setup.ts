@@ -46,6 +46,7 @@ jest.mock("react-native-nitro-player", () => ({
   PlayerQueue: {
     createPlaylist: jest.fn(() => Promise.resolve("playlist-1")),
     deletePlaylist: jest.fn(() => Promise.resolve()),
+    getAllPlaylists: jest.fn(() => []),
     addTracksToPlaylist: jest.fn(() => Promise.resolve()),
     loadPlaylist: jest.fn(() => Promise.resolve()),
     reorderTrackInPlaylist: jest.fn(() => Promise.resolve()),

@@ -19,7 +19,8 @@ jest.mock("expo/fetch", () => ({ fetch: mockFetch }));
 
 const mockQueue = {
   createPlaylist: jest.fn(() => Promise.resolve("playlist-1")),
-  deletePlaylist: jest.fn(() => Promise.resolve()),
+  deletePlaylist: jest.fn((_id: string) => Promise.resolve()),
+  getAllPlaylists: jest.fn((): { id: string }[] => []),
   addTracksToPlaylist: jest.fn(() => Promise.resolve()),
   loadPlaylist: jest.fn(() => Promise.resolve()),
   reorderTrackInPlaylist: jest.fn(() => Promise.resolve()),
@@ -136,6 +137,15 @@ function engineTrack(id: string) {
   return { id, title: "", artist: "", album: "", duration: 0 };
 }
 
+/** A playlist the engine holds, as its playlist list reports it. */
+function enginePlaylist(id: string) {
+  return { id, name: "Aurral", tracks: [engineTrack(id)] };
+}
+
+function deletedPlaylistIds(): string[] {
+  return mockQueue.deletePlaylist.mock.calls.map(([id]) => id);
+}
+
 function queuedTracks(): { id: string; url: string }[] {
   const calls = mockQueue.addTracksToPlaylist.mock.calls as unknown as [
     string,
@@ -190,6 +200,9 @@ beforeEach(() => {
   setBaseUrl("https://test.example");
   setAuthToken("test-token-123");
   mockQueue.createPlaylist.mockResolvedValue("playlist-1");
+  // Reset, not cleared: a list queued for a call that never came must not
+  // reach the next test.
+  mockQueue.getAllPlaylists.mockReset().mockReturnValue([]);
   mockStorage.getItem.mockResolvedValue(null);
   mockFetch.mockResolvedValue({ status: 206 });
 });
@@ -387,6 +400,35 @@ describe("restoring the queue", () => {
     expect(mockPlayer.seek).toHaveBeenCalledWith(96);
   });
 
+  it("deletes the playlists an earlier process left before building its own", async () => {
+    // The engine loads its saved playlists back at start, every track's
+    // stream URL and session token included.
+    mockStorage.getItem.mockResolvedValue(savedRecord());
+    mockQueue.getAllPlaylists.mockReturnValueOnce([
+      enginePlaylist("stale-1"),
+      enginePlaylist("stale-2"),
+    ]);
+    const player = await freshFacade();
+
+    await expect(player.restoreSavedQueue()).resolves.toBe(true);
+
+    expect(deletedPlaylistIds()).toEqual(["stale-1", "stale-2"]);
+    const [created] = mockQueue.createPlaylist.mock.invocationCallOrder;
+    for (const deleted of mockQueue.deletePlaylist.mock.invocationCallOrder) {
+      expect(deleted).toBeLessThan(created);
+    }
+    expect(mockQueue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 1);
+  });
+
+  it("deletes them when there is no queue to restore", async () => {
+    mockQueue.getAllPlaylists.mockReturnValueOnce([enginePlaylist("stale-1")]);
+    const player = await freshFacade();
+
+    await expect(player.restoreSavedQueue()).resolves.toBe(false);
+
+    expect(deletedPlaylistIds()).toEqual(["stale-1"]);
+  });
+
   it("resumes from the restored position", async () => {
     mockStorage.getItem.mockResolvedValue(savedRecord());
     const player = await freshFacade();
@@ -541,21 +583,30 @@ describe("restoring the queue", () => {
     const player = await freshFacade();
     await player.playAlbumFromTrack(albumTracks, albumTracks[0], album);
     mockQueue.createPlaylist.mockClear();
+    mockQueue.getAllPlaylists.mockReturnValue([enginePlaylist("playlist-1")]);
 
     await expect(player.restoreSavedQueue()).resolves.toBe(false);
     expect(mockQueue.createPlaylist).not.toHaveBeenCalled();
+    expect(mockQueue.deletePlaylist).not.toHaveBeenCalled();
   });
 });
 
 describe("forgetting the queue", () => {
   it("stops the player and empties the queue", async () => {
     await facade.playAlbumFromTrack(albumTracks, albumTracks[0], album);
+    mockQueue.deletePlaylist.mockClear();
+    mockQueue.getAllPlaylists.mockReturnValueOnce([
+      enginePlaylist("playlist-1"),
+      enginePlaylist("stale-1"),
+    ]);
 
     await facade.forgetQueue();
     await flush();
 
     expect(mockPlayer.pause).toHaveBeenCalled();
-    expect(mockQueue.deletePlaylist).toHaveBeenCalledWith("playlist-1");
+    // Every playlist, not only the queue: the engine keeps earlier sessions'
+    // playlists on disk.
+    expect(deletedPlaylistIds()).toEqual(["playlist-1", "stale-1"]);
     expect(mockStorage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
 
     const { result } = await renderHook(() => facade.useHasQueue());
@@ -567,13 +618,16 @@ describe("forgetting the queue", () => {
     mockPlayer.pause.mockClear();
     mockQueue.deletePlaylist.mockClear();
     mockPlayer.pause.mockRejectedValueOnce(new Error("engine"));
+    mockQueue.getAllPlaylists.mockReturnValueOnce([
+      enginePlaylist("playlist-1"),
+    ]);
 
     await expect(facade.forgetQueue()).resolves.toBeUndefined();
     await flush();
 
     expect(mockPlayer.pause).toHaveBeenCalledTimes(1);
-    // The playlist is left for the next play to delete.
-    expect(mockQueue.deletePlaylist).not.toHaveBeenCalled();
+    // The token-bearing playlist still goes.
+    expect(deletedPlaylistIds()).toEqual(["playlist-1"]);
     expect(mockStorage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
   });
 
@@ -582,13 +636,29 @@ describe("forgetting the queue", () => {
     mockPlayer.pause.mockClear();
     mockQueue.deletePlaylist.mockClear();
     mockQueue.deletePlaylist.mockRejectedValueOnce(new Error("engine"));
+    mockQueue.getAllPlaylists.mockReturnValueOnce([
+      enginePlaylist("playlist-1"),
+      enginePlaylist("stale-1"),
+    ]);
 
     await expect(facade.forgetQueue()).resolves.toBeUndefined();
     await flush();
 
     expect(mockPlayer.pause).toHaveBeenCalledTimes(1);
-    expect(mockQueue.deletePlaylist).toHaveBeenCalledWith("playlist-1");
+    // One refusal does not keep the others.
+    expect(deletedPlaylistIds()).toEqual(["playlist-1", "stale-1"]);
     expect(mockStorage.removeItem).toHaveBeenCalledWith(QUEUE_KEY);
+  });
+
+  it("deletes earlier sessions' playlists on a sign-out with nothing played", async () => {
+    // A launch with no saved queue never starts the engine, so the playlists
+    // it loaded from disk are still there, and the facade has no current one.
+    mockQueue.getAllPlaylists.mockReturnValueOnce([enginePlaylist("stale-1")]);
+    const player = await freshFacade();
+
+    await player.forgetQueue();
+
+    expect(deletedPlaylistIds()).toEqual(["stale-1"]);
   });
 
   it("outlasts a save that has not landed yet", async () => {
