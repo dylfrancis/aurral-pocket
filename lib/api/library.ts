@@ -80,6 +80,7 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
     available: item.available,
     identityKey: item.identityKey,
     userFavorite: item.userFavorite,
+    coverUrl: item.coverUrl ?? undefined,
   };
 }
 
@@ -298,6 +299,32 @@ export async function lookupLibraryArtists(
   return Object.assign({}, ...results);
 }
 
+function canonicalArtistId(artistRef: string): Promise<string | null> {
+  return /^\d+$/.test(artistRef)
+    ? Promise.resolve(artistRef)
+    : getLibraryArtistId(artistRef);
+}
+
+/**
+ * Read one artist's canonical row. The legacy artist route has no cover and
+ * the paged route has no single-artist read, but a page of albums carries the
+ * rows of its artists. Null until the canonical library has an album for them.
+ */
+export async function getCanonicalArtist(
+  artistRef: string,
+): Promise<Artist | null> {
+  const artistId = await canonicalArtistId(artistRef);
+  if (!artistId) return null;
+  const page = await getCanonicalLibraryPage({
+    kind: "albums",
+    source: "all",
+    availableOnly: false,
+    artistId,
+    pageSize: 1,
+  });
+  return page.artists.find((artist) => artist.id === artistId) ?? null;
+}
+
 /**
  * Read every album of one artist from the paged canonical route.
  *
@@ -313,9 +340,7 @@ export async function lookupLibraryArtists(
 export async function getCanonicalArtistAlbums(
   artistRef: string,
 ): Promise<Album[]> {
-  const artistId = /^\d+$/.test(artistRef)
-    ? artistRef
-    : await getLibraryArtistId(artistRef);
+  const artistId = await canonicalArtistId(artistRef);
   if (!artistId) return [];
   const albums: Album[] = [];
   let page = 1;

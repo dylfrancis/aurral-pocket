@@ -70,6 +70,7 @@ export function AlbumsGridScreen() {
         <MediaRow
           imageType="album"
           mbid={item.mbid}
+          coverUrl={item.coverUrl}
           title={item.albumName}
           subtitle={releaseYear(item.releaseDate)}
           onPress={() => openAlbum(item)}

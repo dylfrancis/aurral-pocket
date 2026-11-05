@@ -21,7 +21,10 @@ import {
   libraryAlbumsRef,
   releaseRouteParams,
 } from "@/lib/library-read";
-import { useLibraryArtist } from "@/hooks/library/use-library-artist";
+import {
+  useCanonicalArtist,
+  useLibraryArtist,
+} from "@/hooks/library/use-library-artist";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -105,6 +108,8 @@ const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
 type ArtistDetailLayoutProps = {
   mbid: string;
   artistName: string;
+  /** The cover the row that opened the page already has. */
+  coverUrl?: string;
   onNavigateToReleases: (type: PrimaryReleaseType, label: string) => void;
   onNavigateToAlbums?: (type: PrimaryReleaseType, label: string) => void;
   onSimilarArtistPress: (artist: SimilarArtist) => void;
@@ -113,6 +118,7 @@ type ArtistDetailLayoutProps = {
 export function ArtistDetailLayout({
   mbid,
   artistName,
+  coverUrl,
   onNavigateToReleases,
   onNavigateToAlbums,
   onSimilarArtistPress,
@@ -127,6 +133,8 @@ export function ArtistDetailLayout({
   const { data: libraryArtist, refetch: refetchArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,
   );
+  const { data: canonicalArtist, refetch: refetchCanonicalArtist } =
+    useCanonicalArtist(inLibrary ? mbid : undefined);
   // The read path decides whether albums are addressed by Lidarr id or by
   // MBID, so both identifiers go in and the helper picks one.
   const albumsRef = libraryAlbumsRef({
@@ -181,6 +189,15 @@ export function ArtistDetailLayout({
     }, 5000);
     return () => clearInterval(interval);
   }, [inLibrary, libraryArtist?.id, rawAlbums, refetchArtist, refetchAlbums]);
+
+  // An artist added from this page reads as null until its first album is
+  // indexed, and nothing else would read it again.
+  const albumsIndexed = !!rawAlbums?.length;
+  useEffect(() => {
+    if (albumsIndexed && canonicalArtist === null) {
+      void refetchCanonicalArtist();
+    }
+  }, [albumsIndexed, canonicalArtist, refetchCanonicalArtist]);
 
   const libraryAlbumMbids = useMemo(() => {
     if (!rawAlbums) return new Set<string>();
@@ -297,6 +314,9 @@ export function ArtistDetailLayout({
       void queryClient.invalidateQueries({
         queryKey: libraryKeys.artist(mbid),
       });
+      void queryClient.invalidateQueries({
+        queryKey: libraryKeys.canonicalArtist(mbid),
+      });
       if (libraryArtist) {
         void queryClient.invalidateQueries({
           queryKey: libraryKeys.albums(
@@ -358,9 +378,9 @@ export function ArtistDetailLayout({
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetchAlbums();
+    await Promise.all([refetchAlbums(), refetchCanonicalArtist()]);
     setRefreshing(false);
-  }, [refetchAlbums]);
+  }, [refetchAlbums, refetchCanonicalArtist]);
 
   const handleSimilarPress = useCallback(
     (artist: SimilarArtist) => {
@@ -450,7 +470,13 @@ export function ArtistDetailLayout({
         }
       >
         <ArtistHero
-          artist={{ mbid, artistName }}
+          // The live record wins over the row that opened the page, which may
+          // carry a cover version from before the artwork changed.
+          artist={{
+            mbid,
+            artistName,
+            coverUrl: canonicalArtist?.coverUrl || coverUrl,
+          }}
           scrollY={scrollY}
           refreshing={refreshing}
           inLibrary={inLibrary}

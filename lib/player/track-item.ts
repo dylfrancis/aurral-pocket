@@ -31,6 +31,8 @@ export type PlayerClip = {
  */
 export type PlayerTrack = PlayerClip & {
   streamPath: string | null;
+  /** The album's cover on the server. Tried before `artwork`. */
+  coverPath: string | null;
   trackMbid: string | null;
   artistMbid: string | null;
   albumMbid: string | null;
@@ -40,6 +42,9 @@ export type PlayerTrack = PlayerClip & {
 export type PlayerAlbumContext = {
   albumTitle: string;
   artistName: string;
+  /** An album's `coverUrl`. Tried before `artworkUrl`. */
+  coverPath: string | null;
+  /** The MBID lookup's image, for a server with no cover to give. */
   artworkUrl: string | null;
   /** The engine never sees this. Play events carry it. */
   albumMbid: string | null;
@@ -74,6 +79,7 @@ export function toPlayerTrack(
     url,
     artwork: album.artworkUrl || null,
     streamPath: track.streamPath,
+    coverPath: album.coverPath || null,
     trackMbid: track.mbid || null,
     artistMbid: album.artistMbid,
     albumMbid: album.albumMbid,

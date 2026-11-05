@@ -15,6 +15,7 @@ function track(id: string): PlayerTrack {
     url: `https://example.test/${id}`,
     artwork: null,
     streamPath: `/stream/${id}`,
+    coverPath: null,
     trackMbid: null,
     artistMbid: null,
     albumMbid: null,

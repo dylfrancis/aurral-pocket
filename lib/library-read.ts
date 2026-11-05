@@ -137,6 +137,7 @@ export function albumRouteParams(
     albumName: string;
     artistId?: string;
     artistName?: string;
+    coverUrl?: string;
   },
   artistName?: string,
   artistMbid?: string,
@@ -161,6 +162,7 @@ export function albumRouteParams(
     artistMbid: artistMbid ?? "",
     artistId: album.artistId ?? "",
     downloadStatus: downloadStatus ?? "",
+    coverUrl: album.coverUrl ?? "",
   };
 }
 

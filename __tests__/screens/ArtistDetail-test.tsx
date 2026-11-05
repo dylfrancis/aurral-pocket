@@ -1,3 +1,15 @@
+jest.mock("expo-image", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return {
+    Image: (props: any) =>
+      React.createElement(View, {
+        testID: "cover-image",
+        accessibilityLabel: props.source?.uri,
+      }),
+  };
+});
+
 jest.mock("@/lib/api/library", () => ({
   deleteLibraryArtist: jest.fn(),
   refreshLibraryArtist: jest.fn(),
@@ -201,6 +213,7 @@ jest.mock("@/components/library/ArtistTags", () => {
 jest.mock("@/hooks/library/use-library-artist", () => ({
   useLibraryArtist: jest.fn(),
   useLibraryArtistSuspense: jest.fn(),
+  useCanonicalArtist: jest.fn(),
 }));
 
 jest.mock("@/hooks/library/use-library-albums", () => ({
@@ -228,18 +241,20 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
 }));
 
 import React from "react";
-import { render, fireEvent } from "@testing-library/react-native";
+import { render, fireEvent, screen } from "@testing-library/react-native";
+import { useLocalSearchParams } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ArtistDetailScreen, {
   ErrorBoundary,
 } from "@/app/(app)/(tabs)/(library)/artist/[mbid]";
 import {
+  useCanonicalArtist,
   useLibraryArtist,
   useLibraryArtistSuspense,
 } from "@/hooks/library/use-library-artist";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, setBaseUrl } from "@/lib/api/client";
 import type { Artist, Album } from "@/lib/types/library";
 
 const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
@@ -257,6 +272,7 @@ async function renderScreen() {
 }
 
 const mockUseLibraryArtist = useLibraryArtist as jest.Mock;
+const mockUseCanonicalArtist = useCanonicalArtist as jest.Mock;
 const mockUseLibraryAlbums = useLibraryAlbums as jest.Mock;
 
 const baseArtist: Artist = {
@@ -308,7 +324,12 @@ const defaultSuspenseHook = {
 let consoleErrorSpy: jest.SpyInstance | undefined;
 beforeEach(() => {
   jest.clearAllMocks();
+  (useLocalSearchParams as jest.Mock).mockReturnValue({ mbid: "abc-123" });
   mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook });
+  mockUseCanonicalArtist.mockReturnValue({
+    data: undefined,
+    refetch: jest.fn().mockResolvedValue({}),
+  });
   mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook });
   mockUseLibraryArtistSuspense.mockReturnValue({ ...defaultSuspenseHook });
   consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
@@ -355,6 +376,50 @@ describe("ArtistDetailScreen ErrorBoundary", () => {
 
 describe("ArtistDetailScreen", () => {
   describe("with artist loaded", () => {
+    it("loads the hero from the route's cover, then the live record's", async () => {
+      setBaseUrl("https://music.example");
+      const heroImages = () =>
+        screen
+          .getAllByTestId("cover-image")
+          .map((image) => image.props.accessibilityLabel);
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        mbid: "abc-123",
+        coverUrl: "/api/library/artists/7/cover?v=1",
+      });
+
+      const { unmount } = await renderScreen();
+      expect(heroImages()).toEqual([
+        "https://music.example/api/library/artists/7/cover?v=1",
+        "https://music.example/api/library/artists/7/cover?v=1",
+      ]);
+      await unmount();
+
+      mockUseCanonicalArtist.mockReturnValue({
+        data: { coverUrl: "/api/library/artists/7/cover?v=2" },
+        refetch: jest.fn(),
+      });
+      await renderScreen();
+      expect(heroImages()).toEqual([
+        "https://music.example/api/library/artists/7/cover?v=2",
+        "https://music.example/api/library/artists/7/cover?v=2",
+      ]);
+    });
+
+    it("reads the artist's cover again once its first album is indexed", async () => {
+      const refetch = jest.fn().mockResolvedValue({});
+      mockUseCanonicalArtist.mockReturnValue({ data: null, refetch });
+
+      await renderScreen();
+      expect(refetch).not.toHaveBeenCalled();
+
+      mockUseLibraryAlbums.mockReturnValue({
+        ...defaultAlbumHook,
+        data: [makeAlbum({ id: "1" })],
+      });
+      await renderScreen();
+      expect(refetch).toHaveBeenCalledTimes(1);
+    });
+
     it("renders artist name", async () => {
       const { getByText } = await renderScreen();
       expect(getByText("Test Artist")).toBeTruthy();

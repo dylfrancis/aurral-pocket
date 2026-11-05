@@ -159,6 +159,19 @@ export default function LibraryArtistsScreen() {
     }
   }, [refetch]);
 
+  const openArtist = useCallback(
+    (artist: Artist) => {
+      router.push({
+        pathname: "/artist/[mbid]",
+        params: {
+          mbid: artistRouteId(artist),
+          coverUrl: artist.coverUrl ?? "",
+        },
+      });
+    },
+    [router],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: Artist }) => {
       if (viewMode === "list") {
@@ -167,22 +180,20 @@ export default function LibraryArtistsScreen() {
           <MediaRow
             imageType="artist"
             mbid={item.mbid}
+            coverUrl={item.coverUrl}
             title={item.artistName}
             subtitle={`${albumCount} ${albumCount === 1 ? "album" : "albums"}`}
-            onPress={() => router.push(`/artist/${artistRouteId(item)}`)}
+            onPress={() => openArtist(item)}
           />
         );
       }
       return (
         <View style={styles.gridItem}>
-          <ArtistCard
-            artist={item}
-            onPress={() => router.push(`/artist/${artistRouteId(item)}`)}
-          />
+          <ArtistCard artist={item} onPress={() => openArtist(item)} />
         </View>
       );
     },
-    [router, viewMode],
+    [openArtist, viewMode],
   );
 
   return (

@@ -42,6 +42,7 @@ export function MiniPlayer({ compact = false }: MiniPlayerProps) {
     >
       <PlayerArtwork
         url={track.artwork}
+        coverPath={track.coverPath}
         size={compact ? 32 : 40}
         borderRadius={6}
       />

@@ -128,6 +128,7 @@ describe("albumRouteParams", () => {
       artistMbid: "",
       artistId: "",
       downloadStatus: "",
+      coverUrl: "",
     });
   });
 

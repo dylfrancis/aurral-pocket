@@ -193,13 +193,19 @@ export function getFlowStreamUrl(jobId: string): string | null {
   return buildAuthenticatedUrl(`${FLOW}/stream/${encodeURIComponent(jobId)}`);
 }
 
+/**
+ * The URL is expo-image's cache key, so the artwork revision goes in it and
+ * a regenerated or uploaded cover replaces the cached one.
+ */
 export function getFlowArtworkSource(
   playlistId: string,
   token: string | null,
+  artworkRevision?: number,
 ): FlowAuthedSource {
   const base = api.defaults.baseURL;
+  const version = artworkRevision != null ? `?v=${artworkRevision}` : "";
   return authedSource(
-    `${base}${FLOW}/artwork/${encodeURIComponent(playlistId)}`,
+    `${base}${FLOW}/artwork/${encodeURIComponent(playlistId)}${version}`,
     token,
   );
 }

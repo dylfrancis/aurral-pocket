@@ -11,7 +11,10 @@ import type { PrimaryReleaseType } from "@/lib/types/library";
 import type { SimilarArtist } from "@/lib/types/search";
 
 export default function LibraryArtistDetailScreen() {
-  const { mbid } = useLocalSearchParams<{ mbid: string }>();
+  const { mbid, coverUrl } = useLocalSearchParams<{
+    mbid: string;
+    coverUrl?: string;
+  }>();
   const router = useRouter();
 
   const { data: artist } = useLibraryArtistSuspense(mbid);
@@ -62,6 +65,7 @@ export default function LibraryArtistDetailScreen() {
     <ArtistDetailLayout
       mbid={artist.mbid}
       artistName={artist.artistName}
+      coverUrl={coverUrl}
       onNavigateToReleases={navigateToReleases}
       onNavigateToAlbums={navigateToAlbums}
       onSimilarArtistPress={handleSimilarPress}

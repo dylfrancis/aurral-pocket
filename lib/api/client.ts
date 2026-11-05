@@ -73,6 +73,22 @@ export function serverImageSource(
     : { uri };
 }
 
+/**
+ * An artwork URL that authenticates itself, for a reader that cannot send
+ * headers: the engine fetches the lock screen's image with a plain request.
+ * Aurral accepts the token on its artwork routes. Anything that shows the image
+ * in the app should use serverImageSource, which keeps the token out of the
+ * cache key. Only a server-relative path gets the token.
+ */
+export function authenticatedImageUrl(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/")) return absolutizeImageUrl(raw);
+  if (!authToken || !baseURL) return null;
+  return buildUrl(absolutizeImageUrl(raw)!, { token: authToken });
+}
+
 export function setAuthToken(token: string | null) {
   authToken = token;
 }

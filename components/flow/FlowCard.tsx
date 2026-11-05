@@ -50,20 +50,27 @@ export function FlowCard({
 }: Props) {
   const colors = Colors[useColorScheme()];
   const { token } = useAuth();
-  const [imageFailed, setImageFailed] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const artworkSource = getFlowArtworkSource(flow.id, token);
+  const artworkSource = getFlowArtworkSource(
+    flow.id,
+    token,
+    flow.artworkRevision,
+  );
+  // Kept per URL: new artwork arrives under a new revision, so a new URL,
+  // which starts unloaded and unfailed.
+  const [loadedUri, setLoadedUri] = useState<string | null>(null);
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const imageLoaded = loadedUri === artworkSource.uri;
+  const imageFailed = failedUri === artworkSource.uri;
   const progress = progressLabel(stats, flow.size);
 
-  // Retry image load when polling picks up new stats — the backend writes the
-  // artwork PNG when a flow first runs, so a stats change is a good signal
+  // Retry a failed load when polling picks up new stats — the backend writes
+  // the artwork when a flow first runs, so a stats change is a good signal
   // that the previously-404'd URL is now valid.
   const statsKey = stats ? `${stats.done}-${stats.total}` : "none";
   const [prevStatsKey, setPrevStatsKey] = useState(statsKey);
   if (prevStatsKey !== statsKey) {
     setPrevStatsKey(statsKey);
-    setImageFailed(false);
-    setImageLoaded(false);
+    setFailedUri(null);
   }
 
   return (
@@ -87,8 +94,8 @@ export function FlowCard({
               contentFit="cover"
               transition={150}
               cachePolicy="memory-disk"
-              onLoad={() => setImageLoaded(true)}
-              onError={() => setImageFailed(true)}
+              onLoad={() => setLoadedUri(artworkSource.uri)}
+              onError={() => setFailedUri(artworkSource.uri)}
             />
           ) : null}
         </View>

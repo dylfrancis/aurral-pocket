@@ -16,6 +16,7 @@ import {
   type PlayerClip,
   type PlayerTrack,
 } from "@/lib/player/track-item";
+import { authenticatedImageUrl } from "@/lib/api/client";
 import type { Track } from "@/lib/types/library";
 import { useSyncExternalStore } from "react";
 import {
@@ -105,6 +106,7 @@ export function playItem(item: PlayerClip): Promise<void> {
   const track: PlayerTrack = {
     ...item,
     streamPath: null,
+    coverPath: null,
     trackMbid: null,
     artistMbid: null,
     albumMbid: null,
@@ -189,7 +191,10 @@ function toEngineTrack(item: PlayerTrack): TrackItem {
     album: item.album,
     duration: item.duration,
     url: item.url,
-    artwork: item.artwork,
+    // The engine fetches the lock screen's image with no headers, so the cover
+    // needs a token in its URL. It is added here, on the way out, so the queue
+    // and its saved copy never hold a token for artwork.
+    artwork: authenticatedImageUrl(item.coverPath) ?? item.artwork,
   };
 }
 
@@ -759,6 +764,7 @@ function asPlayerTrack(engineTrack: TrackItem): PlayerTrack {
     url: engineTrack.url,
     artwork: engineTrack.artwork ?? null,
     streamPath: null,
+    coverPath: null,
     trackMbid: null,
     artistMbid: null,
     albumMbid: null,

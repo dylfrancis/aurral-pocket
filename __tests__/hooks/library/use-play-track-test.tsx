@@ -51,6 +51,7 @@ const ALBUM_TRACKS = [EARLIER_TRACK, TRACK];
 const ALBUM = {
   albumTitle: "In Rainbows",
   artistName: "Radiohead",
+  coverPath: null,
   artworkUrl: null,
   albumMbid: null,
   artistMbid: null,

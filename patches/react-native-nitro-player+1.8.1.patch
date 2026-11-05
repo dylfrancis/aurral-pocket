@@ -1,0 +1,16 @@
+diff --git a/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift b/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
+index 3b99437..a865d41 100644
+--- a/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
++++ b/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
+@@ -502,7 +502,10 @@ extension TrackPlayerCore {
+ 
+   /// Builds AVURLAsset options, attaching custom HTTP headers for remote (non-local) tracks.
+   private func assetOptions(for track: TrackItem, isLocal: Bool) -> [String: Any] {
+-    var options: [String: Any] = [AVURLAssetPreferPreciseDurationAndTimingKey: true]
++    // Precise timing makes AVFoundation read a whole remote file before it can start. Past
++    // about 60 MB that outlasts mediaplaybackd's RPC watchdog, which kills the daemon and
++    // leaves this AVQueuePlayer failed until the app restarts.
++    var options: [String: Any] = [AVURLAssetPreferPreciseDurationAndTimingKey: isLocal]
+     if !isLocal, let headers = httpHeaders(for: track) {
+       // AVURLAssetHTTPHeaderFieldsKey is the de-facto mechanism for per-asset request
+       // headers (also used by react-native-track-player). Applies to non-DRM HTTP(S).

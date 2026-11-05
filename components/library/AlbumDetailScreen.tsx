@@ -64,6 +64,7 @@ type AlbumRouteParams = {
   artistName?: string;
   artistMbid?: string;
   artistId?: string;
+  coverUrl?: string;
 };
 
 /**
@@ -108,6 +109,9 @@ export function AlbumDetailScreen() {
     undefined;
 
   const albumMbid = params.albumMbid || album?.mbid || "";
+  // The live record wins over the row that opened the page, which may carry
+  // a cover version from before the artwork changed.
+  const coverUrl = album?.coverUrl || params.coverUrl;
   const title = album?.albumName || params.title || "";
   const artistName = params.artistName || album?.artistName || "";
   // Lidarr owns delete and re-search, so both need Lidarr's own album id.
@@ -116,8 +120,7 @@ export function AlbumDetailScreen() {
   // Lidarr does not manage has no id, and the page hides both actions.
   const lidarrAlbumId = (album ? album.lidarrId : params.lidarrAlbumId) || "";
 
-  // Resolved from the cache the hero cover fills, so the player carries the
-  // artwork onto the mini player and the lock screen.
+  // For the player, when the server has no cover to give it.
   const { url: artworkUrl } = useCoverArtUrl({
     type: "album",
     mbid: albumMbid || undefined,
@@ -126,6 +129,7 @@ export function AlbumDetailScreen() {
   const playContext: PlayerAlbumContext = {
     albumTitle: title,
     artistName,
+    coverPath: coverUrl || null,
     artworkUrl,
     albumMbid: albumMbid || null,
     artistMbid: params.artistMbid || null,
@@ -309,6 +313,7 @@ export function AlbumDetailScreen() {
           <CoverArtImage
             type="album"
             mbid={albumMbid}
+            coverUrl={coverUrl}
             size={COVER_SIZE}
             borderRadius={12}
           />

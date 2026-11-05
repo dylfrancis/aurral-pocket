@@ -90,7 +90,12 @@ export function NowPlayingScreen() {
       style={[styles.screen, { backgroundColor: colors.background }]}
     >
       <View style={styles.header}>
-        <PlayerArtwork url={track.artwork} size={280} borderRadius={12} />
+        <PlayerArtwork
+          url={track.artwork}
+          coverPath={track.coverPath}
+          size={280}
+          borderRadius={12}
+        />
         <View style={styles.titles}>
           <Text
             variant="subtitle"
@@ -212,7 +217,12 @@ function UpNextRow({ item }: { item: PlayerTrack }) {
         { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      <PlayerArtwork url={item.artwork} size={44} borderRadius={6} />
+      <PlayerArtwork
+        url={item.artwork}
+        coverPath={item.coverPath}
+        size={44}
+        borderRadius={6}
+      />
       <View style={styles.upNextMeta}>
         <Text
           variant="body"

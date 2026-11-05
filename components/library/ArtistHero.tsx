@@ -22,7 +22,7 @@ import type { Artist } from "@/lib/types/library";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 type ArtistHeroProps = {
-  artist: Pick<Artist, "mbid" | "artistName">;
+  artist: Pick<Artist, "mbid" | "artistName" | "coverUrl">;
   scrollY?: SharedValue<number>;
   refreshing?: boolean;
   inLibrary: boolean;
@@ -55,6 +55,7 @@ export function ArtistHero({
         <CoverArtImage
           type="artist"
           mbid={artist.mbid}
+          coverUrl={artist.coverUrl}
           size={SCREEN_WIDTH}
           borderRadius={0}
           blurRadius={25}
@@ -74,6 +75,7 @@ export function ArtistHero({
         <CoverArtImage
           type="artist"
           mbid={artist.mbid}
+          coverUrl={artist.coverUrl}
           size={200}
           borderRadius={100}
         />

@@ -38,20 +38,26 @@ export function PlaylistCard({
 }: Props) {
   const colors = Colors[useColorScheme()];
   const { token } = useAuth();
-  const [imageFailed, setImageFailed] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const artworkSource = getFlowArtworkSource(playlist.id, token);
+  const artworkSource = getFlowArtworkSource(
+    playlist.id,
+    token,
+    playlist.artworkRevision,
+  );
+  // Kept per URL — see FlowCard.
+  const [loadedUri, setLoadedUri] = useState<string | null>(null);
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const imageLoaded = loadedUri === artworkSource.uri;
+  const imageFailed = failedUri === artworkSource.uri;
   const progress = progressLabel(stats, playlist.trackCount);
 
-  // Retry image load when polling picks up new stats — see FlowCard.
+  // Retry a failed load when polling picks up new stats — see FlowCard.
   const statsKey = stats
     ? `${stats.done}-${stats.total}`
     : `count-${playlist.trackCount}`;
   const [prevStatsKey, setPrevStatsKey] = useState(statsKey);
   if (prevStatsKey !== statsKey) {
     setPrevStatsKey(statsKey);
-    setImageFailed(false);
-    setImageLoaded(false);
+    setFailedUri(null);
   }
 
   return (
@@ -76,8 +82,8 @@ export function PlaylistCard({
             contentFit="cover"
             transition={150}
             cachePolicy="memory-disk"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageFailed(true)}
+            onLoad={() => setLoadedUri(artworkSource.uri)}
+            onError={() => setFailedUri(artworkSource.uri)}
           />
         ) : null}
       </View>

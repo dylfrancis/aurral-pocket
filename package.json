@@ -12,6 +12,7 @@
     "test": "jest",
     "check:api-contract": "node scripts/check-api-contract.mjs",
     "prepare": "husky",
+    "postinstall": "patch-package",
     "shazam:aar": "node scripts/setup-shazam-aar.mjs",
     "eas-build-pre-install": "node scripts/setup-shazam-aar.mjs"
   },
@@ -88,6 +89,7 @@
     "jest": "~30.5.2",
     "jest-expo": "~58.0.14",
     "lint-staged": "^17.6.0",
+    "patch-package": "^8.0.1",
     "prettier": "^3.9.10",
     "test-renderer": "^1.3.1",
     "typescript": "~6.0.3"
