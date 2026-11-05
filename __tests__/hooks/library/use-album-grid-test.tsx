@@ -77,7 +77,7 @@ function makeWrapper() {
   return { wrapper: Wrapper };
 }
 
-const ids = (albums: Album[]) => albums.map((album) => album.id);
+const albumIds = (albums: Album[]) => albums.map((album) => album.id);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -107,7 +107,7 @@ describe("useAlbumGrid", () => {
     const { result } = await renderHook(() => useAlbumGrid(), { wrapper });
 
     await waitFor(() =>
-      expect(ids(result.current.items)).toEqual(["a1", "a2"]),
+      expect(albumIds(result.current.items)).toEqual(["a1", "a2"]),
     );
     expect(mockGetCanonicalLibraryPage).toHaveBeenCalledTimes(1);
     expect(mockGetCanonicalLibraryPage).toHaveBeenCalledWith(
@@ -128,7 +128,7 @@ describe("useAlbumGrid", () => {
     });
 
     await waitFor(() =>
-      expect(ids(result.current.items)).toEqual(["a1", "a2", "a3"]),
+      expect(albumIds(result.current.items)).toEqual(["a1", "a2", "a3"]),
     );
     expect(mockGetCanonicalLibraryPage).toHaveBeenCalledTimes(2);
     expect(mockGetCanonicalLibraryPage).toHaveBeenLastCalledWith(
@@ -178,23 +178,26 @@ describe("useAlbumGrid", () => {
 
     const { wrapper } = makeWrapper();
     const { result } = await renderHook(() => useAlbumGrid(), { wrapper });
-    await waitFor(() => expect(ids(result.current.items)).toEqual(["old"]));
+    await waitFor(() =>
+      expect(albumIds(result.current.items)).toEqual(["old"]),
+    );
 
     await act(async () => {
       result.current.setSortMode("newest");
     });
 
-    // The server reverses direction for `newest`, so `asc` is newest first.
     expect(mockGetCanonicalLibraryPage).toHaveBeenLastCalledWith(
       expect.objectContaining({ sort: "newest", direction: "asc", page: 1 }),
     );
-    expect(ids(result.current.items)).toEqual(["old"]);
+    expect(albumIds(result.current.items)).toEqual(["old"]);
     expect(result.current.isLoading).toBe(false);
 
     await act(async () => {
       resolveNewest(makePage({ total: 1, albums: [makeAlbum("new")] }));
     });
-    await waitFor(() => expect(ids(result.current.items)).toEqual(["new"]));
+    await waitFor(() =>
+      expect(albumIds(result.current.items)).toEqual(["new"]),
+    );
   });
 
   it("searches on the server, and names the search only once its empty result lands", async () => {
@@ -212,7 +215,7 @@ describe("useAlbumGrid", () => {
       result.current.setSearchQuery("  aphex  ");
     });
     // The albums on screen still answer no search at all.
-    expect(result.current.resultsQuery).toBe("");
+    expect(result.current.settledQuery).toBe("");
 
     await waitFor(() =>
       expect(mockGetCanonicalLibraryPage).toHaveBeenLastCalledWith(
@@ -220,7 +223,7 @@ describe("useAlbumGrid", () => {
       ),
     );
     await waitFor(() => expect(result.current.items).toEqual([]));
-    expect(result.current.resultsQuery).toBe("aphex");
+    expect(result.current.settledQuery).toBe("aphex");
     expect(result.current.hasUnderlyingItems).toBe(true);
   });
 });

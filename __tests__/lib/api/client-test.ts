@@ -171,7 +171,6 @@ describe("serverImageSource", () => {
   it("loads a server artwork path with the session token in a header", () => {
     setAuthToken("test-token-123");
 
-    // In a header, not the query string: the URL is expo-image's cache key.
     expect(serverImageSource("/api/library/albums/12/cover?v=abc")).toEqual({
       uri: "https://test.example/api/library/albums/12/cover?v=abc",
       headers: { Authorization: "Bearer test-token-123" },

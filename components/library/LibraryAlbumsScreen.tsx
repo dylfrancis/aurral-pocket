@@ -8,11 +8,8 @@ import { albumRouteParams } from "@/lib/library-read";
 import type { Album } from "@/lib/types/library";
 
 /**
- * Every album in the library, or every album in one genre, paged and
- * searched by the server. See useAlbumGrid.
- *
- * No download statuses here: the status read would cover every page loaded,
- * up to the whole library. The album page reads its own.
+ * Every album in the library, or in one genre. No download statuses: the
+ * read would cover every page loaded, up to the whole library.
  */
 export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
   const grid = useAlbumGrid({ genre });
@@ -38,7 +35,7 @@ export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
       sortMode={grid.sortMode}
       onSortChange={grid.setSortMode}
       sortOptions={grid.sortOptions}
-      searchQuery={grid.resultsQuery}
+      searchQuery={grid.settledQuery}
       onSearchChange={grid.setSearchQuery}
       searchPlaceholder="Search albums and artists"
       hasUnderlyingItems={grid.hasUnderlyingItems}

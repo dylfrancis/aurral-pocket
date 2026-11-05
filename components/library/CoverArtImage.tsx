@@ -17,10 +17,8 @@ type CoverArtImageProps = {
   borderRadius?: number;
   blurRadius?: number;
   /**
-   * The path the server serves this record's artwork from, such as an
-   * album's `coverUrl`. When set, the image loads from it and the MBID
-   * lookup is skipped: one request to the server instead of a lookup and a
-   * download from the cover provider.
+   * A server artwork path, such as an album's `coverUrl`. Loaded instead of
+   * the MBID lookup, which runs only if it fails.
    */
   coverUrl?: string | null;
 };
@@ -34,23 +32,24 @@ export function CoverArtImage({
   blurRadius,
   coverUrl,
 }: CoverArtImageProps) {
-  // The image URLs that failed for this record. A list cell is recycled for
-  // another record, so failures are kept per record.
-  const record = `${type}:${coverUrl ?? ""}:${mbid}`;
-  const [failures, setFailures] = useState({ record, uris: [] as string[] });
-  const failedUris = failures.record === record ? failures.uris : [];
+  // Kept per record, because list cells are recycled for other records.
+  const recordKey = `${type}:${coverUrl ?? ""}:${mbid}`;
+  const [failures, setFailures] = useState({ recordKey, uris: [] as string[] });
+  const failedUris = failures.recordKey === recordKey ? failures.uris : [];
 
-  // The server answers 404 for a record it has no artwork for. The image then
-  // falls back to the MBID lookup the screens without a server path use.
   const serverSource = coverUrl ? serverImageSource(coverUrl) : null;
-  const useServer = !!serverSource && !failedUris.includes(serverSource.uri);
-  const lookup = useCoverArtUrl({ type, mbid: useServer ? undefined : mbid });
-  const source = useServer
+  const loadFromServer =
+    !!serverSource && !failedUris.includes(serverSource.uri);
+  const mbidLookup = useCoverArtUrl({
+    type,
+    mbid: loadFromServer ? undefined : mbid,
+  });
+  const source = loadFromServer
     ? serverSource
-    : lookup.url
-      ? { uri: lookup.url }
+    : mbidLookup.url
+      ? { uri: mbidLookup.url }
       : null;
-  const isLoading = !useServer && lookup.isLoading;
+  const isLoading = !loadFromServer && mbidLookup.isLoading;
   const failed = !!source && failedUris.includes(source.uri);
 
   const colors = Colors[useColorScheme()];
@@ -102,7 +101,7 @@ export function CoverArtImage({
           recyclingKey={recyclingKey}
           onLoad={() => setLoadedKey(recyclingKey)}
           onError={() =>
-            setFailures({ record, uris: [...failedUris, source.uri] })
+            setFailures({ recordKey, uris: [...failedUris, source.uri] })
           }
         />
       )}

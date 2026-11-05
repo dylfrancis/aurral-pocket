@@ -24,14 +24,14 @@ const EDGE_PADDING = 12;
 const CARD_GAP = 12;
 const DRAW_DISTANCE = 800;
 
-type ReleaseGridProps<T, Sort extends string> = {
+type ReleaseGridProps<T, SortKey extends string> = {
   items: T[];
   isLoading: boolean;
   refreshing: boolean;
   onRefresh: () => void;
-  sortMode: Sort;
-  onSortChange: (mode: Sort) => void;
-  sortOptions: SortOption<Sort>[];
+  sortMode: SortKey;
+  onSortChange: (mode: SortKey) => void;
+  sortOptions: SortOption<SortKey>[];
   searchQuery: string;
   onSearchChange: (query: string) => void;
   searchPlaceholder: string;
@@ -42,10 +42,7 @@ type ReleaseGridProps<T, Sort extends string> = {
   renderListItem: (item: T) => React.ReactElement;
   keyExtractor: (item: T) => string;
   bottomSheet?: React.ReactNode;
-  /**
-   * The key the grid or list choice is stored under. Every artist's release
-   * pages share the default; a screen with its own choice passes its own.
-   */
+  /** Where the grid or list choice is stored. Artist pages share the default. */
   viewModeKey?: string;
   /** For a paged list: ask for the next page as the user nears the end. */
   onEndReached?: () => void;
@@ -53,7 +50,7 @@ type ReleaseGridProps<T, Sort extends string> = {
   isFetchingNextPage?: boolean;
 };
 
-export function ReleaseGrid<T, Sort extends string = AlbumSortMode>({
+export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   items,
   isLoading,
   refreshing,
@@ -73,7 +70,7 @@ export function ReleaseGrid<T, Sort extends string = AlbumSortMode>({
   viewModeKey = "artist-releases",
   onEndReached,
   isFetchingNextPage = false,
-}: ReleaseGridProps<T, Sort>) {
+}: ReleaseGridProps<T, SortKey>) {
   const colors = Colors[useColorScheme()];
   const [viewMode, setViewMode] = useViewMode(viewModeKey, "grid");
   const gridColumns = useGridColumns(EDGE_PADDING * 2);
@@ -159,13 +156,11 @@ export function ReleaseGrid<T, Sort extends string = AlbumSortMode>({
         numColumns={viewMode === "grid" ? gridColumns : 1}
         ListEmptyComponent={emptyComponent}
         onEndReached={onEndReached}
-        // Two screens ahead, not FlashList's half screen, so the next page is
-        // usually in by the time a fast scroll reaches the end.
+        // Two screens, not half a screen, so a fast scroll rarely outruns
+        // the next page.
         onEndReachedThreshold={2}
-        // Mount cells further past the viewport than FlashList's 250, so their
-        // covers start loading before they scroll in. The server's covers are
-        // at most 512px, about 1 MB each decoded, so this holds roughly ten
-        // more in memory on a phone.
+        // Covers start loading before cells scroll in. About ten more ~1 MB
+        // decoded covers in memory than FlashList's default of 250.
         drawDistance={DRAW_DISTANCE}
         ListFooterComponent={
           isFetchingNextPage ? (

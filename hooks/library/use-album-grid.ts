@@ -10,12 +10,8 @@ import type { LibraryAlbumsParams } from "@/lib/types/library";
 /** The web library's search debounce (QUERY_DEBOUNCE_MS in LibraryPage). */
 const SEARCH_DEBOUNCE_MS = 250;
 
-/**
- * Each sort option as /library/canonical takes it, mirroring the web's albums
- * tab. The server reverses direction for `newest`, so `asc` lists the most
- * recently added first.
- */
-const SORTS: Record<
+// The server reverses direction for `newest`, so `asc` is newest first.
+const SERVER_SORTS: Record<
   LibraryAlbumSortMode,
   Pick<LibraryAlbumsParams, "sort" | "direction">
 > = {
@@ -26,23 +22,16 @@ const SORTS: Record<
   newest: { sort: "newest", direction: "asc" },
 };
 
-/**
- * Search, sort and paging for a whole-library album grid. The server does
- * the searching and sorting, so this holds the view and feeds it to
- * useLibraryAlbumsAll. The genre screen passes its genre; the albums screen
- * passes nothing.
- *
- * Search text goes to the server once typing stops for 250 ms.
- */
+/** Search, sort and paging for a whole-library album grid. */
 export function useAlbumGrid({ genre = "" }: { genre?: string } = {}) {
   const [sortMode, setSortMode] = useState<LibraryAlbumSortMode>("name-asc");
   const [searchQuery, setSearchQuery] = useState("");
-  const trimmed = searchQuery.trim();
-  const query = useDebouncedValue(trimmed, SEARCH_DEBOUNCE_MS);
+  const typedQuery = searchQuery.trim();
+  const debouncedQuery = useDebouncedValue(typedQuery, SEARCH_DEBOUNCE_MS);
 
   const params = useMemo<LibraryAlbumsParams>(
-    () => ({ genre, query, ...SORTS[sortMode] }),
-    [genre, query, sortMode],
+    () => ({ genre, query: debouncedQuery, ...SERVER_SORTS[sortMode] }),
+    [genre, debouncedQuery, sortMode],
   );
   const {
     data,
@@ -80,14 +69,10 @@ export function useAlbumGrid({ genre = "" }: { genre?: string } = {}) {
     sortOptions: LIBRARY_ALBUM_SORT_OPTIONS,
     setSearchQuery,
     // The search the albums on screen answer, for the "No results" message.
-    // Empty while a newer search is still being typed or fetched: the albums
-    // on screen are then an older search's, and naming the new one over them
-    // would claim it found nothing before it has run.
-    resultsQuery: !isPlaceholderData && query === trimmed ? query : "",
-    // The server only returns matches, so an empty search result cannot tell
-    // an empty library from no matches. While a search is set, report the
-    // library as non-empty, so the grid says "No results" rather than "No
-    // albums".
-    hasUnderlyingItems: query !== "" || items.length > 0,
+    // Empty while a newer one is pending, so it never names a search early.
+    settledQuery:
+      !isPlaceholderData && debouncedQuery === typedQuery ? debouncedQuery : "",
+    // An empty search result can't tell an empty library from no matches.
+    hasUnderlyingItems: debouncedQuery !== "" || items.length > 0,
   };
 }

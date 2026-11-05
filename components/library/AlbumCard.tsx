@@ -22,10 +22,7 @@ type AlbumCardProps = {
   onPress: () => void;
   fill?: boolean;
   downloadStatus?: DownloadStatusValue;
-  /**
-   * Adds the artist under the album name, for a grid that mixes artists. An
-   * artist's own pages leave it off.
-   */
+  /** Adds the artist under the album name, for grids that mix artists. */
   showArtist?: boolean;
   /** Loads the cover from the server's artwork path. See CoverArtImage. */
   coverUrl?: string;

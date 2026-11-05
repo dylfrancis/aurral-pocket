@@ -56,14 +56,10 @@ export type ServerImageSource = {
 };
 
 /**
- * An expo-image source for artwork the Aurral server serves itself, such as
- * an album's `coverUrl` (`/api/library/albums/:id/cover?v=…`).
- *
- * The session token rides in a header, as it does on every API request, not
- * in the query string: the URL is expo-image's cache key, so it must not
- * change when the token refreshes. Only a server-relative path gets the
- * header, so the token never goes to another host. Null before the server
- * address is known, when a relative path cannot load.
+ * An expo-image source for artwork the Aurral server serves, such as an
+ * album's `coverUrl`. The token goes in a header, not the URL, because the
+ * URL is expo-image's cache key. Only a server-relative path gets it, so the
+ * token never reaches another host.
  */
 export function serverImageSource(
   raw: string | null | undefined,

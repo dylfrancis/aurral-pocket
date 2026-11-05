@@ -16,25 +16,20 @@ import type {
 const PAGE_SIZE = 100;
 
 /**
- * Give each album its library artist's name and MBID, as the web's album
- * card does: the page's related artists first, then the album's own artist
- * credit. The credit is a tag string ("Various Artists", "A feat. B") and
- * carries no MBID, so the album page can only link the artist when the page
- * carried it.
- *
- * Pages are flattened in order, dropping an album an earlier page already
- * carried. Offsets shift when the library changes between two page reads, so
- * one album can land on both, and the grid keys rows by id.
+ * Flatten the pages, naming each album's library artist from the page's
+ * related artists, as the web's card does, before the album's own credit.
+ * Drops an album an earlier page carried: offsets shift when the library
+ * changes between two page reads.
  */
-function libraryPageAlbums(data: InfiniteData<CanonicalPage>): Album[] {
-  const seen = new Set<string>();
+function flattenAlbumPages(data: InfiniteData<CanonicalPage>): Album[] {
+  const seenIds = new Set<string>();
   const albums: Album[] = [];
   for (const page of data.pages) {
-    const artists = new Map(page.artists.map((artist) => [artist.id, artist]));
+    const artistsById = new Map(page.artists.map((a) => [a.id, a]));
     for (const album of page.albums) {
-      if (seen.has(album.id)) continue;
-      seen.add(album.id);
-      const artist = artists.get(album.artistId);
+      if (seenIds.has(album.id)) continue;
+      seenIds.add(album.id);
+      const artist = artistsById.get(album.artistId);
       albums.push({
         ...album,
         artistName: artist?.artistName || album.artistName,
@@ -46,23 +41,13 @@ function libraryPageAlbums(data: InfiniteData<CanonicalPage>): Album[] {
 }
 
 /**
- * The whole-library album list, one page of 100 at a time.
+ * The whole-library album list, searched and sorted by the server and read
+ * one page at a time as the screen asks. It never drains: a library can hold
+ * thousands of albums (see useDrainRemainingPages).
  *
- * The server searches and sorts, as the web's albums tab does, and the
- * screen asks for the next page as the user nears the end. Nothing drains
- * the list: a large library holds thousands of albums, and one round trip
- * per 100 would stall the first paint and repeat after every library rescan.
- * See useDrainRemainingPages.
- *
- * Changing the view keeps the previous view's albums on screen until the new
- * first page lands (`isPlaceholderData`). A view whose first page fails,
- * including a new search or sort, reaches the route's error boundary, since
- * the grid has no error state of its own. A failed later page keeps what has
- * loaded.
- *
- * The read omits availableOnly, as the web's albums tab does, so the list
- * follows the server's library view: albums that can be played, and albums
- * Aurral is still fetching. See CanonicalPageParams.
+ * A view change keeps the previous albums on screen until the new first page
+ * lands. A failed first page reaches the route's error boundary; a failed
+ * later page keeps what has loaded. availableOnly is omitted, as on the web.
  */
 export function useLibraryAlbumsAll(params: LibraryAlbumsParams) {
   const { serverUrl, token } = useAuth();
@@ -81,8 +66,9 @@ export function useLibraryAlbumsAll(params: LibraryAlbumsParams) {
         direction: params.direction,
       }),
     initialPageParam: 1,
-    getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
-    select: libraryPageAlbums,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.page + 1 : undefined,
+    select: flattenAlbumPages,
     placeholderData: keepPreviousData,
     throwOnError: (_error, query) => query.state.data === undefined,
     enabled: !!serverUrl && !!token,

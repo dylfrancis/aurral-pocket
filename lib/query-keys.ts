@@ -15,8 +15,7 @@ export const libraryKeys = {
   artistId: (mbid: string) => ["library", "artists", "id", mbid] as const,
   artist: (mbid: string) => ["library", "artist", mbid] as const,
   albums: (artistId: string) => ["library", "albums", artistId] as const,
-  // Every view of the whole-library album list, whatever its search, sort or
-  // genre. A change to library membership invalidates them all.
+  // The prefix of every albumsAll view, for invalidation.
   albumsAllViews: () => ["library", "albumsAll"] as const,
   albumsAll: (params: LibraryAlbumsParams) =>
     ["library", "albumsAll", params] as const,

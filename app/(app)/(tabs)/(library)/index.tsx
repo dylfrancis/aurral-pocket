@@ -16,9 +16,9 @@ type Category = {
  * itself reads nothing. With no query there is no spinner and no failure state
  * on the tab's first paint, however large the library is.
  *
- * Genres and Favorites join the list as their screens ship — issues #239 and
- * #240. A row lands here only once its route exists, so the list never offers
- * a destination that cannot open.
+ * Genres and Favorites join the list as their screens ship. A row lands here
+ * only once its route exists, so the list never offers a destination that
+ * cannot open.
  */
 const CATEGORIES: Category[] = [
   { icon: "people-outline", label: "Artists", route: "/artists" },

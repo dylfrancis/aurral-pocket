@@ -9,7 +9,7 @@ import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
 export type AlbumSortMode =
   "date-desc" | "date-asc" | "name-asc" | "name-desc" | "missing";
 
-/** The whole-library album sorts. The server sorts; see useAlbumGrid. */
+/** Sorts for the whole-library album grid, done by the server. */
 export type LibraryAlbumSortMode =
   "name-asc" | "name-desc" | "artist-asc" | "artist-desc" | "newest";
 
@@ -22,7 +22,6 @@ export type SortOption<Key extends string = AlbumSortMode> = {
   androidIcon: number;
 };
 
-// The name sorts read the same on an artist's pages and on the whole library.
 const NAME_ASC: SortOption<"name-asc"> = {
   key: "name-asc",
   label: "Name A-Z",
