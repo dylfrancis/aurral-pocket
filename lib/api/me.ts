@@ -1,8 +1,8 @@
 import { api } from "./client";
 import type {
   ChangePasswordPayload,
+  DiscoverLayoutEntry,
   DiscoverLayoutResponse,
-  DiscoverSection,
   ListenHistorySettings,
   UpdateListenHistoryPayload,
 } from "@/lib/types/me";
@@ -32,7 +32,7 @@ export async function getMyDiscoverLayout() {
   return r.data;
 }
 
-export async function updateMyDiscoverLayout(layout: DiscoverSection[]) {
+export async function updateMyDiscoverLayout(layout: DiscoverLayoutEntry[]) {
   const r = await api.patch<DiscoverLayoutResponse>(
     "/users/me/discover-layout",
     { layout },

@@ -21,14 +21,30 @@ export type ChangePasswordPayload = {
   newPassword: string;
 };
 
-export type DiscoverSectionId =
+/** Every section in Aurral's Discover layout (`lib/discoverLayout.ts`). */
+export type DiscoverLayoutSectionId =
   | "recentlyAdded"
   | "playlists"
   | "recommendedShows"
   | "recentReleases"
+  | "news"
   | "recommended"
   | "globalTop"
   | "genreSections";
+
+/** How the web draws a Shows or News row. */
+export type DiscoverFeedStyle = "list" | "square" | "wide";
+
+/** One section of the layout as Aurral stores it. */
+export type DiscoverLayoutEntry = {
+  id: DiscoverLayoutSectionId;
+  enabled: boolean;
+  /** Set only on `recommendedShows` and `news`. */
+  style?: DiscoverFeedStyle;
+};
+
+/** The sections pocket shows and lets you reorder. */
+export type DiscoverSectionId = Exclude<DiscoverLayoutSectionId, "news">;
 
 export type DiscoverSection = {
   id: DiscoverSectionId;
@@ -37,5 +53,6 @@ export type DiscoverSection = {
 };
 
 export type DiscoverLayoutResponse = {
-  layout: DiscoverSection[];
+  /** Null until the user saves a layout. */
+  layout: DiscoverLayoutEntry[] | null;
 };
