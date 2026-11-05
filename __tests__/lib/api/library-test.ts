@@ -244,6 +244,7 @@ describe("getCanonicalLibraryPage", () => {
             sizeOnDisk: 123,
             sources: ["lidarr"],
             available: true,
+            coverUrl: "/api/library/artists/7/cover?v=abc",
           },
         ],
         albums: [],
@@ -266,6 +267,7 @@ describe("getCanonicalLibraryPage", () => {
         sources: ["lidarr"],
         available: true,
         identityKey: "artist:radiohead",
+        coverUrl: "/api/library/artists/7/cover?v=abc",
       },
     ]);
   });

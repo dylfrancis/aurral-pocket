@@ -49,7 +49,6 @@ export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
           onPress={() => openAlbum(item)}
           fill
           showArtist
-          coverUrl={item.coverUrl}
         />
       )}
       renderListItem={(item) => (

@@ -64,6 +64,7 @@ type AlbumRouteParams = {
   artistName?: string;
   artistMbid?: string;
   artistId?: string;
+  coverUrl?: string;
 };
 
 /**
@@ -108,6 +109,9 @@ export function AlbumDetailScreen() {
     undefined;
 
   const albumMbid = params.albumMbid || album?.mbid || "";
+  // The live record wins over the row that opened the page, which may carry
+  // a cover version from before the artwork changed.
+  const coverUrl = album?.coverUrl || params.coverUrl;
   const title = album?.albumName || params.title || "";
   const artistName = params.artistName || album?.artistName || "";
   // Lidarr owns delete and re-search, so both need Lidarr's own album id.
@@ -309,6 +313,7 @@ export function AlbumDetailScreen() {
           <CoverArtImage
             type="album"
             mbid={albumMbid}
+            coverUrl={coverUrl}
             size={COVER_SIZE}
             borderRadius={12}
           />

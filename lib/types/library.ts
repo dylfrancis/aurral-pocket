@@ -37,6 +37,8 @@ export type Artist = {
   identityKey?: string;
   /** Canonical read path only. True when the signed-in user favorited this artist. */
   userFavorite?: boolean;
+  /** Canonical read path only. See CanonicalArtistItem. */
+  coverUrl?: string;
 };
 
 export type AlbumStatistics = {
@@ -312,6 +314,13 @@ export type CanonicalArtistItem = {
   available?: boolean;
   /** Present when the request is authenticated. */
   userFavorite?: boolean;
+  /**
+   * The server-relative path of the artist's image,
+   * `/api/library/artists/:id/cover?v=…`. The server serves the artist photo,
+   * or else one of the artist's album covers, and answers 404 when it has
+   * neither.
+   */
+  coverUrl?: string | null;
 };
 
 /**

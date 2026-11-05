@@ -23,6 +23,7 @@ export const ArtistCard = React.memo(function ArtistCard({
       <CoverArtImage
         type="artist"
         mbid={artist.mbid}
+        coverUrl={artist.coverUrl}
         size="fill"
         borderRadius={12}
       />

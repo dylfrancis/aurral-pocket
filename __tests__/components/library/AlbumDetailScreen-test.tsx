@@ -95,7 +95,7 @@ jest.mock("@/components/artist/ArtistDetailLayout", () => ({
 }));
 
 jest.mock("@/components/library/CoverArtImage", () => ({
-  CoverArtImage: () => null,
+  CoverArtImage: jest.fn(() => null),
 }));
 
 jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
@@ -135,6 +135,7 @@ import { Alert } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlbumDetailScreen } from "@/components/library/AlbumDetailScreen";
+import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
 import {
   deleteAlbum,
@@ -149,6 +150,7 @@ const mockUseLibraryAlbum = useLibraryAlbum as jest.Mock;
 const mockDeleteAlbum = deleteAlbum as jest.Mock;
 const mockTriggerAlbumSearch = triggerAlbumSearch as jest.Mock;
 const mockGetDownloadStatuses = getDownloadStatuses as jest.Mock;
+const mockCoverArtImage = CoverArtImage as unknown as jest.Mock;
 
 // A Lidarr-backed album whose canonical id and Lidarr id differ, the case
 // where sending the wrong one acts on a different album.
@@ -241,6 +243,36 @@ describe("AlbumDetailScreen", () => {
 
     expect(await screen.findByText("Downloading...")).toBeTruthy();
     expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["301"]);
+  });
+
+  it("loads the hero cover from the server's artwork path, from the live record once it loads", async () => {
+    // No MBID, so the server's path is the only way to a cover.
+    const row: Album = {
+      ...lidarrAlbum,
+      mbid: "",
+      coverUrl: "/api/library/artwork/album/14?v=1",
+    };
+    mockParams = albumRouteParams(row, "Radiohead", "artist-mb");
+    mockUseLibraryAlbum.mockReturnValue({ data: undefined });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    const page = () => (
+      <QueryClientProvider client={queryClient}>
+        <AlbumDetailScreen />
+      </QueryClientProvider>
+    );
+    const heroCoverUrl = () => mockCoverArtImage.mock.lastCall?.[0].coverUrl;
+
+    const { rerender } = await render(page());
+    expect(heroCoverUrl()).toBe("/api/library/artwork/album/14?v=1");
+
+    // The artwork changed on the server after the row was read.
+    mockUseLibraryAlbum.mockReturnValue({
+      data: { ...row, coverUrl: "/api/library/artwork/album/14?v=2" },
+    });
+    await rerender(page());
+    expect(heroCoverUrl()).toBe("/api/library/artwork/album/14?v=2");
   });
 
   it("hides the Lidarr actions for an album Lidarr does not manage", async () => {

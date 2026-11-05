@@ -167,6 +167,7 @@ export default function LibraryArtistsScreen() {
           <MediaRow
             imageType="artist"
             mbid={item.mbid}
+            coverUrl={item.coverUrl}
             title={item.artistName}
             subtitle={`${albumCount} ${albumCount === 1 ? "album" : "albums"}`}
             onPress={() => router.push(`/artist/${artistRouteId(item)}`)}
