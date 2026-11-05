@@ -97,6 +97,10 @@ export type Album = {
   identityKey?: string;
   /** Canonical read path only. True when the signed-in user favorited this album. */
   userFavorite?: boolean;
+  /** Canonical read path only. See CanonicalAlbumItem. */
+  coverUrl?: string;
+  /** Whole-library album pages only. The library artist's MBID. */
+  artistMbid?: string;
 };
 
 export type Track = {
@@ -197,6 +201,19 @@ export type CanonicalPageParams = {
   albumId?: string;
 };
 
+/**
+ * One view of the whole-library album list. Every field is always set, so
+ * equal views share one cache entry.
+ */
+export type LibraryAlbumsParams = {
+  /** Empty for every genre. */
+  genre: string;
+  /** Empty for no search. */
+  query: string;
+  sort: "name" | "artist" | "newest";
+  direction: "asc" | "desc";
+};
+
 // The canonical metadata bags below are declared partially, by design. A
 // Lidarr-managed artist or album stores the whole Lidarr payload; a
 // file-scanned entity stores `{ tags }` read from its file. Only the keys
@@ -242,7 +259,6 @@ export type CanonicalLidarrAlbumStatistics = {
   percentOfTracks?: number;
 };
 
-/** The page route derives an album's `coverUrl` from `images`. */
 export type CanonicalAlbumMetadata = {
   /**
    * Lidarr's album id on a Lidarr-sourced row. An album Aurral manages
@@ -335,7 +351,11 @@ export type CanonicalAlbumItem = {
   available?: boolean;
   trackCount?: number;
   availableTrackCount?: number;
-  /** An image-proxy URL derived from the metadata images; null without one. */
+  /**
+   * The server-relative path of the album's cover: custom artwork when set,
+   * otherwise `/api/library/albums/:id/cover?v=…`, which answers 404 when the
+   * server has no artwork. Set on every row.
+   */
   coverUrl?: string | null;
   /** Present when the request is authenticated. */
   userFavorite?: boolean;

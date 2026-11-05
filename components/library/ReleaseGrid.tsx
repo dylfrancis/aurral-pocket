@@ -8,10 +8,6 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { Stack } from "expo-router";
 import FilterList from "@expo/material-symbols/filter_list.xml";
-import Event from "@expo/material-symbols/event.xml";
-import CalendarToday from "@expo/material-symbols/calendar_today.xml";
-import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
-import CloudDownload from "@expo/material-symbols/cloud_download.xml";
 import {
   type AlbumSortMode,
   type SortOption,
@@ -24,25 +20,18 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 
-const ANDROID_SORT_ICONS: Record<AlbumSortMode, number> = {
-  "date-desc": Event,
-  "date-asc": CalendarToday,
-  "name-asc": SortByAlpha,
-  "name-desc": SortByAlpha,
-  missing: CloudDownload,
-};
-
 const EDGE_PADDING = 12;
 const CARD_GAP = 12;
+const DRAW_DISTANCE = 800;
 
-type ReleaseGridProps<T> = {
+type ReleaseGridProps<T, SortKey extends string> = {
   items: T[];
   isLoading: boolean;
   refreshing: boolean;
   onRefresh: () => void;
-  sortMode: AlbumSortMode;
-  onSortChange: (mode: AlbumSortMode) => void;
-  sortOptions: SortOption[];
+  sortMode: SortKey;
+  onSortChange: (mode: SortKey) => void;
+  sortOptions: SortOption<SortKey>[];
   searchQuery: string;
   onSearchChange: (query: string) => void;
   searchPlaceholder: string;
@@ -53,9 +42,15 @@ type ReleaseGridProps<T> = {
   renderListItem: (item: T) => React.ReactElement;
   keyExtractor: (item: T) => string;
   bottomSheet?: React.ReactNode;
+  /** Where the grid or list choice is stored. Artist pages share the default. */
+  viewModeKey?: string;
+  /** For a paged list: ask for the next page as the user nears the end. */
+  onEndReached?: () => void;
+  /** Shows a spinner under the last row while the next page loads. */
+  isFetchingNextPage?: boolean;
 };
 
-export function ReleaseGrid<T>({
+export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   items,
   isLoading,
   refreshing,
@@ -72,10 +67,12 @@ export function ReleaseGrid<T>({
   renderListItem,
   keyExtractor,
   bottomSheet,
-}: ReleaseGridProps<T>) {
+  viewModeKey = "artist-releases",
+  onEndReached,
+  isFetchingNextPage = false,
+}: ReleaseGridProps<T, SortKey>) {
   const colors = Colors[useColorScheme()];
-  // One shared preference for every artist's release pages.
-  const [viewMode, setViewMode] = useViewMode("artist-releases", "grid");
+  const [viewMode, setViewMode] = useViewMode(viewModeKey, "grid");
   const gridColumns = useGridColumns(EDGE_PADDING * 2);
 
   if (isLoading) {
@@ -134,7 +131,7 @@ export function ReleaseGrid<T>({
               icon={
                 process.env.EXPO_OS === "ios"
                   ? (option.iosIcon as any)
-                  : ANDROID_SORT_ICONS[option.key]
+                  : option.androidIcon
               }
               isOn={sortMode === option.key}
               onPress={() => onSortChange(option.key)}
@@ -158,6 +155,18 @@ export function ReleaseGrid<T>({
         keyExtractor={keyExtractor}
         numColumns={viewMode === "grid" ? gridColumns : 1}
         ListEmptyComponent={emptyComponent}
+        onEndReached={onEndReached}
+        // Two screens, not half a screen, so a fast scroll rarely outruns
+        // the next page.
+        onEndReachedThreshold={2}
+        // Covers start loading before cells scroll in. About ten more ~1 MB
+        // decoded covers in memory than FlashList's default of 250.
+        drawDistance={DRAW_DISTANCE}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator color={colors.brand} style={styles.footer} />
+          ) : null
+        }
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
         refreshControl={
@@ -181,6 +190,9 @@ const styles = StyleSheet.create({
   },
   rowsContent: {
     paddingTop: EDGE_PADDING,
+  },
+  footer: {
+    paddingVertical: EDGE_PADDING * 2,
   },
   gridItem: {
     flex: 1,

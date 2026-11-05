@@ -297,6 +297,7 @@ describe("getCanonicalLibraryPage", () => {
             availableTrackCount: 5,
             sources: ["lidarr"],
             available: true,
+            coverUrl: "/api/library/albums/12/cover?v=abc",
           },
         ],
         tracks: [],
@@ -325,6 +326,7 @@ describe("getCanonicalLibraryPage", () => {
         sources: ["lidarr"],
         available: true,
         identityKey: "album:in-rainbows",
+        coverUrl: "/api/library/albums/12/cover?v=abc",
       },
     ]);
   });

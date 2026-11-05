@@ -142,6 +142,7 @@ import {
   triggerAlbumSearch,
 } from "@/lib/api/library";
 import { albumRouteParams } from "@/lib/library-read";
+import { libraryKeys } from "@/lib/query-keys";
 import type { Album } from "@/lib/types/library";
 
 const mockUseLibraryAlbum = useLibraryAlbum as jest.Mock;
@@ -184,6 +185,7 @@ async function openAlbumPage(album: Album) {
       <AlbumDetailScreen />
     </QueryClientProvider>,
   );
+  return queryClient;
 }
 
 beforeEach(() => {
@@ -210,6 +212,24 @@ describe("AlbumDetailScreen", () => {
 
     expect(mockTriggerAlbumSearch).toHaveBeenCalledWith("301");
     expect(mockDeleteAlbum).toHaveBeenCalledWith("301");
+  });
+
+  it("refreshes the whole-library album list after a delete", async () => {
+    const queryClient = await openAlbumPage(lidarrAlbum);
+    // The Albums screen the page was opened from, still listing the album.
+    const albumsView = libraryKeys.albumsAll({
+      genre: "",
+      query: "",
+      sort: "name",
+      direction: "asc",
+    });
+    queryClient.setQueryData(albumsView, { pages: [], pageParams: [] });
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Delete Album"));
+    });
+
+    expect(queryClient.getQueryState(albumsView)?.isInvalidated).toBe(true);
   });
 
   it("reads the download status badge by Lidarr's album id", async () => {

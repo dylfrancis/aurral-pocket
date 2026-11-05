@@ -177,6 +177,9 @@ export function ReleaseDetailScreen() {
 
   const invalidateAfterMutation = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
+    void queryClient.invalidateQueries({
+      queryKey: libraryKeys.albumsAllViews(),
+    });
     void queryClient.invalidateQueries({ queryKey: ["search", "albums"] });
     void queryClient.invalidateQueries({
       queryKey: libraryKeys.downloadStatusesAll(),

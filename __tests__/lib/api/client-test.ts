@@ -19,6 +19,7 @@ import {
   api,
   buildAuthenticatedUrl,
   notifyReAuthResult,
+  serverImageSource,
   setAuthToken,
   setBaseUrl,
   setOnAuthRefreshed,
@@ -163,6 +164,25 @@ describe("buildAuthenticatedUrl", () => {
     setAuthToken("test-token-123");
 
     expect(buildAuthenticatedUrl("/ping")).toBeNull();
+  });
+});
+
+describe("serverImageSource", () => {
+  it("loads a server artwork path with the session token in a header", () => {
+    setAuthToken("test-token-123");
+
+    expect(serverImageSource("/api/library/albums/12/cover?v=abc")).toEqual({
+      uri: "https://test.example/api/library/albums/12/cover?v=abc",
+      headers: { Authorization: "Bearer test-token-123" },
+    });
+  });
+
+  it("never sends the session token to another host", () => {
+    setAuthToken("test-token-123");
+
+    expect(
+      serverImageSource("https://coverartarchive.org/release-group/1/front"),
+    ).toEqual({ uri: "https://coverartarchive.org/release-group/1/front" });
   });
 });
 
