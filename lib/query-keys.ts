@@ -14,6 +14,8 @@ export const libraryKeys = {
     ["library", "artists", "lookup", mbids] as const,
   artistId: (mbid: string) => ["library", "artists", "id", mbid] as const,
   artist: (mbid: string) => ["library", "artist", mbid] as const,
+  canonicalArtist: (mbid: string) =>
+    ["library", "canonicalArtist", mbid] as const,
   albums: (artistId: string) => ["library", "albums", artistId] as const,
   // The prefix of every albumsAll view, for invalidation.
   albumsAllViews: () => ["library", "albumsAll"] as const,

@@ -13,6 +13,7 @@ import {
   getCanonicalLibraryPage,
   getCanonicalAlbum,
   getCanonicalAlbumTracks,
+  getCanonicalArtist,
   getCanonicalArtistAlbums,
   lookupLibraryArtists,
   refreshCanonicalLibrary,
@@ -846,6 +847,50 @@ function albumPage(page: number, hasMore: boolean, rows: unknown[]) {
     },
   };
 }
+
+describe("getCanonicalArtist", () => {
+  const artistRow = {
+    id: 7,
+    name: "Radiohead",
+    coverUrl: "/api/library/artists/7/cover?v=abc",
+  };
+
+  it("resolves the MBID, then reads the artist's row from a page of albums", async () => {
+    mockApi.get.mockImplementation(async (path: string) =>
+      path === "/library/lookup/mb-1"
+        ? { data: { libraryArtistId: "7" } }
+        : { data: { hasMore: false, artists: [artistRow] } },
+    );
+
+    const artist = await getCanonicalArtist("mb-1");
+
+    expect(artist?.coverUrl).toBe("/api/library/artists/7/cover?v=abc");
+    expect(mockApi.get).toHaveBeenLastCalledWith("/library/canonical", {
+      params: {
+        kind: "albums",
+        source: "all",
+        availableOnly: "false",
+        artistId: "7",
+        pageSize: "1",
+      },
+    });
+  });
+
+  it("reads as null until the canonical library indexes the artist", async () => {
+    mockApi.get.mockResolvedValue({ data: { libraryArtistId: null } });
+
+    await expect(getCanonicalArtist("mb-1")).resolves.toBeNull();
+    expect(mockApi.get).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores another artist's row, which a credit on the album can add", async () => {
+    mockApi.get.mockResolvedValue({
+      data: { hasMore: false, artists: [{ ...artistRow, id: 8 }] },
+    });
+
+    await expect(getCanonicalArtist("7")).resolves.toBeNull();
+  });
+});
 
 describe("getCanonicalArtistAlbums", () => {
   it("looks the artist up by MBID, then drains that artist's albums", async () => {
