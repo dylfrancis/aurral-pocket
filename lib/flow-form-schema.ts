@@ -4,6 +4,7 @@ import {
   FLOW_SIZE_MIN,
   FLOW_YEAR_MAX,
   FLOW_YEAR_MIN,
+  MIX_SOURCES,
 } from "@/lib/types/flow";
 
 // null leaves that end of the range open. Aurral treats an out-of-range year
@@ -25,16 +26,22 @@ export const flowFormSchema = z
         mix: z.number().min(0).max(100),
         trending: z.number().min(0).max(100),
         focus: z.number().min(0).max(100),
+        newReleases: z.number().min(0).max(100),
       })
       .refine(
-        (m) => Math.round(m.discover + m.mix + m.trending + m.focus) === 100,
+        (m) =>
+          Math.round(
+            MIX_SOURCES.reduce((sum, source) => sum + m[source], 0),
+          ) === 100,
         { message: "Mix must total 100%" },
       ),
     deepDive: z.boolean(),
+    recentListening: z.boolean(),
     recordHistory: z.boolean(),
     yearFrom: yearBound,
     yearTo: yearBound,
     tags: z.array(z.string()),
+    excludeTags: z.array(z.string()),
     relatedArtists: z.array(z.string()),
     scheduleDays: z
       .array(z.number().int().min(0).max(6))
@@ -42,15 +49,17 @@ export const flowFormSchema = z
     scheduleTime: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time"),
   })
   .superRefine((values, ctx) => {
+    // Aurral answers 400 for a Focus share with nothing to search from.
     if (
       values.mix.focus > 0 &&
+      !values.recentListening &&
       values.tags.length === 0 &&
       values.relatedArtists.length === 0
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["tags"],
-        message: "Focus needs at least one genre tag or related artist",
+        path: ["relatedArtists"],
+        message: "Focus needs a tag, a related artist, or recent listening",
       });
     }
     // Aurral swaps an inverted range instead of rejecting it, which silently

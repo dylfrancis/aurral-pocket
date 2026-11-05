@@ -121,7 +121,7 @@ export function FlowCard({
           <Chip label="Flow" icon="repeat" variant="brand" />
           <MixPills mix={flow.mix} />
           {flow.deepDive ? (
-            <Chip label="Deep Dive" icon="layers-outline" variant="brand" />
+            <Chip label="Deeper Cuts" icon="layers-outline" variant="brand" />
           ) : null}
         </View>
         {isDeleting ? (

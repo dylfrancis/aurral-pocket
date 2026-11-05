@@ -36,17 +36,19 @@ function toFormValues(flow: Flow): FlowFormValues {
   return {
     name: flow.name,
     size: flow.size,
-    mix: { ...flow.mix, focus: flow.mix.focus ?? 0 },
+    mix: { ...flow.mix },
     deepDive: flow.deepDive,
+    recentListening: flow.recentListening,
     // Match the server default (`recordHistory !== false`) so a flow from a
     // pre-2.5.0 server, which omits the field, seeds as enabled. Seeding false
     // here would send false back and turn the setting off.
     recordHistory: flow.recordHistory !== false,
     yearFrom: flow.yearFrom ?? null,
     yearTo: flow.yearTo ?? null,
-    tags: [...(flow.tags ?? [])],
-    relatedArtists: [...(flow.relatedArtists ?? [])],
-    scheduleDays: [...(flow.scheduleDays ?? [])],
+    tags: [...flow.tags],
+    excludeTags: [...flow.excludeTags],
+    relatedArtists: [...flow.relatedArtists],
+    scheduleDays: [...flow.scheduleDays],
     scheduleTime: flow.scheduleTime || "00:00",
   };
 }
@@ -119,6 +121,8 @@ function FlowEditForm({
   const {
     control,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm<FlowFormSchema>({
     resolver: zodResolver(flowFormSchema),
@@ -128,19 +132,45 @@ function FlowEditForm({
   });
 
   const [
-    watchedTags,
     watchedArtists,
+    watchedRecentListening,
     watchedMix,
     watchedYearFrom,
     watchedYearTo,
   ] = useWatch({
     control,
-    name: ["tags", "relatedArtists", "mix", "yearFrom", "yearTo"],
+    name: ["relatedArtists", "recentListening", "mix", "yearFrom", "yearTo"],
   });
-  const hasFocusEntries =
-    (watchedTags?.length ?? 0) > 0 || (watchedArtists?.length ?? 0) > 0;
-  const focusInactive = hasFocusEntries && (watchedMix?.focus ?? 0) === 0;
+  // Tags filter every source, so they work without a Focus share.
+  const hasFocusSeeds =
+    (watchedArtists?.length ?? 0) > 0 || watchedRecentListening === true;
+  const focusInactive = hasFocusSeeds && (watchedMix?.focus ?? 0) === 0;
   const yearError = errors.yearFrom?.message ?? errors.yearTo?.message;
+  // After a submit the form re-checks only the changed field, so the fields
+  // that feed the Focus check also re-check its error on relatedArtists.
+  const focusSeedRules = { deps: "relatedArtists" as const };
+
+  // The web marks a tag to leave out with a leading minus, as in -christmas.
+  // Aurral ignores the minus when it matches tags, so kept in Tags the entry
+  // would keep those artists instead.
+  const onTagsChange = (next: string[], onChange: (tags: string[]) => void) => {
+    const excluded = next
+      .filter((tag) => tag.startsWith("-"))
+      .map((tag) => tag.replace(/^-+/, "").trim())
+      .filter(Boolean);
+    if (excluded.length > 0) {
+      const alreadyExcluded = getValues("excludeTags");
+      setValue(
+        "excludeTags",
+        [
+          ...alreadyExcluded,
+          ...excluded.filter((tag) => !alreadyExcluded.includes(tag)),
+        ],
+        { shouldDirty: true },
+      );
+    }
+    onChange(next.filter((tag) => !tag.startsWith("-")));
+  };
 
   const isPending = createFlow.isPending || updateFlow.isPending;
 
@@ -205,11 +235,12 @@ function FlowEditForm({
 
         <Section
           title="Mix"
-          subtitle="How tracks are sourced. The three values always total 100%."
+          subtitle="How tracks are sourced. The five sources always total 100%."
         >
           <Controller
             control={control}
             name="mix"
+            rules={focusSeedRules}
             render={({ field: { value, onChange } }) => (
               <>
                 <MixPresetPicker value={value} onPick={onChange} />
@@ -243,8 +274,8 @@ function FlowEditForm({
           name="deepDive"
           render={({ field: { value, onChange } }) => (
             <Section
-              title="Deep Dive"
-              subtitle="Surface lesser-known tracks from each artist."
+              title="Deeper Cuts"
+              subtitle="Use tracks ranked 10 to 25 instead of each artist's top 10."
               trailing={
                 <Switch
                   value={value}
@@ -321,22 +352,41 @@ function FlowEditForm({
         </Section>
 
         <Section
-          title="Focus"
-          subtitle="Bias the flow toward specific tags or artists."
+          title="Tags"
+          subtitle="Limit every source to artists with at least one of these tags. Focus also searches by them."
         >
           <Controller
             control={control}
             name="tags"
+            rules={focusSeedRules}
             render={({ field: { value, onChange } }) => (
               <FocusEditor
                 label="Tags"
                 placeholder="Add a tag (e.g. ambient)"
                 value={value}
-                onChange={onChange}
+                onChange={(next) => onTagsChange(next, onChange)}
               />
             )}
           />
           <View style={{ height: 16 }} />
+          <Controller
+            control={control}
+            name="excludeTags"
+            render={({ field: { value, onChange } }) => (
+              <FocusEditor
+                label="Excluded tags"
+                placeholder="Add a tag to leave out (e.g. christmas)"
+                value={value}
+                onChange={onChange}
+              />
+            )}
+          />
+        </Section>
+
+        <Section
+          title="Focus"
+          subtitle="Find artists outside your library that are similar to ones you pick or to your recent listening."
+        >
           <Controller
             control={control}
             name="relatedArtists"
@@ -349,14 +399,39 @@ function FlowEditForm({
               />
             )}
           />
+          <Controller
+            control={control}
+            name="recentListening"
+            rules={focusSeedRules}
+            render={({ field: { value, onChange } }) => (
+              <View style={styles.switchRow}>
+                <View style={styles.switchLabel}>
+                  <Text variant="body" style={{ ...Fonts.medium }}>
+                    Recent listening
+                  </Text>
+                  <Text variant="caption" style={{ color: colors.subtle }}>
+                    Also find artists similar to the ones you played recently.
+                  </Text>
+                </View>
+                <Switch
+                  value={value}
+                  onValueChange={onChange}
+                  accessibilityLabel="Recent listening"
+                  trackColor={{ false: colors.separator, true: colors.brand }}
+                  thumbColor={colors.switchThumb}
+                  ios_backgroundColor={colors.separator}
+                />
+              </View>
+            )}
+          />
           {focusInactive ? (
             <Text variant="caption" style={{ color: colors.subtle }}>
               Set Focus above 0% in the mix for these to take effect.
             </Text>
           ) : null}
-          {errors.tags?.message ? (
+          {errors.relatedArtists?.message ? (
             <Text variant="caption" style={{ color: colors.error }}>
-              {errors.tags.message}
+              {errors.relatedArtists.message}
             </Text>
           ) : null}
         </Section>
@@ -455,6 +530,15 @@ const styles = StyleSheet.create({
   yearRow: {
     flexDirection: "row",
     gap: 12,
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  switchLabel: {
+    flex: 1,
+    gap: 2,
   },
   sectionTitleRow: {
     flexDirection: "row",

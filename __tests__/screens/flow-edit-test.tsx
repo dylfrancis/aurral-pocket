@@ -82,22 +82,25 @@ import React from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { updateFlow } from "@/lib/api/flow";
+import { createFlow, updateFlow } from "@/lib/api/flow";
 import { flowKeys } from "@/lib/query-keys";
 import type { Flow, FlowStatusSnapshot } from "@/lib/types/flow";
 import FlowEditScreen from "@/app/(app)/(tabs)/(flow)/flow-edit";
 
 const mockUseLocalSearchParams = useLocalSearchParams as jest.Mock;
 const mockUpdateFlow = updateFlow as jest.Mock;
+const mockCreateFlow = createFlow as jest.Mock;
 
 const flow: Flow = {
   id: "flow-1",
   name: "Morning Mix",
   enabled: true,
   size: 30,
-  mix: { discover: 50, mix: 30, trending: 20, focus: 0 },
+  mix: { discover: 50, mix: 30, trending: 20, focus: 0, newReleases: 0 },
   deepDive: false,
+  recentListening: false,
   tags: [],
+  excludeTags: [],
   relatedArtists: [],
   scheduleDays: [1, 3],
   scheduleTime: "09:00",
@@ -235,9 +238,10 @@ describe("FlowEditScreen (editing)", () => {
     mockUpdateFlow.mockResolvedValue({ ...flow, recordHistory: false });
     const { getByText, getAllByRole } = await renderScreen();
 
-    // Two switches render, in tree order: Deep Dive, then Record History.
+    // Three switches render, in tree order: Deeper Cuts, Record History, then
+    // Recent listening.
     const switches = getAllByRole("switch");
-    expect(switches).toHaveLength(2);
+    expect(switches).toHaveLength(3);
     await act(() => {
       fireEvent(switches[1], "valueChange", false);
     });
@@ -382,10 +386,127 @@ describe("FlowEditScreen (editing)", () => {
     expect(mockUpdateFlow).not.toHaveBeenCalled();
   });
 
+  // The server replaces the whole mix on save, so a source the form drops comes
+  // back as 0. The Focus share here has only recent listening to search from.
+  it("keeps new releases, recent listening and excluded tags through an unrelated edit (#280)", async () => {
+    mockUpdateFlow.mockResolvedValue(flow);
+    const mix = {
+      discover: 40,
+      mix: 0,
+      trending: 0,
+      focus: 30,
+      newReleases: 30,
+    };
+    const { getByTestId, getByText } = await renderScreen({
+      mix,
+      recentListening: true,
+      excludeTags: ["christmas"],
+    });
+
+    await act(() => {
+      getByTestId("hour-picker").props.onValueChange(14);
+    });
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(mockUpdateFlow).toHaveBeenCalledWith(
+        "flow-1",
+        expect.objectContaining({
+          scheduleTime: "14:00",
+          mix,
+          recentListening: true,
+          excludeTags: ["christmas"],
+        }),
+      ),
+    );
+  });
+
   it("shows a not-found state when the flow is missing from the cache", async () => {
     mockUseLocalSearchParams.mockReturnValue({ id: "missing-flow" });
     const { getByText } = await renderScreen();
 
     expect(getByText("Flow not found.")).toBeTruthy();
+  });
+});
+
+describe("FlowEditScreen (creating)", () => {
+  beforeEach(() => {
+    mockUseLocalSearchParams.mockReturnValue({});
+  });
+
+  it("creates a flow with a new-releases share, recent listening and excluded tags", async () => {
+    mockCreateFlow.mockResolvedValue(flow);
+    const { getByLabelText, getByPlaceholderText, getByTestId, getByText } =
+      await renderScreen();
+
+    await act(() => {
+      fireEvent(getByTestId("mix-slider-newReleases"), "valueChange", 20);
+    });
+    await act(() => {
+      fireEvent(getByLabelText("Recent listening"), "valueChange", true);
+    });
+    const excludedInput = getByPlaceholderText(
+      "Add a tag to leave out (e.g. christmas)",
+    );
+    await act(() => {
+      fireEvent.changeText(excludedInput, "christmas");
+    });
+    await act(() => {
+      fireEvent(excludedInput, "submitEditing");
+    });
+    await fireEvent.press(getByText("Create Flow"));
+
+    await waitFor(() => expect(mockCreateFlow).toHaveBeenCalled());
+    const payload = mockCreateFlow.mock.calls[0][0];
+    expect(payload.mix.newReleases).toBe(20);
+    expect(
+      Object.values(payload.mix as Record<string, number>).reduce(
+        (total, share) => total + share,
+        0,
+      ),
+    ).toBe(100);
+    expect(payload).toMatchObject({
+      recentListening: true,
+      excludeTags: ["christmas"],
+    });
+  });
+
+  it("moves a tag typed with a leading minus to the excluded tags", async () => {
+    mockCreateFlow.mockResolvedValue(flow);
+    const { getByPlaceholderText, getByText } = await renderScreen();
+
+    const tagsInput = getByPlaceholderText("Add a tag (e.g. ambient)");
+    for (const entry of ["ambient", "-christmas"]) {
+      await act(() => {
+        fireEvent.changeText(tagsInput, entry);
+      });
+      await act(() => {
+        fireEvent(tagsInput, "submitEditing");
+      });
+    }
+    await fireEvent.press(getByText("Create Flow"));
+
+    await waitFor(() => expect(mockCreateFlow).toHaveBeenCalled());
+    expect(mockCreateFlow.mock.calls[0][0]).toMatchObject({
+      tags: ["ambient"],
+      excludeTags: ["christmas"],
+    });
+  });
+
+  it("clears the Focus error once recent listening is turned on", async () => {
+    const { getByLabelText, getByText, queryByText } = await renderScreen();
+    const focusError =
+      "Focus needs a tag, a related artist, or recent listening";
+
+    await fireEvent.press(getByText("Focused"));
+    await fireEvent.press(getByText("Create Flow"));
+    await waitFor(() => expect(getByText(focusError)).toBeTruthy());
+
+    await act(() => {
+      fireEvent(getByLabelText("Recent listening"), "valueChange", true);
+    });
+
+    await waitFor(() => expect(queryByText(focusError)).toBeNull());
+    expect(mockCreateFlow).not.toHaveBeenCalled();
   });
 });

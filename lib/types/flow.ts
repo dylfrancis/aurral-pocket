@@ -1,9 +1,15 @@
-export type MixPercent = {
-  discover: number;
-  mix: number;
-  trending: number;
-  focus: number;
-};
+/** In the order of Aurral's `FLOW_SOURCES` (upstream `lib/flows.ts`). */
+export const MIX_SOURCES = [
+  "discover",
+  "mix",
+  "trending",
+  "focus",
+  "newReleases",
+] as const;
+
+export type MixSource = (typeof MIX_SOURCES)[number];
+
+export type MixPercent = Record<MixSource, number>;
 
 export type Flow = {
   id: string;
@@ -11,7 +17,10 @@ export type Flow = {
   enabled: boolean;
   size: number;
   mix: MixPercent;
+  /** Shown as "Deeper Cuts": tracks ranked 10 to 25 instead of the top 10. */
   deepDive: boolean;
+  /** Seeds Focus with the artists the user played most recently. */
+  recentListening: boolean;
   /**
    * Whether the flow's plays feed listening history. Optional because Aurral
    * versions before 2.5.0 do not send it. Absent means enabled: the server
@@ -26,7 +35,12 @@ export type Flow = {
    */
   yearFrom?: number | null;
   yearTo?: number | null;
+  /**
+   * Every source keeps only artists that carry one of `tags` and none of
+   * `excludeTags`. Focus also searches by `tags`.
+   */
   tags: string[];
+  excludeTags: string[];
   relatedArtists: string[];
   scheduleDays: number[];
   scheduleTime: string;
@@ -141,10 +155,12 @@ export type FlowFormValues = {
   size: number;
   mix: MixPercent;
   deepDive: boolean;
+  recentListening: boolean;
   recordHistory: boolean;
   yearFrom: number | null;
   yearTo: number | null;
   tags: string[];
+  excludeTags: string[];
   relatedArtists: string[];
   scheduleDays: number[];
   scheduleTime: string;
@@ -155,6 +171,7 @@ export const DEFAULT_MIX: MixPercent = {
   mix: 30,
   trending: 20,
   focus: 0,
+  newReleases: 0,
 };
 
 export const DEFAULT_FLOW_SIZE = 30;
@@ -164,10 +181,12 @@ export const createDefaultFlowForm = (): FlowFormValues => ({
   size: DEFAULT_FLOW_SIZE,
   mix: DEFAULT_MIX,
   deepDive: false,
+  recentListening: false,
   recordHistory: true,
   yearFrom: null,
   yearTo: null,
   tags: [],
+  excludeTags: [],
   relatedArtists: [],
   scheduleDays: [new Date().getDay()],
   scheduleTime: "00:00",
@@ -177,27 +196,27 @@ export const MIX_PRESETS: { id: string; label: string; mix: MixPercent }[] = [
   {
     id: "balanced",
     label: "Balanced",
-    mix: { discover: 50, mix: 30, trending: 20, focus: 0 },
+    mix: { discover: 50, mix: 30, trending: 20, focus: 0, newReleases: 0 },
   },
   {
     id: "discover",
     label: "Discover",
-    mix: { discover: 70, mix: 20, trending: 10, focus: 0 },
+    mix: { discover: 70, mix: 20, trending: 10, focus: 0, newReleases: 0 },
   },
   {
     id: "library",
     label: "Library",
-    mix: { discover: 25, mix: 65, trending: 10, focus: 0 },
+    mix: { discover: 25, mix: 65, trending: 10, focus: 0, newReleases: 0 },
   },
   {
     id: "trending",
     label: "Trending",
-    mix: { discover: 35, mix: 20, trending: 45, focus: 0 },
+    mix: { discover: 35, mix: 20, trending: 45, focus: 0, newReleases: 0 },
   },
   {
     id: "focused",
     label: "Focused",
-    mix: { discover: 30, mix: 20, trending: 10, focus: 40 },
+    mix: { discover: 30, mix: 20, trending: 10, focus: 40, newReleases: 0 },
   },
 ];
 
