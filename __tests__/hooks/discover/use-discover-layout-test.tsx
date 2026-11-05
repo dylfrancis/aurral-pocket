@@ -65,17 +65,23 @@ describe("normalizeDiscoverLayout", () => {
     expect(result?.[1]).toMatchObject({ id: "recommended", enabled: true });
   });
 
-  it("drops unknown ids and appends missing defaults at the end", () => {
+  it("drops unknown ids and appends missing sections at the end, News included", () => {
     const input = [
       { id: "unknown", enabled: true },
       { id: "playlists", enabled: false },
     ];
     const result = normalizeDiscoverLayout(input);
     expect(result?.[0]).toMatchObject({ id: "playlists", enabled: false });
-    expect(result?.map((s) => s.id)).toEqual(
-      expect.arrayContaining(DEFAULT_DISCOVER_SECTIONS.map((s) => s.id)),
-    );
-    expect(result).toHaveLength(DEFAULT_DISCOVER_SECTIONS.length);
+    expect(result?.map((s) => s.id)).toEqual([
+      "playlists",
+      "recentlyAdded",
+      "recommendedShows",
+      "recentReleases",
+      "news",
+      "recommended",
+      "globalTop",
+      "genreSections",
+    ]);
   });
 });
 
@@ -181,7 +187,9 @@ describe("useDiscoverLayout", () => {
 
   it("saveLayout writes optimistically and persists server-normalized result", async () => {
     mockStorage.getItem.mockResolvedValue(null);
-    mockGetLayout.mockImplementation(() => new Promise(() => {}));
+    mockGetLayout
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockResolvedValue({ layout: null });
     mockUpdateLayout.mockResolvedValue({
       layout: [{ id: "recommended", enabled: true }],
     });
@@ -198,7 +206,6 @@ describe("useDiscoverLayout", () => {
       await result.current.saveLayout(next);
     });
 
-    expect(mockUpdateLayout).toHaveBeenCalledWith(next);
     expect(mockStorage.setItem).toHaveBeenCalledWith(
       "discoverLayout:42",
       expect.any(String),
@@ -206,10 +213,67 @@ describe("useDiscoverLayout", () => {
     expect(result.current.sections[0].id).toBe("recommended");
   });
 
+  it("saveLayout keeps the News entry and row styles set on the web since load", async () => {
+    mockGetLayout
+      .mockResolvedValueOnce({
+        layout: [
+          { id: "playlists", enabled: true },
+          { id: "recentlyAdded", enabled: true },
+          { id: "recommendedShows", enabled: true },
+          { id: "recentReleases", enabled: true },
+          { id: "news", enabled: true },
+          { id: "recommended", enabled: true },
+          { id: "globalTop", enabled: true },
+          { id: "genreSections", enabled: true },
+        ],
+      })
+      // The web then hides News, moves it up and sets both row styles.
+      .mockResolvedValueOnce({
+        layout: [
+          { id: "playlists", enabled: true },
+          { id: "news", enabled: false, style: "square" },
+          { id: "recentlyAdded", enabled: true },
+          { id: "recommendedShows", enabled: true, style: "wide" },
+          { id: "recentReleases", enabled: true },
+          { id: "recommended", enabled: true },
+          { id: "globalTop", enabled: true },
+          { id: "genreSections", enabled: true },
+        ],
+      });
+    mockUpdateLayout.mockImplementation(async (layout) => ({ layout }));
+
+    const { result } = await renderHook(() => useDiscoverLayout());
+    await waitFor(() =>
+      expect(result.current.sections[0].id).toBe("playlists"),
+    );
+
+    // Move Playlists to the bottom and turn Global Trending off.
+    const [playlists, ...rest] = result.current.sections;
+    const next = [...rest, playlists].map((section) =>
+      section.id === "globalTop" ? { ...section, enabled: false } : section,
+    );
+    await act(async () => {
+      await result.current.saveLayout(next);
+    });
+
+    expect(mockUpdateLayout).toHaveBeenCalledWith([
+      { id: "recentlyAdded", enabled: true },
+      { id: "news", enabled: false, style: "square" },
+      { id: "recommendedShows", enabled: true, style: "wide" },
+      { id: "recentReleases", enabled: true },
+      { id: "recommended", enabled: true },
+      { id: "globalTop", enabled: false },
+      { id: "genreSections", enabled: true },
+      { id: "playlists", enabled: true },
+    ]);
+  });
+
   it("saveLayout reverts AsyncStorage and state when the server PATCH fails", async () => {
     const initial = [{ id: "globalTop", enabled: false }];
     mockStorage.getItem.mockResolvedValue(JSON.stringify(initial));
-    mockGetLayout.mockImplementation(() => new Promise(() => {}));
+    mockGetLayout
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockResolvedValue({ layout: null });
     mockUpdateLayout.mockRejectedValue(new Error("server error"));
 
     const { result } = await renderHook(() => useDiscoverLayout());
@@ -241,7 +305,9 @@ describe("useDiscoverLayout", () => {
 
   it("saveLayout removes the storage entry on server failure if none existed before", async () => {
     mockStorage.getItem.mockResolvedValue(null);
-    mockGetLayout.mockImplementation(() => new Promise(() => {}));
+    mockGetLayout
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockResolvedValue({ layout: null });
     mockUpdateLayout.mockRejectedValue(new Error("offline"));
 
     const { result } = await renderHook(() => useDiscoverLayout());

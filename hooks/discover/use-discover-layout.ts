@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@/contexts/auth-context";
 import { getMyDiscoverLayout, updateMyDiscoverLayout } from "@/lib/api/me";
-import type { DiscoverSection, DiscoverSectionId } from "@/lib/types/me";
+import type {
+  DiscoverFeedStyle,
+  DiscoverLayoutEntry,
+  DiscoverLayoutSectionId,
+  DiscoverSection,
+} from "@/lib/types/me";
 
 const STORAGE_KEY_PREFIX = "discoverLayout";
 
@@ -16,36 +21,94 @@ export const DEFAULT_DISCOVER_SECTIONS: readonly DiscoverSection[] = [
   { id: "genreSections", label: "Because You Like", enabled: true },
 ];
 
-const cloneDefaults = (): DiscoverSection[] =>
-  DEFAULT_DISCOVER_SECTIONS.map((section) => ({ ...section }));
+// Aurral's `lib/discoverLayout.ts`: every section in its default order, the
+// row styles, and the sections that take one.
+const LAYOUT_SECTION_IDS: readonly DiscoverLayoutSectionId[] = [
+  "recentlyAdded",
+  "playlists",
+  "recommendedShows",
+  "recentReleases",
+  "news",
+  "recommended",
+  "globalTop",
+  "genreSections",
+];
+const FEED_STYLES: readonly DiscoverFeedStyle[] = ["list", "square", "wide"];
+const STYLED_SECTIONS: ReadonlySet<DiscoverLayoutSectionId> = new Set([
+  "recommendedShows",
+  "news",
+]);
+
+const POCKET_SECTIONS = new Map<DiscoverLayoutSectionId, DiscoverSection>(
+  DEFAULT_DISCOVER_SECTIONS.map((section) => [section.id, section]),
+);
+
+const isLayoutSectionId = (value: unknown): value is DiscoverLayoutSectionId =>
+  LAYOUT_SECTION_IDS.some((id) => id === value);
+
+const isFeedStyle = (value: unknown): value is DiscoverFeedStyle =>
+  FEED_STYLES.some((style) => style === value);
+
+const defaultLayout = (): DiscoverLayoutEntry[] =>
+  LAYOUT_SECTION_IDS.map((id) => ({ id, enabled: true }));
 
 const storageKey = (userId?: number | null) =>
   userId ? `${STORAGE_KEY_PREFIX}:${userId}` : STORAGE_KEY_PREFIX;
 
+/**
+ * Reads a layout with every section Aurral lists, News included. Unknown and
+ * repeated ids are dropped, a style is kept only on Shows and News, and
+ * missing sections are added at the end, turned on.
+ */
 export function normalizeDiscoverLayout(
   value: unknown,
-): DiscoverSection[] | null {
+): DiscoverLayoutEntry[] | null {
   if (!Array.isArray(value)) return null;
-  const defaultsById = new Map<DiscoverSectionId, DiscoverSection>(
-    DEFAULT_DISCOVER_SECTIONS.map((item) => [item.id, { ...item }]),
-  );
-  const normalized: DiscoverSection[] = [];
+  const remaining = new Set(LAYOUT_SECTION_IDS);
+  const normalized: DiscoverLayoutEntry[] = [];
   for (const raw of value) {
     if (!raw || typeof raw !== "object") continue;
-    const id = (raw as { id?: unknown }).id;
-    if (typeof id !== "string" || !defaultsById.has(id as DiscoverSectionId)) {
-      continue;
-    }
-    const base = defaultsById.get(id as DiscoverSectionId)!;
-    const enabled = (raw as { enabled?: unknown }).enabled;
-    normalized.push({
-      ...base,
-      enabled: typeof enabled === "boolean" ? enabled : base.enabled,
-    });
-    defaultsById.delete(id as DiscoverSectionId);
+    const { id, enabled, style } = raw as Record<string, unknown>;
+    if (!isLayoutSectionId(id) || !remaining.has(id)) continue;
+    remaining.delete(id);
+    const entry: DiscoverLayoutEntry = {
+      id,
+      enabled: typeof enabled === "boolean" ? enabled : true,
+    };
+    if (STYLED_SECTIONS.has(id) && isFeedStyle(style)) entry.style = style;
+    normalized.push(entry);
   }
-  defaultsById.forEach((item) => normalized.push({ ...item }));
+  remaining.forEach((id) => normalized.push({ id, enabled: true }));
   return normalized;
+}
+
+const sectionsOf = (layout: DiscoverLayoutEntry[]): DiscoverSection[] =>
+  layout.flatMap((entry) => {
+    const section = POCKET_SECTIONS.get(entry.id);
+    return section ? [{ ...section, enabled: entry.enabled }] : [];
+  });
+
+/**
+ * Puts pocket's sections, in their new order, into the slots they hold in
+ * `layout`. News stays in its slot and every entry keeps its style, because
+ * the server replaces the whole layout and pocket can't edit either.
+ */
+function withSections(
+  layout: DiscoverLayoutEntry[],
+  sections: DiscoverSection[],
+): DiscoverLayoutEntry[] {
+  const current = new Map(layout.map((entry) => [entry.id, entry]));
+  const pending = sections.map(({ id, enabled }): DiscoverLayoutEntry => ({
+    ...current.get(id),
+    id,
+    enabled,
+  }));
+  const merged = layout.flatMap((entry) => {
+    if (!POCKET_SECTIONS.has(entry.id)) return [entry];
+    const next = pending.shift();
+    return next ? [next] : [];
+  });
+  return [...merged, ...pending];
 }
 
 async function readStoredLayout(userId?: number | null) {
@@ -59,7 +122,7 @@ async function readStoredLayout(userId?: number | null) {
 }
 
 async function writeStoredLayout(
-  layout: DiscoverSection[],
+  layout: DiscoverLayoutEntry[],
   userId?: number | null,
 ) {
   try {
@@ -76,7 +139,7 @@ export type UseDiscoverLayoutResult = {
 export function useDiscoverLayout(): UseDiscoverLayoutResult {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  const [sections, setSections] = useState<DiscoverSection[]>(cloneDefaults);
+  const [layout, setLayout] = useState<DiscoverLayoutEntry[]>(defaultLayout);
   // Holds the userId whose layout we've finished loading; `undefined` until the
   // first load completes. Deriving `hydrated` from it (rather than resetting a
   // boolean synchronously in the effect) keeps it correct across user changes
@@ -85,18 +148,19 @@ export function useDiscoverLayout(): UseDiscoverLayoutResult {
     number | null | undefined
   >(undefined);
   const hydrated = hydratedUserId === userId;
-  const sectionsRef = useRef(sections);
+  const layoutRef = useRef(layout);
+  const sections = useMemo(() => sectionsOf(layout), [layout]);
 
   useEffect(() => {
-    sectionsRef.current = sections;
-  }, [sections]);
+    layoutRef.current = layout;
+  }, [layout]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const local = await readStoredLayout(userId);
       if (cancelled) return;
-      setSections(local ?? cloneDefaults());
+      setLayout(local ?? defaultLayout());
       setHydratedUserId(userId);
       if (!userId) return;
       try {
@@ -104,7 +168,7 @@ export function useDiscoverLayout(): UseDiscoverLayoutResult {
         if (cancelled) return;
         const normalized = normalizeDiscoverLayout(response?.layout);
         if (normalized) {
-          setSections(normalized);
+          setLayout(normalized);
           await writeStoredLayout(normalized, userId);
         }
       } catch {
@@ -118,20 +182,28 @@ export function useDiscoverLayout(): UseDiscoverLayoutResult {
 
   const saveLayout = useCallback(
     async (next: DiscoverSection[]) => {
-      const previousSections = sectionsRef.current;
+      const previousLayout = layoutRef.current;
       let previousStorage: string | null = null;
       try {
         previousStorage = await AsyncStorage.getItem(storageKey(userId));
       } catch {}
-      setSections(next);
-      await writeStoredLayout(next, userId);
+      const optimistic = withSections(previousLayout, next);
+      setLayout(optimistic);
+      await writeStoredLayout(optimistic, userId);
       try {
-        const response = await updateMyDiscoverLayout(next);
-        const saved = normalizeDiscoverLayout(response?.layout) ?? next;
-        setSections(saved);
+        // Build on the server's current layout, so a News or style change
+        // made on the web since this one loaded isn't overwritten.
+        const latest = await getMyDiscoverLayout();
+        const merged = withSections(
+          normalizeDiscoverLayout(latest?.layout) ?? previousLayout,
+          next,
+        );
+        const response = await updateMyDiscoverLayout(merged);
+        const saved = normalizeDiscoverLayout(response?.layout) ?? merged;
+        setLayout(saved);
         await writeStoredLayout(saved, userId);
       } catch (err) {
-        setSections(previousSections);
+        setLayout(previousLayout);
         try {
           if (previousStorage === null) {
             await AsyncStorage.removeItem(storageKey(userId));
