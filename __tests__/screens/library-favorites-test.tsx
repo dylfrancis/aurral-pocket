@@ -183,6 +183,75 @@ beforeEach(() => {
 });
 
 describe("favorites screen", () => {
+  describe("search", () => {
+    const searchBar = () =>
+      screen.container.queryAll((node) => node.type === "RNSSearchBar")[0];
+    const search = async (text: string) => {
+      await act(async () => {
+        searchBar().props.onChangeText({ nativeEvent: { text } });
+      });
+    };
+    const ALL_ROWS = [
+      "Artists",
+      "Sigur Ros",
+      "Albums",
+      "Second Album",
+      "Tracks",
+      "First Song",
+    ];
+    const visibleRows = () =>
+      ALL_ROWS.filter((title) => screen.queryByText(title));
+
+    it.each([
+      ["an artist's name", "sigur", ["Artists", "Sigur Ros"]],
+      ["an album's title", "SECOND", ["Albums", "Second Album"]],
+      ["a track's title", "first song", ["Tracks", "First Song"]],
+      ["the album a track is on", "first album", ["Tracks", "First Song"]],
+      [
+        "the artist on albums and tracks",
+        "test artist",
+        ["Albums", "Second Album", "Tracks", "First Song"],
+      ],
+    ])("finds favorites by %s", async (_field, text, rows) => {
+      await openFavorites();
+      await screen.findByText("Sigur Ros");
+
+      await search(text);
+
+      expect(visibleRows()).toEqual(rows);
+    });
+
+    it("says so when nothing matches", async () => {
+      await openFavorites();
+      await screen.findByText("Sigur Ros");
+
+      await search("  polka ");
+
+      expect(visibleRows()).toEqual([]);
+      expect(screen.getByText("No results matching “polka”")).toBeTruthy();
+    });
+
+    it("keeps the search handler stable, so typing can't rebuild the header", async () => {
+      await openFavorites();
+      await screen.findByText("Sigur Ros");
+      const before = searchBar().props.onChangeText;
+
+      await search("sigur");
+
+      expect(searchBar().props.onChangeText).toBe(before);
+    });
+
+    it("brings every row back when the search is cleared", async () => {
+      await openFavorites();
+      await screen.findByText("Sigur Ros");
+
+      await search("polka");
+      await search("");
+
+      expect(visibleRows()).toEqual(ALL_ROWS);
+    });
+  });
+
   it("opens from the library home", async () => {
     await openFavorites("/");
 

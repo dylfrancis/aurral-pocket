@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, StyleSheet } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import { useRouter, type ErrorBoundaryProps } from "expo-router";
+import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { EmptyState } from "@/components/library/EmptyState";
@@ -21,6 +21,7 @@ import {
 import { coverArtUrlFrom } from "@/hooks/library/use-cover-art-url";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { searchBarColors } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { albumRouteParams, artistRouteId } from "@/lib/library-read";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
@@ -84,6 +85,26 @@ function rowKey(row: FavoriteRow) {
 const trackArtistName = (track: FavoriteTrack) =>
   track.artistName || track.album?.artistName || "";
 
+/** The favorites whose name, artist or album holds the search text. */
+function matchingFavorites(
+  favorites: LibraryFavorites,
+  query: string,
+): LibraryFavorites {
+  if (!query) return favorites;
+  const search = query.toLocaleLowerCase();
+  const matches = (...fields: (string | undefined)[]) =>
+    fields.some((field) => field?.toLocaleLowerCase().includes(search));
+  return {
+    artists: favorites.artists.filter((artist) => matches(artist.artistName)),
+    albums: favorites.albums.filter((album) =>
+      matches(album.albumName, album.artistName),
+    ),
+    tracks: favorites.tracks.filter((track) =>
+      matches(track.trackName, trackArtistName(track), track.album?.albumName),
+    ),
+  };
+}
+
 /**
  * Built at tap time, because the artwork fallback comes from the lookup the
  * row's own thumbnail ran. That lookup only runs when the server has no cover,
@@ -119,7 +140,19 @@ export default function LibraryFavoritesScreen() {
   const trackActions = useTrackActions();
   const play = usePlayTrack();
 
-  const rows = useMemo(() => favoriteRows(favorites), [favorites]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const trimmedQuery = searchQuery.trim();
+  const rows = useMemo(
+    () => favoriteRows(matchingFavorites(favorites, trimmedQuery)),
+    [favorites, trimmedQuery],
+  );
+  // Stable, because a header rebuild can drop the Android search icon.
+  const handleSearchChange = useCallback(
+    (event: { nativeEvent: { text: string } }) =>
+      setSearchQuery(event.nativeEvent.text),
+    [],
+  );
+  const handleSearchCancel = useCallback(() => setSearchQuery(""), []);
 
   // Its own flag, not isRefetching, so a refetch nobody pulled for shows no
   // spinner.
@@ -241,18 +274,34 @@ export default function LibraryFavoritesScreen() {
 
   return (
     <>
+      <Stack.SearchBar
+        placeholder="Search favorites"
+        hideWhenScrolling={false}
+        autoCapitalize="none"
+        {...searchBarColors(colors)}
+        onChangeText={handleSearchChange}
+        onCancelButtonPress={handleSearchCancel}
+      />
       <FlashList
         data={rows}
         renderItem={renderRow}
         keyExtractor={rowKey}
         getItemType={(row) => row.type}
         ListEmptyComponent={
-          <EmptyState
-            icon="heart-outline"
-            message="Add albums and tracks to your favorites to find them here"
-          />
+          trimmedQuery ? (
+            <EmptyState
+              icon="search-outline"
+              message={`No results matching “${trimmedQuery}”`}
+            />
+          ) : (
+            <EmptyState
+              icon="heart-outline"
+              message="Add albums and tracks to your favorites to find them here"
+            />
+          )
         }
         contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{ backgroundColor: colors.background }}
         refreshControl={
           <RefreshControl
