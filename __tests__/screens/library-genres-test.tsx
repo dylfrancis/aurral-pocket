@@ -205,6 +205,32 @@ describe("genres list sorting", () => {
     ).toEqual([title]);
   });
 
+  it("offers no grid or list choice, because genres have no artwork", async () => {
+    mockGetCanonicalGenres.mockResolvedValue(genres);
+    await openGenresList();
+    await screen.findByText("Jazz");
+
+    expect(sortMenuItems().map((item) => item.title)).not.toContain("View");
+  });
+
+  // A header rebuild can drop the Android search icon.
+  it("keeps the native header untouched across a keystroke", async () => {
+    mockGetCanonicalGenres.mockResolvedValue(genres);
+    await openGenresList();
+    await screen.findByText("Jazz");
+    const nativeHeaderProps = () => ({
+      menu: nativeElements("RNSScreenStackHeaderConfig")[0].props
+        .headerRightBarButtonItems,
+      onChangeText: nativeElements("RNSSearchBar")[0].props.onChangeText,
+    });
+    const before = nativeHeaderProps();
+
+    await search("a");
+
+    expect(nativeHeaderProps().menu).toBe(before.menu);
+    expect(nativeHeaderProps().onChangeText).toBe(before.onChangeText);
+  });
+
   it("keeps the chosen order while searching", async () => {
     mockGetCanonicalGenres.mockResolvedValue(genres);
     await openGenresList();
@@ -238,6 +264,22 @@ describe("genre detail", () => {
       ).toContain(name);
     },
   );
+
+  it("keeps the grid or list choice, because albums have artwork", async () => {
+    mockGetCanonicalGenres.mockResolvedValue([makeGenre("Jazz")]);
+    await openGenresList();
+
+    await fireEvent.press(await screen.findByText("Jazz"));
+
+    await waitFor(() => {
+      const detailHeader = nativeElements("RNSScreenStackHeaderConfig").at(-1)!;
+      expect(
+        detailHeader.props.headerRightBarButtonItems[0].menu.items.map(
+          (item: { title: string }) => item.title,
+        ),
+      ).toContain("View");
+    });
+  });
 
   it("pushes the album page when an album is tapped", async () => {
     mockGetCanonicalGenres.mockResolvedValue([makeGenre("Jazz")]);
