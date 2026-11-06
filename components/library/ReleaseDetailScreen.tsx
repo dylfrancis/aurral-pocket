@@ -180,6 +180,7 @@ export function ReleaseDetailScreen() {
     void queryClient.invalidateQueries({
       queryKey: libraryKeys.albumsAllViews(),
     });
+    void queryClient.invalidateQueries({ queryKey: libraryKeys.genres() });
     void queryClient.invalidateQueries({ queryKey: ["search", "albums"] });
     void queryClient.invalidateQueries({
       queryKey: libraryKeys.downloadStatusesAll(),

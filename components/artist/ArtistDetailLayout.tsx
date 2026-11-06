@@ -305,6 +305,7 @@ export function ArtistDetailLayout({
       void queryClient.invalidateQueries({
         queryKey: libraryKeys.albumsAllViews(),
       });
+      void queryClient.invalidateQueries({ queryKey: libraryKeys.genres() });
     },
   });
 

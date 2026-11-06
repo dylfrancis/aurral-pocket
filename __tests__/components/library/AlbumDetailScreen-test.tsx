@@ -220,9 +220,9 @@ describe("AlbumDetailScreen", () => {
     expect(mockDeleteAlbum).toHaveBeenCalledWith("301");
   });
 
-  it("refreshes the whole-library album list after a delete", async () => {
+  it("refreshes the whole-library album list and genre counts after a delete", async () => {
     const queryClient = await openAlbumPage(lidarrAlbum);
-    // The Albums screen the page was opened from, still listing the album.
+    // The screens the page was opened from, still counting the album.
     const albumsView = libraryKeys.albumsAll({
       genre: "",
       query: "",
@@ -230,12 +230,16 @@ describe("AlbumDetailScreen", () => {
       direction: "asc",
     });
     queryClient.setQueryData(albumsView, { pages: [], pageParams: [] });
+    queryClient.setQueryData(libraryKeys.genres(), []);
 
     await act(async () => {
       fireEvent.press(screen.getByText("Delete Album"));
     });
 
     expect(queryClient.getQueryState(albumsView)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(libraryKeys.genres())?.isInvalidated).toBe(
+      true,
+    );
   });
 
   it("reads the download status badge by Lidarr's album id", async () => {

@@ -197,10 +197,12 @@ export function AlbumDetailScreen() {
           queryKey: libraryKeys.albums(artistRef),
         });
       }
-      // The Albums screen may sit under this page, still listing the album.
+      // The Albums or Genres screen may sit under this page, still counting
+      // the album.
       void queryClient.invalidateQueries({
         queryKey: libraryKeys.albumsAllViews(),
       });
+      void queryClient.invalidateQueries({ queryKey: libraryKeys.genres() });
       // The album this page is about is gone, so the page cannot stay.
       router.back();
     },
