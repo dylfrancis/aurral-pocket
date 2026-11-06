@@ -379,11 +379,12 @@ describe("AlbumDetailScreen", () => {
       expect(mockUpdateLibraryFavorites).not.toHaveBeenCalled();
     });
 
-    it("refreshes the flags this page reads, and the favorites list, after a toggle", async () => {
+    it("refreshes every cached favorite flag and the favorites list after a toggle", async () => {
       const queryClient = await openTrackMenu();
       const keys = [
         libraryKeys.tracks("14"),
         libraryKeys.album("14"),
+        libraryKeys.canonicalArtist("artist-mb"),
         libraryKeys.favorites(),
       ];
       keys.forEach((key) => queryClient.setQueryData(key, []));

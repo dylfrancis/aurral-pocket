@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { CircleButton } from "@/components/ui/CircleButton";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { LibraryBadge } from "./LibraryBadge";
@@ -20,6 +21,7 @@ import { IS_IOS } from "@/constants/platform";
 import type { Artist } from "@/lib/types/library";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const FAVORITE_BUTTON_SIZE = 44;
 
 type ArtistHeroProps = {
   artist: Pick<Artist, "mbid" | "artistName" | "coverUrl">;
@@ -28,6 +30,8 @@ type ArtistHeroProps = {
   inLibrary: boolean;
   onBadgePress?: () => void;
   onAddPress?: () => void;
+  /** Library artists only. Omit when the artist can't be favorited. */
+  favorite?: { active: boolean; onToggle: () => void };
 };
 
 export function ArtistHero({
@@ -37,6 +41,7 @@ export function ArtistHero({
   inLibrary,
   onBadgePress,
   onAddPress,
+  favorite,
 }: ArtistHeroProps) {
   const colors = Colors[useColorScheme()];
 
@@ -82,32 +87,44 @@ export function ArtistHero({
         <Text variant="title" style={styles.name}>
           {artist.artistName}
         </Text>
-        {inLibrary
-          ? onBadgePress && <LibraryBadge onPress={onBadgePress} />
-          : onAddPress && (
-              <Pressable
-                onPress={onAddPress}
-                style={({ pressed }) => [
-                  styles.addButton,
-                  { backgroundColor: colors.brand, opacity: pressed ? 0.8 : 1 },
+        {inLibrary ? (
+          <View style={styles.libraryActions}>
+            {onBadgePress && <LibraryBadge onPress={onBadgePress} />}
+            {favorite && (
+              <CircleButton
+                icon={favorite.active ? "heart" : "heart-outline"}
+                size={FAVORITE_BUTTON_SIZE}
+                accessibilityLabel={
+                  favorite.active
+                    ? `Remove ${artist.artistName} from favorites`
+                    : `Add ${artist.artistName} to favorites`
+                }
+                onPress={favorite.onToggle}
+              />
+            )}
+          </View>
+        ) : (
+          onAddPress && (
+            <Pressable
+              onPress={onAddPress}
+              style={({ pressed }) => [
+                styles.addButton,
+                { backgroundColor: colors.brand, opacity: pressed ? 0.8 : 1 },
+              ]}
+            >
+              <Ionicons name="add" size={18} color={colors.buttonPrimaryText} />
+              <Text
+                variant="body"
+                style={[
+                  styles.addButtonText,
+                  { color: colors.buttonPrimaryText },
                 ]}
               >
-                <Ionicons
-                  name="add"
-                  size={18}
-                  color={colors.buttonPrimaryText}
-                />
-                <Text
-                  variant="body"
-                  style={[
-                    styles.addButtonText,
-                    { color: colors.buttonPrimaryText },
-                  ]}
-                >
-                  Add to Library
-                </Text>
-              </Pressable>
-            )}
+                Add to Library
+              </Text>
+            </Pressable>
+          )
+        )}
       </View>
     </View>
   );
@@ -153,6 +170,11 @@ const styles = StyleSheet.create({
   name: {
     textAlign: "center",
     paddingHorizontal: 24,
+  },
+  libraryActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   addButton: {
     flexDirection: "row",

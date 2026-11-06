@@ -103,6 +103,7 @@ export function useToggleFavorite() {
       return Promise.all(
         [
           favoritesKey,
+          libraryKeys.canonicalArtists(),
           libraryKeys.albumRecords(),
           libraryKeys.trackLists(),
         ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
