@@ -12,6 +12,7 @@ import {
   getLibraryArtist,
   getCanonicalLibraryPage,
   getCanonicalAlbum,
+  getCanonicalGenres,
   getCanonicalAlbumTracks,
   getCanonicalArtist,
   getCanonicalArtistAlbums,
@@ -1042,6 +1043,31 @@ describe("getCanonicalAlbum", () => {
       },
     });
     expect(album?.title).toBe("In Rainbows");
+  });
+});
+
+describe("getCanonicalGenres", () => {
+  it("reads the unpaged list in the library view the web counts", async () => {
+    const jazz = { name: "Jazz", artists: 1, albums: 2, tracks: 20 };
+    const rock = { name: "Rock", artists: 3, albums: 4, tracks: 40 };
+    mockApi.get.mockResolvedValueOnce({
+      data: {
+        kind: "genres",
+        page: 1,
+        pageSize: 1,
+        total: 2,
+        hasMore: true,
+        items: [jazz],
+        genres: [jazz, rock],
+      },
+    });
+
+    await expect(getCanonicalGenres()).resolves.toEqual([jazz, rock]);
+
+    // An explicit availableOnly would count another view than the web's.
+    expect(mockApi.get).toHaveBeenCalledWith("/library/canonical", {
+      params: { kind: "genres", pageSize: "100", source: "all" },
+    });
   });
 });
 
