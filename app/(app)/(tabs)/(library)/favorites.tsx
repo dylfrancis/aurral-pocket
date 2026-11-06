@@ -42,7 +42,7 @@ type FavoriteRow =
   | { type: "album"; album: Album }
   | { type: "track"; track: FavoriteTrack };
 
-function section<Item>(
+function sectionRows<Item>(
   title: string,
   items: Item[],
   toRow: (item: Item) => FavoriteRow,
@@ -54,15 +54,15 @@ function section<Item>(
 
 function favoriteRows(favorites: LibraryFavorites): FavoriteRow[] {
   return [
-    ...section("Artists", favorites.artists, (artist) => ({
+    ...sectionRows("Artists", favorites.artists, (artist) => ({
       type: "artist",
       artist,
     })),
-    ...section("Albums", favorites.albums, (album) => ({
+    ...sectionRows("Albums", favorites.albums, (album) => ({
       type: "album",
       album,
     })),
-    ...section("Tracks", favorites.tracks, (track) => ({
+    ...sectionRows("Tracks", favorites.tracks, (track) => ({
       type: "track",
       track,
     })),
@@ -85,15 +85,14 @@ function rowKey(row: FavoriteRow) {
 const trackArtistName = (track: FavoriteTrack) =>
   track.artistName || track.album?.artistName || "";
 
-/** The favorites whose name, artist or album holds the search text. */
 function matchingFavorites(
   favorites: LibraryFavorites,
   query: string,
 ): LibraryFavorites {
   if (!query) return favorites;
-  const search = query.toLocaleLowerCase();
+  const lowerCaseQuery = query.toLocaleLowerCase();
   const matches = (...fields: (string | undefined)[]) =>
-    fields.some((field) => field?.toLocaleLowerCase().includes(search));
+    fields.some((field) => field?.toLocaleLowerCase().includes(lowerCaseQuery));
   return {
     artists: favorites.artists.filter((artist) => matches(artist.artistName)),
     albums: favorites.albums.filter((album) =>
@@ -106,9 +105,8 @@ function matchingFavorites(
 }
 
 /**
- * Built at tap time, because the artwork fallback comes from the lookup the
- * row's own thumbnail ran. That lookup only runs when the server has no cover,
- * so the list sends no lookups of its own.
+ * Built at tap time, because the artwork fallback is whatever the row's
+ * thumbnail lookup found. The list sends no lookups of its own.
  */
 function playerContext(
   track: FavoriteTrack,
@@ -166,7 +164,7 @@ export default function LibraryFavoritesScreen() {
     }
   }, [refetch]);
 
-  const removeButton = (
+  const renderRemoveButton = (
     kind: "artist" | "album",
     name: string,
     identityKey?: string,
@@ -201,7 +199,7 @@ export default function LibraryFavoritesScreen() {
             mbid={row.artist.mbid}
             coverUrl={row.artist.coverUrl}
             title={row.artist.artistName}
-            trailing={removeButton(
+            trailing={renderRemoveButton(
               "artist",
               row.artist.artistName,
               row.artist.identityKey,
@@ -225,7 +223,7 @@ export default function LibraryFavoritesScreen() {
             coverUrl={row.album.coverUrl}
             title={row.album.albumName}
             subtitle={row.album.artistName}
-            trailing={removeButton(
+            trailing={renderRemoveButton(
               "album",
               row.album.albumName,
               row.album.identityKey,

@@ -9,7 +9,6 @@ type CoverArtOptions = {
   mbid: string | undefined;
 };
 
-/** The image a cover lookup found, as a loadable URL. Null when it found none. */
 export function coverArtUrlFrom(cover: CoverArtResponse | undefined) {
   const images = cover?.images;
   const raw =

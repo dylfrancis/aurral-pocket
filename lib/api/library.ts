@@ -422,8 +422,8 @@ export type FavoriteKind = "artist" | "album" | "song";
 
 /**
  * Build the id the favorites API addresses an entity by. Mirrors subsonicId in
- * the server's libraryMediaStore, which leaves colons readable. The starred
- * lists use that form, and identity keys hold colons (`mbid:`, `recording:`).
+ * the server's libraryMediaStore, which leaves the colons in identity keys
+ * readable.
  */
 export function favoriteEntityId(kind: FavoriteKind, identityKey: string) {
   return `${kind}:${encodeURIComponent(identityKey).replaceAll("%3A", ":")}`;
@@ -431,10 +431,9 @@ export function favoriteEntityId(kind: FavoriteKind, identityKey: string) {
 
 /**
  * Read the signed-in user's favorites. The response's `library` field also
- * carries the parents and children of starred rows — a starred artist arrives
- * with its whole discography. The rows are filtered down to the starred ids,
- * so callers see only what the user starred. The parents still name a track's
- * album and an album's artist.
+ * carries the parents and children of starred rows, so a starred artist arrives
+ * with its whole discography. Only starred rows are returned. The parents just
+ * name a track's album and an album's artist.
  */
 export async function getLibraryFavorites(): Promise<LibraryFavorites> {
   const r = await api.get<LibraryFavoritesWire>("/library/favorites");
@@ -473,18 +472,17 @@ export async function getLibraryFavorites(): Promise<LibraryFavorites> {
     tracks: (library.tracks ?? [])
       .filter((item) => keep("song", item.identityKey))
       .map((item) => {
-        // A track can sit on several albums with its file on only one, and
-        // the stream path has to name that one.
-        const albumId =
+        // A track can sit on several albums with its file on only one.
+        const streamAlbumId =
           item.files?.find((file) => file.available && file.albumId != null)
             ?.albumId ?? item.albums?.[0]?.albumId;
         return {
           ...canonicalTrackToTrack(
             item,
-            albumId != null ? String(albumId) : undefined,
+            streamAlbumId != null ? String(streamAlbumId) : undefined,
           ),
           userFavorite: true,
-          album: albumsById.get(String(albumId)),
+          album: albumsById.get(String(streamAlbumId)),
         };
       }),
   };

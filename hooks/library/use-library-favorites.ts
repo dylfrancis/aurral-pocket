@@ -20,8 +20,7 @@ export function useLibraryFavorites() {
   return useSuspenseQuery({
     queryKey: libraryKeys.favorites(),
     queryFn: getLibraryFavorites,
-    // The web UI and Subsonic clients change favorites too, so opening the
-    // screen rereads them behind whatever is cached.
+    // Other clients change favorites too, so opening the screen rereads them.
     staleTime: 0,
   });
 }
@@ -57,14 +56,9 @@ type ToggleFavorite = {
 };
 
 /**
- * Star or unstar one artist, album or track, and say what happened.
- *
- * A removal leaves the favorites list at once, because the reread can take a
- * moment: the payload is unpaged and carries starred artists' discographies.
- *
- * The album page and its track list read `userFavorite`, so a toggle refreshes
- * both. The flag still goes stale in the cached album and artist lists, which
- * do not read it.
+ * A removal leaves the list at once, because the unpaged reread can be slow.
+ * `userFavorite` still goes stale in the cached album and artist lists, which
+ * don't read it.
  */
 export function useToggleFavorite() {
   const queryClient = useQueryClient();
@@ -76,14 +70,15 @@ export function useToggleFavorite() {
       updateLibraryFavorites([favoriteEntityId(kind, identityKey)], starred),
     onMutate: async ({ kind, identityKey, starred }) => {
       await queryClient.cancelQueries({ queryKey: favoritesKey });
-      const previous = queryClient.getQueryData<LibraryFavorites>(favoritesKey);
-      if (previous && !starred) {
+      const previousFavorites =
+        queryClient.getQueryData<LibraryFavorites>(favoritesKey);
+      if (previousFavorites && !starred) {
         queryClient.setQueryData(
           favoritesKey,
-          withoutFavorite(previous, kind, identityKey),
+          withoutFavorite(previousFavorites, kind, identityKey),
         );
       }
-      return { previous };
+      return { previousFavorites };
     },
     onSuccess: (_result, { starred }) => {
       Burnt.toast({
@@ -92,8 +87,8 @@ export function useToggleFavorite() {
       });
     },
     onError: (error, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(favoritesKey, context.previous);
+      if (context?.previousFavorites) {
+        queryClient.setQueryData(favoritesKey, context.previousFavorites);
       }
       Burnt.toast({
         title: "Couldn't update favorites",
@@ -101,11 +96,9 @@ export function useToggleFavorite() {
         preset: "error",
       });
     },
-    // Returned so the toggle stays pending until the flags are fresh, which
-    // keeps the album menu from offering the old action after the toast.
+    // Returned so the toggle stays pending until the reread lands.
     onSettled: () => {
-      // A reread that lands before another toggle's request would bring that
-      // row back, so the last toggle to settle rereads for all of them.
+      // A reread before another toggle's request lands would bring its row back.
       if (queryClient.isMutating({ mutationKey: favoritesKey }) > 1) return;
       return Promise.all(
         [

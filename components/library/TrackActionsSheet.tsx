@@ -23,7 +23,6 @@ type TrackActionsTarget = {
   album: PlayerAlbumContext;
 };
 
-/** State for one TrackActionsSheet. `open` also gives haptic feedback. */
 export function useTrackActions() {
   const [target, setTarget] = useState<TrackActionsTarget | null>(null);
 
@@ -37,11 +36,7 @@ export function useTrackActions() {
   return { target, open, close };
 }
 
-/**
- * The actions behind a library track's three dots. The sheet is closed while
- * `target` is null. The playlist sheet stays mounted outside it, because it
- * opens as this one closes.
- */
+/** The playlist sheet stays outside the content, because it opens as this closes. */
 export function TrackActionsSheet({
   target,
   onClose,
@@ -49,19 +44,22 @@ export function TrackActionsSheet({
   target: TrackActionsTarget | null;
   onClose: () => void;
 }) {
-  const { canAddToPlaylist, track, open, close } = useAddToPlaylist();
+  const addToPlaylist = useAddToPlaylist();
 
   return (
     <>
       {target && (
         <TrackActionsContent
           target={target}
-          canAddToPlaylist={canAddToPlaylist}
-          onAddToPlaylist={open}
+          canAddToPlaylist={addToPlaylist.canAddToPlaylist}
+          onAddToPlaylist={addToPlaylist.open}
           onClose={onClose}
         />
       )}
-      <AddToPlaylistSheet track={track} onClose={close} />
+      <AddToPlaylistSheet
+        track={addToPlaylist.track}
+        onClose={addToPlaylist.close}
+      />
     </>
   );
 }

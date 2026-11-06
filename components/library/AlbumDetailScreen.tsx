@@ -91,7 +91,7 @@ export function AlbumDetailScreen() {
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<AlbumRouteParams>();
 
-  const { data: album, isPending: albumPending } = useLibraryAlbum(params.ref);
+  const { data: album, isPending: albumLoading } = useLibraryAlbum(params.ref);
   const { data: tracks, isLoading: tracksLoading } = useLibraryTracks(
     params.ref,
   );
@@ -138,8 +138,7 @@ export function AlbumDetailScreen() {
 
   const trackActions = useTrackActions();
   const toggleFavorite = useToggleFavorite();
-  // The heart answers the tap at once. The toggle stays pending until the album
-  // is reread, and a refused toggle falls back to the album's own flag.
+  // Shows the tap at once. A refused toggle falls back to the album's own flag.
   const isFavorite = toggleFavorite.isPending
     ? toggleFavorite.variables.starred
     : album?.userFavorite === true;
@@ -366,7 +365,7 @@ export function AlbumDetailScreen() {
           />
           {/* Shows while the album loads, so the heart doesn't pop in. The
               spacer keeps Play centered when the album can't be favorited. */}
-          {albumPending || album?.identityKey ? (
+          {albumLoading || album?.identityKey ? (
             <CircleButton
               icon={isFavorite ? "heart" : "heart-outline"}
               size={PLAY_ROW_HEIGHT}

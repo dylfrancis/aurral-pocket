@@ -4,6 +4,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 
 const MIN_TAP_SIZE = 44;
+const ICON_SIZE_RATIO = 0.48;
 
 type CircleButtonProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -13,7 +14,7 @@ type CircleButtonProps = {
   disabled?: boolean;
 };
 
-/** A flat, round, icon-only button for actions in a page's content. */
+/** Flat, unlike IconButton's glass, for actions in a page's content. */
 export function CircleButton({
   icon,
   size,
@@ -43,7 +44,7 @@ export function CircleButton({
     >
       <Ionicons
         name={icon}
-        size={Math.round(size * 0.48)}
+        size={Math.round(size * ICON_SIZE_RATIO)}
         color={colors.text}
       />
     </Pressable>

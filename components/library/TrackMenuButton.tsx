@@ -3,7 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 
-/** The three dots on a track row, which open its TrackActionsSheet. */
 export function TrackMenuButton({
   trackName,
   onPress,

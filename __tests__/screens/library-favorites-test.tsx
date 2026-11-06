@@ -81,7 +81,7 @@ const mockPlayAlbumFromTrack = playAlbumFromTrack as jest.Mock;
 
 // The shape a 2.13.0 server sends: starred ids, plus the rows they name, their
 // parents and their children.
-const starred = {
+const favoritesResponse = {
   artist: [{ id: "artist:mbid:sigur-ros" }],
   album: [{ id: "album:release-group:second-album" }],
   song: [{ id: "song:recording:first-song" }],
@@ -178,7 +178,7 @@ async function openFavorites(initialUrl = "/favorites", client = makeClient()) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockGet.mockResolvedValue({ data: starred });
+  mockGet.mockResolvedValue({ data: favoritesResponse });
   mockPost.mockResolvedValue({ data: { changedIds: [] } });
 });
 
@@ -272,15 +272,15 @@ describe("favorites screen", () => {
       "Tracks",
       "First Song",
     ];
-    const rendered = screen
+    const renderedTitles = screen
       .getAllByText(new RegExp(`^(${rowTitles.join("|")})$`))
       .map((node) => node.props.children);
-    expect(rendered).toEqual(rowTitles);
+    expect(renderedTitles).toEqual(rowTitles);
   });
 
   it("drops the header of a section with nothing in it", async () => {
     mockGet.mockResolvedValue({
-      data: { ...starred, artist: [], song: [] },
+      data: { ...favoritesResponse, artist: [], song: [] },
     });
     await openFavorites();
 
@@ -291,7 +291,12 @@ describe("favorites screen", () => {
 
   it("shows an empty state when nothing is starred", async () => {
     mockGet.mockResolvedValue({
-      data: { artist: [], album: [], song: [], library: starred.library },
+      data: {
+        artist: [],
+        album: [],
+        song: [],
+        library: favoritesResponse.library,
+      },
     });
     await openFavorites();
 
@@ -376,9 +381,9 @@ describe("favorites screen", () => {
   });
 
   it("rereads once, after the last of two quick removals", async () => {
-    const finishPost: ((value: unknown) => void)[] = [];
+    const finishPosts: ((value: unknown) => void)[] = [];
     mockPost.mockImplementation(
-      () => new Promise((resolve) => finishPost.push(resolve)),
+      () => new Promise((resolve) => finishPosts.push(resolve)),
     );
     await openFavorites();
     const albumHeart = await screen.findByLabelText(
@@ -389,16 +394,16 @@ describe("favorites screen", () => {
     );
     await fireEvent.press(albumHeart);
     await fireEvent.press(artistHeart);
-    await waitFor(() => expect(finishPost).toHaveLength(2));
+    await waitFor(() => expect(finishPosts).toHaveLength(2));
     mockGet.mockClear();
 
     await act(async () => {
-      finishPost[0]({ data: { changedIds: [] } });
+      finishPosts[0]({ data: { changedIds: [] } });
     });
     expect(mockGet).not.toHaveBeenCalled();
 
     await act(async () => {
-      finishPost[1]({ data: { changedIds: [] } });
+      finishPosts[1]({ data: { changedIds: [] } });
     });
     expect(mockGet).toHaveBeenCalledTimes(1);
   });

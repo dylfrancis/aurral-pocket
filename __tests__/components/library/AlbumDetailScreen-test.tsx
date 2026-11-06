@@ -260,9 +260,9 @@ describe("AlbumDetailScreen", () => {
       identityKey: "recording:nude",
     };
 
-    async function openTrackMenu(favorite: Partial<Track> = {}) {
+    async function openTrackMenu(overrides: Partial<Track> = {}) {
       mockUseLibraryTracks.mockReturnValue({
-        data: [{ ...track, ...favorite }],
+        data: [{ ...track, ...overrides }],
         isLoading: false,
       });
       const queryClient = await openAlbumPage(lidarrAlbum);
@@ -322,10 +322,10 @@ describe("AlbumDetailScreen", () => {
     );
 
     it("fills the heart on the tap, before the server answers", async () => {
-      let answer = (_value: unknown) => {};
+      let finishToggle = (_value: unknown) => {};
       mockUpdateLibraryFavorites.mockReturnValueOnce(
         new Promise((resolve) => {
-          answer = resolve;
+          finishToggle = resolve;
         }),
       );
       await openAlbumPage(favoriteAlbum);
@@ -340,7 +340,7 @@ describe("AlbumDetailScreen", () => {
 
       // Left pending, the mutation keeps Jest from exiting.
       await act(async () => {
-        answer({});
+        finishToggle({});
       });
     });
 
