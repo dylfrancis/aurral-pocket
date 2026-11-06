@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Platform } from "react-native";
+import { IS_IOS } from "@/constants/platform";
 
 /**
  * Returns a human-readable label for the strongest enrolled biometric
@@ -27,7 +27,7 @@ export function useBiometricAvailability(): string | null {
         const hasFingerprint = types.includes(
           LA.AuthenticationType.FINGERPRINT,
         );
-        if (Platform.OS === "ios") {
+        if (IS_IOS) {
           if (hasFace) setLabel("Face ID");
           else if (hasFingerprint) setLabel("Touch ID");
           else setLabel("Biometrics");

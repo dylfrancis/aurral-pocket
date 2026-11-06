@@ -23,6 +23,7 @@ import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
 import { artistRouteId } from "@/lib/library-read";
 import { stripArticle } from "@/lib/strings";
@@ -207,28 +208,20 @@ export default function LibraryArtistsScreen() {
       />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          icon={process.env.EXPO_OS === "ios" ? "nosign" : Block}
+          icon={IS_IOS ? "nosign" : Block}
           accessibilityLabel="Blocklist"
           onPress={() => router.push("/blocklist")}
         >
           Blocklist
         </Stack.Toolbar.Button>
         <Stack.Toolbar.Menu
-          icon={
-            process.env.EXPO_OS === "ios"
-              ? "line.3.horizontal.decrease"
-              : FilterList
-          }
+          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
           title="Sort By"
         >
           {SORT_OPTIONS.map((option) => (
             <Stack.Toolbar.MenuAction
               key={option.key}
-              icon={
-                process.env.EXPO_OS === "ios"
-                  ? (option.icon as any)
-                  : SORT_ICONS[option.key]
-              }
+              icon={IS_IOS ? (option.icon as any) : SORT_ICONS[option.key]}
               isOn={sortMode === option.key}
               onPress={() => setSortMode(option.key)}
             >

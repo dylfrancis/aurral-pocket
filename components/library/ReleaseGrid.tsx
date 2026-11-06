@@ -1,11 +1,14 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
   View,
+  type NativeSyntheticEvent,
 } from "react-native";
+import type { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
+import type { SearchBarTextEventData } from "react-native-screens";
 import { Stack } from "expo-router";
 import FilterList from "@expo/material-symbols/filter_list.xml";
 import {
@@ -18,6 +21,7 @@ import { useGridColumns } from "@/hooks/use-grid-columns";
 import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
+import { IS_IOS } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
 
 const EDGE_PADDING = 12;
@@ -37,8 +41,10 @@ type ReleaseGridProps<T, SortKey extends string> = {
   searchPlaceholder: string;
   hasUnderlyingItems: boolean;
   emptyMessage: string;
+  emptyIcon?: keyof typeof Ionicons.glyphMap;
   noMatchesIcon?: "search-outline";
-  renderItem: (item: T) => React.ReactElement;
+  /** Omit for items with no artwork: rows only, with no grid or list choice. */
+  renderItem?: (item: T) => React.ReactElement;
   renderListItem: (item: T) => React.ReactElement;
   keyExtractor: (item: T) => string;
   bottomSheet?: React.ReactNode;
@@ -63,6 +69,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   searchPlaceholder,
   hasUnderlyingItems,
   emptyMessage,
+  emptyIcon = "disc-outline",
   renderItem,
   renderListItem,
   keyExtractor,
@@ -72,8 +79,46 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   isFetchingNextPage = false,
 }: ReleaseGridProps<T, SortKey>) {
   const colors = Colors[useColorScheme()];
-  const [viewMode, setViewMode] = useViewMode(viewModeKey, "grid");
+  const [storedViewMode, setViewMode] = useViewMode(viewModeKey, "grid");
+  const hasGrid = !!renderItem;
+  const viewMode = hasGrid ? storedViewMode : "list";
   const gridColumns = useGridColumns(EDGE_PADDING * 2);
+
+  // Stack.SearchBar and Stack.Toolbar rebuild the native header when a prop's
+  // identity changes, and a rebuild can drop the Android search icon. Stable
+  // handlers and a memoized toolbar keep typing from causing one.
+  const handleSearchChange = useCallback(
+    (event: NativeSyntheticEvent<SearchBarTextEventData>) =>
+      onSearchChange(event.nativeEvent.text),
+    [onSearchChange],
+  );
+  const handleSearchCancel = useCallback(
+    () => onSearchChange(""),
+    [onSearchChange],
+  );
+  const toolbar = useMemo(
+    () => (
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
+          title="Sort By"
+        >
+          {sortOptions.map((option) => (
+            <Stack.Toolbar.MenuAction
+              key={option.key}
+              icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
+              isOn={sortMode === option.key}
+              onPress={() => onSortChange(option.key)}
+            >
+              {option.label}
+            </Stack.Toolbar.MenuAction>
+          ))}
+          {hasGrid && viewModeMenuSection(viewMode, setViewMode)}
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
+    ),
+    [sortOptions, sortMode, onSortChange, hasGrid, viewMode, setViewMode],
+  );
 
   if (isLoading) {
     return (
@@ -103,7 +148,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
       message={`No results matching “${trimmedQuery}”`}
     />
   ) : showNoUnderlying ? (
-    <EmptyState icon="disc-outline" message={emptyMessage} />
+    <EmptyState icon={emptyIcon} message={emptyMessage} />
   ) : null;
 
   return (
@@ -113,40 +158,15 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
         hideWhenScrolling={false}
         autoCapitalize="none"
         {...searchBarColors(colors)}
-        onChangeText={(e) => onSearchChange(e.nativeEvent.text)}
-        onCancelButtonPress={() => onSearchChange("")}
+        onChangeText={handleSearchChange}
+        onCancelButtonPress={handleSearchCancel}
       />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon={
-            process.env.EXPO_OS === "ios"
-              ? "line.3.horizontal.decrease"
-              : FilterList
-          }
-          title="Sort By"
-        >
-          {sortOptions.map((option) => (
-            <Stack.Toolbar.MenuAction
-              key={option.key}
-              icon={
-                process.env.EXPO_OS === "ios"
-                  ? (option.iosIcon as any)
-                  : option.androidIcon
-              }
-              isOn={sortMode === option.key}
-              onPress={() => onSortChange(option.key)}
-            >
-              {option.label}
-            </Stack.Toolbar.MenuAction>
-          ))}
-          {viewModeMenuSection(viewMode, setViewMode)}
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+      {toolbar}
       <FlashList
         key={`${sortMode}-${viewMode}`}
         data={items}
         renderItem={({ item }) =>
-          viewMode === "grid" ? (
+          renderItem && viewMode === "grid" ? (
             <View style={styles.gridItem}>{renderItem(item)}</View>
           ) : (
             renderListItem(item)

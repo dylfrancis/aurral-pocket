@@ -11,6 +11,7 @@ import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
@@ -305,6 +306,7 @@ export function ArtistDetailLayout({
       void queryClient.invalidateQueries({
         queryKey: libraryKeys.albumsAllViews(),
       });
+      void queryClient.invalidateQueries({ queryKey: libraryKeys.genres() });
     },
   });
 
@@ -408,12 +410,12 @@ export function ArtistDetailLayout({
       />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
-          icon={process.env.EXPO_OS === "ios" ? "ellipsis" : MoreVert}
+          icon={IS_IOS ? "ellipsis" : MoreVert}
           accessibilityLabel="More actions"
         >
           {inLibrary && (
             <Stack.Toolbar.MenuAction
-              icon={process.env.EXPO_OS === "ios" ? "arrow.clockwise" : Sync}
+              icon={IS_IOS ? "arrow.clockwise" : Sync}
               disabled={refreshMutation.isPending}
               onPress={() => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -425,9 +427,7 @@ export function ArtistDetailLayout({
           )}
           {inLibrary && canResearchMissing && (
             <Stack.Toolbar.MenuAction
-              icon={
-                process.env.EXPO_OS === "ios" ? "magnifyingglass" : SearchIcon
-              }
+              icon={IS_IOS ? "magnifyingglass" : SearchIcon}
               hidden={missingCount === 0}
               disabled={isResearching}
               onPress={() => researchMissing()}
@@ -437,7 +437,7 @@ export function ArtistDetailLayout({
           )}
           <Stack.Toolbar.MenuAction
             icon={
-              process.env.EXPO_OS === "ios"
+              IS_IOS
                 ? blockedEntry
                   ? "checkmark.circle"
                   : "nosign"

@@ -1,9 +1,9 @@
-import { IS_IOS } from "@/constants/platform";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassView, isGlassEffectAPIAvailable } from "expo-glass-effect";
-import { Platform, Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -72,9 +72,8 @@ export function IconButton({
           width: diameter,
           height: diameter,
           borderRadius: diameter / 2,
-          backgroundColor:
-            Platform.OS === "android" ? "transparent" : background,
-          opacity: Platform.OS === "ios" && pressed ? 0.6 : 1,
+          backgroundColor: IS_ANDROID ? "transparent" : background,
+          opacity: IS_IOS && pressed ? 0.6 : 1,
         },
       ]}
       accessibilityRole="button"

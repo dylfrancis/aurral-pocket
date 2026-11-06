@@ -60,13 +60,7 @@ jest.mock("react-native-reorderable-list", () => {
 });
 
 import React from "react";
-import {
-  render,
-  fireEvent,
-  act,
-  waitFor,
-  within,
-} from "@testing-library/react-native";
+import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
 import { CustomizeDiscoverSheet } from "@/components/discover/CustomizeDiscoverSheet";
 import { DEFAULT_DISCOVER_SECTIONS } from "@/hooks/discover/use-discover-layout";
 import type { DiscoverSection } from "@/lib/types/me";
@@ -136,7 +130,10 @@ describe("CustomizeDiscoverSheet", () => {
     );
 
     const row = getByLabelText("Recently Added, enabled");
-    const switchControl = within(row).getByRole("switch");
+    // getByRole only recognises the iOS switch host, so it misses Android's.
+    const [switchControl] = row.queryAll(
+      (node) => node.props.accessibilityRole === "switch",
+    );
     await act(async () => {
       await fireEvent(switchControl, "valueChange", false);
     });

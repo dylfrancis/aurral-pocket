@@ -17,6 +17,7 @@ import { useActivityFilter } from "@/hooks/activity/use-activity-view";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import {
   historyArtistMbid,
   isAlbumRequest,
@@ -142,11 +143,7 @@ export function ActivityList({ view }: ActivityListProps) {
     <>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
-          icon={
-            process.env.EXPO_OS === "ios"
-              ? "line.3.horizontal.decrease"
-              : FilterList
-          }
+          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
           title="Filters"
           accessibilityLabel="Filter activity"
         >

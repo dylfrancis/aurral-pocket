@@ -1,9 +1,10 @@
-import { Platform, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { getCalendars } from "expo-localization";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 
 type Props = {
   value: string;
@@ -56,7 +57,7 @@ export function ScheduleHourPicker({ value, onChange }: Props) {
               key={hour}
               label={formatHour(hour, h24)}
               value={hour}
-              color={Platform.OS === "android" ? colors.text : undefined}
+              color={IS_ANDROID ? colors.text : undefined}
             />
           ))}
         </Picker>
@@ -73,7 +74,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   pickerWrap: {
-    height: Platform.OS === "ios" ? 140 : 50,
+    height: IS_IOS ? 140 : 50,
     justifyContent: "center",
   },
   item: {

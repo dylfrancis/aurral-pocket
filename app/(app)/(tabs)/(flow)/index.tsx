@@ -18,6 +18,7 @@ import { useFlowStatusSuspense, useSetFlowEnabled } from "@/hooks/flow";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import type { Flow, PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
 
 type SectionRow =
@@ -199,14 +200,14 @@ function FlowScreenContent() {
     <>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          icon={process.env.EXPO_OS === "ios" ? "gearshape" : Settings}
+          icon={IS_IOS ? "gearshape" : Settings}
           accessibilityLabel="Worker settings"
           onPress={openWorkerSettings}
         >
           Worker settings
         </Stack.Toolbar.Button>
         <Stack.Toolbar.Button
-          icon={process.env.EXPO_OS === "ios" ? "plus" : Add}
+          icon={IS_IOS ? "plus" : Add}
           accessibilityLabel="Create flow"
           onPress={openCreateFlow}
         >

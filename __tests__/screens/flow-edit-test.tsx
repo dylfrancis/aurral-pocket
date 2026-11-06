@@ -236,11 +236,14 @@ describe("FlowEditScreen (editing)", () => {
 
   it("saves recordHistory turned off", async () => {
     mockUpdateFlow.mockResolvedValue({ ...flow, recordHistory: false });
-    const { getByText, getAllByRole } = await renderScreen();
+    const { getByText, container } = await renderScreen();
 
     // Three switches render, in tree order: Deeper Cuts, Record History, then
-    // Recent listening.
-    const switches = getAllByRole("switch");
+    // Recent listening. getByRole only recognises the iOS switch host, so it
+    // misses Android's.
+    const switches = container.queryAll(
+      (node) => node.props.accessibilityRole === "switch",
+    );
     expect(switches).toHaveLength(3);
     await act(() => {
       fireEvent(switches[1], "valueChange", false);

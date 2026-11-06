@@ -2,7 +2,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +19,7 @@ import { Card } from "@/components/ui/Card";
 import { usePlaylistEditSnapshot, useUpdateSharedPlaylist } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import type {
   FlowJob,
   SharedPlaylist,
@@ -138,7 +138,7 @@ function PlaylistEditForm({
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={IS_IOS ? "padding" : undefined}
       style={{ flex: 1 }}
     >
       <Stack.Screen options={{ title: "Edit Playlist" }} />

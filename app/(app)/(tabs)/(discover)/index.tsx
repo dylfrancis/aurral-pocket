@@ -17,6 +17,7 @@ import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
 import Settings from "@expo/material-symbols/settings.xml";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import {
   useDiscovery,
   useDiscoverLayout,
@@ -208,7 +209,7 @@ export default function DiscoverScreen() {
       <Stack.Toolbar placement="right">
         {isShazamAvailable && (
           <Stack.Toolbar.Button
-            icon={process.env.EXPO_OS === "ios" ? "mic" : Mic}
+            icon={IS_IOS ? "mic" : Mic}
             accessibilityLabel="Identify song"
             onPress={() => shazamSheetRef.current?.present()}
           >
@@ -216,7 +217,7 @@ export default function DiscoverScreen() {
           </Stack.Toolbar.Button>
         )}
         <Stack.Toolbar.Button
-          icon={process.env.EXPO_OS === "ios" ? "gearshape" : Settings}
+          icon={IS_IOS ? "gearshape" : Settings}
           accessibilityLabel="Settings"
           onPress={handleOpenSettings}
         >

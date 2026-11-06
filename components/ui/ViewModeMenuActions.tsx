@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import GridView from "@expo/material-symbols/grid_view.xml";
 import ViewList from "@expo/material-symbols/view_list.xml";
 import type { ViewMode } from "@/hooks/use-view-mode";
+import { IS_IOS } from "@/constants/platform";
 
 const VIEW_OPTIONS: {
   key: ViewMode;
@@ -29,11 +30,7 @@ export function viewModeMenuSection(
       {VIEW_OPTIONS.map((option) => (
         <Stack.Toolbar.MenuAction
           key={option.key}
-          icon={
-            process.env.EXPO_OS === "ios"
-              ? (option.iosIcon as any)
-              : option.androidIcon
-          }
+          icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
           isOn={mode === option.key}
           onPress={() => onChange(option.key)}
         >

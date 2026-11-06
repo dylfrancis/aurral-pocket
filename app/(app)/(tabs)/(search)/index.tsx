@@ -30,6 +30,7 @@ import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import { releaseRouteParams } from "@/lib/library-read";
 import type { SearchAlbum, SearchArtist } from "@/lib/types/search";
@@ -331,7 +332,7 @@ export default function SearchScreen() {
       <Stack.Toolbar placement="right">
         {isShazamAvailable && (
           <Stack.Toolbar.Button
-            icon={process.env.EXPO_OS === "ios" ? "mic" : Mic}
+            icon={IS_IOS ? "mic" : Mic}
             accessibilityLabel="Identify song"
             onPress={() => shazamSheetRef.current?.present()}
           >

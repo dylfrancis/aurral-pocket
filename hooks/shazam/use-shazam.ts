@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { Platform } from "react-native";
 import Constants from "expo-constants";
 import {
   addErrorListener,
@@ -14,13 +13,14 @@ import {
   shazamReducer,
   type ShazamState,
 } from "@/lib/shazam/listening-machine";
+import { IS_ANDROID } from "@/constants/platform";
 
 /** Listen for at most this long before giving up with a "no match" result. */
 const LISTEN_TIMEOUT_MS = 60_000;
 
 /** Android needs a developer token to reach the Shazam catalog; iOS does not. */
 function getDeveloperToken(): string | null {
-  if (Platform.OS !== "android") return null;
+  if (!IS_ANDROID) return null;
   const token = Constants.expoConfig?.extra?.shazamDeveloperToken;
   return typeof token === "string" && token.length > 0 ? token : null;
 }

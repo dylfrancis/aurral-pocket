@@ -8,7 +8,8 @@ import { Colors, Fonts } from "@/constants/theme";
 import type { CoverArtType } from "@/lib/types/library";
 
 type MediaRowProps = {
-  imageType: CoverArtType;
+  /** Omit for a row with no image. */
+  imageType?: CoverArtType;
   mbid?: string | null;
   title: string;
   subtitle?: string;
@@ -39,30 +40,32 @@ export const MediaRow = React.memo(function MediaRow({
 
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         styles.container,
         { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      {mbid || coverUrl ? (
-        <CoverArtImage
-          type={imageType}
-          mbid={mbid ?? ""}
-          coverUrl={coverUrl}
-          size={thumbSize}
-          borderRadius={borderRadius}
-        />
-      ) : (
-        <View
-          style={{
-            width: thumbSize,
-            height: thumbSize,
-            borderRadius,
-            backgroundColor: colors.card,
-          }}
-        />
-      )}
+      {imageType &&
+        (mbid || coverUrl ? (
+          <CoverArtImage
+            type={imageType}
+            mbid={mbid ?? ""}
+            coverUrl={coverUrl}
+            size={thumbSize}
+            borderRadius={borderRadius}
+          />
+        ) : (
+          <View
+            style={{
+              width: thumbSize,
+              height: thumbSize,
+              borderRadius,
+              backgroundColor: colors.card,
+            }}
+          />
+        ))}
 
       <View style={styles.meta}>
         <Text
