@@ -62,7 +62,17 @@ describe("toPlayerTrack", () => {
       trackMbid: "mb-track",
       artistMbid: "artist-mb-1",
       albumMbid: "album-mb-1",
+      identityKey: null,
     });
+  });
+
+  it("carries the key the favorites API addresses the track by", () => {
+    const item = toPlayerTrack(
+      { ...track(), identityKey: "recording:mb-track" },
+      album,
+    );
+
+    expect(item?.identityKey).toBe("recording:mb-track");
   });
 
   it("refuses a track that Aurral cannot stream", () => {

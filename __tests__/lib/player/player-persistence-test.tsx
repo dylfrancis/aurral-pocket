@@ -518,7 +518,29 @@ describe("restoring the queue", () => {
         trackMbid: null,
         artistMbid: "artist-mb-1",
         albumMbid: "album-mb-1",
+        identityKey: null,
       }),
+    );
+  });
+
+  it("keeps a track's favorites key through a restart", async () => {
+    mockStorage.getItem.mockResolvedValue(
+      JSON.stringify({
+        ...JSON.parse(savedRecord()),
+        items: albumTracks.map((item) => ({
+          id: item.id,
+          streamPath: item.streamPath,
+          identityKey: `recording:${item.id}`,
+        })),
+      }),
+    );
+    const player = await freshFacade();
+
+    await player.restoreSavedQueue();
+    await flush();
+
+    expect(lastSavedQueue().items).toContainEqual(
+      expect.objectContaining({ id: "72", identityKey: "recording:72" }),
     );
   });
 

@@ -1,5 +1,6 @@
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -22,6 +23,16 @@ export function useLibraryFavorites() {
     // The web UI and Subsonic clients change favorites too, so opening the
     // screen rereads them behind whatever is cached.
     staleTime: 0,
+  });
+}
+
+/** Shares the list's cache, without rereading the unpaged payload on every mount. */
+export function useIsFavoriteTrack(identityKey: string) {
+  return useQuery({
+    queryKey: libraryKeys.favorites(),
+    queryFn: getLibraryFavorites,
+    select: (favorites) =>
+      favorites.tracks.some((track) => track.identityKey === identityKey),
   });
 }
 

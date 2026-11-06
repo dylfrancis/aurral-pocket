@@ -24,6 +24,12 @@ jest.mock("expo-router", () => ({
   useRouter: jest.fn(() => ({ navigate: mockNavigate, back: mockBack })),
 }));
 
+jest.mock("@/lib/api/library", () => ({
+  ...jest.requireActual("@/lib/api/library"),
+  getLibraryFavorites: jest.fn(),
+  updateLibraryFavorites: jest.fn(),
+}));
+
 // The community slider ships no Jest mock; a plain View exposes the same
 // callback props to fireEvent.
 jest.mock("@react-native-community/slider", () => {
@@ -36,8 +42,10 @@ jest.mock("@react-native-community/slider", () => {
 
 import React from "react";
 import { act, fireEvent, render } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NowPlayingScreen } from "@/components/player/NowPlayingScreen";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
+import { getLibraryFavorites, updateLibraryFavorites } from "@/lib/api/library";
 import { onTrackStarted, playAlbumFromTrack } from "@/lib/player/player";
 import type { Track } from "@/lib/types/library";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
@@ -46,6 +54,8 @@ import { callbackManager } from "react-native-nitro-player/src/hooks/callbackMan
 const queue = PlayerQueue as jest.Mocked<typeof PlayerQueue>;
 const player = TrackPlayer as jest.Mocked<typeof TrackPlayer>;
 const manager = callbackManager as jest.Mocked<typeof callbackManager>;
+const mockGetLibraryFavorites = getLibraryFavorites as jest.Mock;
+const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
 
 function track(id: string, name: string): Track {
   return {
@@ -78,6 +88,10 @@ const albumTracks = [
   track("3", "The National Anthem"),
 ];
 
+function favoritesWith(...tracks: { identityKey: string }[]) {
+  return { artists: [], albums: [], tracks };
+}
+
 let engine: {
   trackChange: Parameters<typeof manager.subscribeToTrackChange>[0];
   progress: Parameters<typeof manager.subscribeToPlaybackProgressChange>[0];
@@ -98,13 +112,110 @@ beforeEach(() => {
   setBaseUrl("https://test.example");
   setAuthToken("test-token-123");
   queue.createPlaylist.mockResolvedValue("playlist-1");
+  mockGetLibraryFavorites.mockResolvedValue(favoritesWith());
+  mockUpdateLibraryFavorites.mockResolvedValue({ changedIds: [] });
 });
 
+// The player keeps its track between tests, so even a first render can show the
+// favorite button, which needs a query client.
+function renderScreen() {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      mutations: { retry: false, gcTime: 0 },
+    },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <NowPlayingScreen />
+    </QueryClientProvider>,
+  );
+}
+
 async function renderPlaying() {
-  const utils = await render(<NowPlayingScreen />);
+  const utils = await renderScreen();
   await act(() => playAlbumFromTrack(albumTracks, albumTracks[0], album));
   return utils;
 }
+
+describe("NowPlayingScreen favorite button", () => {
+  const nude = { ...track("9", "Nude"), identityKey: "recording:nude" };
+
+  async function renderPlayingNude() {
+    const utils = await renderScreen();
+    await act(() => playAlbumFromTrack([nude], nude, album));
+    return utils;
+  }
+
+  it("adds the playing track to favorites", async () => {
+    const { findByLabelText } = await renderPlayingNude();
+
+    await fireEvent.press(await findByLabelText("Add Nude to favorites"));
+
+    expect(mockUpdateLibraryFavorites).toHaveBeenCalledWith(
+      ["song:recording:nude"],
+      true,
+    );
+  });
+
+  it("removes a track that is already a favorite", async () => {
+    mockGetLibraryFavorites.mockResolvedValue(
+      favoritesWith({ identityKey: "recording:nude" }),
+    );
+    const { findByLabelText } = await renderPlayingNude();
+
+    await fireEvent.press(await findByLabelText("Remove Nude from favorites"));
+
+    expect(mockUpdateLibraryFavorites).toHaveBeenCalledWith(
+      ["song:recording:nude"],
+      false,
+    );
+  });
+
+  it("fills the heart on the tap, before the server answers", async () => {
+    let finishToggle = (_value: unknown) => {};
+    mockUpdateLibraryFavorites.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishToggle = resolve;
+      }),
+    );
+    const { findByLabelText } = await renderPlayingNude();
+
+    await fireEvent.press(await findByLabelText("Add Nude to favorites"));
+
+    expect(await findByLabelText("Remove Nude from favorites")).toBeTruthy();
+
+    // Left pending, the mutation keeps Jest from exiting.
+    await act(async () => {
+      finishToggle({ changedIds: [] });
+    });
+  });
+
+  it("empties the heart again when the server refuses", async () => {
+    mockUpdateLibraryFavorites.mockRejectedValueOnce(new Error("refused"));
+    const { findByLabelText } = await renderPlayingNude();
+
+    await fireEvent.press(await findByLabelText("Add Nude to favorites"));
+
+    expect(await findByLabelText("Add Nude to favorites")).toBeTruthy();
+    expect(mockUpdateLibraryFavorites).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a tap until it knows whether the track is a favorite", async () => {
+    mockGetLibraryFavorites.mockReturnValue(new Promise(() => {}));
+    const { findByLabelText } = await renderPlayingNude();
+
+    await fireEvent.press(await findByLabelText("Add Nude to favorites"));
+
+    expect(mockUpdateLibraryFavorites).not.toHaveBeenCalled();
+  });
+
+  it("shows no heart for a track the favorites API can't address", async () => {
+    const { queryByLabelText } = await renderPlaying();
+
+    expect(queryByLabelText(/favorites$/)).toBeNull();
+  });
+});
 
 describe("NowPlayingScreen", () => {
   it("shows artwork metadata, transport, and the up-next list", async () => {

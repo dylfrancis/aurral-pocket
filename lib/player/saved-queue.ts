@@ -26,6 +26,11 @@ type SavedTrack = {
   trackMbid?: string | null;
   artistMbid?: string | null;
   albumMbid?: string | null;
+  /**
+   * Written since the player offers favorites. A queue saved before that reads
+   * back without it, and its tracks show no favorite button.
+   */
+  identityKey?: string | null;
 };
 
 export type SavedQueue = {
@@ -104,6 +109,7 @@ function parseTrack(raw: unknown): SavedTrack | null {
     trackMbid: isString(raw.trackMbid) ? raw.trackMbid : null,
     artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,
     albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
+    identityKey: isString(raw.identityKey) ? raw.identityKey : null,
   };
 }
 
@@ -132,6 +138,7 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
     trackMbid: item.trackMbid,
     artistMbid: item.artistMbid,
     albumMbid: item.albumMbid,
+    identityKey: item.identityKey,
   };
 }
 
@@ -169,6 +176,7 @@ function toPlayableTrack(
     streamPath: saved.streamPath,
     coverPath: saved.coverPath ?? null,
     trackMbid: saved.trackMbid ?? null,
+    identityKey: saved.identityKey ?? null,
     artistMbid: saved.artistMbid ?? album.artistMbid,
     albumMbid: saved.albumMbid ?? album.albumMbid,
   };
