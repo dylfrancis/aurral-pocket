@@ -7,10 +7,15 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import FilterList from "@expo/material-symbols/filter_list.xml";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import * as Burnt from "burnt";
 import type { SearchBarTextEventData } from "react-native-screens";
+import {
+  GENRE_SORT_OPTIONS,
+  type GenreSortMode,
+} from "@/components/library/AlbumSortPicker";
 import { EmptyState } from "@/components/library/EmptyState";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Text } from "@/components/ui/Text";
@@ -25,6 +30,23 @@ const EDGE_PADDING = 12;
 const countLabel = (count: number, noun: string) =>
   `${count} ${noun}${count === 1 ? "" : "s"}`;
 
+type GenreOrder = (a: CanonicalGenre, b: CanonicalGenre) => number;
+
+const byName: GenreOrder = (a, b) => a.name.localeCompare(b.name);
+
+const mostFirst =
+  (count: "tracks" | "albums" | "artists"): GenreOrder =>
+  (a, b) =>
+    b[count] - a[count] || byName(a, b);
+
+const GENRE_ORDERS: Record<GenreSortMode, GenreOrder> = {
+  "name-asc": byName,
+  "name-desc": (a, b) => byName(b, a),
+  tracks: mostFirst("tracks"),
+  albums: mostFirst("albums"),
+  artists: mostFirst("artists"),
+};
+
 export default function LibraryGenresScreen() {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
@@ -32,8 +54,10 @@ export default function LibraryGenresScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const trimmedQuery = searchQuery.trim();
+  const [sortMode, setSortMode] = useState<GenreSortMode>("name-asc");
 
-  // Stable, so a keystroke doesn't rebuild the native header config.
+  // Stable, like the memoized toolbar below, so a keystroke doesn't rebuild
+  // the native header config.
   const handleSearchChange = useCallback(
     (e: NativeSyntheticEvent<SearchBarTextEventData>) =>
       setSearchQuery(e.nativeEvent.text),
@@ -42,8 +66,8 @@ export default function LibraryGenresScreen() {
   const handleSearchCancel = useCallback(() => setSearchQuery(""), []);
 
   const sortedGenres = useMemo(
-    () => [...genres].sort((a, b) => a.name.localeCompare(b.name)),
-    [genres],
+    () => [...genres].sort(GENRE_ORDERS[sortMode]),
+    [genres, sortMode],
   );
   const visibleGenres = useMemo(() => {
     const query = trimmedQuery.toLocaleLowerCase();
@@ -83,6 +107,37 @@ export default function LibraryGenresScreen() {
     [openGenre],
   );
 
+  const sortToolbar = useMemo(
+    () => (
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={
+            process.env.EXPO_OS === "ios"
+              ? "line.3.horizontal.decrease"
+              : FilterList
+          }
+          title="Sort By"
+        >
+          {GENRE_SORT_OPTIONS.map((option) => (
+            <Stack.Toolbar.MenuAction
+              key={option.key}
+              icon={
+                process.env.EXPO_OS === "ios"
+                  ? (option.iosIcon as any)
+                  : option.androidIcon
+              }
+              isOn={sortMode === option.key}
+              onPress={() => setSortMode(option.key)}
+            >
+              {option.label}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
+    ),
+    [sortMode],
+  );
+
   return (
     <>
       <Stack.SearchBar
@@ -93,7 +148,9 @@ export default function LibraryGenresScreen() {
         onChangeText={handleSearchChange}
         onCancelButtonPress={handleSearchCancel}
       />
+      {sortToolbar}
       <FlashList
+        key={sortMode}
         data={visibleGenres}
         renderItem={renderItem}
         keyExtractor={(genre) => genre.name}

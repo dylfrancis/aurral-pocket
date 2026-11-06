@@ -94,6 +94,27 @@ async function search(text: string) {
   });
 }
 
+const sortMenuItems = () => {
+  const [header] = nativeElements("RNSScreenStackHeaderConfig");
+  return header.props.headerRightBarButtonItems[0].menu.items as {
+    title: string;
+    state: "on" | "off";
+    menuId: string;
+  }[];
+};
+
+// Fires the event the native header sends when a menu item is tapped.
+async function chooseSort(title: string) {
+  const { menuId } = sortMenuItems().find((item) => item.title === title)!;
+  const [header] = nativeElements("RNSScreenStackHeaderConfig");
+  await act(async () => {
+    header.props.onPressHeaderBarButtonMenuItem({ nativeEvent: { menuId } });
+  });
+}
+
+const genreRows = () =>
+  screen.getAllByText(/^(Ambient|Jazz|Rock)$/).map((row) => row.props.children);
+
 beforeEach(() => {
   mockGetCanonicalGenres.mockReset();
   mockGetCanonicalLibraryPage.mockReset();
@@ -152,6 +173,47 @@ describe("genres list", () => {
     await openGenresList();
 
     expect(await screen.findByText("No genres to show")).toBeTruthy();
+  });
+});
+
+describe("genres list sorting", () => {
+  const genres = [
+    makeGenre("Rock", { artists: 3, albums: 4, tracks: 50 }),
+    makeGenre("Jazz", { artists: 5, albums: 2, tracks: 20 }),
+    makeGenre("Ambient", { artists: 1, albums: 9, tracks: 20 }),
+  ];
+
+  it.each([
+    ["Name Z-A", ["Rock", "Jazz", "Ambient"]],
+    // Ambient and Jazz tie on tracks, so the name decides.
+    ["Most Tracks", ["Rock", "Ambient", "Jazz"]],
+    ["Most Albums", ["Ambient", "Rock", "Jazz"]],
+    ["Most Artists", ["Jazz", "Rock", "Ambient"]],
+  ])("orders the rows by %s and marks it chosen", async (title, order) => {
+    mockGetCanonicalGenres.mockResolvedValue(genres);
+    await openGenresList();
+    await screen.findByText("Jazz");
+    expect(genreRows()).toEqual(["Ambient", "Jazz", "Rock"]);
+
+    await chooseSort(title);
+
+    expect(genreRows()).toEqual(order);
+    expect(
+      sortMenuItems()
+        .filter((item) => item.state === "on")
+        .map((item) => item.title),
+    ).toEqual([title]);
+  });
+
+  it("keeps the chosen order while searching", async () => {
+    mockGetCanonicalGenres.mockResolvedValue(genres);
+    await openGenresList();
+    await screen.findByText("Jazz");
+
+    await chooseSort("Name Z-A");
+    await search("a");
+
+    expect(genreRows()).toEqual(["Jazz", "Ambient"]);
   });
 });
 
