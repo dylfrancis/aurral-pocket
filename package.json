@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest",
+    "test:android": "jest --preset jest-expo/android",
     "check:api-contract": "node scripts/check-api-contract.mjs",
     "prepare": "husky",
     "postinstall": "patch-package",

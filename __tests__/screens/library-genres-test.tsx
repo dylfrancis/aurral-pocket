@@ -26,6 +26,7 @@ import {
   screen,
   waitFor,
 } from "expo-router/testing-library";
+import { IS_IOS } from "@/constants/platform";
 import LibraryLayout from "@/app/(app)/(tabs)/(library)/_layout";
 import GenreDetailRoute from "@/app/(app)/(tabs)/(library)/genre/[genre]";
 import LibraryGenresScreen from "@/app/(app)/(tabs)/(library)/genres";
@@ -94,22 +95,51 @@ async function search(text: string) {
   });
 }
 
-const sortMenuItems = () => {
-  const [header] = nativeElements("RNSScreenStackHeaderConfig");
-  return header.props.headerRightBarButtonItems[0].menu.items as {
-    title: string;
-    state: "on" | "off";
-    menuId: string;
-  }[];
-};
+type HeaderMenuItem = { title: string; isOn: boolean; press: () => void };
 
-// Fires the event the native header sends when a menu item is tapped.
+const composeMenuItems = () =>
+  screen.container.queryAll((node) => !!node.props.onItemPressed);
+
+// iOS hands the menu to the native header as data, and Android renders it as
+// Compose views. press() is what a real tap on the item fires on each.
+function headerMenuItems(): HeaderMenuItem[] {
+  if (!IS_IOS) {
+    return composeMenuItems().map((item) => ({
+      title: item.queryAll((node) => typeof node.props.text === "string")[0]
+        .props.text,
+      isOn:
+        item.queryAll((node) => node.props.slotName === "trailingIcon").length >
+        0,
+      press: () => item.props.onItemPressed({ nativeEvent: {} }),
+    }));
+  }
+  type NativeItem = {
+    title: string;
+    state?: "on" | "off";
+    menuId: string;
+    items?: NativeItem[];
+  };
+  const leaves = (items: NativeItem[] = []): NativeItem[] =>
+    items.flatMap((item) => (item.items ? leaves(item.items) : [item]));
+  return nativeElements("RNSScreenStackHeaderConfig").flatMap((header) =>
+    leaves(header.props.headerRightBarButtonItems?.[0]?.menu.items).map(
+      (item) => ({
+        title: item.title,
+        isOn: item.state === "on",
+        press: () =>
+          header.props.onPressHeaderBarButtonMenuItem({
+            nativeEvent: { menuId: item.menuId },
+          }),
+      }),
+    ),
+  );
+}
+
 async function chooseSort(title: string) {
-  const { menuId } = sortMenuItems().find((item) => item.title === title)!;
-  const [header] = nativeElements("RNSScreenStackHeaderConfig");
-  await act(async () => {
-    header.props.onPressHeaderBarButtonMenuItem({ nativeEvent: { menuId } });
-  });
+  const item = headerMenuItems().find(
+    (candidate) => candidate.title === title,
+  )!;
+  await act(async () => item.press());
 }
 
 const genreRows = () =>
@@ -199,8 +229,8 @@ describe("genres list sorting", () => {
 
     expect(genreRows()).toEqual(order);
     expect(
-      sortMenuItems()
-        .filter((item) => item.state === "on")
+      headerMenuItems()
+        .filter((item) => item.isOn)
         .map((item) => item.title),
     ).toEqual([title]);
   });
@@ -210,7 +240,9 @@ describe("genres list sorting", () => {
     await openGenresList();
     await screen.findByText("Jazz");
 
-    expect(sortMenuItems().map((item) => item.title)).not.toContain("View");
+    const titles = headerMenuItems().map((item) => item.title);
+    expect(titles).toContain("Most Tracks");
+    expect(titles).not.toContain("Grid");
   });
 
   // A header rebuild can drop the Android search icon.
@@ -219,11 +251,14 @@ describe("genres list sorting", () => {
     await openGenresList();
     await screen.findByText("Jazz");
     const nativeHeaderProps = () => ({
-      menu: nativeElements("RNSScreenStackHeaderConfig")[0].props
-        .headerRightBarButtonItems,
+      menu: IS_IOS
+        ? nativeElements("RNSScreenStackHeaderConfig")[0].props
+            .headerRightBarButtonItems
+        : composeMenuItems()[0].props.onItemPressed,
       onChangeText: nativeElements("RNSSearchBar")[0].props.onChangeText,
     });
     const before = nativeHeaderProps();
+    expect(before.menu).toBeDefined();
 
     await search("a");
 
@@ -272,12 +307,7 @@ describe("genre detail", () => {
     await fireEvent.press(await screen.findByText("Jazz"));
 
     await waitFor(() => {
-      const detailHeader = nativeElements("RNSScreenStackHeaderConfig").at(-1)!;
-      expect(
-        detailHeader.props.headerRightBarButtonItems[0].menu.items.map(
-          (item: { title: string }) => item.title,
-        ),
-      ).toContain("View");
+      expect(headerMenuItems().map((item) => item.title)).toContain("Grid");
     });
   });
 

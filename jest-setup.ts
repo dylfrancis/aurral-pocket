@@ -6,6 +6,13 @@
 const { NativeModulesProxy } = require("expo-modules-core");
 delete (NativeModulesProxy as Record<string, unknown>).ExpoObserve;
 
+// The generated ExpoUI mock has no getMaterialColors, which @expo/ui's Compose
+// Host calls as it renders. Stack.Toolbar renders through that Host on Android,
+// so a suite with a real header crashes under the Android preset without this.
+(
+  NativeModulesProxy as Record<string, Record<string, unknown>>
+).ExpoUI.getMaterialColors = () => ({});
+
 // React Query defers observer notifications behind a setTimeout(0), so an update
 // can land after the test that caused it has finished and its act() scope has
 // closed — surfacing as "not wrapped in act(...)" noise under a full suite run.
