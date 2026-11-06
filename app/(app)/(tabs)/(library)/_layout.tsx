@@ -56,6 +56,14 @@ export default function LibraryLayout() {
           })}
         />
         <Stack.Screen
+          name="favorites"
+          options={{
+            title: "Favorites",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
           name="artist/[mbid]"
           options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
         />

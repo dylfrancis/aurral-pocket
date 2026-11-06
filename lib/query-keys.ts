@@ -16,15 +16,21 @@ export const libraryKeys = {
   artist: (mbid: string) => ["library", "artist", mbid] as const,
   canonicalArtist: (mbid: string) =>
     ["library", "canonicalArtist", mbid] as const,
+  // The prefix of every single-artist read, for invalidation.
+  canonicalArtists: () => ["library", "canonicalArtist"] as const,
   albums: (artistId: string) => ["library", "albums", artistId] as const,
   // The prefix of every albumsAll view, for invalidation.
   albumsAllViews: () => ["library", "albumsAll"] as const,
   albumsAll: (params: LibraryAlbumsParams) =>
     ["library", "albumsAll", params] as const,
   album: (albumRef: string) => ["library", "album", albumRef] as const,
+  // The prefix of every single-album read, for invalidation.
+  albumRecords: () => ["library", "album"] as const,
   genres: () => ["library", "genres"] as const,
   favorites: () => ["library", "favorites"] as const,
   tracks: (albumId: string) => ["library", "tracks", albumId] as const,
+  // The prefix of every album's track list, for invalidation.
+  trackLists: () => ["library", "tracks"] as const,
   refresh: (jobId: number) => ["library", "refresh", jobId] as const,
   artistCover: (mbid: string) => ["cover", "artist", mbid] as const,
   albumCover: (mbid: string) => ["cover", "album", mbid] as const,

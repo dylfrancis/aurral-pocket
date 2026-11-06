@@ -101,7 +101,7 @@ export type Album = {
   userFavorite?: boolean;
   /** Canonical read path only. See CanonicalAlbumItem. */
   coverUrl?: string;
-  /** Whole-library album pages only. The library artist's MBID. */
+  /** Whole-library album pages and favorites only. The library artist's MBID. */
   artistMbid?: string;
 };
 
@@ -396,11 +396,12 @@ export type CanonicalTrackItem = {
 };
 
 /**
- * GET /library/favorites, as the server sends it. The starred lists carry
- * ids of the form `${kind}:${encodeURIComponent(identityKey)}`. `library`
- * carries raw canonical rows for the starred entities, plus the children of
- * starred artists and albums — the reader must intersect the two. Only the
- * keys pocket reads are declared, per the convention above.
+ * GET /library/favorites, as the server sends it. The starred lists carry the
+ * ids favoriteEntityId builds. `library` carries raw canonical rows for the
+ * starred entities, plus their parents and the children of starred artists and
+ * albums — the reader must intersect the two. Its rows carry no counts and no
+ * `userFavorite`. Only the keys pocket reads are declared, per the convention
+ * above.
  */
 export type LibraryFavoritesWire = {
   artist?: { id: string }[];
@@ -413,11 +414,14 @@ export type LibraryFavoritesWire = {
   };
 };
 
+/** A favorited track, with the album its stream path plays from. */
+export type FavoriteTrack = Track & { album?: Album };
+
 /** The user's favorites after getLibraryFavorites mapped and filtered them. */
 export type LibraryFavorites = {
   artists: Artist[];
   albums: Album[];
-  tracks: Track[];
+  tracks: FavoriteTrack[];
 };
 
 /**

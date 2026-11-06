@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,6 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BottomSheetView, type BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
@@ -27,18 +26,16 @@ import OpenInNew from "@expo/material-symbols/open_in_new.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
-import {
-  AddToPlaylistSheet,
-  useAddToPlaylist,
-} from "@/components/flow/AddToPlaylistSheet";
-import { AppSheet } from "@/components/ui/AppSheet";
+import { CircleButton } from "@/components/ui/CircleButton";
 import { Text } from "@/components/ui/Text";
 import { AlbumStatusBadge } from "./AlbumStatusBadge";
 import { CoverArtImage } from "./CoverArtImage";
+import { TrackActionsSheet, useTrackActions } from "./TrackActionsSheet";
 import { TrackRow } from "./TrackRow";
 import { useCoverArtUrl } from "@/hooks/library/use-cover-art-url";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
+import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
@@ -49,10 +46,11 @@ import { libraryKeys } from "@/lib/query-keys";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import { Colors, Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
-import type { DownloadStatusValue, Track } from "@/lib/types/library";
+import type { DownloadStatusValue } from "@/lib/types/library";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
+const PLAY_ROW_HEIGHT = 50;
 
 type AlbumRouteParams = {
   ref: string;
@@ -93,7 +91,7 @@ export function AlbumDetailScreen() {
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<AlbumRouteParams>();
 
-  const { data: album } = useLibraryAlbum(params.ref);
+  const { data: album, isPending: albumLoading } = useLibraryAlbum(params.ref);
   const { data: tracks, isLoading: tracksLoading } = useLibraryTracks(
     params.ref,
   );
@@ -138,19 +136,20 @@ export function AlbumDetailScreen() {
   const play = usePlayTrack();
   const { playNext, addToQueue, playAlbum, shuffleAlbum } = useQueueActions();
 
-  const { canAddToPlaylist, ...addToPlaylist } = useAddToPlaylist();
-  // A SharedPlaylistTrack needs an artist name, so the permission alone is
-  // not enough to offer the action.
-  const canAddTracks = canAddToPlaylist && !!artistName;
-
-  const trackActionsRef = useRef<BottomSheetModal>(null);
-  const [actionTrack, setActionTrack] = useState<Track | null>(null);
-
-  const openTrackActions = useCallback((track: Track) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setActionTrack(track);
-    trackActionsRef.current?.present();
-  }, []);
+  const trackActions = useTrackActions();
+  const toggleFavorite = useToggleFavorite();
+  // Shows the tap at once. A refused toggle falls back to the album's own flag.
+  const isFavorite = toggleFavorite.isPending
+    ? toggleFavorite.variables.starred
+    : album?.userFavorite === true;
+  const handleToggleFavorite = () => {
+    if (!album?.identityKey || toggleFavorite.isPending) return;
+    toggleFavorite.mutate({
+      kind: "album",
+      identityKey: album.identityKey,
+      starred: !isFavorite,
+    });
+  };
 
   const year = album?.releaseDate
     ? new Date(album.releaseDate).getFullYear()
@@ -353,18 +352,33 @@ export function AlbumDetailScreen() {
         </View>
 
         <View style={styles.playRow}>
-          <PlayButton
-            icon="play"
-            label="Play"
-            onPress={() => void playAlbum(albumTracks, playContext)}
-            disabled={albumTracks.length === 0}
-          />
-          <PlayButton
+          <CircleButton
             icon="shuffle"
-            label="Shuffle"
+            size={PLAY_ROW_HEIGHT}
+            accessibilityLabel={`Shuffle ${title}`}
             onPress={() => void shuffleAlbum(albumTracks, playContext)}
             disabled={albumTracks.length === 0}
           />
+          <PlayButton
+            onPress={() => void playAlbum(albumTracks, playContext)}
+            disabled={albumTracks.length === 0}
+          />
+          {/* Shows while the album loads, so the heart doesn't pop in. The
+              spacer keeps Play centered when the album can't be favorited. */}
+          {albumLoading || album?.identityKey ? (
+            <CircleButton
+              icon={isFavorite ? "heart" : "heart-outline"}
+              size={PLAY_ROW_HEIGHT}
+              accessibilityLabel={
+                isFavorite
+                  ? `Remove ${title} from favorites`
+                  : `Add ${title} to favorites`
+              }
+              onPress={handleToggleFavorite}
+            />
+          ) : (
+            <View style={styles.circleSpacer} />
+          )}
         </View>
 
         {tracksLoading ? (
@@ -375,8 +389,8 @@ export function AlbumDetailScreen() {
               key={track.id}
               track={track}
               onPress={() => void play(albumTracks, track, playContext)}
-              onLongPress={() => openTrackActions(track)}
-              onMenuPress={() => openTrackActions(track)}
+              onLongPress={() => trackActions.open(track, playContext)}
+              onMenuPress={() => trackActions.open(track, playContext)}
             />
           ))
         ) : (
@@ -386,78 +400,25 @@ export function AlbumDetailScreen() {
         )}
       </Animated.ScrollView>
 
-      <AppSheet
-        ref={trackActionsRef}
-        enableDynamicSizing
-        enablePanDownToClose
-        onDismiss={() => setActionTrack(null)}
-      >
-        <BottomSheetView
-          style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}
-        >
-          <Text variant="subtitle" numberOfLines={1} style={styles.sheetTitle}>
-            {actionTrack?.trackName}
-          </Text>
-          <SheetAction
-            icon="play-forward-outline"
-            label="Play Next"
-            onPress={() => {
-              const track = actionTrack;
-              trackActionsRef.current?.dismiss();
-              if (track) void playNext([track], playContext);
-            }}
-          />
-          <SheetAction
-            icon="list-outline"
-            label="Add to Queue"
-            onPress={() => {
-              const track = actionTrack;
-              trackActionsRef.current?.dismiss();
-              if (track) void addToQueue([track], playContext);
-            }}
-          />
-          {canAddTracks && (
-            <SheetAction
-              icon="add-circle-outline"
-              label="Add to Playlist"
-              onPress={() => {
-                const track = actionTrack;
-                trackActionsRef.current?.dismiss();
-                if (!track) return;
-                addToPlaylist.open({
-                  artistName,
-                  trackName: track.trackName,
-                  albumName: title,
-                  artistMbid: params.artistMbid || null,
-                });
-              }}
-            />
-          )}
-        </BottomSheetView>
-      </AppSheet>
-
-      <AddToPlaylistSheet
-        track={addToPlaylist.track}
-        onClose={addToPlaylist.close}
+      <TrackActionsSheet
+        target={trackActions.target}
+        onClose={trackActions.close}
       />
     </View>
   );
 }
 
 function PlayButton({
-  icon,
-  label,
   onPress,
   disabled,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
   onPress: () => void;
   disabled?: boolean;
 }) {
   const colors = Colors[useColorScheme()];
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
@@ -468,34 +429,13 @@ function PlayButton({
         },
       ]}
     >
-      <Ionicons name={icon} size={18} color={colors.buttonPrimaryText} />
+      <Ionicons name="play" size={18} color={colors.buttonPrimaryText} />
       <Text
         variant="body"
         style={[styles.playLabel, { color: colors.buttonPrimaryText }]}
       >
-        {label}
+        Play
       </Text>
-    </Pressable>
-  );
-}
-
-function SheetAction({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  const colors = Colors[useColorScheme()];
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.sheetRow, { opacity: pressed ? 0.6 : 1 }]}
-    >
-      <Ionicons name={icon} size={20} color={colors.text} />
-      <Text variant="body">{label}</Text>
     </Pressable>
   );
 }
@@ -516,18 +456,24 @@ const styles = StyleSheet.create({
   },
   playRow: {
     flexDirection: "row",
-    gap: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
     paddingHorizontal: 24,
     paddingVertical: 20,
   },
   playButton: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    height: 44,
-    borderRadius: 22,
+    width: PLAY_ROW_HEIGHT * 3,
+    height: PLAY_ROW_HEIGHT,
+    borderRadius: PLAY_ROW_HEIGHT / 2,
+    borderCurve: "continuous",
+  },
+  circleSpacer: {
+    width: PLAY_ROW_HEIGHT,
   },
   playLabel: {
     ...Fonts.semiBold,
@@ -538,19 +484,5 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: "center",
     paddingVertical: 32,
-  },
-  sheet: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    gap: 4,
-  },
-  sheetTitle: {
-    paddingBottom: 8,
-  },
-  sheetRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
   },
 });

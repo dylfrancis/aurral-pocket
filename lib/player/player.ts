@@ -110,6 +110,7 @@ export function playItem(item: PlayerClip): Promise<void> {
     trackMbid: null,
     artistMbid: null,
     albumMbid: null,
+    identityKey: null,
   };
   const run = lastPlay.then(() => replaceAndPlay([track], track.id, null));
   // A failed play must not wedge every later one.
@@ -768,6 +769,7 @@ function asPlayerTrack(engineTrack: TrackItem): PlayerTrack {
     trackMbid: null,
     artistMbid: null,
     albumMbid: null,
+    identityKey: null,
   };
 }
 

@@ -69,6 +69,7 @@ async function openGenresList() {
       index: OtherRoute,
       artists: OtherRoute,
       albums: OtherRoute,
+      favorites: OtherRoute,
       blocklist: OtherRoute,
       "artist/[mbid]": OtherRoute,
       "artist/albums": OtherRoute,

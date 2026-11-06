@@ -2,12 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { absolutizeImageUrl } from "@/lib/api/client";
 import { getArtistCover, getAlbumCover } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
-import type { CoverArtType } from "@/lib/types/library";
+import type { CoverArtResponse, CoverArtType } from "@/lib/types/library";
 
 type CoverArtOptions = {
   type: CoverArtType;
   mbid: string | undefined;
 };
+
+export function coverArtUrlFrom(cover: CoverArtResponse | undefined) {
+  const images = cover?.images;
+  const raw =
+    images?.find((img) => img.front)?.image ?? images?.[0]?.image ?? null;
+  return absolutizeImageUrl(raw);
+}
 
 export function useCoverArtUrl({ type, mbid }: CoverArtOptions) {
   const query = useQuery({
@@ -23,10 +30,5 @@ export function useCoverArtUrl({ type, mbid }: CoverArtOptions) {
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
   });
 
-  const images = query.data?.images;
-  const raw =
-    images?.find((img) => img.front)?.image ?? images?.[0]?.image ?? null;
-  const url = absolutizeImageUrl(raw);
-
-  return { url, isLoading: query.isLoading };
+  return { url: coverArtUrlFrom(query.data), isLoading: query.isLoading };
 }

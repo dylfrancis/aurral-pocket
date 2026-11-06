@@ -8,6 +8,10 @@ import { Scrubber } from "@/components/player/Scrubber";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
+import {
+  useIsFavoriteTrack,
+  useToggleFavorite,
+} from "@/hooks/library/use-library-favorites";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   next,
@@ -96,27 +100,46 @@ export function NowPlayingScreen() {
           size={280}
           borderRadius={12}
         />
-        <View style={styles.titles}>
-          <Text
-            variant="subtitle"
-            numberOfLines={1}
-            style={[Fonts.medium, { color: colors.text, fontSize: 20 }]}
-          >
-            {track.title}
-          </Text>
-          <Pressable
-            onPress={openArtist}
-            disabled={!artistMbid}
-            hitSlop={8}
-            accessibilityRole={artistMbid ? "button" : undefined}
-            accessibilityLabel={
-              artistMbid ? `View artist ${track.artist}` : undefined
-            }
-          >
-            <Text variant="caption" numberOfLines={1} style={{ fontSize: 15 }}>
-              {track.artist} · {track.album}
+        <View style={styles.titleRow}>
+          {/* Matches the heart's width, so the titles stay centered. */}
+          <View style={styles.titleSide} />
+          <View style={styles.titles}>
+            <Text
+              variant="subtitle"
+              numberOfLines={1}
+              style={[Fonts.medium, { color: colors.text, fontSize: 20 }]}
+            >
+              {track.title}
             </Text>
-          </Pressable>
+            <Pressable
+              onPress={openArtist}
+              disabled={!artistMbid}
+              hitSlop={8}
+              accessibilityRole={artistMbid ? "button" : undefined}
+              accessibilityLabel={
+                artistMbid ? `View artist ${track.artist}` : undefined
+              }
+            >
+              <Text
+                variant="caption"
+                numberOfLines={1}
+                style={{ fontSize: 15 }}
+              >
+                {track.artist} · {track.album}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={styles.titleSide}>
+            {track.identityKey && (
+              <FavoriteButton
+                // Remounts per track, so a toggle still in flight doesn't show
+                // on the next one.
+                key={track.identityKey}
+                identityKey={track.identityKey}
+                trackTitle={track.title}
+              />
+            )}
+          </View>
         </View>
         <View style={styles.scrubber}>
           <Scrubber />
@@ -204,6 +227,49 @@ export function NowPlayingScreen() {
   );
 }
 
+function FavoriteButton({
+  identityKey,
+  trackTitle,
+}: {
+  identityKey: string;
+  trackTitle: string;
+}) {
+  const colors = Colors[useColorScheme()];
+  const { data: isFavoriteOnServer = false, isPending: isCheckingFavorite } =
+    useIsFavoriteTrack(identityKey);
+  const toggleFavorite = useToggleFavorite();
+  // Shows the tap at once. A refused toggle falls back to the server's answer.
+  const isFavorite = toggleFavorite.isPending
+    ? toggleFavorite.variables.starred
+    : isFavoriteOnServer;
+
+  return (
+    <Pressable
+      onPress={() => {
+        if (isCheckingFavorite || toggleFavorite.isPending) return;
+        toggleFavorite.mutate({
+          kind: "song",
+          identityKey,
+          starred: !isFavorite,
+        });
+      }}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={
+        isFavorite
+          ? `Remove ${trackTitle} from favorites`
+          : `Add ${trackTitle} to favorites`
+      }
+    >
+      <Ionicons
+        name={isFavorite ? "heart" : "heart-outline"}
+        size={24}
+        color={colors.text}
+      />
+    </Pressable>
+  );
+}
+
 function UpNextRow({ item }: { item: PlayerTrack }) {
   const colors = Colors[useColorScheme()];
 
@@ -254,8 +320,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 20,
   },
-  titles: {
+  titleRow: {
     alignSelf: "stretch",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  titleSide: {
+    width: 32,
+    alignItems: "flex-end",
+  },
+  titles: {
+    flex: 1,
     alignItems: "center",
     gap: 4,
   },

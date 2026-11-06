@@ -82,6 +82,17 @@ describe("ArtistHero", () => {
     expect(getByText("In Your Library")).toBeTruthy();
   });
 
+  it("offers no favorite for an artist outside the library", async () => {
+    const { queryByLabelText } = await render(
+      <ArtistHero
+        artist={baseArtist}
+        inLibrary={false}
+        favorite={{ active: false, onToggle: jest.fn() }}
+      />,
+    );
+    expect(queryByLabelText(/to favorites$/)).toBeNull();
+  });
+
   it("calls onBadgePress when badge is tapped", async () => {
     const onPress = jest.fn();
     const { getByText } = await render(

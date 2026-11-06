@@ -36,6 +36,8 @@ export type PlayerTrack = PlayerClip & {
   trackMbid: string | null;
   artistMbid: string | null;
   albumMbid: string | null;
+  /** The key the favorites API addresses this track by. */
+  identityKey: string | null;
 };
 
 /** The album a track is played from. The engine shows this on the lock screen. */
@@ -83,5 +85,6 @@ export function toPlayerTrack(
     trackMbid: track.mbid || null,
     artistMbid: album.artistMbid,
     albumMbid: album.albumMbid,
+    identityKey: track.identityKey ?? null,
   };
 }

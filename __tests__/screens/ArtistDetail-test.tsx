@@ -13,6 +13,8 @@ jest.mock("expo-image", () => {
 jest.mock("@/lib/api/library", () => ({
   deleteLibraryArtist: jest.fn(),
   refreshLibraryArtist: jest.fn(),
+  updateLibraryFavorites: jest.fn(() => Promise.resolve({ changedIds: [] })),
+  favoriteEntityId: jest.requireActual("@/lib/api/library").favoriteEntityId,
 }));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -241,9 +243,10 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
 }));
 
 import React from "react";
-import { render, fireEvent, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { updateLibraryFavorites } from "@/lib/api/library";
 import ArtistDetailScreen, {
   ErrorBoundary,
 } from "@/app/(app)/(tabs)/(library)/artist/[mbid]";
@@ -262,7 +265,10 @@ const mockUseLibraryArtistSuspense = useLibraryArtistSuspense as jest.Mock;
 
 async function renderScreen() {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      mutations: { retry: false, gcTime: 0 },
+    },
   });
   return await render(
     <QueryClientProvider client={queryClient}>
@@ -418,6 +424,78 @@ describe("ArtistDetailScreen", () => {
       });
       await renderScreen();
       expect(refetch).toHaveBeenCalledTimes(1);
+    });
+
+    describe("favorite button", () => {
+      const canonicalRecord = (userFavorite: boolean) => ({
+        data: { identityKey: "mbid:abc-123", userFavorite },
+        isPending: false,
+        refetch: jest.fn().mockResolvedValue({}),
+      });
+
+      it.each([
+        [false, "Add Test Artist to favorites", true],
+        [true, "Remove Test Artist from favorites", false],
+      ])(
+        "toggles the artist when userFavorite is %s",
+        async (userFavorite, label, starred) => {
+          mockUseCanonicalArtist.mockReturnValue(canonicalRecord(userFavorite));
+          const { getByLabelText } = await renderScreen();
+
+          await fireEvent.press(getByLabelText(label));
+
+          expect(updateLibraryFavorites).toHaveBeenCalledWith(
+            ["artist:mbid:abc-123"],
+            starred,
+          );
+        },
+      );
+
+      it("fills the heart on the tap, before the server answers", async () => {
+        let finishToggle = (_value: unknown) => {};
+        (updateLibraryFavorites as jest.Mock).mockReturnValueOnce(
+          new Promise((resolve) => {
+            finishToggle = resolve;
+          }),
+        );
+        mockUseCanonicalArtist.mockReturnValue(canonicalRecord(false));
+        const { getByLabelText, findByLabelText } = await renderScreen();
+
+        await fireEvent.press(getByLabelText("Add Test Artist to favorites"));
+
+        expect(
+          await findByLabelText("Remove Test Artist from favorites"),
+        ).toBeTruthy();
+
+        // Left pending, the mutation keeps Jest from exiting.
+        await act(async () => {
+          finishToggle({ changedIds: [] });
+        });
+      });
+
+      it("hides the heart when the library hasn't indexed the artist", async () => {
+        mockUseCanonicalArtist.mockReturnValue({
+          data: null,
+          isPending: false,
+          refetch: jest.fn().mockResolvedValue({}),
+        });
+        const { queryByLabelText } = await renderScreen();
+
+        expect(queryByLabelText(/to favorites$/)).toBeNull();
+      });
+
+      it("holds the heart's place while the artist loads, and ignores a tap", async () => {
+        mockUseCanonicalArtist.mockReturnValue({
+          data: undefined,
+          isPending: true,
+          refetch: jest.fn().mockResolvedValue({}),
+        });
+        const { getByLabelText } = await renderScreen();
+
+        await fireEvent.press(getByLabelText("Add Test Artist to favorites"));
+
+        expect(updateLibraryFavorites).not.toHaveBeenCalled();
+      });
     });
 
     it("renders artist name", async () => {

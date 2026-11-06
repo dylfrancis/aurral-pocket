@@ -20,6 +20,7 @@ const CATEGORIES: Category[] = [
   { icon: "people-outline", label: "Artists", route: "/artists" },
   { icon: "disc-outline", label: "Albums", route: "/albums" },
   { icon: "pricetags-outline", label: "Genres", route: "/genres" },
+  { icon: "heart-outline", label: "Favorites", route: "/favorites" },
 ];
 
 const ICON_SIZE = 22;

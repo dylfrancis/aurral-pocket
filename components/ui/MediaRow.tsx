@@ -15,8 +15,11 @@ type MediaRowProps = {
   subtitle?: string;
   trailing?: React.ReactNode;
   onPress: () => void;
+  onLongPress?: () => void;
   /** Loads the image from the server's artwork path. See CoverArtImage. */
   coverUrl?: string;
+  /** Off for a row that acts in place instead of opening a screen. */
+  showChevron?: boolean;
 };
 
 const ARTIST_THUMB_SIZE = 48;
@@ -31,7 +34,9 @@ export const MediaRow = React.memo(function MediaRow({
   subtitle,
   trailing,
   onPress,
+  onLongPress,
   coverUrl,
+  showChevron = true,
 }: MediaRowProps) {
   const colors = Colors[useColorScheme()];
   const thumbSize =
@@ -42,6 +47,7 @@ export const MediaRow = React.memo(function MediaRow({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => [
         styles.container,
         { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
@@ -88,7 +94,9 @@ export const MediaRow = React.memo(function MediaRow({
 
       {trailing}
 
-      <Ionicons name="chevron-forward" size={16} color={colors.subtle} />
+      {showChevron && (
+        <Ionicons name="chevron-forward" size={16} color={colors.subtle} />
+      )}
     </Pressable>
   );
 });

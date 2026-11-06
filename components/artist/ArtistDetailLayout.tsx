@@ -26,6 +26,7 @@ import {
   useCanonicalArtist,
   useLibraryArtist,
 } from "@/hooks/library/use-library-artist";
+import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -134,8 +135,24 @@ export function ArtistDetailLayout({
   const { data: libraryArtist, refetch: refetchArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,
   );
-  const { data: canonicalArtist, refetch: refetchCanonicalArtist } =
-    useCanonicalArtist(inLibrary ? mbid : undefined);
+  const {
+    data: canonicalArtist,
+    isPending: canonicalArtistLoading,
+    refetch: refetchCanonicalArtist,
+  } = useCanonicalArtist(inLibrary ? mbid : undefined);
+  const toggleFavorite = useToggleFavorite();
+  // Shows the tap at once. A refused toggle falls back to the artist's own flag.
+  const isFavorite = toggleFavorite.isPending
+    ? toggleFavorite.variables.starred
+    : canonicalArtist?.userFavorite === true;
+  const handleToggleFavorite = () => {
+    if (!canonicalArtist?.identityKey || toggleFavorite.isPending) return;
+    toggleFavorite.mutate({
+      kind: "artist",
+      identityKey: canonicalArtist.identityKey,
+      starred: !isFavorite,
+    });
+  };
   // The read path decides whether albums are addressed by Lidarr id or by
   // MBID, so both identifiers go in and the helper picks one.
   const albumsRef = libraryAlbumsRef({
@@ -481,6 +498,13 @@ export function ArtistDetailLayout({
           refreshing={refreshing}
           inLibrary={inLibrary}
           onBadgePress={handleBadgePress}
+          // Shows while the artist loads, so the heart doesn't pop in and shift
+          // the badge.
+          favorite={
+            canonicalArtistLoading || canonicalArtist?.identityKey
+              ? { active: isFavorite, onToggle: handleToggleFavorite }
+              : undefined
+          }
           onAddPress={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             addArtistSheetRef.current?.present();
