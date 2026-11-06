@@ -97,14 +97,14 @@ async function search(text: string) {
 
 type HeaderMenuItem = { title: string; isOn: boolean; press: () => void };
 
-const composeMenuItems = () =>
+const androidMenuNodes = () =>
   screen.container.queryAll((node) => !!node.props.onItemPressed);
 
 // iOS hands the menu to the native header as data, and Android renders it as
 // Compose views. press() is what a real tap on the item fires on each.
 function headerMenuItems(): HeaderMenuItem[] {
   if (!IS_IOS) {
-    return composeMenuItems().map((item) => ({
+    return androidMenuNodes().map((item) => ({
       title: item.queryAll((node) => typeof node.props.text === "string")[0]
         .props.text,
       isOn:
@@ -113,16 +113,16 @@ function headerMenuItems(): HeaderMenuItem[] {
       press: () => item.props.onItemPressed({ nativeEvent: {} }),
     }));
   }
-  type NativeItem = {
+  type IosMenuItem = {
     title: string;
     state?: "on" | "off";
     menuId: string;
-    items?: NativeItem[];
+    items?: IosMenuItem[];
   };
-  const leaves = (items: NativeItem[] = []): NativeItem[] =>
-    items.flatMap((item) => (item.items ? leaves(item.items) : [item]));
+  const flattenMenu = (items: IosMenuItem[] = []): IosMenuItem[] =>
+    items.flatMap((item) => (item.items ? flattenMenu(item.items) : [item]));
   return nativeElements("RNSScreenStackHeaderConfig").flatMap((header) =>
-    leaves(header.props.headerRightBarButtonItems?.[0]?.menu.items).map(
+    flattenMenu(header.props.headerRightBarButtonItems?.[0]?.menu.items).map(
       (item) => ({
         title: item.title,
         isOn: item.state === "on",
@@ -136,13 +136,11 @@ function headerMenuItems(): HeaderMenuItem[] {
 }
 
 async function chooseSort(title: string) {
-  const item = headerMenuItems().find(
-    (candidate) => candidate.title === title,
-  )!;
-  await act(async () => item.press());
+  const { press } = headerMenuItems().find((item) => item.title === title)!;
+  await act(async () => press());
 }
 
-const genreRows = () =>
+const genreRowNames = () =>
   screen.getAllByText(/^(Ambient|Jazz|Rock)$/).map((row) => row.props.children);
 
 beforeEach(() => {
@@ -219,21 +217,24 @@ describe("genres list sorting", () => {
     ["Most Tracks", ["Rock", "Ambient", "Jazz"]],
     ["Most Albums", ["Ambient", "Rock", "Jazz"]],
     ["Most Artists", ["Jazz", "Rock", "Ambient"]],
-  ])("orders the rows by %s and marks it chosen", async (title, order) => {
-    mockGetCanonicalGenres.mockResolvedValue(genres);
-    await openGenresList();
-    await screen.findByText("Jazz");
-    expect(genreRows()).toEqual(["Ambient", "Jazz", "Rock"]);
+  ])(
+    "orders the rows by %s and marks it chosen",
+    async (sortLabel, expectedOrder) => {
+      mockGetCanonicalGenres.mockResolvedValue(genres);
+      await openGenresList();
+      await screen.findByText("Jazz");
+      expect(genreRowNames()).toEqual(["Ambient", "Jazz", "Rock"]);
 
-    await chooseSort(title);
+      await chooseSort(sortLabel);
 
-    expect(genreRows()).toEqual(order);
-    expect(
-      headerMenuItems()
-        .filter((item) => item.isOn)
-        .map((item) => item.title),
-    ).toEqual([title]);
-  });
+      expect(genreRowNames()).toEqual(expectedOrder);
+      expect(
+        headerMenuItems()
+          .filter((item) => item.isOn)
+          .map((item) => item.title),
+      ).toEqual([sortLabel]);
+    },
+  );
 
   it("offers no grid or list choice, because genres have no artwork", async () => {
     mockGetCanonicalGenres.mockResolvedValue(genres);
@@ -245,7 +246,6 @@ describe("genres list sorting", () => {
     expect(titles).not.toContain("Grid");
   });
 
-  // A header rebuild can drop the Android search icon.
   it("keeps the native header untouched across a keystroke", async () => {
     mockGetCanonicalGenres.mockResolvedValue(genres);
     await openGenresList();
@@ -254,7 +254,7 @@ describe("genres list sorting", () => {
       menu: IS_IOS
         ? nativeElements("RNSScreenStackHeaderConfig")[0].props
             .headerRightBarButtonItems
-        : composeMenuItems()[0].props.onItemPressed,
+        : androidMenuNodes()[0].props.onItemPressed,
       onChangeText: nativeElements("RNSSearchBar")[0].props.onChangeText,
     });
     const before = nativeHeaderProps();
@@ -274,7 +274,7 @@ describe("genres list sorting", () => {
     await chooseSort("Name Z-A");
     await search("a");
 
-    expect(genreRows()).toEqual(["Jazz", "Ambient"]);
+    expect(genreRowNames()).toEqual(["Jazz", "Ambient"]);
   });
 });
 

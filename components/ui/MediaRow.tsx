@@ -8,7 +8,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import type { CoverArtType } from "@/lib/types/library";
 
 type MediaRowProps = {
-  /** Omit for a row with no image, where the text starts at the edge. */
+  /** Omit for a row with no image. */
   imageType?: CoverArtType;
   mbid?: string | null;
   title: string;

@@ -88,8 +88,8 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   // identity changes, and a rebuild can drop the Android search icon. Stable
   // handlers and a memoized toolbar keep typing from causing one.
   const handleSearchChange = useCallback(
-    (e: NativeSyntheticEvent<SearchBarTextEventData>) =>
-      onSearchChange(e.nativeEvent.text),
+    (event: NativeSyntheticEvent<SearchBarTextEventData>) =>
+      onSearchChange(event.nativeEvent.text),
     [onSearchChange],
   );
   const handleSearchCancel = useCallback(

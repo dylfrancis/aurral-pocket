@@ -16,9 +16,9 @@ export type AlbumSortMode =
 export type LibraryAlbumSortMode =
   "name-asc" | "name-desc" | "artist-asc" | "artist-desc" | "newest";
 
-/** Sorts for the genres list, done on the phone over the loaded list. */
+/** Sorts for the genres list, done on the phone. */
 export type GenreSortMode =
-  "name-asc" | "name-desc" | "tracks" | "albums" | "artists";
+  "name-asc" | "name-desc" | "most-tracks" | "most-albums" | "most-artists";
 
 export type SortOption<Key extends string = AlbumSortMode> = {
   key: Key;
@@ -101,21 +101,21 @@ export const GENRE_SORT_OPTIONS: SortOption<GenreSortMode>[] = [
   NAME_ASC,
   NAME_DESC,
   {
-    key: "tracks",
+    key: "most-tracks",
     label: "Most Tracks",
     icon: "musical-notes-outline",
     iosIcon: "music.note",
     androidIcon: MusicNote,
   },
   {
-    key: "albums",
+    key: "most-albums",
     label: "Most Albums",
     icon: "disc-outline",
     iosIcon: "square.stack",
     androidIcon: Album,
   },
   {
-    key: "artists",
+    key: "most-artists",
     label: "Most Artists",
     icon: "people-outline",
     iosIcon: "person.2",

@@ -14,21 +14,21 @@ import type { CanonicalGenre } from "@/lib/types/library";
 const countLabel = (count: number, noun: string) =>
   `${count} ${noun}${count === 1 ? "" : "s"}`;
 
-type GenreOrder = (a: CanonicalGenre, b: CanonicalGenre) => number;
+type GenreComparator = (a: CanonicalGenre, b: CanonicalGenre) => number;
 
-const byName: GenreOrder = (a, b) => a.name.localeCompare(b.name);
+const byName: GenreComparator = (a, b) => a.name.localeCompare(b.name);
 
 const mostFirst =
-  (count: "tracks" | "albums" | "artists"): GenreOrder =>
+  (countField: "tracks" | "albums" | "artists"): GenreComparator =>
   (a, b) =>
-    b[count] - a[count] || byName(a, b);
+    b[countField] - a[countField] || byName(a, b);
 
-const GENRE_ORDERS: Record<GenreSortMode, GenreOrder> = {
+const GENRE_COMPARATORS: Record<GenreSortMode, GenreComparator> = {
   "name-asc": byName,
   "name-desc": (a, b) => byName(b, a),
-  tracks: mostFirst("tracks"),
-  albums: mostFirst("albums"),
-  artists: mostFirst("artists"),
+  "most-tracks": mostFirst("tracks"),
+  "most-albums": mostFirst("albums"),
+  "most-artists": mostFirst("artists"),
 };
 
 export default function LibraryGenresScreen() {
@@ -39,7 +39,7 @@ export default function LibraryGenresScreen() {
   const [sortMode, setSortMode] = useState<GenreSortMode>("name-asc");
 
   const sortedGenres = useMemo(
-    () => [...genres].sort(GENRE_ORDERS[sortMode]),
+    () => [...genres].sort(GENRE_COMPARATORS[sortMode]),
     [genres, sortMode],
   );
   const visibleGenres = useMemo(() => {
