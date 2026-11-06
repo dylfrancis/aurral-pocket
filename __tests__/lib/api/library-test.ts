@@ -1096,45 +1096,83 @@ describe("canonical library scan", () => {
 });
 
 describe("favoriteEntityId", () => {
-  it("prefixes the kind and percent-encodes the identity key", () => {
+  // Pairs a 2.13.0 server returned from GET /library/favorites.
+  it.each([
+    ["artist", "mbid:f6f2326f", "artist:mbid:f6f2326f"],
+    ["song", "recording:33333333", "song:recording:33333333"],
+    [
+      "album",
+      "name:album:mbid 1111:second album",
+      "album:name:album:mbid%201111:second%20album",
+    ],
+  ] as const)(
+    "leaves the colons in a %s key readable, as the server does",
+    (kind, identityKey, id) => {
+      expect(favoriteEntityId(kind, identityKey)).toBe(id);
+    },
+  );
+
+  it("percent-encodes everything else", () => {
     expect(favoriteEntityId("artist", "Simon & Garfunkel")).toBe(
       "artist:Simon%20%26%20Garfunkel",
     );
     expect(favoriteEntityId("album", "AC/DC|Back in Black")).toBe(
       "album:AC%2FDC%7CBack%20in%20Black",
     );
-    expect(favoriteEntityId("song", "plain")).toBe("song:plain");
   });
 });
 
 describe("getLibraryFavorites", () => {
   // The server answers with every starred id, plus a `library` block that also
-  // carries the children of starred entities. Only the starred rows may escape.
+  // carries the parents and children of starred entities. Only the starred rows
+  // may escape.
   const wire = {
-    artist: [{ id: "artist:radiohead" }],
-    album: [{ id: "album:in-rainbows" }],
-    song: [{ id: "song:nude" }],
+    artist: [{ id: "artist:mbid:radiohead" }],
+    album: [{ id: "album:release-group:in-rainbows" }],
+    song: [{ id: "song:recording:nude" }],
     library: {
       artists: [
-        { id: "1", name: "Radiohead", identityKey: "radiohead" },
-        { id: "2", name: "Not Starred", identityKey: "portishead" },
+        {
+          id: 1,
+          name: "Radiohead",
+          identityKey: "mbid:radiohead",
+          mbid: "radiohead",
+        },
+        { id: 2, name: "Not Starred", identityKey: "mbid:portishead" },
       ],
       albums: [
-        { id: "10", title: "In Rainbows", identityKey: "in-rainbows" },
-        { id: "11", title: "Child Of A Starred Artist", identityKey: "kid-a" },
+        {
+          id: 10,
+          artistId: 1,
+          title: "In Rainbows",
+          identityKey: "release-group:in-rainbows",
+        },
+        {
+          id: 11,
+          artistId: 1,
+          title: "Parent Of A Starred Track",
+          albumArtist: "Credit String",
+          identityKey: "release-group:kid-a",
+          coverUrl: "/api/library/albums/11/cover",
+        },
       ],
       tracks: [
-        { id: "100", title: "Nude", identityKey: "nude" },
         {
-          id: "101",
+          id: 100,
+          title: "Nude",
+          identityKey: "recording:nude",
+          albums: [{ albumId: 11, trackNumber: 3 }],
+        },
+        {
+          id: 101,
           title: "Child Of A Starred Album",
-          identityKey: "reckoner",
+          identityKey: "recording:reckoner",
         },
       ],
     },
   };
 
-  it("keeps only the starred rows and drops the children", async () => {
+  it("keeps only the starred rows and drops the parents and children", async () => {
     mockApi.get.mockResolvedValue({ data: wire });
 
     const result = await getLibraryFavorites();
@@ -1144,16 +1182,64 @@ describe("getLibraryFavorites", () => {
     expect(result.tracks.map((t) => t.title)).toEqual(["Nude"]);
   });
 
+  it("marks every row as a favorite, because the route's rows carry no flag", async () => {
+    mockApi.get.mockResolvedValue({ data: wire });
+
+    const { artists, albums, tracks } = await getLibraryFavorites();
+    expect(
+      [...artists, ...albums, ...tracks].map((row) => row.userFavorite),
+    ).toEqual([true, true, true]);
+  });
+
+  it("names a track's album and its artist from the unstarred parent rows", async () => {
+    mockApi.get.mockResolvedValue({ data: wire });
+
+    const { tracks } = await getLibraryFavorites();
+    expect(tracks[0].album).toMatchObject({
+      albumName: "Parent Of A Starred Track",
+      artistName: "Radiohead",
+      artistMbid: "radiohead",
+      coverUrl: "/api/library/albums/11/cover",
+    });
+  });
+
+  it("streams a track from the album that holds its file, not its first album", async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        song: [{ id: "song:recording:nude" }],
+        library: {
+          albums: [
+            { id: 1, title: "Compilation" },
+            { id: 2, title: "In Rainbows" },
+          ],
+          tracks: [
+            {
+              id: 100,
+              title: "Nude",
+              identityKey: "recording:nude",
+              albums: [{ albumId: 1 }, { albumId: 2 }],
+              files: [{ id: 5, albumId: 2, available: true }],
+            },
+          ],
+        },
+      },
+    });
+
+    const { tracks } = await getLibraryFavorites();
+    expect(tracks[0].streamPath).toBe("/library/canonical-stream/2/100");
+    expect(tracks[0].album?.albumName).toBe("In Rainbows");
+  });
+
   it("matches on the encoded id, not the raw identity key", async () => {
     mockApi.get.mockResolvedValue({
       data: {
-        artist: [{ id: "artist:Simon%20%26%20Garfunkel" }],
+        album: [{ id: "album:name:album:mbid%201111:second%20album" }],
         library: {
-          artists: [
+          albums: [
             {
               id: "1",
-              name: "Simon & Garfunkel",
-              identityKey: "Simon & Garfunkel",
+              title: "Second Album",
+              identityKey: "name:album:mbid 1111:second album",
             },
           ],
         },
@@ -1161,9 +1247,7 @@ describe("getLibraryFavorites", () => {
     });
 
     const result = await getLibraryFavorites();
-    expect(result.artists.map((a) => a.artistName)).toEqual([
-      "Simon & Garfunkel",
-    ]);
+    expect(result.albums.map((a) => a.title)).toEqual(["Second Album"]);
   });
 
   it("drops rows with no identity key rather than matching them loosely", async () => {

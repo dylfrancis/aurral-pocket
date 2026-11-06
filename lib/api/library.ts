@@ -421,18 +421,20 @@ export async function getCanonicalGenres(): Promise<CanonicalGenre[]> {
 export type FavoriteKind = "artist" | "album" | "song";
 
 /**
- * Build the id the favorites API addresses an entity by. Mirrors idFor in
- * the server's subsonicLibraryService.
+ * Build the id the favorites API addresses an entity by. Mirrors subsonicId in
+ * the server's libraryMediaStore, which leaves colons readable. The starred
+ * lists use that form, and identity keys hold colons (`mbid:`, `recording:`).
  */
 export function favoriteEntityId(kind: FavoriteKind, identityKey: string) {
-  return `${kind}:${encodeURIComponent(identityKey)}`;
+  return `${kind}:${encodeURIComponent(identityKey).replaceAll("%3A", ":")}`;
 }
 
 /**
  * Read the signed-in user's favorites. The response's `library` field also
- * carries the children of starred artists and albums — a starred artist
- * arrives with its whole discography. The rows are filtered down to the
- * starred ids before mapping, so callers see only what the user starred.
+ * carries the parents and children of starred rows — a starred artist arrives
+ * with its whole discography. The rows are filtered down to the starred ids,
+ * so callers see only what the user starred. The parents still name a track's
+ * album and an album's artist.
  */
 export async function getLibraryFavorites(): Promise<LibraryFavorites> {
   const r = await api.get<LibraryFavoritesWire>("/library/favorites");
@@ -446,16 +448,45 @@ export async function getLibraryFavorites(): Promise<LibraryFavorites> {
   const library = r.data.library ?? {};
   const keep = (kind: FavoriteKind, identityKey?: string) =>
     !!identityKey && starred.has(favoriteEntityId(kind, identityKey));
+
+  const artists = (library.artists ?? []).map(canonicalArtistToArtist);
+  const artistsById = new Map(artists.map((artist) => [artist.id, artist]));
+  const albums = (library.albums ?? []).map((item) => {
+    const album = canonicalAlbumToAlbum(item);
+    const artist = artistsById.get(album.artistId);
+    return {
+      ...album,
+      artistName: artist?.artistName || album.artistName,
+      artistMbid: artist?.mbid || undefined,
+    };
+  });
+  const albumsById = new Map(albums.map((album) => [album.id, album]));
+
+  // This route's rows carry no userFavorite, and every row kept here is one.
   return {
-    artists: (library.artists ?? [])
-      .filter((item) => keep("artist", item.identityKey))
-      .map(canonicalArtistToArtist),
-    albums: (library.albums ?? [])
-      .filter((item) => keep("album", item.identityKey))
-      .map(canonicalAlbumToAlbum),
+    artists: artists
+      .filter((artist) => keep("artist", artist.identityKey))
+      .map((artist) => ({ ...artist, userFavorite: true })),
+    albums: albums
+      .filter((album) => keep("album", album.identityKey))
+      .map((album) => ({ ...album, userFavorite: true })),
     tracks: (library.tracks ?? [])
       .filter((item) => keep("song", item.identityKey))
-      .map((item) => canonicalTrackToTrack(item)),
+      .map((item) => {
+        // A track can sit on several albums with its file on only one, and
+        // the stream path has to name that one.
+        const albumId =
+          item.files?.find((file) => file.available && file.albumId != null)
+            ?.albumId ?? item.albums?.[0]?.albumId;
+        return {
+          ...canonicalTrackToTrack(
+            item,
+            albumId != null ? String(albumId) : undefined,
+          ),
+          userFavorite: true,
+          album: albumsById.get(String(albumId)),
+        };
+      }),
   };
 }
 
