@@ -11,6 +11,7 @@ import FilterList from "@expo/material-symbols/filter_list.xml";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import {
   useDiscovery,
   useRecentlyAdded,
@@ -151,11 +152,7 @@ export default function DiscoverListScreen() {
   const viewToolbar = (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Menu
-        icon={
-          process.env.EXPO_OS === "ios"
-            ? "line.3.horizontal.decrease"
-            : FilterList
-        }
+        icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
       >
         {viewModeMenuSection(viewMode, setViewMode)}
       </Stack.Toolbar.Menu>

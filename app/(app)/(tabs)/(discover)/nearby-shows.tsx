@@ -32,6 +32,7 @@ import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import { filterNearbyShows } from "@/lib/discover/nearby-shows";
 import type { ConcertEvent } from "@/lib/types/search";
 
@@ -273,11 +274,7 @@ export default function NearbyShowsScreen() {
       />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
-          icon={
-            process.env.EXPO_OS === "ios"
-              ? "line.3.horizontal.decrease"
-              : FilterList
-          }
+          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
           title="Filters"
         >
           <Stack.Toolbar.Menu inline title="Sort by">

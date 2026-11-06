@@ -2,7 +2,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -25,6 +24,7 @@ import { YearBoundInput } from "@/components/flow/YearBoundInput";
 import { useCreateFlow, useEditSnapshot, useUpdateFlow } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import {
   createDefaultFlowForm,
   type Flow,
@@ -196,7 +196,7 @@ function FlowEditForm({
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={IS_IOS ? "padding" : undefined}
       style={{ flex: 1 }}
     >
       <Stack.Screen

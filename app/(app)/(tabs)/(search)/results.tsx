@@ -32,6 +32,7 @@ import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { releaseRouteParams } from "@/lib/library-read";
 import { Colors, Fonts } from "@/constants/theme";
+import { IS_IOS } from "@/constants/platform";
 import type {
   SearchAlbum,
   SearchArtist,
@@ -276,11 +277,7 @@ export default function SearchResultsScreen() {
     <>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
-          icon={
-            process.env.EXPO_OS === "ios"
-              ? "line.3.horizontal.decrease"
-              : FilterList
-          }
+          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
           title="Scope"
         >
           {(isTagSearch ? TAG_SCOPE_OPTIONS : SCOPE_OPTIONS).map((option) => {
@@ -290,11 +287,7 @@ export default function SearchResultsScreen() {
             return (
               <Stack.Toolbar.MenuAction
                 key={option.key}
-                icon={
-                  process.env.EXPO_OS === "ios"
-                    ? (option.iosIcon as any)
-                    : option.androidIcon
-                }
+                icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
                 isOn={active}
                 onPress={() => {
                   if (isTagSearch) {

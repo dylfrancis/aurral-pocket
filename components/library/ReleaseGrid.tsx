@@ -21,6 +21,7 @@ import { useGridColumns } from "@/hooks/use-grid-columns";
 import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
+import { IS_IOS } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
 
 const EDGE_PADDING = 12;
@@ -99,21 +100,13 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
     () => (
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
-          icon={
-            process.env.EXPO_OS === "ios"
-              ? "line.3.horizontal.decrease"
-              : FilterList
-          }
+          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
           title="Sort By"
         >
           {sortOptions.map((option) => (
             <Stack.Toolbar.MenuAction
               key={option.key}
-              icon={
-                process.env.EXPO_OS === "ios"
-                  ? (option.iosIcon as any)
-                  : option.androidIcon
-              }
+              icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
               isOn={sortMode === option.key}
               onPress={() => onSortChange(option.key)}
             >
