@@ -2,6 +2,8 @@ jest.mock("@/lib/api/library", () => ({
   deleteAlbum: jest.fn(() => Promise.resolve({})),
   triggerAlbumSearch: jest.fn(() => Promise.resolve({})),
   getDownloadStatuses: jest.fn(() => Promise.resolve({})),
+  updateLibraryFavorites: jest.fn(() => Promise.resolve({})),
+  favoriteEntityId: jest.requireActual("@/lib/api/library").favoriteEntityId,
 }));
 
 jest.mock("@/hooks/library/use-library-albums", () => ({
@@ -21,12 +23,13 @@ jest.mock("@/hooks/library/use-play-track", () => ({
 }));
 
 const mockPlayAlbum = jest.fn();
+const mockShuffleAlbum = jest.fn();
 jest.mock("@/hooks/library/use-queue-actions", () => ({
   useQueueActions: jest.fn(() => ({
     playNext: jest.fn(),
     addToQueue: jest.fn(),
     playAlbum: (...args: unknown[]) => mockPlayAlbum(...args),
-    shuffleAlbum: jest.fn(),
+    shuffleAlbum: (...args: unknown[]) => mockShuffleAlbum(...args),
   })),
 }));
 
@@ -143,10 +146,11 @@ import {
   deleteAlbum,
   getDownloadStatuses,
   triggerAlbumSearch,
+  updateLibraryFavorites,
 } from "@/lib/api/library";
 import { albumRouteParams } from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
-import type { Album } from "@/lib/types/library";
+import type { Album, Track } from "@/lib/types/library";
 
 const mockUseLibraryAlbum = useLibraryAlbum as jest.Mock;
 const mockUseLibraryTracks = useLibraryTracks as jest.Mock;
@@ -154,6 +158,7 @@ const mockDeleteAlbum = deleteAlbum as jest.Mock;
 const mockTriggerAlbumSearch = triggerAlbumSearch as jest.Mock;
 const mockGetDownloadStatuses = getDownloadStatuses as jest.Mock;
 const mockCoverArtImage = CoverArtImage as unknown as jest.Mock;
+const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
 
 // A Lidarr-backed album whose canonical id and Lidarr id differ, the case
 // where sending the wrong one acts on a different album.
@@ -242,6 +247,157 @@ describe("AlbumDetailScreen", () => {
     );
   });
 
+  describe("favorites", () => {
+    const track: Track = {
+      id: "100",
+      mbid: "",
+      trackName: "Nude",
+      title: "Nude",
+      trackNumber: 3,
+      hasFile: true,
+      size: 0,
+      quality: null,
+      identityKey: "recording:nude",
+    };
+
+    async function openTrackMenu(favorite: Partial<Track> = {}) {
+      mockUseLibraryTracks.mockReturnValue({
+        data: [{ ...track, ...favorite }],
+        isLoading: false,
+      });
+      const queryClient = await openAlbumPage(lidarrAlbum);
+      await fireEvent.press(screen.getByLabelText("More actions for Nude"));
+      return queryClient;
+    }
+
+    it("stars a track from its three dots, by the id the server uses", async () => {
+      await openTrackMenu({ userFavorite: false });
+
+      await act(async () => {
+        fireEvent.press(screen.getByText("Add to Favorites"));
+      });
+
+      expect(mockUpdateLibraryFavorites).toHaveBeenCalledWith(
+        ["song:recording:nude"],
+        true,
+      );
+    });
+
+    it("offers to remove a track that is already a favorite", async () => {
+      await openTrackMenu({ userFavorite: true });
+
+      await act(async () => {
+        fireEvent.press(screen.getByText("Remove from Favorites"));
+      });
+
+      expect(mockUpdateLibraryFavorites).toHaveBeenCalledWith(
+        ["song:recording:nude"],
+        false,
+      );
+    });
+
+    const favoriteAlbum: Album = {
+      ...lidarrAlbum,
+      identityKey: "release-group:in-rainbows",
+      userFavorite: false,
+    };
+
+    it.each([
+      [false, "Add In Rainbows to favorites", true],
+      [true, "Remove In Rainbows from favorites", false],
+    ])(
+      "toggles the whole album from the heart beside Play when userFavorite is %s",
+      async (userFavorite, label, starred) => {
+        await openAlbumPage({ ...favoriteAlbum, userFavorite });
+
+        await act(async () => {
+          fireEvent.press(screen.getByLabelText(label));
+        });
+
+        expect(mockUpdateLibraryFavorites).toHaveBeenCalledWith(
+          ["album:release-group:in-rainbows"],
+          starred,
+        );
+      },
+    );
+
+    it("fills the heart on the tap, before the server answers", async () => {
+      let answer = (_value: unknown) => {};
+      mockUpdateLibraryFavorites.mockReturnValueOnce(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+      await openAlbumPage(favoriteAlbum);
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText("Add In Rainbows to favorites"));
+      });
+
+      expect(
+        screen.getByLabelText("Remove In Rainbows from favorites"),
+      ).toBeTruthy();
+
+      // Left pending, the mutation keeps Jest from exiting.
+      await act(async () => {
+        answer({});
+      });
+    });
+
+    it("empties the heart again when the server refuses", async () => {
+      mockUpdateLibraryFavorites.mockRejectedValueOnce(new Error("refused"));
+      await openAlbumPage(favoriteAlbum);
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText("Add In Rainbows to favorites"));
+      });
+
+      expect(
+        screen.getByLabelText("Add In Rainbows to favorites"),
+      ).toBeTruthy();
+    });
+
+    it("hides the heart when the canonical record cannot name the album", async () => {
+      await openAlbumPage(lidarrAlbum);
+
+      expect(screen.queryByLabelText(/to favorites$/)).toBeNull();
+    });
+
+    it("holds the heart's place while the album loads, and ignores a tap", async () => {
+      const queryClient = await openAlbumPage(lidarrAlbum);
+      mockUseLibraryAlbum.mockReturnValue({ data: undefined, isPending: true });
+      await screen.rerender(
+        <QueryClientProvider client={queryClient}>
+          <AlbumDetailScreen />
+        </QueryClientProvider>,
+      );
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText(/to favorites$/));
+      });
+
+      expect(mockUpdateLibraryFavorites).not.toHaveBeenCalled();
+    });
+
+    it("refreshes the flags this page reads, and the favorites list, after a toggle", async () => {
+      const queryClient = await openTrackMenu();
+      const keys = [
+        libraryKeys.tracks("14"),
+        libraryKeys.album("14"),
+        libraryKeys.favorites(),
+      ];
+      keys.forEach((key) => queryClient.setQueryData(key, []));
+
+      await act(async () => {
+        fireEvent.press(screen.getByText("Add to Favorites"));
+      });
+
+      keys.forEach((key) => {
+        expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+      });
+    });
+  });
+
   it("reads the download status badge by Lidarr's album id", async () => {
     mockGetDownloadStatuses.mockImplementation(async (ids: string[]) =>
       Object.fromEntries(ids.map((id) => [id, { status: "downloading" }])),
@@ -313,6 +469,16 @@ describe("AlbumDetailScreen", () => {
         coverPath: "/api/library/albums/14/cover?v=1",
       }),
     );
+  });
+
+  it("shuffles the album from the icon-only button", async () => {
+    const tracks = [{ id: "1", trackName: "Nude", hasFile: true }];
+    mockUseLibraryTracks.mockReturnValue({ data: tracks, isLoading: false });
+    await openAlbumPage(lidarrAlbum);
+
+    await fireEvent.press(screen.getByLabelText("Shuffle In Rainbows"));
+
+    expect(mockShuffleAlbum).toHaveBeenCalledWith(tracks, expect.anything());
   });
 
   it("hides the Lidarr actions for an album Lidarr does not manage", async () => {

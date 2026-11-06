@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
+import { TrackMenuButton } from "@/components/library/TrackMenuButton";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { usePlaybackState, useCurrentTrack } from "@/lib/player/player";
 import { Colors, Fonts } from "@/constants/theme";
@@ -107,24 +108,7 @@ export const TrackRow = React.memo(function TrackRow({
         color={track.hasFile ? colors.brand : colors.subtle}
       />
       {onMenuPress && (
-        <Pressable
-          onPress={onMenuPress}
-          // The row is only 40pt tall, so the button borrows the space around
-          // it to reach a tappable size.
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel={`More actions for ${track.trackName}`}
-          style={({ pressed }) => [
-            styles.menuButton,
-            { opacity: pressed ? 0.5 : 1 },
-          ]}
-        >
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={18}
-            color={colors.subtle}
-          />
-        </Pressable>
+        <TrackMenuButton trackName={track.trackName} onPress={onMenuPress} />
       )}
     </Pressable>
   );
@@ -228,9 +212,6 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-  },
-  menuButton: {
-    paddingLeft: 4,
   },
   qualityBadge: {
     paddingHorizontal: 6,

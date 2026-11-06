@@ -22,9 +22,13 @@ export const libraryKeys = {
   albumsAll: (params: LibraryAlbumsParams) =>
     ["library", "albumsAll", params] as const,
   album: (albumRef: string) => ["library", "album", albumRef] as const,
+  // The prefix of every single-album read, for invalidation.
+  albumRecords: () => ["library", "album"] as const,
   genres: () => ["library", "genres"] as const,
   favorites: () => ["library", "favorites"] as const,
   tracks: (albumId: string) => ["library", "tracks", albumId] as const,
+  // The prefix of every album's track list, for invalidation.
+  trackLists: () => ["library", "tracks"] as const,
   refresh: (jobId: number) => ["library", "refresh", jobId] as const,
   artistCover: (mbid: string) => ["cover", "artist", mbid] as const,
   albumCover: (mbid: string) => ["cover", "album", mbid] as const,
