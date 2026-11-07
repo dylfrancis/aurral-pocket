@@ -249,7 +249,8 @@ describe("togglePlayback", () => {
     player.play.mockClear();
     await togglePlayback();
     expect(player.play).toHaveBeenCalledTimes(1);
-    expect(player.playSong).toHaveBeenCalledTimes(1);
+    expect(queue.loadPlaylist).toHaveBeenCalledTimes(1);
+    expect(player.playSong).not.toHaveBeenCalled();
   });
 
   it("restarts the finished track instead of resuming into silence", async () => {

@@ -10,7 +10,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
   removeItem: jest.fn(),
 }));
 
-import { renderHook } from "@testing-library/react-native";
+import { act, renderHook } from "@testing-library/react-native";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
   addToQueue,
@@ -125,8 +125,9 @@ describe("playAlbumFromTrack", () => {
       expect.objectContaining({ id: "72" }),
       expect.objectContaining({ id: "73" }),
     ]);
-    expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1");
-    expect(player.playSong).toHaveBeenCalledWith("72", "playlist-1");
+    expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 1);
+    // Another start after the load would play the track from the top again.
+    expect(player.playSong).not.toHaveBeenCalled();
     expect(player.play).toHaveBeenCalledTimes(1);
   });
 
@@ -148,8 +149,8 @@ describe("playAlbumFromTrack", () => {
   });
 
   it("queues just the tapped track when the list does not contain it", async () => {
-    // A stale or still-loading track list must not produce silence: playSong
-    // with an id that is not in the playlist plays nothing yet reports true.
+    // A stale or still-loading track list must not fail the play: the engine
+    // refuses to start a track that is not in the playlist.
     const albumTracks = [
       track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
     ];
@@ -166,7 +167,7 @@ describe("playAlbumFromTrack", () => {
     expect(queue.addTracksToPlaylist).toHaveBeenCalledWith("playlist-1", [
       expect.objectContaining({ id: "99" }),
     ]);
-    expect(player.playSong).toHaveBeenCalledWith("99", "playlist-1");
+    expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 0);
   });
 
   it("leaves the engine alone when the tapped track has no file", async () => {
@@ -180,7 +181,7 @@ describe("playAlbumFromTrack", () => {
     ).resolves.toBe(false);
 
     expect(queue.createPlaylist).not.toHaveBeenCalled();
-    expect(player.playSong).not.toHaveBeenCalled();
+    expect(player.play).not.toHaveBeenCalled();
   });
 });
 
@@ -191,7 +192,7 @@ describe("playItem", () => {
     expect(queue.addTracksToPlaylist).toHaveBeenCalledWith("playlist-1", [
       clip,
     ]);
-    expect(player.playSong).toHaveBeenCalledWith("preview-9", "playlist-1");
+    expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 0);
   });
 
   it("keeps rapid plays in order, so the last tap wins", async () => {
@@ -221,7 +222,7 @@ describe("playItem", () => {
     expect(queue.addTracksToPlaylist).toHaveBeenNthCalledWith(2, "playlist-2", [
       expect.objectContaining({ id: "clip-2" }),
     ]);
-    expect(player.playSong).toHaveBeenLastCalledWith("clip-2", "playlist-2");
+    expect(queue.loadPlaylist).toHaveBeenLastCalledWith("playlist-2", 0);
   });
 
   it("replaces what is playing rather than stacking playlists", async () => {
@@ -233,7 +234,7 @@ describe("playItem", () => {
     await playAlbumFromTrack([track()], track(), album);
 
     expect(queue.deletePlaylist).toHaveBeenCalledWith("playlist-1");
-    expect(player.playSong).toHaveBeenLastCalledWith("77", "playlist-2");
+    expect(queue.loadPlaylist).toHaveBeenLastCalledWith("playlist-2", 0);
   });
 });
 
@@ -486,7 +487,7 @@ describe("queue edits", () => {
     await expect(playNextInQueue(otherTracks, otherAlbum)).resolves.toBe(2);
 
     expect(playlistIds).toEqual(["81", "82"]);
-    expect(player.playSong).toHaveBeenCalledWith("81", "playlist-1");
+    expect(queue.loadPlaylist).toHaveBeenLastCalledWith("playlist-1", 0);
   });
 
   it("keeps a play-next insertion in place after unshuffle", async () => {
@@ -533,6 +534,37 @@ describe("playback events", () => {
 
     expect(started).toEqual(["42"]);
     unsubscribe();
+  });
+
+  it("keeps showing the started track while the album loads", async () => {
+    const albumTracks = [
+      track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
+      track({ id: "72", trackNumber: 2, streamPath: "/stream/12/72" }),
+      track({ id: "73", trackNumber: 3, streamPath: "/stream/12/73" }),
+    ];
+    // Given no index, the engine loads from the top and reports the first
+    // track. The load holds here so the screen renders what that event left.
+    let finishLoad!: () => void;
+    queue.loadPlaylist.mockImplementationOnce((_, index = 0) => {
+      engine.trackChange({ ...clip, id: albumTracks[index].id }, "skip");
+      return new Promise((resolve) => {
+        finishLoad = resolve;
+      });
+    });
+    const { result } = await renderHook(useCurrentTrack);
+
+    let play!: Promise<boolean>;
+    await act(async () => {
+      play = playAlbumFromTrack(albumTracks, albumTracks[2], album);
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+
+    expect(result.current?.id).toBe("73");
+
+    await act(async () => {
+      finishLoad();
+      await play;
+    });
   });
 
   it("emits progress against the track that is playing", () => {

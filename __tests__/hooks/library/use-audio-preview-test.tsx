@@ -85,7 +85,7 @@ describe("useAudioPreview", () => {
         url: "https://preview.example/1.mp3",
       }),
     ]);
-    expect(player.playSong).toHaveBeenCalledWith("track-1", "playlist-1");
+    expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 0);
   });
 
   it("pauses the clip that is already sounding instead of restarting it", async () => {
@@ -97,7 +97,7 @@ describe("useAudioPreview", () => {
     });
 
     expect(player.pause).toHaveBeenCalledTimes(1);
-    expect(player.playSong).not.toHaveBeenCalled();
+    expect(queue.loadPlaylist).not.toHaveBeenCalled();
   });
 
   it("resumes the clip it had paused", async () => {
@@ -109,7 +109,7 @@ describe("useAudioPreview", () => {
     });
 
     expect(player.play).toHaveBeenCalledTimes(1);
-    expect(player.playSong).not.toHaveBeenCalled();
+    expect(queue.loadPlaylist).not.toHaveBeenCalled();
   });
 
   it("replays a clip that already finished instead of resuming at its end", async () => {
@@ -134,7 +134,7 @@ describe("useAudioPreview", () => {
       await result.current.toggle("track-1", "https://preview.example/1.mp3");
     });
 
-    expect(player.playSong).toHaveBeenCalledWith("track-1", "playlist-1");
+    expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 0);
   });
 
   it("ignores a tap on the clip that is still loading", async () => {
@@ -158,7 +158,7 @@ describe("useAudioPreview", () => {
       await result.current.toggle("track-1", "https://preview.example/1.mp3");
     });
 
-    expect(player.playSong).not.toHaveBeenCalled();
+    expect(queue.loadPlaylist).not.toHaveBeenCalled();
     expect(player.play).not.toHaveBeenCalled();
     expect(player.pause).not.toHaveBeenCalled();
   });

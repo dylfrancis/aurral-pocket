@@ -82,8 +82,8 @@ export function usePlaylistPlayback(
           jobToPlayerTrack(job, collection, loadedAlbumCover(queryClient, job)),
         )
         .filter((item): item is PlayerTrack => item !== null);
-      // Starting a track the queue doesn't hold would stop what's playing and
-      // play nothing.
+      // Starting a track the queue doesn't hold would drop the old queue and
+      // then fail.
       const first = pickFirst(items);
       if (!first) {
         Burnt.toast({ title: "Cannot play this track", preset: "error" });

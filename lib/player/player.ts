@@ -137,9 +137,9 @@ export async function playAlbumFromTrack(
     .map((track) => toPlayerTrack(track, album))
     .filter((item): item is PlayerTrack => item !== null);
 
-  // A stale or still-loading track list may not hold the tapped track, and
-  // playSong with an id that is not in the playlist plays nothing. Queue the
-  // tapped track alone rather than silence.
+  // A stale or still-loading track list may not hold the tapped track, and the
+  // engine refuses to start a track that is not in the playlist. Queue the
+  // tapped track alone rather than fail.
   const queued = items.some((item) => item.id === startItem.id)
     ? items
     : [startItem];
@@ -171,11 +171,14 @@ async function replaceAndPlay(
   endedAtQueueEnd = false;
   pendingRestoreSeek = null;
   resetProgress();
-  setDisplayedTrack(items.find((item) => item.id === startId) ?? null);
+  const startIndex = items.findIndex((item) => item.id === startId);
+  setDisplayedTrack(items[startIndex] ?? null);
   refreshQueueSnapshot();
   await PlayerQueue.addTracksToPlaylist(playlistId, items.map(toEngineTrack));
-  await PlayerQueue.loadPlaylist(playlistId);
-  await TrackPlayer.playSong(startId, playlistId);
+  // Without an index the engine loads from the top and reports the first track,
+  // which would replace the started one on screen. The load already puts the
+  // started track in place, so a playSong after it would start the track over.
+  await PlayerQueue.loadPlaylist(playlistId, startIndex);
   await TrackPlayer.play();
   // A queue rebuilt while shuffle is on must come out shuffled. The started
   // id is known here, so no engine-state round trip is needed.
