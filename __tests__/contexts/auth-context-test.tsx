@@ -33,6 +33,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { getMe, login } from "@/lib/api/auth";
+import { TrackPlayer } from "react-native-nitro-player";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
@@ -75,6 +76,10 @@ function TestConsumer() {
     await auth.clearAll();
   }, [auth]);
 
+  const handleClearAuth = useCallback(async () => {
+    await auth.clearAuth();
+  }, [auth]);
+
   return (
     <>
       <Text testID="token">{auth.token ?? "null"}</Text>
@@ -94,6 +99,7 @@ function TestConsumer() {
       <Pressable testID="biometricsOn" onPress={handleBiometricsOn} />
       <Pressable testID="biometricsOff" onPress={handleBiometricsOff} />
       <Pressable testID="clearAll" onPress={handleClearAll} />
+      <Pressable testID="clearAuth" onPress={handleClearAuth} />
     </>
   );
 }
@@ -470,6 +476,40 @@ describe("AuthProvider — clearAll", () => {
       "saved_password",
     );
     expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("server_url");
+  });
+});
+
+describe("AuthProvider — clearAuth", () => {
+  it("stops the player and forgets the queue", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+      if (key === "auth_token") return "my-token";
+      if (key === "user_json")
+        return '{"id":1,"username":"alice","role":"user"}';
+      return null;
+    });
+
+    const { getByTestId } = await renderWithProvider();
+    await waitFor(() => {
+      expect(getByTestId("token").props.children).toBe("my-token");
+    });
+    jest.clearAllMocks();
+
+    await act(async () => {
+      await fireEvent.press(getByTestId("clearAuth"));
+    });
+
+    await waitFor(() => {
+      expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith(
+        "playback_queue",
+      );
+    });
+    expect(TrackPlayer.pause).toHaveBeenCalled();
+    // The server stays chosen, so the next sign-in starts at the login screen.
+    expect(getByTestId("token").props.children).toBe("null");
+    expect(getByTestId("serverUrl").props.children).toBe(
+      "https://my-server.com",
+    );
   });
 });
 

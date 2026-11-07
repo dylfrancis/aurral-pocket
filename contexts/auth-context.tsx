@@ -314,6 +314,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSessionExpiredState(false);
     notifyReAuthResult(false);
     await Promise.all([
+      forgetQueue(),
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),
       SecureStorage.deleteExpiresAt(),
