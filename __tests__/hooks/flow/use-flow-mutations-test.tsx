@@ -17,11 +17,13 @@ import * as Burnt from "burnt";
 import { api, ApiError } from "@/lib/api/client";
 import {
   useConvertFlowToStaticPlaylist,
+  useCreateFlow,
   useSetFlowEnabled,
   useSetRetryCyclePaused,
   useStartFlow,
+  useUpdateFlow,
 } from "@/hooks/flow/use-flow-mutations";
-import type { FlowJob } from "@/lib/types/flow";
+import type { FlowFormValues, FlowJob } from "@/lib/types/flow";
 
 const mockGet = api.get as jest.Mock;
 const mockPut = api.put as jest.Mock;
@@ -213,5 +215,74 @@ describe("useConvertFlowToStaticPlaylist", () => {
       message: reason,
       preset: "error",
     });
+  });
+});
+
+describe("name conflicts", () => {
+  const payload = { name: "Chill" } as FlowFormValues;
+
+  async function saveError(useSave: () => () => Promise<unknown>) {
+    const { result } = await renderHook(() => useSave(), {
+      wrapper: makeWrapper(),
+    });
+    let error: Error | undefined;
+    await act(async () => {
+      await result.current().catch((err: Error) => {
+        error = err;
+      });
+    });
+    return error;
+  }
+
+  const useCreate = () => {
+    const { mutateAsync } = useCreateFlow();
+    return () => mutateAsync(payload);
+  };
+
+  it.each([
+    {
+      name: "creating a flow",
+      request: mockPost,
+      serverMessage: 'Flow name "Chill" already exists',
+      useSave: useCreate,
+    },
+    {
+      name: "renaming a flow",
+      request: mockPut,
+      serverMessage: 'Flow name "Chill" already exists',
+      useSave: () => {
+        const { mutateAsync } = useUpdateFlow();
+        return () => mutateAsync({ flowId: "flow-1", payload });
+      },
+    },
+    {
+      name: "converting a flow",
+      request: mockPost,
+      serverMessage: 'Playlist "Chill" already exists',
+      useSave: () => {
+        const { mutateAsync } = useConvertFlowToStaticPlaylist();
+        return () => mutateAsync({ flowId: "flow-1", name: "Chill" });
+      },
+    },
+  ])(
+    "names both kinds when $name collides",
+    async ({ request, serverMessage, useSave }) => {
+      request.mockRejectedValue(new ApiError(400, serverMessage));
+
+      const error = await saveError(useSave);
+
+      expect(error?.message).toBe(
+        '"Chill" is already used by a flow or a playlist.',
+      );
+    },
+  );
+
+  it("leaves other failures in the server's words", async () => {
+    const reason = "scheduleDays must include at least one day";
+    mockPost.mockRejectedValue(new ApiError(400, reason));
+
+    const error = await saveError(useCreate);
+
+    expect(error?.message).toBe(reason);
   });
 });
