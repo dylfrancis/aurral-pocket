@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet } from "react-native";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -18,6 +18,7 @@ import {
   useBiometricAvailability,
   authenticateWithBiometrics,
 } from "@/hooks/auth/use-biometric-availability";
+import { useLogout } from "@/hooks/auth/use-logout";
 import { useOidcSignIn } from "@/hooks/auth/use-oidc-sign-in";
 import { Colors, Fonts } from "@/constants/theme";
 import { login } from "@/lib/api/auth";
@@ -45,18 +46,49 @@ function getErrorMessage(error: unknown): string | null {
   return "Something went wrong.";
 }
 
+function AccountSuspendedCard({ onDismiss }: { onDismiss: () => void }) {
+  const colors = Colors[useColorScheme()];
+  return (
+    <Card style={styles.card}>
+      <Ionicons
+        name="ban-outline"
+        size={36}
+        color={colors.error}
+        style={styles.icon}
+      />
+      <Text variant="title" style={styles.title}>
+        Account Suspended
+      </Text>
+      <Text variant="subtitle" style={styles.subtitle}>
+        This account has been suspended or disabled, so you&apos;ve been signed
+        out. Ask your server admin to restore it.
+      </Text>
+      <Button
+        title="Back to Sign In"
+        onPress={onDismiss}
+        style={styles.button}
+        testID="account-suspended-dismiss"
+      />
+    </Card>
+  );
+}
+
 export function ReAuthModal() {
   const {
     user,
     serverUrl,
     sessionExpired,
+    accountSuspended,
     useBiometrics,
     hasCredentials,
     isOidcSession,
     dismissSessionExpired,
+    markAccountSuspended,
+    dismissAccountSuspended,
     setAuth,
     clearAuth,
   } = useAuth();
+  const { mutate: signOut } = useLogout();
   const queryClient = useQueryClient();
   const applyOidcSession = useOidcSignIn();
   const [oidcVisible, setOidcVisible] = useState(false);
@@ -91,6 +123,11 @@ export function ReAuthModal() {
       dismissSessionExpired();
       reset();
     } catch (e) {
+      if (e instanceof ApiError && e.isAccountSuspended) {
+        reset();
+        markAccountSuspended();
+        return;
+      }
       setError(e);
     } finally {
       setLoading(false);
@@ -117,10 +154,20 @@ export function ReAuthModal() {
 
   const handleSignOut = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    notifyReAuthResult(false);
-    dismissSessionExpired();
     await clearAuth();
   };
+
+  const handleOidcSuspended = () => {
+    setOidcVisible(false);
+    markAccountSuspended();
+  };
+
+  // Nothing on this screen can bring the account back, so the sign-out doesn't
+  // wait for a tap. Quitting on the message still leaves the device signed out,
+  // with no saved password for the next launch to try again.
+  useEffect(() => {
+    if (accountSuspended) signOut();
+  }, [accountSuspended, signOut]);
 
   // An OIDC user has no password on the Aurral server, so the password field
   // and the biometric shortcut — which replays a stored password — cannot
@@ -141,6 +188,19 @@ export function ReAuthModal() {
     // it to deps to prevent re-firing on unrelated re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionExpired, showBiometric]);
+
+  // The same Modal element as below, so the session-expired prompt turns into
+  // this rather than one native modal closing as another opens.
+  if (accountSuspended) {
+    return (
+      <Modal visible transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.overlay}>
+          <Pressable style={styles.backdrop} onPress={() => {}} />
+          <AccountSuspendedCard onDismiss={dismissAccountSuspended} />
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -243,6 +303,7 @@ export function ReAuthModal() {
           serverUrl={serverUrl}
           onClose={() => setOidcVisible(false)}
           onSession={handleOidcSession}
+          onAccountSuspended={handleOidcSuspended}
         />
       )}
     </Modal>

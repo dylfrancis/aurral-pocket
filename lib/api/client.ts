@@ -1,5 +1,17 @@
 import { SecureStorage } from "@/lib/storage";
+import type { LoginResponse } from "@/lib/types/auth";
 import { fetch } from "expo/fetch";
+
+/**
+ * Aurral's refusal for a suspended or disabled account, at login and in the
+ * OIDC redirect. It carries no code, so the wording is the only signal, and a
+ * 403 from a reverse proxy must not read as a suspension.
+ */
+const ACCOUNT_SUSPENDED_MESSAGE = "This account has been suspended or disabled";
+
+export function isAccountSuspendedMessage(message: string) {
+  return message === ACCOUNT_SUSPENDED_MESSAGE;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -13,6 +25,26 @@ export class ApiError extends Error {
 
   get isNetworkError() {
     return this.status === 0;
+  }
+
+  /** The session is valid, but signed in too long ago for this route. */
+  get isReauthRequired() {
+    return this.status === 401 && this.errorLabel === "reauth_required";
+  }
+
+  /** `/auth/reauth` refused an account that only signs in with SSO. */
+  get isNoLocalPassword() {
+    return this.status === 400 && this.errorLabel === "no_local_password";
+  }
+
+  get isAccountSuspended() {
+    return this.status === 403 && isAccountSuspendedMessage(this.message);
+  }
+
+  private get errorLabel() {
+    return typeof this.body === "object" && this.body !== null
+      ? (this.body as { error?: unknown }).error
+      : undefined;
   }
 }
 
@@ -29,6 +61,7 @@ type ApiResponse<T> = { data: T; status: number };
 let baseURL = "";
 let authToken: string | null = null;
 let onSessionExpired: (() => void) | null = null;
+let onAccountSuspended: (() => void) | null = null;
 let onAuthRefreshed:
   ((token: string, userJson: string, expiresAt: number) => void) | null = null;
 let reAuthPromise: Promise<boolean> | null = null;
@@ -111,6 +144,10 @@ export function setOnSessionExpired(cb: (() => void) | null) {
   onSessionExpired = cb;
 }
 
+export function setOnAccountSuspended(cb: (() => void) | null) {
+  onAccountSuspended = cb;
+}
+
 export function setOnAuthRefreshed(
   cb: ((token: string, userJson: string, expiresAt: number) => void) | null,
 ) {
@@ -141,22 +178,16 @@ function buildUrl(path: string, params?: Record<string, unknown>): string {
   return `${root}${root.includes("?") ? "&" : "?"}${qs}`;
 }
 
-async function attemptSilentReAuth(): Promise<boolean> {
+async function attemptSilentReAuth(): Promise<
+  "refreshed" | "suspended" | "failed"
+> {
   try {
     const creds = await SecureStorage.getCredentials();
-    if (!creds) return false;
+    if (!creds) return "failed";
 
-    const response = await fetch(`${baseURL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(creds),
-    });
-    if (!response.ok) return false;
-    const data = (await response.json()) as {
-      token: string;
-      expiresAt: number;
-      user: { id: number; username: string; role: string };
-    };
+    const { data } = await request<LoginResponse>("POST", "/auth/login", creds);
+    // The user signed out while this was in flight, and that stands.
+    if (!authToken) return "failed";
 
     authToken = data.token;
     const userJson = JSON.stringify(data.user);
@@ -166,10 +197,32 @@ async function attemptSilentReAuth(): Promise<boolean> {
       SecureStorage.setExpiresAt(data.expiresAt),
     ]);
     onAuthRefreshed?.(data.token, userJson, data.expiresAt);
-    return true;
-  } catch {
-    return false;
+    return "refreshed";
+  } catch (error) {
+    return error instanceof ApiError && error.isAccountSuspended
+      ? "suspended"
+      : "failed";
   }
+}
+
+/**
+ * Whether a 401 means the session is gone, so signing in again can recover the
+ * request. Three don't:
+ *
+ * - `/auth/login` means a wrong password. Going on would pop the re-auth modal
+ *   over the login screen, with no user and a Continue button that does nothing.
+ * - `/auth/logout` means the session has already ended, which is what the
+ *   caller wanted. A password change deletes it just before this call.
+ * - `reauth_required` means the session is fine but not recent. The caller
+ *   confirms the password with `/auth/reauth` instead.
+ */
+function isLostSession(error: ApiError, path: string) {
+  return (
+    error.status === 401 &&
+    path !== "/auth/login" &&
+    path !== "/auth/logout" &&
+    !error.isReauthRequired
+  );
 }
 
 async function handle401<T>(
@@ -178,10 +231,20 @@ async function handle401<T>(
   body: unknown,
   config: RequestConfig,
 ): Promise<ApiResponse<T> | null> {
+  // An answer that arrived after sign-out has no session to recover.
+  if (!authToken) return null;
+
   if (!reAuthPromise) {
     reAuthPromise = (async () => {
-      const remember = await SecureStorage.getRememberCredentials();
-      if (remember && (await attemptSilentReAuth())) return true;
+      if (await SecureStorage.getRememberCredentials()) {
+        const outcome = await attemptSilentReAuth();
+        if (outcome === "refreshed") return true;
+        if (outcome === "suspended") {
+          onAccountSuspended?.();
+          return false;
+        }
+      }
+      if (!authToken) return false;
       // Silent path unavailable or failed — open the modal and wait for the
       // user to finish re-auth (password or Face ID → setAuth → notify).
       const modalPromise = new Promise<boolean>((resolve) => {
@@ -242,16 +305,6 @@ async function request<T>(
   }
   clearTimeout(timeoutId);
 
-  // Skip the session-expired flow for /auth/login itself — a 401 here means
-  // the user typed the wrong password, not that an existing session expired.
-  // Letting it through would pop the re-auth modal on top of the login screen
-  // with no user context, and the Continue button would no-op.
-  if (response.status === 401 && !config._retried && path !== "/auth/login") {
-    const retried = await handle401<T>(method, path, body, config);
-    if (retried) return retried;
-    throw new ApiError(401, "Session expired");
-  }
-
   const text = await response.text();
   let parsed: unknown = undefined;
   let jsonParseFailed = false;
@@ -272,7 +325,13 @@ async function request<T>(
     // `error`: a validation failure is `{ error: "Invalid request", message }`.
     // Codes such as `reauth_required` stay readable on `body`.
     const msg = errorBody?.message || errorBody?.error || response.statusText;
-    throw new ApiError(response.status, msg, parsed ?? text);
+    const error = new ApiError(response.status, msg, parsed ?? text);
+    if (isLostSession(error, path) && !config._retried) {
+      const retried = await handle401<T>(method, path, body, config);
+      if (retried) return retried;
+      throw new ApiError(401, "Session expired");
+    }
+    throw error;
   }
 
   // 200 with a non-JSON body almost always means a reverse proxy (Cloudflare

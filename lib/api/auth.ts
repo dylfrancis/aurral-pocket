@@ -9,6 +9,16 @@ export function getMe() {
   return api.get<MeResponse>("/auth/me").then((r) => r.data);
 }
 
+/**
+ * Counts as a fresh sign-in for routes that want a recent one, without opening
+ * a new session.
+ */
+export function reauth(currentPassword: string) {
+  return api
+    .post<{ success: boolean }>("/auth/reauth", { currentPassword })
+    .then((r) => r.data);
+}
+
 export function logout() {
   return api.post("/auth/logout").then((r) => r.data);
 }

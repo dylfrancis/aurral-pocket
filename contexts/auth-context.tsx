@@ -1,7 +1,10 @@
 import { getMe, login } from "@/lib/api/auth";
 import {
+  ApiError,
+  notifyReAuthResult,
   setAuthToken,
   setBaseUrl,
+  setOnAccountSuspended,
   setOnAuthRefreshed,
   setOnSessionExpired,
 } from "@/lib/api/client";
@@ -49,6 +52,11 @@ type AuthContextValue = {
   useBiometrics: boolean;
   hasCredentials: boolean;
   sessionExpired: boolean;
+  /**
+   * The server refused a sign-in because the account is suspended or disabled.
+   * Stays set after sign-out, until the user has read the message.
+   */
+  accountSuspended: boolean;
   setServer: (url: string, health: HealthResponse) => Promise<void>;
   setAuth: (token: string, user: User, expiresAt?: number) => Promise<void>;
   markOidcSession: (logoutUrl: string | null) => Promise<void>;
@@ -62,6 +70,8 @@ type AuthContextValue = {
   updateExpiresAt: (expiresAt: number) => Promise<void>;
   dismissSessionExpired: () => void;
   setSessionExpired: (value: boolean) => void;
+  markAccountSuspended: () => void;
+  dismissAccountSuspended: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -80,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [biometrics, setBiometrics] = useState(false);
   const [hasCredentials, setHasCredentials] = useState(false);
   const [sessionExpired, setSessionExpiredState] = useState(false);
+  const [accountSuspended, setAccountSuspended] = useState(false);
   const [userRecoveryAttempted, setUserRecoveryAttempted] = useState(false);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -190,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Wire up interceptor callbacks
   useEffect(() => {
     setOnSessionExpired(() => setSessionExpiredState(true));
+    setOnAccountSuspended(() => setAccountSuspended(true));
     setOnAuthRefreshed((newToken, userJson, newExpiresAt) => {
       setToken(newToken);
       setAuthToken(newToken);
@@ -200,6 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     return () => {
       setOnSessionExpired(null);
+      setOnAccountSuspended(null);
       setOnAuthRefreshed(null);
     };
   }, []);
@@ -231,7 +244,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               SecureStorage.setExpiresAt(data.expiresAt),
             ]);
             return;
-          } catch {}
+          } catch (error) {
+            if (error instanceof ApiError && error.isAccountSuspended) {
+              setAccountSuspended(true);
+              return;
+            }
+          }
         }
       }
       // Silent re-auth unavailable or failed
@@ -291,7 +309,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setExpiresAt(null);
     setAuthToken(null);
     setIsOidcSession(false);
+    // Signing out ends any re-auth in progress. A prompt left open would sit
+    // over the login screen, and the requests waiting on it would never settle.
+    setSessionExpiredState(false);
+    notifyReAuthResult(false);
     await Promise.all([
+      forgetQueue(),
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),
       SecureStorage.deleteExpiresAt(),
@@ -384,6 +407,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSessionExpiredState(value);
   }, []);
 
+  const markAccountSuspended = useCallback(() => {
+    setAccountSuspended(true);
+  }, []);
+
+  const dismissAccountSuspended = useCallback(() => {
+    setAccountSuspended(false);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       serverUrl,
@@ -399,6 +430,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       useBiometrics: biometrics,
       hasCredentials,
       sessionExpired,
+      accountSuspended,
       setServer,
       setAuth,
       markOidcSession,
@@ -412,6 +444,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updateExpiresAt,
       dismissSessionExpired,
       setSessionExpired,
+      markAccountSuspended,
+      dismissAccountSuspended,
     }),
     [
       serverUrl,
@@ -426,6 +460,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       biometrics,
       hasCredentials,
       sessionExpired,
+      accountSuspended,
       setServer,
       setAuth,
       markOidcSession,
