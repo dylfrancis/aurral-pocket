@@ -15,11 +15,13 @@ import {
 import { useActivityDownloadStatuses } from "@/hooks/activity/use-activity-download-statuses";
 import { useActivityFilter } from "@/hooks/activity/use-activity-view";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import {
-  historyArtistMbid,
+  activityArtistMbid,
+  historyPlaylistId,
   isAlbumRequest,
   type ActivityItem,
   type AlbumRequest,
@@ -48,6 +50,7 @@ export function ActivityList({ view }: ActivityListProps) {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
   const hasPermission = useHasPermission();
+  const openPlaylist = useOpenPlaylist();
   const sheetRef = useRef<BottomSheetModal>(null);
   const [selected, setSelected] = useState<AlbumRequest | null>(null);
 
@@ -94,22 +97,24 @@ export function ActivityList({ view }: ActivityListProps) {
     [downloadStatuses, hasPermission],
   );
 
-  const handleRowPress = useCallback(
+  // Playlist links need accessFlow: both lists and the lookup behind them
+  // answer 403 without it. A blocked row is skipped because its inline Approve
+  // and Deny sit on the row, and a near miss must not navigate away from the
+  // decision.
+  const canOpenPlaylists = hasPermission("accessFlow");
+  const rowPressHandler = useCallback(
     (item: ActivityItem) => {
-      const mbid = isAlbumRequest(item)
-        ? item.artistMbid
-        : historyArtistMbid(item);
+      const mbid = activityArtistMbid(item);
       if (mbid) {
-        router.push({ pathname: "/artist/[mbid]", params: { mbid } });
-        return;
+        return () =>
+          router.push({ pathname: "/artist/[mbid]", params: { mbid } });
       }
-      // History entries for playlist work carry a playlistId; send those to the
-      // flow tab rather than leaving the row inert.
-      if (!isAlbumRequest(item) && item.playlistId) {
-        router.push("/(app)/(tabs)/(flow)");
-      }
+      if (!canOpenPlaylists || isAlbumRequest(item)) return undefined;
+      if (item.status === "blocked") return undefined;
+      const playlistId = historyPlaylistId(item);
+      return playlistId ? () => void openPlaylist(playlistId) : undefined;
     },
-    [router],
+    [router, canOpenPlaylists, openPlaylist],
   );
 
   const handleLongPress = useCallback((item: ActivityItem) => {
@@ -128,11 +133,11 @@ export function ActivityList({ view }: ActivityListProps) {
             : undefined
         }
         hasActions={rowHasActions(item)}
-        onPress={() => handleRowPress(item)}
+        onPress={rowPressHandler(item)}
         onLongPress={() => handleLongPress(item)}
       />
     ),
-    [downloadStatuses, rowHasActions, handleRowPress, handleLongPress],
+    [downloadStatuses, rowHasActions, rowPressHandler, handleLongPress],
   );
 
   const activeStatus = selected?.albumId

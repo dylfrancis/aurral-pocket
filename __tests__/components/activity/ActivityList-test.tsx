@@ -24,8 +24,14 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: jest.fn(() => () => false),
 }));
 
+jest.mock("@/lib/api/flow", () => ({
+  getFlowStatus: jest.fn(),
+}));
+
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+const mockNavigate = jest.fn();
+const mockIsFocused = jest.fn(() => true);
 jest.mock("expo-router", () => {
   const React = require("react");
   const { View, Pressable, Text } = require("react-native");
@@ -51,7 +57,12 @@ jest.mock("expo-router", () => {
   );
   return {
     useFocusEffect: jest.fn(),
-    useRouter: jest.fn(() => ({ push: mockPush, replace: mockReplace })),
+    useNavigation: () => ({ isFocused: mockIsFocused }),
+    useRouter: jest.fn(() => ({
+      push: mockPush,
+      replace: mockReplace,
+      navigate: mockNavigate,
+    })),
     Stack: { Screen: () => null, Toolbar },
   };
 });
@@ -108,19 +119,48 @@ jest.mock("@/components/library/CoverArtImage", () => {
 });
 
 import React from "react";
-import { render, fireEvent } from "@testing-library/react-native";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  waitFor,
+} from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ActivityList } from "@/components/activity/ActivityList";
 import { ActivityErrorBoundary as ErrorBoundary } from "@/components/activity/ActivityErrorBoundary";
 import { useActivitySuspense } from "@/hooks/activity/use-activity";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import { getFlowStatus } from "@/lib/api/flow";
+import { flowKeys } from "@/lib/query-keys";
 import type { ActivityHistoryItem, AlbumRequest } from "@/lib/types/activity";
 
 const mockUseActivitySuspense = useActivitySuspense as jest.Mock;
+const mockUseHasPermission = useHasPermission as jest.Mock;
+const mockGetFlowStatus = getFlowStatus as jest.Mock;
 
-function renderWithClient(node: React.ReactElement) {
-  const queryClient = new QueryClient({
+const clients: QueryClient[] = [];
+
+function makeClient() {
+  const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  clients.push(client);
+  return client;
+}
+
+// A query fetched outside a component arms a five-minute gc timer that would
+// hold Jest open. Unmount first, or cleanup re-arms what clear() just dropped.
+afterEach(() => {
+  cleanup();
+  clients.forEach((client) => client.clear());
+  clients.length = 0;
+});
+
+function renderWithClient(
+  node: React.ReactElement,
+  queryClient = makeClient(),
+) {
   return render(
     <QueryClientProvider client={queryClient}>{node}</QueryClientProvider>,
   );
@@ -313,6 +353,166 @@ describe("ActivityList", () => {
     expect(getByText("Some Track.flac")).toBeTruthy();
     expect(getByLabelText("Approve download")).toBeTruthy();
     expect(getByLabelText("Deny download")).toBeTruthy();
+  });
+});
+
+describe("ActivityList playlist rows", () => {
+  const FLOWS_TAB = "/(app)/(tabs)/(flow)";
+  const LIBRARY_PLAYLISTS = "/(app)/(tabs)/(library)/playlists";
+  const STATUS = {
+    flows: [{ id: "flow-1", name: "Chill" }],
+    sharedPlaylists: [{ id: "pl-1", name: "Road Trip" }],
+  };
+  const TITLE = "Downloading Some Track";
+
+  function showRow(
+    playlistId: string,
+    overrides: Partial<ActivityHistoryItem> = {},
+  ) {
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [
+        makeHistoryItem({
+          id: "1",
+          kind: "track_download",
+          source: "slskd",
+          title: TITLE,
+          status: "completed",
+          href: `/playlists?selected=${playlistId}`,
+          playlistId,
+          ...overrides,
+        }),
+      ],
+    });
+  }
+
+  beforeEach(() => {
+    mockUseHasPermission.mockReturnValue(() => true);
+    mockGetFlowStatus.mockResolvedValue(STATUS);
+    mockIsFocused.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    mockUseHasPermission.mockReturnValue(() => false);
+  });
+
+  it.each([
+    ["a flow", "flow-1", FLOWS_TAB],
+    ["a static playlist", "pl-1", LIBRARY_PLAYLISTS],
+    ["an id the server no longer knows", "gone", LIBRARY_PLAYLISTS],
+  ])("opens the right list for %s", async (_name, playlistId, route) => {
+    showRow(playlistId);
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent.press(getByText(TITLE));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(route));
+  });
+
+  it("falls back to Library > Playlists when the lookup fails", async () => {
+    mockGetFlowStatus.mockRejectedValue(new Error("offline"));
+    showRow("flow-1");
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent.press(getByText(TITLE));
+
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith(LIBRARY_PLAYLISTS),
+    );
+  });
+
+  it("answers from a snapshot that already knows the id", async () => {
+    const client = makeClient();
+    client.setQueryData(flowKeys.status(), STATUS);
+    showRow("flow-1");
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+      client,
+    );
+
+    await fireEvent.press(getByText(TITLE));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(FLOWS_TAB));
+    expect(mockGetFlowStatus).not.toHaveBeenCalled();
+  });
+
+  it("asks the server when the snapshot predates the id", async () => {
+    const client = makeClient();
+    client.setQueryData(flowKeys.status(), {
+      flows: [],
+      sharedPlaylists: [],
+    });
+    showRow("flow-1");
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+      client,
+    );
+
+    await fireEvent.press(getByText(TITLE));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(FLOWS_TAB));
+  });
+
+  it("doesn't pull back someone who left while the lookup ran", async () => {
+    let finishLookup: (status: typeof STATUS) => void = () => {};
+    mockGetFlowStatus.mockReturnValue(
+      new Promise((resolve) => {
+        finishLookup = resolve;
+      }),
+    );
+    showRow("flow-1");
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent.press(getByText(TITLE));
+    mockIsFocused.mockReturnValue(false);
+    await act(async () => finishLookup(STATUS));
+
+    expect(mockGetFlowStatus).toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("keeps a blocked row in place, around its inline decisions", async () => {
+    showRow("flow-1", { status: "blocked", jobId: "job-1" });
+    const { getByText, getByLabelText } = await renderWithClient(
+      <ActivityList view="review" />,
+    );
+    expect(getByLabelText("Approve download")).toBeTruthy();
+
+    await fireEvent.press(getByText(TITLE));
+
+    expect(mockGetFlowStatus).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("stays inert without accessFlow, and requests nothing", async () => {
+    mockUseHasPermission.mockReturnValue(() => false);
+    showRow("flow-1");
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent.press(getByText(TITLE));
+
+    expect(mockGetFlowStatus).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("stays inert for an album download's reserved library id", async () => {
+    showRow("library");
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent.press(getByText(TITLE));
+
+    expect(mockGetFlowStatus).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });
 

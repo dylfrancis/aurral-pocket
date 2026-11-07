@@ -13,9 +13,8 @@ import { formatDate } from "@/lib/date-time";
 import { Colors, Fonts } from "@/constants/theme";
 import type { DownloadStatusValue } from "@/lib/types/library";
 import {
-  historyArtistMbid,
+  activityArtistMbid,
   isAlbumRequest,
-  type ActivityHistoryItem,
   type ActivityItem,
 } from "@/lib/types/activity";
 
@@ -55,24 +54,11 @@ function reviewJobId(item: ActivityItem): string | null {
   return item.status === "blocked" && item.jobId ? item.jobId : null;
 }
 
-/**
- * Only rows that resolve an artist MBID can navigate — album requests carry one
- * directly, history entries only via their href.
- */
-function artistMbidFor(item: ActivityItem): string | null {
-  if (isAlbumRequest(item)) {
-    const mbid = item.artistMbid;
-    if (!mbid || mbid === "null" || mbid === "undefined") return null;
-    return mbid;
-  }
-  return historyArtistMbid(item as ActivityHistoryItem);
-}
-
 type ActivityRowProps = {
   item: ActivityItem;
   downloadStatus?: DownloadStatusValue;
   hasActions: boolean;
-  onPress: () => void;
+  onPress?: () => void;
   onLongPress: () => void;
 };
 
@@ -88,7 +74,7 @@ export const ActivityRow = React.memo(function ActivityRow({
   // repaint the date even when the item props stay the same.
   useDateTimeFormat();
 
-  const artistMbid = artistMbidFor(item);
+  const artistMbid = activityArtistMbid(item);
   const requestedLabel = formatDate(new Date(item.requestedAt), {
     month: "short",
     day: "numeric",
@@ -105,10 +91,10 @@ export const ActivityRow = React.memo(function ActivityRow({
 
   return (
     <Card
-      onPress={artistMbid ? onPress : undefined}
+      onPress={onPress}
       onLongPress={hasActions ? handleLongPress : undefined}
       delayLongPress={300}
-      disabled={!artistMbid && !hasActions}
+      disabled={!onPress && !hasActions}
       style={styles.row}
     >
       <View style={styles.thumb}>
