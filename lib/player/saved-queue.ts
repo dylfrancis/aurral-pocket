@@ -31,6 +31,8 @@ type SavedTrack = {
    * back without it, and its tracks show no favorite button.
    */
   identityKey?: string | null;
+  /** Absent on tracks that report their plays. */
+  recordHistory?: boolean;
 };
 
 export type SavedQueue = {
@@ -110,6 +112,7 @@ function parseTrack(raw: unknown): SavedTrack | null {
     artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,
     albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
     identityKey: isString(raw.identityKey) ? raw.identityKey : null,
+    recordHistory: raw.recordHistory !== false,
   };
 }
 
@@ -139,6 +142,7 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
     artistMbid: item.artistMbid,
     albumMbid: item.albumMbid,
     identityKey: item.identityKey,
+    recordHistory: item.recordHistory,
   };
 }
 
@@ -177,6 +181,7 @@ function toPlayableTrack(
     coverPath: saved.coverPath ?? null,
     trackMbid: saved.trackMbid ?? null,
     identityKey: saved.identityKey ?? null,
+    recordHistory: saved.recordHistory,
     artistMbid: saved.artistMbid ?? album.artistMbid,
     albumMbid: saved.albumMbid ?? album.albumMbid,
   };

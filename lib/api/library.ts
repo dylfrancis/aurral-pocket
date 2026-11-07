@@ -523,9 +523,23 @@ export async function getArtistCover(mbid: string) {
   return r.data;
 }
 
-export async function getAlbumCover(releaseGroupMbid: string) {
+/**
+ * What the server can search by when an album's MBID leads to no cover. It
+ * remembers "no cover" for the MBID, so a lookup without these can hide a cover
+ * that a later one with them would have found.
+ */
+export type AlbumCoverHints = {
+  artistName?: string;
+  albumTitle?: string;
+};
+
+export async function getAlbumCover(
+  releaseGroupMbid: string,
+  hints?: AlbumCoverHints,
+) {
   const r = await api.get<CoverArtResponse>(
     `/artists/release-group/${releaseGroupMbid}/cover`,
+    { params: hints },
   );
   return r.data;
 }

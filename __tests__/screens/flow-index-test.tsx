@@ -26,14 +26,15 @@ jest.mock("@/hooks/flow", () => ({
 jest.mock("@/components/flow/FlowCard", () => {
   const { Text } = require("react-native");
   return {
-    FlowCard: ({ flow }: { flow: { name: string } }) => (
-      <Text>{flow.name}</Text>
-    ),
+    FlowCard: ({
+      flow,
+      onPress,
+    }: {
+      flow: { name: string };
+      onPress: () => void;
+    }) => <Text onPress={onPress}>{flow.name}</Text>,
   };
 });
-jest.mock("@/components/flow/FlowDetailSheet", () => ({
-  FlowDetailSheet: () => null,
-}));
 
 jest.mock("@shopify/flash-list", () => {
   const { FlatList } = require("react-native");
@@ -122,6 +123,25 @@ describe("FlowScreen list", () => {
 
     expect(getByText("Chill")).toBeTruthy();
     expect(queryByText("Road Trip")).toBeNull();
+  });
+
+  it("opens a flow on its own page", async () => {
+    mockUseFlowStatusSuspense.mockReturnValue({
+      data: {
+        flows: [{ id: "flow-1", name: "Chill" }],
+        sharedPlaylists: [],
+        flowStats: {},
+      },
+      refetch: jest.fn(),
+    });
+
+    const { getByText } = await render(<FlowScreen />);
+    await fireEvent.press(getByText("Chill"));
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/flow/[id]",
+      params: { id: "flow-1" },
+    });
   });
 
   it("offers to create a flow when only static playlists exist", async () => {

@@ -34,6 +34,7 @@ const mockPlayer = {
   skipToPrevious: jest.fn(() => Promise.resolve()),
   seek: jest.fn(() => Promise.resolve()),
   setRepeatMode: jest.fn(() => Promise.resolve()),
+  updateTracks: jest.fn(() => Promise.resolve()),
   getState: jest.fn(() => Promise.resolve({ currentPosition: 0 })),
 };
 jest.mock("react-native-nitro-player", () => ({
@@ -240,6 +241,77 @@ describe("what a restored player shows", () => {
 });
 
 describe("saving the queue", () => {
+  it("keeps a cover that was found after the queue started", async () => {
+    const cover = "https://img.example/kid-a.jpg";
+    await facade.playQueueFrom(
+      [
+        {
+          id: "job-1",
+          title: "Kid A",
+          artist: "Radiohead",
+          album: "Kid A",
+          duration: 0,
+          url: "https://test.example/api/playlists/stream/job-1",
+          artwork: null,
+          streamPath: "/playlists/stream/job-1",
+          coverPath: null,
+          trackMbid: null,
+          artistMbid: null,
+          albumMbid: "album-1",
+          identityKey: null,
+        },
+      ],
+      "job-1",
+      album,
+    );
+
+    await facade.setQueuedAlbumCovers(new Map([["album-1", cover]]));
+    await flush();
+
+    expect((lastSavedQueue().items as { artwork: string }[])[0].artwork).toBe(
+      cover,
+    );
+  });
+
+  it("keeps a playlist's history choice through a restart", async () => {
+    await facade.playQueueFrom(
+      [
+        {
+          id: "job-1",
+          title: "Kid A",
+          artist: "Radiohead",
+          album: "Kid A",
+          duration: 0,
+          url: `${STREAM_ROOT}/playlists/stream/job-1`,
+          artwork: null,
+          streamPath: "/playlists/stream/job-1",
+          coverPath: null,
+          trackMbid: null,
+          artistMbid: null,
+          albumMbid: null,
+          identityKey: null,
+          recordHistory: false,
+        },
+      ],
+      "job-1",
+      album,
+    );
+    await flush();
+    const saved = lastSavedQueue();
+    mockStorage.getItem.mockResolvedValue(
+      JSON.stringify({ ...saved, currentId: "job-1" }),
+    );
+    mockStorage.setItem.mockClear();
+
+    const restarted = await freshFacade();
+    await restarted.restoreSavedQueue();
+    await flush();
+
+    expect(lastSavedQueue().items).toEqual([
+      expect.objectContaining({ id: "job-1", recordHistory: false }),
+    ]);
+  });
+
   it("writes the queue and the track it started on", async () => {
     await facade.playAlbumFromTrack(albumTracks, albumTracks[1], album);
     await flush();

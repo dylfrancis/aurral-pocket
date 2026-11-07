@@ -1,20 +1,11 @@
-import { useCallback } from "react";
-import { Stack, useFocusEffect } from "expo-router";
+import { Stack } from "expo-router";
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import { TRANSPARENT_HEADER } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
-import { useFlowAudioPreview } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function FlowLayout() {
   const colors = Colors[useColorScheme()];
-  const { stop } = useFlowAudioPreview();
-
-  useFocusEffect(
-    useCallback(() => {
-      return () => stop();
-    }, [stop]),
-  );
 
   return (
     <MiniPlayerHost>
@@ -31,6 +22,10 @@ export default function FlowLayout() {
             title: "Flows",
             headerLargeTitleEnabled: true,
           }}
+        />
+        <Stack.Screen
+          name="flow/[id]"
+          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
         />
         <Stack.Screen
           name="flow-edit"

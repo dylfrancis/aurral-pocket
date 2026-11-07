@@ -125,6 +125,15 @@ describe("startPlayHistory", () => {
     expect(mockRecord).not.toHaveBeenCalled();
   });
 
+  it("ignores a track from a playlist that opted out", async () => {
+    const { completed } = start();
+
+    completed(track({ recordHistory: false }));
+    await settle();
+
+    expect(mockRecord).not.toHaveBeenCalled();
+  });
+
   // The engine learns a track's length from the stream, so the queued track
   // carries none. A play with no length is still a play.
   it("reports no duration when the engine never gave one", async () => {

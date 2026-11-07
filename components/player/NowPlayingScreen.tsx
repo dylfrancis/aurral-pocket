@@ -54,7 +54,8 @@ export function NowPlayingScreen() {
   // queue; an empty list beats presenting the whole queue as "up next".
   const currentIndex = items.findIndex((it) => it.id === currentId);
   const upNext = currentIndex < 0 ? [] : items.slice(currentIndex + 1);
-  const artistMbid = album?.artistMbid ?? null;
+  // A playlist's tracks each have their own artist, and its context has none.
+  const artistMbid = track?.artistMbid ?? album?.artistMbid ?? null;
 
   const openArtist = useCallback(() => {
     if (!artistMbid) return;
@@ -125,7 +126,7 @@ export function NowPlayingScreen() {
                 numberOfLines={1}
                 style={{ fontSize: 15 }}
               >
-                {track.artist} · {track.album}
+                {[track.artist, track.album].filter(Boolean).join(" · ")}
               </Text>
             </Pressable>
           </View>

@@ -1,18 +1,15 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import * as Burnt from "burnt";
-import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import Settings from "@expo/material-symbols/settings.xml";
 import Add from "@expo/material-symbols/add.xml";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
-import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { EmptyState } from "@/components/library/EmptyState";
 import { FlowCard } from "@/components/flow/FlowCard";
-import { FlowDetailSheet } from "@/components/flow/FlowDetailSheet";
+import { FlowAccessGate } from "@/components/flow/FlowAccessGate";
 import { useFlowStatusSuspense, useSetFlowEnabled } from "@/hooks/flow";
-import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
@@ -23,25 +20,13 @@ import type { Flow } from "@/lib/types/flow";
  * blanks the tab bar item, it does not stop the screen from rendering. Without
  * this guard, a user without `accessFlow` still fetches `/playlists/status` on
  * cold launch and takes a 403 for a tab they cannot even see.
- *
- * The fetch lives in the inner component because a suspense query has no
- * `enabled` option; the only way not to fire it is not to render the hook.
  */
 export default function FlowScreen() {
-  const hasPermission = useHasPermission();
-
-  if (!hasPermission("accessFlow")) {
-    return (
-      <ScreenCenter>
-        <EmptyState
-          icon="lock-closed-outline"
-          message="You don't have access to Flows"
-        />
-      </ScreenCenter>
-    );
-  }
-
-  return <FlowScreenContent />;
+  return (
+    <FlowAccessGate message="You don't have access to Flows">
+      <FlowScreenContent />
+    </FlowAccessGate>
+  );
 }
 
 function FlowScreenContent() {
@@ -66,19 +51,6 @@ function FlowScreenContent() {
     }
   }, [refetch]);
 
-  const flowSheetRef = useRef<BottomSheetModal>(null);
-  const [activeFlowId, setActiveFlowId] = useState<string | null>(null);
-  const [deletingFlowId, setDeletingFlowId] = useState<string | null>(null);
-
-  const openFlow = useCallback(
-    (flowId: string) => {
-      if (deletingFlowId === flowId) return;
-      setActiveFlowId(flowId);
-      flowSheetRef.current?.present();
-    },
-    [deletingFlowId],
-  );
-
   const flowStats = data.flowStats;
   const renderItem = useCallback(
     ({ item: flow }: { item: Flow }) => (
@@ -86,15 +58,16 @@ function FlowScreenContent() {
         <FlowCard
           flow={flow}
           stats={flowStats?.[flow.id]}
-          isDeleting={deletingFlowId === flow.id}
-          onPress={() => openFlow(flow.id)}
+          onPress={() =>
+            router.push({ pathname: "/flow/[id]", params: { id: flow.id } })
+          }
           onToggleEnabled={(next) =>
             setEnabled.mutate({ flowId: flow.id, enabled: next })
           }
         />
       </View>
     ),
-    [flowStats, openFlow, setEnabled, deletingFlowId],
+    [flowStats, router, setEnabled],
   );
 
   const openWorkerSettings = useCallback(
@@ -150,12 +123,6 @@ function FlowScreenContent() {
             tintColor={colors.brand}
           />
         }
-      />
-      <FlowDetailSheet
-        sheetRef={flowSheetRef}
-        flowId={activeFlowId}
-        onClose={() => setActiveFlowId(null)}
-        onDeleting={setDeletingFlowId}
       />
     </>
   );

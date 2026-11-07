@@ -3,39 +3,22 @@ jest.mock("@/lib/api/client", () => ({
     defaults: { baseURL: "https://example.com/api" },
     post: jest.fn(),
   },
-  buildAuthenticatedUrl: jest.fn(
-    (path: string) => `https://example.com/api${path}?token=secret`,
-  ),
 }));
 
-import { api, buildAuthenticatedUrl } from "@/lib/api/client";
+import { api } from "@/lib/api/client";
 import {
   addSharedPlaylistTracks,
   createSharedPlaylist,
-  getFlowStreamUrl,
+  getFlowStreamPath,
   getFlowArtworkSource,
 } from "@/lib/api/flow";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 
-describe("getFlowStreamUrl", () => {
-  it("returns a URL that authenticates itself", () => {
-    expect(getFlowStreamUrl("job-1")).toBe(
-      "https://example.com/api/playlists/stream/job-1?token=secret",
-    );
-  });
-
+describe("getFlowStreamPath", () => {
   it("encodes the job id", () => {
-    getFlowStreamUrl("job/1?weird");
-
-    expect(buildAuthenticatedUrl).toHaveBeenCalledWith(
+    expect(getFlowStreamPath("job/1?weird")).toBe(
       "/playlists/stream/job%2F1%3Fweird",
     );
-  });
-
-  it("returns null while signed out", () => {
-    (buildAuthenticatedUrl as jest.Mock).mockReturnValueOnce(null);
-
-    expect(getFlowStreamUrl("job-1")).toBeNull();
   });
 });
 

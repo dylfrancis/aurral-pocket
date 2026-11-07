@@ -49,6 +49,8 @@ function job(id: string, status: FlowJob["status"]): FlowJob {
     trackName: id,
     albumName: null,
     artistMbid: null,
+    albumMbid: null,
+    trackMbid: null,
     status,
   };
 }

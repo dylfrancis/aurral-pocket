@@ -119,7 +119,7 @@ export const TrackRow = React.memo(function TrackRow({
  * holds the bars still at their resting height rather than hiding them, so a
  * paused track still reads as the current one.
  */
-function PlayingBars({
+export function PlayingBars({
   animating,
   color,
 }: {

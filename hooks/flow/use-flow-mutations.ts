@@ -92,6 +92,7 @@ export function useDeleteFlow() {
   return useMutation({
     mutationFn: (flowId: string) => deleteFlow(flowId),
     onSettled: invalidate,
+    onError: (err) => toastError("Couldn't delete flow", err),
   });
 }
 
@@ -201,6 +202,7 @@ export function useDeleteSharedPlaylist() {
   return useMutation({
     mutationFn: (playlistId: string) => deleteSharedPlaylist(playlistId),
     onSettled: invalidate,
+    onError: (err) => toastError("Couldn't delete playlist", err),
   });
 }
 
@@ -215,6 +217,7 @@ export function useDeleteSharedPlaylistTrack() {
       jobId: string;
     }) => deleteSharedPlaylistTrack(playlistId, jobId),
     onSuccess: invalidate,
+    onError: (err) => toastError("Couldn't remove track", err),
   });
 }
 

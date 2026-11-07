@@ -1,3 +1,4 @@
+import { initialWindowMetrics } from "react-native-safe-area-context";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 
 import { IS_IOS } from "@/constants/platform";
@@ -52,3 +53,11 @@ export function searchBarColors(colors: { text: string; subtle: string }) {
 export const TAB_BAR_BACKGROUND = HAS_LIQUID_GLASS
   ? {}
   : { disableTransparentOnScrollEdge: true };
+
+/**
+ * Not from useSafeAreaInsets: inside a tab that includes the tab bar and mini
+ * player, which a sheet covers, so the sheet comes out with a tall empty gap.
+ * This is the device's own inset.
+ */
+export const SHEET_BOTTOM_PADDING =
+  (initialWindowMetrics?.insets.bottom ?? 0) + 16;

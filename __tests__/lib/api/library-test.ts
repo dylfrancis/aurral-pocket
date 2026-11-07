@@ -71,8 +71,23 @@ describe("getAlbumCover", () => {
     const result = await getAlbumCover("def-456");
     expect(mockApi.get).toHaveBeenCalledWith(
       "/artists/release-group/def-456/cover",
+      { params: undefined },
     );
     expect(result).toEqual(cover);
+  });
+
+  it("sends the names the server can search by", async () => {
+    mockApi.get.mockResolvedValue({ data: { images: [] } });
+
+    await getAlbumCover("def-456", {
+      artistName: "Tinashe",
+      albumTitle: "Songs for You",
+    });
+
+    expect(mockApi.get).toHaveBeenCalledWith(
+      "/artists/release-group/def-456/cover",
+      { params: { artistName: "Tinashe", albumTitle: "Songs for You" } },
+    );
   });
 });
 

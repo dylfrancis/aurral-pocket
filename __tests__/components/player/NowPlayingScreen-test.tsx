@@ -46,7 +46,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NowPlayingScreen } from "@/components/player/NowPlayingScreen";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { getLibraryFavorites, updateLibraryFavorites } from "@/lib/api/library";
-import { onTrackStarted, playAlbumFromTrack } from "@/lib/player/player";
+import {
+  onTrackStarted,
+  playAlbumFromTrack,
+  playQueueFrom,
+} from "@/lib/player/player";
 import type { Track } from "@/lib/types/library";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
@@ -241,6 +245,48 @@ describe("NowPlayingScreen", () => {
     expect(mockNavigate).toHaveBeenCalledWith({
       pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
       params: { mbid: "artist-mb-1" },
+    });
+  });
+
+  it("opens a playlist track's own artist, with no album to show", async () => {
+    const { getByLabelText, getByText } = await renderScreen();
+    await act(() =>
+      playQueueFrom(
+        [
+          {
+            id: "job-1",
+            title: "Alison",
+            artist: "Slowdive",
+            album: "",
+            duration: 0,
+            url: "https://test.example/api/playlists/stream/job-1",
+            artwork: null,
+            streamPath: "/playlists/stream/job-1",
+            coverPath: null,
+            trackMbid: null,
+            artistMbid: "slowdive-mb",
+            albumMbid: null,
+            identityKey: null,
+          },
+        ],
+        "job-1",
+        {
+          albumTitle: "Road Trip",
+          artistName: "",
+          coverPath: null,
+          artworkUrl: null,
+          albumMbid: null,
+          artistMbid: null,
+        },
+      ),
+    );
+
+    expect(getByText("Slowdive")).toBeTruthy();
+    await fireEvent.press(getByLabelText("View artist Slowdive"));
+
+    expect(mockNavigate).toHaveBeenCalledWith({
+      pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
+      params: { mbid: "slowdive-mb" },
     });
   });
 

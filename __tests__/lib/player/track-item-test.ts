@@ -11,7 +11,8 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
-import { toPlayerTrack } from "@/lib/player/track-item";
+import { jobToPlayerTrack, toPlayerTrack } from "@/lib/player/track-item";
+import type { FlowJob, SharedPlaylist } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
 
 function track(overrides: Partial<Track> = {}): Track {
@@ -103,4 +104,73 @@ describe("toPlayerTrack", () => {
       artwork: null,
     });
   });
+});
+
+describe("jobToPlayerTrack", () => {
+  const job: FlowJob = {
+    id: "job-1",
+    playlistType: "pl-1",
+    artistName: "Slowdive",
+    trackName: "Alison",
+    albumName: "Souvlaki",
+    artistMbid: "artist-mb",
+    albumMbid: "album-mb",
+    trackMbid: "track-mb",
+    status: "done",
+  };
+  const playlist: SharedPlaylist = {
+    id: "pl-1",
+    name: "Road Trip",
+    sourceName: null,
+    sourceFlowId: null,
+    trackCount: 1,
+    recordHistory: false,
+    artworkRevision: 7,
+  };
+
+  it("gives the track its own artist and album, and not the playlist's cover", () => {
+    expect(jobToPlayerTrack(job, playlist)).toEqual({
+      id: "job-1",
+      title: "Alison",
+      artist: "Slowdive",
+      album: "Souvlaki",
+      duration: 0,
+      url: "https://test.example/api/playlists/stream/job-1?token=test-token-123",
+      artwork: null,
+      streamPath: "/playlists/stream/job-1",
+      coverPath: null,
+      trackMbid: "track-mb",
+      artistMbid: "artist-mb",
+      albumMbid: "album-mb",
+      identityKey: null,
+      recordHistory: false,
+    });
+  });
+
+  it("carries its album's cover once it's known", () => {
+    const cover = "https://img.example/souvlaki.jpg";
+
+    expect(jobToPlayerTrack(job, playlist, cover)?.artwork).toBe(cover);
+  });
+
+  it("loads artwork uploaded for the track first", () => {
+    const artworkUrl = "/api/playlists/track-artwork/job-1?v=3";
+
+    expect(jobToPlayerTrack({ ...job, artworkUrl }, playlist)?.coverPath).toBe(
+      artworkUrl,
+    );
+  });
+
+  it("leaves the album empty when the job has none", () => {
+    expect(jobToPlayerTrack({ ...job, albumName: null }, playlist)?.album).toBe(
+      "",
+    );
+  });
+
+  it.each(["pending", "downloading", "blocked", "failed"] as const)(
+    "doesn't play a %s job",
+    (status) => {
+      expect(jobToPlayerTrack({ ...job, status }, playlist)).toBeNull();
+    },
+  );
 });

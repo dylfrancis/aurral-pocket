@@ -10,6 +10,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
   removeItem: jest.fn(),
 }));
 
+import { renderHook } from "@testing-library/react-native";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
   addToQueue,
@@ -24,11 +25,15 @@ import {
   previous,
   playAlbumFromTrack,
   playItem,
+  playQueueFrom,
   playQueueItem,
   resume,
   seekTo,
+  setQueuedAlbumCovers,
   setRepeatMode,
   setShuffle,
+  useCurrentTrack,
+  useQueue,
 } from "@/lib/player/player";
 import type { Track } from "@/lib/types/library";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
@@ -289,6 +294,23 @@ describe("transport", () => {
     // The preview surfaces fire their stop on blur and on navigation. Album
     // playback must survive those moments.
     await playAlbumFromTrack([track()], track(), album);
+
+    await pauseClip();
+
+    expect(player.pause).not.toHaveBeenCalled();
+  });
+
+  it("pauseClip leaves a playlist's queue alone", async () => {
+    const playlistTrack = {
+      ...clip,
+      streamPath: "/playlists/stream/job-1",
+      coverPath: null,
+      trackMbid: null,
+      artistMbid: null,
+      albumMbid: null,
+      identityKey: null,
+    };
+    await playQueueFrom([playlistTrack], playlistTrack.id, album);
 
     await pauseClip();
 
@@ -600,5 +622,89 @@ describe("playback events", () => {
 
     expect(completed).toEqual([]);
     unsubscribe();
+  });
+});
+
+describe("setQueuedAlbumCovers", () => {
+  const COVER = "https://img.example/kid-a.jpg";
+
+  function queued(
+    id: string,
+    albumMbid: string,
+    artwork: string | null = null,
+  ) {
+    return {
+      ...clip,
+      id,
+      url: `https://test.example/api/playlists/stream/${id}`,
+      artwork,
+      streamPath: `/playlists/stream/${id}`,
+      coverPath: null,
+      trackMbid: null,
+      artistMbid: null,
+      albumMbid,
+      identityKey: null,
+    };
+  }
+
+  async function queuedCovers() {
+    const { result } = await renderHook(() => useQueue());
+    return result.current.items.map((item) => item.artwork);
+  }
+
+  it("gives the album's tracks their cover, in the app and on the lock screen", async () => {
+    await playQueueFrom(
+      [queued("a", "album-1"), queued("b", "album-1"), queued("c", "album-2")],
+      "a",
+      album,
+    );
+
+    await setQueuedAlbumCovers(new Map([["album-1", COVER]]));
+
+    const { result } = await renderHook(() => useCurrentTrack());
+    expect(result.current?.artwork).toBe(COVER);
+    expect(await queuedCovers()).toEqual([COVER, COVER, null]);
+    // The same URLs, or the engine would refuse the change for the playing track.
+    expect(player.updateTracks).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: "a",
+        artwork: COVER,
+        url: "https://test.example/api/playlists/stream/a",
+      }),
+      expect.objectContaining({ id: "b", artwork: COVER }),
+    ]);
+  });
+
+  it("keeps the covers when shuffle restores the original order", async () => {
+    await playQueueFrom(
+      [queued("a", "album-1"), queued("b", "album-1")],
+      "a",
+      album,
+    );
+    await setShuffle(true);
+
+    await setQueuedAlbumCovers(new Map([["album-1", COVER]]));
+    await setShuffle(false);
+
+    expect(await queuedCovers()).toEqual([COVER, COVER]);
+  });
+
+  it("leaves a track that already has one", async () => {
+    const own = "https://img.example/own.jpg";
+    await playQueueFrom([queued("a", "album-1", own)], "a", album);
+
+    await setQueuedAlbumCovers(new Map([["album-1", COVER]]));
+
+    expect(await queuedCovers()).toEqual([own]);
+    expect(player.updateTracks).not.toHaveBeenCalled();
+  });
+
+  it("does nothing for an album that's no longer queued", async () => {
+    await playQueueFrom([queued("a", "album-1")], "a", album);
+
+    await setQueuedAlbumCovers(new Map([["album-9", COVER]]));
+
+    expect(await queuedCovers()).toEqual([null]);
+    expect(player.updateTracks).not.toHaveBeenCalled();
   });
 });

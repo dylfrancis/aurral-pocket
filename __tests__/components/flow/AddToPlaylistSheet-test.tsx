@@ -1,5 +1,6 @@
 const mockAddMutate = jest.fn();
 const mockCreateMutate = jest.fn();
+const mockDismiss = jest.fn();
 const mockAddMutation = { mutate: mockAddMutate, isPending: false };
 const mockCreateMutation = { mutate: mockCreateMutate, isPending: false };
 let mockPlaylists: {
@@ -22,12 +23,17 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: jest.fn(() => () => true),
 }));
 
+jest.mock("@/components/flow/CollectionArtwork", () => {
+  const { View } = require("react-native");
+  return {
+    CollectionArtwork: ({ collection }: { collection: { id: string } }) => (
+      <View testID={`artwork-${collection.id}`} />
+    ),
+  };
+});
+
 jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
-}));
-
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
 jest.mock("@gorhom/bottom-sheet", () => {
@@ -41,7 +47,7 @@ jest.mock("@gorhom/bottom-sheet", () => {
       close: jest.fn(),
       snapToIndex: jest.fn(),
       present: jest.fn(),
-      dismiss: jest.fn(),
+      dismiss: mockDismiss,
     }));
     return <View {...props}>{children}</View>;
   });
@@ -51,6 +57,9 @@ jest.mock("@gorhom/bottom-sheet", () => {
     BottomSheetModal: BottomSheet,
     BottomSheetBackdrop: (props: any) => <View {...props} />,
     BottomSheetScrollView: ({ children, ...props }: any) => (
+      <View {...props}>{children}</View>
+    ),
+    BottomSheetView: ({ children, ...props }: any) => (
       <View {...props}>{children}</View>
     ),
     BottomSheetTextInput: (props: any) => <TextInput {...props} />,
@@ -126,27 +135,86 @@ describe("AddToPlaylistSheet", () => {
     });
   });
 
-  it("creates a playlist with the track when a name is entered", async () => {
-    const { getByText, getByPlaceholderText } = await render(
+  it("shows each playlist's artwork", async () => {
+    mockPlaylists = [{ id: "pl-2", name: "Road Trip", trackCount: 12 }];
+    const { getByTestId } = await render(
       <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
     );
-    await fireEvent.changeText(
-      getByPlaceholderText("Playlist name"),
-      "  Keepers  ",
-    );
-    await fireEvent.press(getByText("Create and Add"));
-    expect(mockCreateMutate).toHaveBeenCalledWith(
-      { name: "Keepers", tracks: [TRACK] },
-      expect.any(Object),
-    );
+    expect(getByTestId("artwork-pl-2")).toBeTruthy();
   });
 
-  it("does not create a playlist while the name is blank", async () => {
-    const { getByText } = await render(
-      <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
-    );
-    await fireEvent.press(getByText("Create and Add"));
-    expect(mockCreateMutate).not.toHaveBeenCalled();
+  describe("New Playlist", () => {
+    async function openNaming() {
+      const utils = await render(
+        <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
+      );
+      await fireEvent.press(utils.getByText("New Playlist"));
+      return utils;
+    }
+
+    it("asks for a name only after the row is pressed", async () => {
+      const { queryByPlaceholderText, getByPlaceholderText, getByText } =
+        await render(<AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />);
+      expect(queryByPlaceholderText("Playlist name")).toBeNull();
+
+      await fireEvent.press(getByText("New Playlist"));
+
+      expect(getByPlaceholderText("Playlist name")).toBeTruthy();
+    });
+
+    it("creates a playlist with the track when a name is entered", async () => {
+      const { getByText, getByPlaceholderText } = await openNaming();
+      await fireEvent.changeText(
+        getByPlaceholderText("Playlist name"),
+        "  Keepers  ",
+      );
+      await fireEvent.press(getByText("Create and Add"));
+      expect(mockCreateMutate).toHaveBeenCalledWith(
+        { name: "Keepers", tracks: [TRACK] },
+        expect.any(Object),
+      );
+    });
+
+    it("does not create a playlist while the name is blank", async () => {
+      const { getByText } = await openNaming();
+      await fireEvent.press(getByText("Create and Add"));
+      expect(mockCreateMutate).not.toHaveBeenCalled();
+    });
+
+    it("closes both sheets and confirms once created", async () => {
+      mockCreateMutate.mockImplementation((_vars, opts) => opts.onSuccess());
+      const { getByText, getByPlaceholderText } = await openNaming();
+      await fireEvent.changeText(
+        getByPlaceholderText("Playlist name"),
+        "Keepers",
+      );
+      await fireEvent.press(getByText("Create and Add"));
+
+      expect(mockDismiss).toHaveBeenCalledTimes(2);
+      expect(Burnt.toast).toHaveBeenCalledWith({
+        title: 'Created "Keepers"',
+        preset: "done",
+      });
+    });
+
+    it("stays open and says why when creating fails", async () => {
+      mockCreateMutate.mockImplementation((_vars, opts) =>
+        opts.onError(new Error("Nope")),
+      );
+      const { getByText, getByPlaceholderText } = await openNaming();
+      await fireEvent.changeText(
+        getByPlaceholderText("Playlist name"),
+        "Keepers",
+      );
+      await fireEvent.press(getByText("Create and Add"));
+
+      expect(mockDismiss).not.toHaveBeenCalled();
+      expect(Burnt.toast).toHaveBeenCalledWith({
+        title: "Couldn't create playlist",
+        message: "Nope",
+        preset: "error",
+      });
+    });
   });
 
   it("marks and disables playlists that already contain the track", async () => {
