@@ -125,6 +125,37 @@ describe("ReleaseGroupsSection", () => {
     expect(queryByTestId("category-EPs")).toBeTruthy();
   });
 
+  it("shows Compilations after Singles", async () => {
+    const grouped = new Map<PrimaryReleaseType, ReleaseGroup[]>([
+      ["Other", [rg("g", "Other")]],
+      ["Broadcast", [rg("f", "Broadcast")]],
+      ["Compilation", [rg("e")]],
+      ["Single", [rg("d", "Single")]],
+      ["EP", [rg("c", "EP")]],
+      ["Album", [rg("b")]],
+    ]);
+
+    const { getAllByTestId } = await render(
+      <ReleaseGroupsSection
+        grouped={grouped}
+        isLoading={false}
+        onPress={jest.fn()}
+        onNavigate={jest.fn()}
+      />,
+    );
+
+    expect(getAllByTestId(/^category-/).map((row) => row.props.testID)).toEqual(
+      [
+        "category-Albums",
+        "category-EPs",
+        "category-Singles",
+        "category-Compilations",
+        "category-Broadcasts",
+        "category-Other",
+      ],
+    );
+  });
+
   it("skips categories with no items", async () => {
     const grouped = new Map<PrimaryReleaseType, ReleaseGroup[]>([
       ["Album", [rg("a")]],

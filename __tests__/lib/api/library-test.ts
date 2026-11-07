@@ -289,6 +289,36 @@ describe("getCanonicalLibraryPage", () => {
     ]);
   });
 
+  it("takes an album's foreign id from its metadata first", async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "albums",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [
+          {
+            id: 14,
+            mbid: "mb-release",
+            releaseGroupMbid: null,
+            title: "Managed Album",
+            metadata: { foreignAlbumId: "mb-rg-4" },
+          },
+        ],
+        tracks: [],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({ kind: "albums" });
+
+    expect(page.albums[0]).toMatchObject({
+      mbid: "mb-release",
+      foreignAlbumId: "mb-rg-4",
+    });
+  });
+
   it("maps raw canonical album rows to the legacy Album shape", async () => {
     // The canonical route returns raw album rows plus the counts the page
     // route adds (trackCount, availableTrackCount). The screens read the
@@ -330,8 +360,8 @@ describe("getCanonicalLibraryPage", () => {
         canonicalId: "12",
         artistId: "7",
         artistName: "Radiohead",
-        mbid: "mb-album-1",
-        foreignAlbumId: "mb-album-1",
+        mbid: "mb-rg-1",
+        foreignAlbumId: "mb-rg-1",
         albumName: "In Rainbows",
         title: "In Rainbows",
         releaseDate: "2007-10-10",

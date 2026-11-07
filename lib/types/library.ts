@@ -50,7 +50,7 @@ export type AlbumStatistics = {
 };
 
 export type PrimaryReleaseType =
-  "Album" | "EP" | "Single" | "Broadcast" | "Other";
+  "Album" | "EP" | "Single" | "Broadcast" | "Compilation" | "Other";
 
 export type SecondaryReleaseType =
   | "Live"
@@ -68,6 +68,8 @@ export type ReleaseGroup = {
   "first-release-date": string | null;
   "primary-type": PrimaryReleaseType;
   "secondary-types": SecondaryReleaseType[];
+  /** From ListenBrainz, which has no figure for some releases. */
+  listenerCount?: number;
 };
 
 export type Album = {
@@ -268,6 +270,7 @@ export type CanonicalAlbumMetadata = {
    * only when `librarySource` is "lidarr".
    */
   id?: number | string;
+  foreignAlbumId?: string;
   librarySource?: "lidarr" | "aurral";
   monitored?: boolean;
   images?: CanonicalMetadataImage[];

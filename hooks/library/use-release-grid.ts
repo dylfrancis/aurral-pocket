@@ -5,18 +5,20 @@ import { libraryAlbumsRef } from "@/lib/library-read";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import {
   ALBUM_SORT_OPTIONS,
+  RELEASE_SORT_OPTIONS,
   type AlbumSortMode,
 } from "@/components/library/AlbumSortPicker";
+import { librarySection, matchesReleaseSection } from "@/lib/release-groups";
 import { stripArticle } from "@/lib/strings";
 import type { PrimaryReleaseType } from "@/lib/types/library";
 
 type ReleaseGridConfig<T> = {
-  variant: "albums" | "releases";
   getDate: (item: T) => string | null;
   getName: (item: T) => string;
-  supportsMissing: boolean;
-  isMissing?: (item: T) => boolean;
-};
+} & (
+  | { variant: "albums"; isMissing: (item: T) => boolean }
+  | { variant: "releases"; comparePopularity: (a: T, b: T) => number }
+);
 
 function sortItems<T>(
   items: T[],
@@ -56,10 +58,10 @@ function sortItems<T>(
         ),
       );
     case "missing":
-      if (!config.isMissing) return list;
+      if (config.variant !== "albums") return list;
       return list.sort((a, b) => {
-        const aMissing = config.isMissing!(a);
-        const bMissing = config.isMissing!(b);
+        const aMissing = config.isMissing(a);
+        const bMissing = config.isMissing(b);
         if (aMissing !== bMissing) return aMissing ? -1 : 1;
         if (!config.getDate(a)) return 1;
         if (!config.getDate(b)) return -1;
@@ -68,6 +70,12 @@ function sortItems<T>(
           new Date(config.getDate(a)!).getTime()
         );
       });
+    case "popularity-desc":
+      if (config.variant !== "releases") return list;
+      return list.sort(config.comparePopularity);
+    case "popularity-asc":
+      if (config.variant !== "releases") return list;
+      return list.sort((a, b) => config.comparePopularity(b, a));
   }
 }
 
@@ -105,22 +113,13 @@ export function useReleaseGrid<T>(config: ReleaseGridConfig<T>) {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  const sortOptions = useMemo(
-    () =>
-      config.supportsMissing
-        ? ALBUM_SORT_OPTIONS
-        : ALBUM_SORT_OPTIONS.filter((o) => o.key !== "missing"),
-    [config.supportsMissing],
-  );
-
   const sourceItems = useMemo(() => {
     if (config.variant === "albums") {
-      return (typedAlbums?.filter(
-        (a) => a.albumType === (albumType as PrimaryReleaseType),
-      ) ?? []) as T[];
+      return (typedAlbums?.filter((a) => librarySection(a) === albumType) ??
+        []) as T[];
     }
-    return (otherReleases?.filter(
-      (rg) => rg["primary-type"] === (albumType as PrimaryReleaseType),
+    return (otherReleases?.filter((rg) =>
+      matchesReleaseSection(rg, albumType as PrimaryReleaseType),
     ) ?? []) as T[];
   }, [config.variant, typedAlbums, otherReleases, albumType]);
 
@@ -151,7 +150,8 @@ export function useReleaseGrid<T>(config: ReleaseGridConfig<T>) {
     handleRefresh,
     sortMode,
     setSortMode,
-    sortOptions,
+    sortOptions:
+      config.variant === "releases" ? RELEASE_SORT_OPTIONS : ALBUM_SORT_OPTIONS,
     searchQuery,
     setSearchQuery,
     hasUnderlyingItems,

@@ -6,20 +6,13 @@ import { EmptyState } from "@/components/library/EmptyState";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { albumDownloadStatus } from "@/lib/library-read";
+import { RELEASE_SECTIONS } from "@/lib/release-groups";
 import { Colors, Fonts } from "@/constants/theme";
 import type {
   Album,
   DownloadStatusMap,
   PrimaryReleaseType,
 } from "@/lib/types/library";
-
-const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
-  { type: "Album", label: "Albums" },
-  { type: "EP", label: "EPs" },
-  { type: "Single", label: "Singles" },
-  { type: "Broadcast", label: "Broadcasts" },
-  { type: "Other", label: "Other" },
-];
 
 type LibraryAlbumsSectionProps = {
   grouped: Map<PrimaryReleaseType, Album[]> | null;
@@ -69,7 +62,7 @@ export function LibraryAlbumsSection({
           >
             In Your Library
           </Text>
-          {CATEGORIES.map(({ type, label }) => {
+          {RELEASE_SECTIONS.map(({ type, label }) => {
             const list = grouped.get(type);
             if (!list || list.length === 0) return null;
             return (

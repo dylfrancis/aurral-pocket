@@ -8,9 +8,17 @@ import Group from "@expo/material-symbols/group.xml";
 import MusicNote from "@expo/material-symbols/music_note.xml";
 import Schedule from "@expo/material-symbols/schedule.xml";
 import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
+import TrendingDown from "@expo/material-symbols/trending_down.xml";
+import TrendingUp from "@expo/material-symbols/trending_up.xml";
 
 export type AlbumSortMode =
-  "date-desc" | "date-asc" | "name-asc" | "name-desc" | "missing";
+  | "date-desc"
+  | "date-asc"
+  | "name-asc"
+  | "name-desc"
+  | "missing"
+  | "popularity-desc"
+  | "popularity-asc";
 
 /** Sorts for the whole-library album grid, done by the server. */
 export type LibraryAlbumSortMode =
@@ -68,6 +76,24 @@ export const ALBUM_SORT_OPTIONS: SortOption[] = [
     icon: "cloud-download-outline",
     iosIcon: "icloud.and.arrow.down",
     androidIcon: CloudDownload,
+  },
+];
+
+export const RELEASE_SORT_OPTIONS: SortOption[] = [
+  ...ALBUM_SORT_OPTIONS.filter((option) => option.key !== "missing"),
+  {
+    key: "popularity-desc",
+    label: "Most Popular",
+    icon: "trending-up-outline",
+    iosIcon: "chart.line.uptrend.xyaxis",
+    androidIcon: TrendingUp,
+  },
+  {
+    key: "popularity-asc",
+    label: "Least Popular",
+    icon: "trending-down-outline",
+    iosIcon: "chart.line.downtrend.xyaxis",
+    androidIcon: TrendingDown,
   },
 ];
 

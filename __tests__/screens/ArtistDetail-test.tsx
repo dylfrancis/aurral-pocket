@@ -225,9 +225,9 @@ jest.mock("@/hooks/library/use-library-albums", () => ({
 jest.mock("@/hooks/library/use-albums-with-types", () => ({
   useAlbumsWithTypes: jest.fn((_mbid: string, albums: any[]) => ({
     albums: albums?.map((a: any) => ({
-      ...a,
       albumType: "Album",
       secondaryTypes: [],
+      ...a,
     })),
     otherReleases: [],
     isLoadingTypes: false,
@@ -580,6 +580,33 @@ describe("ArtistDetailScreen", () => {
       );
     });
 
+    it("gives owned compilations their own row and full list", async () => {
+      mockUseLibraryAlbums.mockReturnValue({
+        ...defaultAlbumHook,
+        data: [
+          makeAlbum({ id: "1", albumName: "Studio Album" }),
+          makeAlbum({
+            id: "2",
+            albumName: "Greatest Hits",
+            secondaryTypes: ["Compilation"],
+          }),
+        ],
+      });
+      const { getByText } = await renderScreen();
+
+      expect(getByText("Studio Album")).toBeTruthy();
+      await fireEvent.press(getByText("Compilations", { exact: false }));
+
+      expect(getByText("Greatest Hits")).toBeTruthy();
+      expect(mockPush).toHaveBeenCalledWith({
+        pathname: "/artist/albums",
+        params: expect.objectContaining({
+          albumType: "Compilation",
+          title: "Compilations",
+        }),
+      });
+    });
+
     it("sorts albums by release date descending", async () => {
       const albums = [
         makeAlbum({ id: "1", albumName: "Older", releaseDate: "2020-01-01" }),
@@ -695,6 +722,76 @@ describe("ArtistDetailScreen", () => {
       const { findByText } = await renderScreen();
       expect(await findByText("Albums & Releases")).toBeTruthy();
       expect(await findByText("Unreleased EP")).toBeTruthy();
+    });
+
+    it("opens a row's full list with that row's filter", async () => {
+      const {
+        useArtistDetailsStream,
+      } = require("@/hooks/library/use-artist-details-stream");
+      (useArtistDetailsStream as jest.Mock).mockReturnValue({
+        data: {
+          tags: [],
+          bio: null,
+          releaseGroups: [
+            {
+              id: "rg-1",
+              title: "Greatest Hits",
+              "first-release-date": "2023-06-01",
+              "primary-type": "Album",
+              "secondary-types": ["Compilation"],
+            },
+          ],
+          isComplete: true,
+        },
+        isLoading: false,
+        error: null,
+      });
+      const { findByText } = await renderScreen();
+
+      await fireEvent.press(await findByText("Compilations", { exact: false }));
+
+      expect(mockPush).toHaveBeenCalledWith({
+        pathname: "/artist/releases",
+        params: {
+          artistId: "1",
+          artistMbid: "abc-123",
+          albumType: "Compilation",
+          title: "Compilations",
+          artistName: "Test Artist",
+        },
+      });
+    });
+
+    it("leaves albums already in the library out of the release rows", async () => {
+      const {
+        useArtistDetailsStream,
+      } = require("@/hooks/library/use-artist-details-stream");
+      const release = {
+        "first-release-date": "2023-06-01",
+        "primary-type": "Album",
+        "secondary-types": [],
+      };
+      (useArtistDetailsStream as jest.Mock).mockReturnValue({
+        data: {
+          tags: [],
+          bio: null,
+          releaseGroups: [
+            { ...release, id: "mbid-1", title: "Owned Release" },
+            { ...release, id: "rg-2", title: "Not Owned" },
+          ],
+          isComplete: true,
+        },
+        isLoading: false,
+        error: null,
+      });
+      mockUseLibraryAlbums.mockReturnValue({
+        ...defaultAlbumHook,
+        data: [makeAlbum({ id: "1", albumName: "Library Copy" })],
+      });
+      const { findByText, queryByText } = await renderScreen();
+
+      expect(await findByText("Not Owned")).toBeTruthy();
+      expect(queryByText("Owned Release")).toBeNull();
     });
 
     it("does not show Albums & Releases skeleton for in-library artist while stream is still loading", async () => {
