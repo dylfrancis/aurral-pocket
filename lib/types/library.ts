@@ -270,6 +270,7 @@ export type CanonicalAlbumMetadata = {
    * only when `librarySource` is "lidarr".
    */
   id?: number | string;
+  foreignAlbumId?: string;
   librarySource?: "lidarr" | "aurral";
   monitored?: boolean;
   images?: CanonicalMetadataImage[];
