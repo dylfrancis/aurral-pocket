@@ -34,9 +34,7 @@ export function useAdoptDiscoverPlaylist() {
       void queryClient.invalidateQueries({ queryKey: flowKeys.status() });
       Burnt.toast({
         title:
-          kind === "flow"
-            ? "Added as a rotating flow"
-            : "Added as a static playlist",
+          kind === "flow" ? "Added to Flows" : "Added to Playlists in Library",
         preset: "done",
       });
     },

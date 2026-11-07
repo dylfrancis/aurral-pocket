@@ -122,7 +122,16 @@ export function useConvertFlowToStaticPlaylist() {
   return useMutation({
     mutationFn: ({ flowId, name }: { flowId: string; name?: string }) =>
       convertFlowToStaticPlaylist(flowId, name),
-    onSuccess: invalidate,
+    onSuccess: (playlist) => {
+      // Android's toast shows only the title, so the place goes there.
+      Burnt.toast({
+        title: "Saved to Playlists in Library",
+        message: playlist.name,
+        preset: "done",
+      });
+      return invalidate();
+    },
+    onError: (err) => toastError("Couldn't save playlist", err),
   });
 }
 

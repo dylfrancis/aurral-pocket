@@ -16,6 +16,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { api, ApiError } from "@/lib/api/client";
 import {
+  useConvertFlowToStaticPlaylist,
   useSetFlowEnabled,
   useSetRetryCyclePaused,
   useStartFlow,
@@ -171,4 +172,46 @@ describe("flow error toasts", () => {
       });
     },
   );
+});
+
+describe("useConvertFlowToStaticPlaylist", () => {
+  const convert = async () => {
+    const { result } = await renderHook(
+      () => useConvertFlowToStaticPlaylist(),
+      { wrapper: makeWrapper() },
+    );
+    await act(() =>
+      result.current
+        .mutateAsync({ flowId: "flow-1", name: "Chill Static" })
+        .catch(() => {}),
+    );
+  };
+
+  it("says where the playlist went", async () => {
+    mockPost.mockResolvedValue({
+      data: { success: true, playlist: { id: "pl-1", name: "Chill Static" } },
+      status: 200,
+    });
+
+    await convert();
+
+    expect(Burnt.toast).toHaveBeenCalledWith({
+      title: "Saved to Playlists in Library",
+      message: "Chill Static",
+      preset: "done",
+    });
+  });
+
+  it("reports why a conversion failed", async () => {
+    const reason = "Download at least one flow track before saving a playlist.";
+    mockPost.mockRejectedValue(new ApiError(400, reason));
+
+    await convert();
+
+    expect(Burnt.toast).toHaveBeenCalledWith({
+      title: "Couldn't save playlist",
+      message: reason,
+      preset: "error",
+    });
+  });
 });
