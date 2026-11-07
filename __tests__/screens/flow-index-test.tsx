@@ -5,16 +5,13 @@ jest.mock("@/hooks/use-color-scheme", () => ({
 jest.mock("@expo/material-symbols/settings.xml", () => "Settings");
 jest.mock("@expo/material-symbols/add.xml", () => "Add");
 
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   Stack: {
     Screen: () => null,
     Toolbar: Object.assign(() => null, { Button: () => null }),
   },
-  useRouter: jest.fn(() => ({ push: jest.fn() })),
-}));
-
-jest.mock("@tanstack/react-query", () => ({
-  useQueryErrorResetBoundary: () => ({ reset: jest.fn() }),
+  useRouter: jest.fn(() => ({ push: mockPush })),
 }));
 
 jest.mock("@/hooks/auth/use-has-permission", () => ({
@@ -26,15 +23,16 @@ jest.mock("@/hooks/flow", () => ({
   useSetFlowEnabled: jest.fn(() => ({ mutate: jest.fn() })),
 }));
 
-jest.mock("@/components/flow/FlowCard", () => ({ FlowCard: () => null }));
-jest.mock("@/components/flow/PlaylistCard", () => ({
-  PlaylistCard: () => null,
-}));
+jest.mock("@/components/flow/FlowCard", () => {
+  const { Text } = require("react-native");
+  return {
+    FlowCard: ({ flow }: { flow: { name: string } }) => (
+      <Text>{flow.name}</Text>
+    ),
+  };
+});
 jest.mock("@/components/flow/FlowDetailSheet", () => ({
   FlowDetailSheet: () => null,
-}));
-jest.mock("@/components/flow/PlaylistDetailSheet", () => ({
-  PlaylistDetailSheet: () => null,
 }));
 
 jest.mock("@shopify/flash-list", () => {
@@ -59,7 +57,7 @@ jest.mock("@gorhom/bottom-sheet", () => {
 });
 
 import React from "react";
-import { render } from "@testing-library/react-native";
+import { fireEvent, render } from "@testing-library/react-native";
 import FlowScreen from "@/app/(app)/(tabs)/(flow)/index";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useFlowStatusSuspense } from "@/hooks/flow";
@@ -95,7 +93,7 @@ describe("FlowScreen permission gate", () => {
 
     const { getByText } = await render(<FlowScreen />);
 
-    expect(getByText("You don't have access to Playlists")).toBeTruthy();
+    expect(getByText("You don't have access to Flows")).toBeTruthy();
   });
 
   it("fetches flow status once the user has accessFlow", async () => {
@@ -104,5 +102,42 @@ describe("FlowScreen permission gate", () => {
     await render(<FlowScreen />);
 
     expect(mockUseFlowStatusSuspense).toHaveBeenCalled();
+  });
+});
+
+describe("FlowScreen list", () => {
+  beforeEach(() => grantPermission(true));
+
+  it("leaves static playlists to Library", async () => {
+    mockUseFlowStatusSuspense.mockReturnValue({
+      data: {
+        flows: [{ id: "flow-1", name: "Chill" }],
+        sharedPlaylists: [{ id: "pl-1", name: "Road Trip" }],
+        flowStats: {},
+      },
+      refetch: jest.fn(),
+    });
+
+    const { getByText, queryByText } = await render(<FlowScreen />);
+
+    expect(getByText("Chill")).toBeTruthy();
+    expect(queryByText("Road Trip")).toBeNull();
+  });
+
+  it("offers to create a flow when only static playlists exist", async () => {
+    mockUseFlowStatusSuspense.mockReturnValue({
+      data: {
+        flows: [],
+        sharedPlaylists: [{ id: "pl-1", name: "Road Trip" }],
+        flowStats: {},
+      },
+      refetch: jest.fn(),
+    });
+
+    const { getByText } = await render(<FlowScreen />);
+    await fireEvent.press(getByText("Create Flow"));
+
+    expect(getByText("No flows yet")).toBeTruthy();
+    expect(mockPush).toHaveBeenCalledWith("/(app)/(tabs)/(flow)/flow-edit");
   });
 });

@@ -72,7 +72,7 @@ export function PlaylistDetailSheet({
     if (!playlist) return;
     dismiss();
     router.push({
-      pathname: "/(app)/(tabs)/(flow)/playlist-edit",
+      pathname: "/(app)/(tabs)/(library)/playlist-edit",
       params: { id: playlist.id },
     });
   };

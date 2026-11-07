@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
 import { Text } from "@/components/ui/Text";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 
@@ -9,6 +10,7 @@ type Category = {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   route: Href;
+  requiresFlowAccess?: boolean;
 };
 
 /**
@@ -21,25 +23,35 @@ const CATEGORIES: Category[] = [
   { icon: "disc-outline", label: "Albums", route: "/albums" },
   { icon: "pricetags-outline", label: "Genres", route: "/genres" },
   { icon: "heart-outline", label: "Favorites", route: "/favorites" },
+  {
+    icon: "list-outline",
+    label: "Playlists",
+    route: "/playlists",
+    requiresFlowAccess: true,
+  },
 ];
 
 const ICON_SIZE = 22;
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const hasPermission = useHasPermission();
+  const categories = CATEGORIES.filter(
+    (category) => !category.requiresFlowAccess || hasPermission("accessFlow"),
+  );
 
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
     >
-      {CATEGORIES.map((category, index) => (
+      {categories.map((category, index) => (
         <CategoryRow
           key={category.label}
           category={category}
           // The last row drops its separator, so the list does not end on a
           // hairline hanging under nothing.
-          separator={index < CATEGORIES.length - 1}
+          separator={index < categories.length - 1}
           onPress={() => router.push(category.route)}
         />
       ))}

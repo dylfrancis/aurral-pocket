@@ -64,6 +64,22 @@ export default function LibraryLayout() {
           }}
         />
         <Stack.Screen
+          name="playlists"
+          options={{
+            title: "Playlists",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
+          name="playlist-edit"
+          options={{
+            title: "Playlist",
+            headerBackButtonDisplayMode: "minimal",
+            presentation: "card",
+          }}
+        />
+        <Stack.Screen
           name="artist/[mbid]"
           options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
         />

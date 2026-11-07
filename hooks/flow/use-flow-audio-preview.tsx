@@ -63,7 +63,8 @@ export function FlowAudioPreviewProvider({
     [status.currentId, status.isPlaying, status.isPaused, status.isBuffering],
   );
 
-  // The flow tab fires this on every blur; pauseClip spares album playback.
+  // Screens hosting these jobs fire this on blur; pauseClip spares album
+  // playback.
   const stop = useCallback(() => {
     void pauseClip();
   }, []);
