@@ -68,8 +68,10 @@ jest.mock("@gorhom/bottom-sheet", () => {
 });
 
 import React from "react";
-import { render } from "@testing-library/react-native";
+import { Alert } from "react-native";
+import { fireEvent, render } from "@testing-library/react-native";
 import { FlowDetailSheet } from "@/components/flow/FlowDetailSheet";
+import { useFlowStats, useFlowStatus } from "@/hooks/flow";
 
 const FLOW = {
   id: "flow-1",
@@ -104,5 +106,39 @@ describe("FlowDetailSheet", () => {
     expect(getByText("Start Now")).toBeTruthy();
     expect(getByText("Enabled")).toBeTruthy();
     expect(queryByText(/Retry/)).toBeNull();
+  });
+
+  describe("converting to a static playlist", () => {
+    it.each([
+      ["no playlist has the name", [], "Shoegaze Essentials Static"],
+      [
+        "the name is taken, in any case",
+        ["shoegaze essentials static"],
+        "Shoegaze Essentials Static 2",
+      ],
+      [
+        "the numbered name is taken too",
+        ["Shoegaze Essentials Static", "Shoegaze Essentials Static 2"],
+        "Shoegaze Essentials Static 3",
+      ],
+    ])("picks the name when %s", async (_case, taken, expected) => {
+      mockFlow = FLOW;
+      mockMutation.mutate.mockClear();
+      (useFlowStats as jest.Mock).mockReturnValueOnce({ done: 1 });
+      (useFlowStatus as jest.Mock).mockReturnValueOnce({
+        data: { sharedPlaylists: taken.map((name) => ({ name })) },
+      });
+      const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+
+      const { getByText } = await renderSheet();
+      await fireEvent.press(getByText("Convert to Static"));
+      alert.mock.calls[0][2]?.[1].onPress?.();
+
+      expect(mockMutation.mutate).toHaveBeenCalledWith({
+        flowId: "flow-1",
+        name: expected,
+      });
+      alert.mockRestore();
+    });
   });
 });

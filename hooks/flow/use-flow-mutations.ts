@@ -32,6 +32,29 @@ function toastError(title: string, err: Error) {
   Burnt.toast({ title, message: err.message, preset: "error" });
 }
 
+const NAME_CONFLICT = /^(?:Flow name|Playlist) "(.+)" already exists$/;
+
+/**
+ * Flows and static playlists share one namespace, but the server words a
+ * conflict by the kind being saved: `Flow name "Chill" already exists` can mean
+ * a static playlist, which the Flows tab doesn't list. Saves to a static
+ * playlist never reach this: they are queued, so the server has already
+ * answered by the time it checks the name.
+ */
+function rethrowClearNameConflict(err: unknown): never {
+  if (err instanceof ApiError) {
+    const name = NAME_CONFLICT.exec(err.message)?.[1];
+    if (name) {
+      throw new ApiError(
+        err.status,
+        `"${name}" is already used by a flow or a playlist.`,
+        err.body,
+      );
+    }
+  }
+  throw err;
+}
+
 function useFlowInvalidate() {
   const queryClient = useQueryClient();
   return () =>
@@ -44,7 +67,8 @@ function useFlowInvalidate() {
 export function useCreateFlow() {
   const invalidate = useFlowInvalidate();
   return useMutation({
-    mutationFn: (payload: FlowFormValues) => createFlow(payload),
+    mutationFn: (payload: FlowFormValues) =>
+      createFlow(payload).catch(rethrowClearNameConflict),
     onSuccess: invalidate,
   });
 }
@@ -58,7 +82,7 @@ export function useUpdateFlow() {
     }: {
       flowId: string;
       payload: Partial<FlowFormValues>;
-    }) => updateFlow(flowId, payload),
+    }) => updateFlow(flowId, payload).catch(rethrowClearNameConflict),
     onSuccess: invalidate,
   });
 }
@@ -121,8 +145,17 @@ export function useConvertFlowToStaticPlaylist() {
   const invalidate = useFlowInvalidate();
   return useMutation({
     mutationFn: ({ flowId, name }: { flowId: string; name?: string }) =>
-      convertFlowToStaticPlaylist(flowId, name),
-    onSuccess: invalidate,
+      convertFlowToStaticPlaylist(flowId, name).catch(rethrowClearNameConflict),
+    onSuccess: (playlist) => {
+      // Android's toast shows only the title, so the place goes there.
+      Burnt.toast({
+        title: "Saved to Playlists in Library",
+        message: playlist.name,
+        preset: "done",
+      });
+      return invalidate();
+    },
+    onError: (err) => toastError("Couldn't save playlist", err),
   });
 }
 

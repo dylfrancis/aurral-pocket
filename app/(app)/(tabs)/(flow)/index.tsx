@@ -1,36 +1,22 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
-import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import Settings from "@expo/material-symbols/settings.xml";
 import Add from "@expo/material-symbols/add.xml";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
-import { Text } from "@/components/ui/Text";
 import { EmptyState } from "@/components/library/EmptyState";
 import { FlowCard } from "@/components/flow/FlowCard";
-import { PlaylistCard } from "@/components/flow/PlaylistCard";
 import { FlowDetailSheet } from "@/components/flow/FlowDetailSheet";
-import { PlaylistDetailSheet } from "@/components/flow/PlaylistDetailSheet";
 import { useFlowStatusSuspense, useSetFlowEnabled } from "@/hooks/flow";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
-import type { Flow, PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
-
-type SectionRow =
-  | { kind: "header"; title: string; key: string }
-  | { kind: "flow"; flow: Flow; stats?: PlaylistStats; key: string }
-  | {
-      kind: "playlist";
-      playlist: SharedPlaylist;
-      stats?: PlaylistStats;
-      retryPaused?: boolean;
-      key: string;
-    };
+import type { Flow } from "@/lib/types/flow";
 
 /**
  * NativeTabs mounts every tab's screen at launch — `hidden` on a Trigger only
@@ -49,7 +35,7 @@ export default function FlowScreen() {
       <ScreenCenter>
         <EmptyState
           icon="lock-closed-outline"
-          message="You don't have access to Playlists"
+          message="You don't have access to Flows"
         />
       </ScreenCenter>
     );
@@ -71,7 +57,7 @@ function FlowScreenContent() {
       const result = await refetch();
       if (result.isError) {
         Burnt.toast({
-          title: "Couldn't refresh playlists",
+          title: "Couldn't refresh flows",
           preset: "error",
         });
       }
@@ -81,41 +67,8 @@ function FlowScreenContent() {
   }, [refetch]);
 
   const flowSheetRef = useRef<BottomSheetModal>(null);
-  const playlistSheetRef = useRef<BottomSheetModal>(null);
   const [activeFlowId, setActiveFlowId] = useState<string | null>(null);
-  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [deletingFlowId, setDeletingFlowId] = useState<string | null>(null);
-  const [deletingPlaylistId, setDeletingPlaylistId] = useState<string | null>(
-    null,
-  );
-
-  const rows = useMemo<SectionRow[]>(() => {
-    const out: SectionRow[] = [];
-    if (data.flows.length > 0) {
-      out.push({ kind: "header", title: "Flows", key: "h-flows" });
-      for (const flow of data.flows) {
-        out.push({
-          kind: "flow",
-          flow,
-          stats: data.flowStats?.[flow.id],
-          key: `flow-${flow.id}`,
-        });
-      }
-    }
-    if (data.sharedPlaylists.length > 0) {
-      out.push({ kind: "header", title: "Playlists", key: "h-playlists" });
-      for (const playlist of data.sharedPlaylists) {
-        out.push({
-          kind: "playlist",
-          playlist,
-          stats: data.sharedPlaylistStats?.[playlist.id],
-          retryPaused: !!data.retryCyclePausedByPlaylist?.[playlist.id],
-          key: `pl-${playlist.id}`,
-        });
-      }
-    }
-    return out;
-  }, [data]);
 
   const openFlow = useCallback(
     (flowId: string) => {
@@ -126,65 +79,22 @@ function FlowScreenContent() {
     [deletingFlowId],
   );
 
-  const openPlaylist = useCallback(
-    (playlistId: string) => {
-      if (deletingPlaylistId === playlistId) return;
-      setActivePlaylistId(playlistId);
-      playlistSheetRef.current?.present();
-    },
-    [deletingPlaylistId],
-  );
-
+  const flowStats = data.flowStats;
   const renderItem = useCallback(
-    ({ item }: { item: SectionRow }) => {
-      if (item.kind === "header") {
-        return (
-          <Text
-            variant="subtitle"
-            style={[
-              styles.sectionHeader,
-              { color: colors.text, ...Fonts.semiBold },
-            ]}
-          >
-            {item.title}
-          </Text>
-        );
-      }
-      if (item.kind === "flow") {
-        return (
-          <View style={styles.cardWrap}>
-            <FlowCard
-              flow={item.flow}
-              stats={item.stats}
-              isDeleting={deletingFlowId === item.flow.id}
-              onPress={() => openFlow(item.flow.id)}
-              onToggleEnabled={(next) =>
-                setEnabled.mutate({ flowId: item.flow.id, enabled: next })
-              }
-            />
-          </View>
-        );
-      }
-      return (
-        <View style={styles.cardWrap}>
-          <PlaylistCard
-            playlist={item.playlist}
-            stats={item.stats}
-            retryPaused={item.retryPaused}
-            isDeleting={deletingPlaylistId === item.playlist.id}
-            onPress={() => openPlaylist(item.playlist.id)}
-          />
-        </View>
-      );
-    },
-    [
-      colors.text,
-      openFlow,
-      openPlaylist,
-      setEnabled,
-      deletingFlowId,
-      deletingPlaylistId,
-    ],
+    ({ item: flow }: { item: Flow }) => (
+      <View style={styles.cardWrap}>
+        <FlowCard
+          flow={flow}
+          stats={flowStats?.[flow.id]}
+          isDeleting={deletingFlowId === flow.id}
+          onPress={() => openFlow(flow.id)}
+          onToggleEnabled={(next) =>
+            setEnabled.mutate({ flowId: flow.id, enabled: next })
+          }
+        />
+      </View>
+    ),
+    [flowStats, openFlow, setEnabled, deletingFlowId],
   );
 
   const openWorkerSettings = useCallback(
@@ -215,10 +125,9 @@ function FlowScreenContent() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <FlashList
-        data={rows}
+        data={data.flows}
         renderItem={renderItem}
-        keyExtractor={(item) => item.key}
-        getItemType={(item) => item.kind}
+        keyExtractor={(flow) => flow.id}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
           ...styles.listContent,
@@ -228,11 +137,9 @@ function FlowScreenContent() {
           <View style={styles.emptyWrap}>
             <EmptyState
               icon="albums-outline"
-              message="No flows or playlists yet"
+              message="No flows yet"
               actionLabel="Create Flow"
-              onAction={() => {
-                router.push("/(app)/(tabs)/(flow)/flow-edit");
-              }}
+              onAction={openCreateFlow}
             />
           </View>
         }
@@ -250,31 +157,12 @@ function FlowScreenContent() {
         onClose={() => setActiveFlowId(null)}
         onDeleting={setDeletingFlowId}
       />
-      <PlaylistDetailSheet
-        sheetRef={playlistSheetRef}
-        playlistId={activePlaylistId}
-        onClose={() => setActivePlaylistId(null)}
-        onDeleting={setDeletingPlaylistId}
-      />
     </>
   );
 }
 
-export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
-  const { reset } = useQueryErrorResetBoundary();
-  return (
-    <ScreenCenter>
-      <EmptyState
-        icon="cloud-offline-outline"
-        message="Failed to load playlists"
-        actionLabel="Try Again"
-        onAction={() => {
-          reset();
-          retry();
-        }}
-      />
-    </ScreenCenter>
-  );
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <RouteErrorBoundary {...props} message="Failed to load flows" />;
 }
 
 const styles = StyleSheet.create({
@@ -282,11 +170,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 32,
-  },
-  sectionHeader: {
-    fontSize: 20,
-    paddingTop: 18,
-    paddingBottom: 6,
   },
   cardWrap: {
     paddingBottom: 12,

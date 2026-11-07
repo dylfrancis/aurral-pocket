@@ -10,6 +10,10 @@ jest.mock("@/lib/player/player", () => ({
   setShuffle: jest.fn(),
 }));
 
+jest.mock("@/hooks/auth/use-has-permission", () => ({
+  useHasPermission: () => () => false,
+}));
+
 jest.mock("@/components/player/MiniPlayerHost", () => ({
   MiniPlayerHost: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -163,6 +167,8 @@ async function openFavorites(initialUrl = "/favorites", client = makeClient()) {
       genres: OtherRoute,
       "genre/[genre]": OtherRoute,
       blocklist: OtherRoute,
+      playlists: OtherRoute,
+      "playlist-edit": OtherRoute,
       "artist/albums": OtherRoute,
       "artist/releases": OtherRoute,
       "release/[mbid]": OtherRoute,

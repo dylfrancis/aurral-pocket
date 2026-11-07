@@ -92,6 +92,23 @@ export function historyArtistMbid(item: ActivityHistoryItem): string | null {
   return mbid;
 }
 
+/** Album requests carry an artist MBID directly, history entries only via their href. */
+export function activityArtistMbid(item: ActivityItem): string | null {
+  if (!isAlbumRequest(item)) return historyArtistMbid(item);
+  const mbid = item.artistMbid;
+  if (!mbid || mbid === "null" || mbid === "undefined") return null;
+  return mbid;
+}
+
+/**
+ * Album downloads file their jobs under the reserved id "library", which is
+ * neither a flow nor a playlist.
+ */
+export function historyPlaylistId(item: ActivityHistoryItem): string | null {
+  const id = item.playlistId;
+  return id && id !== "library" ? id : null;
+}
+
 /**
  * Both variants expose an ISO requestedAt, so the merged feed sorts on one key.
  */

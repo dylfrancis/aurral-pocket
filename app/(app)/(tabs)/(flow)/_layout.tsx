@@ -28,7 +28,7 @@ export default function FlowLayout() {
         <Stack.Screen
           name="index"
           options={{
-            title: "Playlists",
+            title: "Flows",
             headerLargeTitleEnabled: true,
           }}
         />
@@ -36,14 +36,6 @@ export default function FlowLayout() {
           name="flow-edit"
           options={{
             title: "Flow",
-            headerBackButtonDisplayMode: "minimal",
-            presentation: "card",
-          }}
-        />
-        <Stack.Screen
-          name="playlist-edit"
-          options={{
-            title: "Playlist",
             headerBackButtonDisplayMode: "minimal",
             presentation: "card",
           }}
