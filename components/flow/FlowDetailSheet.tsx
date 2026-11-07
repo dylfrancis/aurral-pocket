@@ -36,9 +36,22 @@ import {
 } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import type { FlowJob } from "@/lib/types/flow";
+import type { FlowJob, SharedPlaylist } from "@/lib/types/flow";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * Numbered the way the web does. Otherwise a second conversion of the same flow
+ * fails on the name.
+ */
+function nextStaticPlaylistName(flowName: string, playlists: SharedPlaylist[]) {
+  const toKey = (name: string) => name.trim().toLowerCase();
+  const taken = new Set(playlists.map((playlist) => toKey(playlist.name)));
+  const base = `${flowName} Static`;
+  let name = base;
+  for (let n = 2; taken.has(toKey(name)); n += 1) name = `${base} ${n}`;
+  return name;
+}
 
 type Props = {
   sheetRef: React.RefObject<BottomSheetModal | null>;
@@ -113,7 +126,10 @@ export function FlowDetailSheet({
           onPress: () =>
             convertFlow.mutate({
               flowId: flow.id,
-              name: `${flow.name} Static`,
+              name: nextStaticPlaylistName(
+                flow.name,
+                status?.sharedPlaylists ?? [],
+              ),
             }),
         },
       ],
