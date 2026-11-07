@@ -5,6 +5,7 @@ import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { useReleaseGrid } from "@/hooks/library/use-release-grid";
 import { releaseRouteParams } from "@/lib/library-read";
+import { comparePopularReleases } from "@/lib/release-groups";
 import type { ReleaseGroup } from "@/lib/types/library";
 
 function releaseYear(date?: string | null) {
@@ -17,7 +18,7 @@ const releaseConfig = {
   variant: "releases" as const,
   getDate: (rg: ReleaseGroup) => rg["first-release-date"],
   getName: (rg: ReleaseGroup) => rg.title,
-  supportsMissing: false,
+  comparePopularity: comparePopularReleases,
 };
 
 export function ReleasesGridScreen() {

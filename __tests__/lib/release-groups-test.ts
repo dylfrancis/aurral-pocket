@@ -1,4 +1,8 @@
-import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
+import {
+  comparePopularReleases,
+  groupReleasesBySection,
+  librarySection,
+} from "@/lib/release-groups";
 import type {
   Album,
   PrimaryReleaseType,
@@ -65,6 +69,44 @@ describe("groupReleasesBySection", () => {
     const grouped = groupReleasesBySection([RELEASES[0]]);
 
     expect([...grouped.keys()]).toEqual(["Album"]);
+  });
+});
+
+describe("comparePopularReleases", () => {
+  it("puts the most listeners first, with no listener count as 0", () => {
+    expect(titles([...RELEASES].sort(comparePopularReleases))).toEqual([
+      "Classic",
+      "Hits",
+      "Studio",
+      "Early EP",
+      "Concert",
+      "Lead Single",
+      "Radio Show",
+      "Box Set",
+      "B-Sides",
+      "Oddity",
+    ]);
+  });
+
+  it("breaks a listener tie by kind before date, and only then newest first", () => {
+    const tied = [
+      release("Remix Album", "Album", "2024-01-01", {
+        secondary: ["Remix"],
+        listeners: 10,
+      }),
+      release("Single", "Single", "2023-01-01", { listeners: 10 }),
+      release("EP", "EP", "2022-01-01", { listeners: 10 }),
+      release("Old Album", "Album", "2020-01-01", { listeners: 10 }),
+      release("New Album", "Album", "2021-01-01", { listeners: 10 }),
+    ];
+
+    expect(titles(tied.sort(comparePopularReleases))).toEqual([
+      "New Album",
+      "Old Album",
+      "EP",
+      "Single",
+      "Remix Album",
+    ]);
   });
 });
 

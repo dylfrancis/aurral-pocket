@@ -15,6 +15,8 @@ export const RELEASE_SECTIONS: { type: PrimaryReleaseType; label: string }[] = [
   { type: "Other", label: "Other" },
 ];
 
+const POPULAR_KIND_ORDER = ["Album", "EP", "Single"];
+
 const isCompilation = (
   primary: PrimaryReleaseType,
   secondary: SecondaryReleaseType[],
@@ -22,6 +24,20 @@ const isCompilation = (
 
 const compareDates = (a: ReleaseGroup, b: ReleaseGroup) =>
   (a["first-release-date"] ?? "").localeCompare(b["first-release-date"] ?? "");
+
+function popularKindRank(rg: ReleaseGroup) {
+  if (rg["secondary-types"].length > 0) return POPULAR_KIND_ORDER.length;
+  const rank = POPULAR_KIND_ORDER.indexOf(rg["primary-type"]);
+  return rank === -1 ? POPULAR_KIND_ORDER.length : rank;
+}
+
+export function comparePopularReleases(a: ReleaseGroup, b: ReleaseGroup) {
+  return (
+    (b.listenerCount ?? 0) - (a.listenerCount ?? 0) ||
+    popularKindRank(a) - popularKindRank(b) ||
+    compareDates(b, a)
+  );
+}
 
 export function matchesReleaseSection(
   rg: ReleaseGroup,

@@ -16,6 +16,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useReleaseGrid } from "@/hooks/library/use-release-grid";
+import { comparePopularReleases } from "@/lib/release-groups";
 import type { Album, ReleaseGroup } from "@/lib/types/library";
 
 const mockUseLocalSearchParams = useLocalSearchParams as jest.Mock;
@@ -26,7 +27,6 @@ const albumConfig = {
   variant: "albums" as const,
   getDate: (a: Album) => a.releaseDate,
   getName: (a: Album) => a.albumName,
-  supportsMissing: true,
   isMissing: () => false,
 };
 
@@ -204,7 +204,7 @@ describe("useReleaseGrid releases", () => {
     variant: "releases" as const,
     getDate: (rg: ReleaseGroup) => rg["first-release-date"],
     getName: (rg: ReleaseGroup) => rg.title,
-    supportsMissing: false,
+    comparePopularity: comparePopularReleases,
   };
 
   const studio: ReleaseGroup = {
@@ -263,4 +263,25 @@ describe("useReleaseGrid releases", () => {
       expect(titles(result.current.items)).toEqual(expected);
     },
   );
+
+  it.each([
+    ["popularity-desc", ["Classic", "Studio"]],
+    ["popularity-asc", ["Studio", "Classic"]],
+  ] as const)("orders the row by %s", async (mode, expected) => {
+    const { result } = await openRow("Album");
+
+    await act(() => result.current.setSortMode(mode));
+
+    expect(titles(result.current.items)).toEqual(expected);
+  });
+
+  it("offers the popularity sorts in place of Missing", async () => {
+    const { result } = await openRow("Album");
+
+    const keys = result.current.sortOptions.map((option) => option.key);
+    expect(keys).toEqual(
+      expect.arrayContaining(["popularity-desc", "popularity-asc"]),
+    );
+    expect(keys).not.toContain("missing");
+  });
 });

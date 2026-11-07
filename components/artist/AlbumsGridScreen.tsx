@@ -18,7 +18,6 @@ const albumConfig = {
   variant: "albums" as const,
   getDate: (a: Album) => a.releaseDate,
   getName: (a: Album) => a.albumName,
-  supportsMissing: true,
   isMissing: (a: Album) =>
     a.statistics.percentOfTracks < 100 && a.statistics.sizeOnDisk === 0,
 };
