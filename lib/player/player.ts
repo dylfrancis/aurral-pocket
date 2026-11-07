@@ -199,6 +199,16 @@ function toEngineTrack(item: PlayerTrack): TrackItem {
   };
 }
 
+export async function playQueueFrom(
+  items: PlayerTrack[],
+  startId: string,
+  context: PlayerAlbumContext,
+): Promise<void> {
+  const run = lastPlay.then(() => replaceAndPlay(items, startId, context));
+  lastPlay = run.catch(() => {});
+  await run;
+}
+
 export async function pause(): Promise<void> {
   await TrackPlayer.pause();
   persistQueue();

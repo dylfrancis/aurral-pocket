@@ -1,4 +1,6 @@
 import { buildAuthenticatedUrl } from "@/lib/api/client";
+import { getFlowArtworkPath, getFlowStreamPath } from "@/lib/api/flow";
+import type { FlowJob } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
 
 /**
@@ -38,6 +40,7 @@ export type PlayerTrack = PlayerClip & {
   albumMbid: string | null;
   /** The key the favorites API addresses this track by. */
   identityKey: string | null;
+  recordHistory?: boolean;
 };
 
 /** The album a track is played from. The engine shows this on the lock screen. */
@@ -86,5 +89,55 @@ export function toPlayerTrack(
     artistMbid: album.artistMbid,
     albumMbid: album.albumMbid,
     identityKey: track.identityKey ?? null,
+  };
+}
+
+export type PlaybackCollection = {
+  id: string;
+  name: string;
+  artworkRevision?: number;
+  recordHistory?: boolean;
+};
+
+export function jobToPlayerTrack(
+  job: FlowJob,
+  collection: PlaybackCollection,
+): PlayerTrack | null {
+  if (job.status !== "done") return null;
+
+  const streamPath = getFlowStreamPath(job.id);
+  const url = buildAuthenticatedUrl(streamPath);
+  if (!url) return null;
+
+  return {
+    id: job.id,
+    title: job.trackName,
+    artist: job.artistName,
+    // Empty rather than the collection's name, which a play event would then
+    // report as the album.
+    album: job.albumName ?? "",
+    duration: 0,
+    url,
+    artwork: null,
+    streamPath,
+    coverPath: getFlowArtworkPath(collection.id, collection.artworkRevision),
+    trackMbid: job.trackMbid,
+    artistMbid: job.artistMbid,
+    albumMbid: job.albumMbid,
+    identityKey: null,
+    recordHistory: collection.recordHistory,
+  };
+}
+
+export function collectionPlayerContext(
+  collection: PlaybackCollection,
+): PlayerAlbumContext {
+  return {
+    albumTitle: collection.name,
+    artistName: "",
+    coverPath: getFlowArtworkPath(collection.id, collection.artworkRevision),
+    artworkUrl: null,
+    albumMbid: null,
+    artistMbid: null,
   };
 }

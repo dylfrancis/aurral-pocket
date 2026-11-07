@@ -1,22 +1,17 @@
-import { useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Card } from "@/components/ui/Card";
-import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
-import { FlowArtwork } from "./FlowArtwork";
-import { useAuth } from "@/contexts/auth-context";
+import { CollectionArtwork } from "./CollectionArtwork";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { getFlowArtworkSource } from "@/lib/api/flow";
 import type { PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
 
 type Props = {
   playlist: SharedPlaylist;
   stats?: PlaylistStats;
   retryPaused?: boolean;
-  isDeleting?: boolean;
   onPress: () => void;
 };
 
@@ -29,64 +24,19 @@ function progressLabel(
   return `${done}/${target} ready`;
 }
 
-export function PlaylistCard({
-  playlist,
-  stats,
-  retryPaused,
-  isDeleting,
-  onPress,
-}: Props) {
+export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
   const colors = Colors[useColorScheme()];
-  const { token } = useAuth();
-  const artworkSource = getFlowArtworkSource(
-    playlist.id,
-    token,
-    playlist.artworkRevision,
-  );
-  // Kept per URL — see FlowCard.
-  const [loadedUri, setLoadedUri] = useState<string | null>(null);
-  const [failedUri, setFailedUri] = useState<string | null>(null);
-  const imageLoaded = loadedUri === artworkSource.uri;
-  const imageFailed = failedUri === artworkSource.uri;
   const progress = progressLabel(stats, playlist.trackCount);
 
-  // Retry a failed load when polling picks up new stats — see FlowCard.
-  const statsKey = stats
-    ? `${stats.done}-${stats.total}`
-    : `count-${playlist.trackCount}`;
-  const [prevStatsKey, setPrevStatsKey] = useState(statsKey);
-  if (prevStatsKey !== statsKey) {
-    setPrevStatsKey(statsKey);
-    setFailedUri(null);
-  }
-
   return (
-    <Card
-      onPress={onPress}
-      disabled={isDeleting}
-      bordered
-      pressedOpacity={0.85}
-      style={styles.card}
-    >
-      <View style={[styles.artwork, { borderColor: colors.separator }]}>
-        <FlowArtwork
-          name={playlist.name}
-          kind="playlist"
-          size={60}
-          radius={10}
-        />
-        {!imageFailed ? (
-          <Image
-            source={artworkSource}
-            style={[StyleSheet.absoluteFill, { opacity: imageLoaded ? 1 : 0 }]}
-            contentFit="cover"
-            transition={150}
-            cachePolicy="memory-disk"
-            onLoad={() => setLoadedUri(artworkSource.uri)}
-            onError={() => setFailedUri(artworkSource.uri)}
-          />
-        ) : null}
-      </View>
+    <Card onPress={onPress} bordered pressedOpacity={0.85} style={styles.card}>
+      <CollectionArtwork
+        collection={playlist}
+        kind="playlist"
+        stats={stats}
+        size={60}
+        radius={10}
+      />
       <View style={styles.body}>
         <Text
           variant="subtitle"
@@ -96,35 +46,24 @@ export function PlaylistCard({
           {playlist.name}
         </Text>
         <Text variant="caption" numberOfLines={1}>
-          {playlist.trackCount} tracks
+          {playlist.trackCount} track{playlist.trackCount === 1 ? "" : "s"}
           {playlist.sourceName ? ` · from ${playlist.sourceName}` : ""}
         </Text>
         <View style={styles.chipRow}>
           <Chip label="Playlist" icon="albums-outline" variant="brand" />
-          {isDeleting ? (
+          {progress ? (
             <View style={styles.progress}>
-              <ActivityIndicator size="small" color={colors.error} />
-              <Text variant="caption" style={{ color: colors.error }}>
-                Cleaning playlist files…
-              </Text>
+              <Ionicons
+                name="cloud-download-outline"
+                size={14}
+                color={colors.subtle}
+              />
+              <Text variant="caption">{progress}</Text>
             </View>
-          ) : (
-            <>
-              {progress ? (
-                <View style={styles.progress}>
-                  <Ionicons
-                    name="cloud-download-outline"
-                    size={14}
-                    color={colors.subtle}
-                  />
-                  <Text variant="caption">{progress}</Text>
-                </View>
-              ) : null}
-              {retryPaused ? (
-                <Chip label="Retry paused" icon="pause" variant="subtle" />
-              ) : null}
-            </>
-          )}
+          ) : null}
+          {retryPaused ? (
+            <Chip label="Retry paused" icon="pause" variant="subtle" />
+          ) : null}
         </View>
       </View>
     </Card>
@@ -137,13 +76,6 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 12,
     alignItems: "center",
-  },
-  artwork: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: "hidden",
   },
   body: {
     flex: 1,

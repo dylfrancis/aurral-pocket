@@ -24,6 +24,7 @@ import {
   previous,
   playAlbumFromTrack,
   playItem,
+  playQueueFrom,
   playQueueItem,
   resume,
   seekTo,
@@ -289,6 +290,23 @@ describe("transport", () => {
     // The preview surfaces fire their stop on blur and on navigation. Album
     // playback must survive those moments.
     await playAlbumFromTrack([track()], track(), album);
+
+    await pauseClip();
+
+    expect(player.pause).not.toHaveBeenCalled();
+  });
+
+  it("pauseClip leaves a playlist's queue alone", async () => {
+    const playlistTrack = {
+      ...clip,
+      streamPath: "/playlists/stream/job-1",
+      coverPath: null,
+      trackMbid: null,
+      artistMbid: null,
+      albumMbid: null,
+      identityKey: null,
+    };
+    await playQueueFrom([playlistTrack], playlistTrack.id, album);
 
     await pauseClip();
 

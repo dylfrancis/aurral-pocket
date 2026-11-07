@@ -1,36 +1,22 @@
-import { useState } from "react";
-import { ActivityIndicator, StyleSheet, Switch, View } from "react-native";
+import { StyleSheet, Switch, View } from "react-native";
 import { Card } from "@/components/ui/Card";
-import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
+import { CollectionArtwork } from "./CollectionArtwork";
 import { MixPills } from "./MixPills";
 import { ProgressBar } from "./ProgressBar";
-import { FlowArtwork } from "./FlowArtwork";
-import { useAuth } from "@/contexts/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import { getFlowArtworkSource } from "@/lib/api/flow";
+import { scheduleLabel } from "@/lib/flow-schedule";
 import type { Flow, PlaylistStats } from "@/lib/types/flow";
-
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 type Props = {
   flow: Flow;
   stats?: PlaylistStats;
-  isDeleting?: boolean;
   onPress: () => void;
   onToggleEnabled: (enabled: boolean) => void;
 };
-
-function scheduleLabel(flow: Flow): string {
-  if (!flow.scheduleDays?.length) return "Manual";
-  const days = flow.scheduleDays
-    .map((d) => DAY_LABELS[d] ?? "")
-    .filter(Boolean);
-  return `${days.join(", ")} · ${flow.scheduleTime}`;
-}
 
 function progressLabel(
   stats: PlaylistStats | undefined,
@@ -41,64 +27,20 @@ function progressLabel(
   return `${done}/${target} ready`;
 }
 
-export function FlowCard({
-  flow,
-  stats,
-  isDeleting,
-  onPress,
-  onToggleEnabled,
-}: Props) {
+export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
   const colors = Colors[useColorScheme()];
-  const { token } = useAuth();
-  const artworkSource = getFlowArtworkSource(
-    flow.id,
-    token,
-    flow.artworkRevision,
-  );
-  // Kept per URL: new artwork arrives under a new revision, so a new URL,
-  // which starts unloaded and unfailed.
-  const [loadedUri, setLoadedUri] = useState<string | null>(null);
-  const [failedUri, setFailedUri] = useState<string | null>(null);
-  const imageLoaded = loadedUri === artworkSource.uri;
-  const imageFailed = failedUri === artworkSource.uri;
   const progress = progressLabel(stats, flow.size);
 
-  // Retry a failed load when polling picks up new stats — the backend writes
-  // the artwork when a flow first runs, so a stats change is a good signal
-  // that the previously-404'd URL is now valid.
-  const statsKey = stats ? `${stats.done}-${stats.total}` : "none";
-  const [prevStatsKey, setPrevStatsKey] = useState(statsKey);
-  if (prevStatsKey !== statsKey) {
-    setPrevStatsKey(statsKey);
-    setFailedUri(null);
-  }
-
   return (
-    <Card
-      onPress={onPress}
-      disabled={isDeleting}
-      bordered
-      pressedOpacity={0.85}
-      style={styles.card}
-    >
+    <Card onPress={onPress} bordered pressedOpacity={0.85} style={styles.card}>
       <View style={styles.topRow}>
-        <View style={[styles.artwork, { borderColor: colors.separator }]}>
-          <FlowArtwork name={flow.name} kind="flow" size={60} radius={10} />
-          {!imageFailed ? (
-            <Image
-              source={artworkSource}
-              style={[
-                StyleSheet.absoluteFill,
-                { opacity: imageLoaded ? 1 : 0 },
-              ]}
-              contentFit="cover"
-              transition={150}
-              cachePolicy="memory-disk"
-              onLoad={() => setLoadedUri(artworkSource.uri)}
-              onError={() => setFailedUri(artworkSource.uri)}
-            />
-          ) : null}
-        </View>
+        <CollectionArtwork
+          collection={flow}
+          kind="flow"
+          stats={stats}
+          size={60}
+          radius={10}
+        />
         <View style={styles.titleGroup}>
           <Text
             variant="subtitle"
@@ -114,7 +56,6 @@ export function FlowCard({
         <Switch
           value={flow.enabled}
           onValueChange={onToggleEnabled}
-          disabled={isDeleting}
           trackColor={{ false: colors.separator, true: colors.brand }}
           thumbColor={colors.switchThumb}
           ios_backgroundColor={colors.separator}
@@ -131,14 +72,7 @@ export function FlowCard({
             <Chip label="Deeper Cuts" icon="layers-outline" variant="brand" />
           ) : null}
         </View>
-        {isDeleting ? (
-          <View style={styles.progress}>
-            <ActivityIndicator size="small" color={colors.error} />
-            <Text variant="caption" style={{ color: colors.error }}>
-              Cleaning existing flow files…
-            </Text>
-          </View>
-        ) : progress ? (
+        {progress ? (
           <View style={styles.progress}>
             <Ionicons
               name="cloud-download-outline"
@@ -162,13 +96,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-  },
-  artwork: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: "hidden",
   },
   titleGroup: {
     flex: 1,

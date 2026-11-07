@@ -2,31 +2,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, Pressable, StyleSheet, View } from "react-native";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
-import {
-  BottomSheetModal,
-  BottomSheetScrollView,
-  BottomSheetTextInput,
-} from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
-import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
+import { NewPlaylistSheet } from "./NewPlaylistSheet";
+import { CollectionArtwork } from "./CollectionArtwork";
 // Imported from the hook modules, not the @/hooks/flow barrel: the barrel
 // pulls in use-flow-audio-preview and with it the audio engine, which
 // artist-page consumers of this sheet do not otherwise load.
-import {
-  useAddSharedPlaylistTracks,
-  useCreateSharedPlaylist,
-} from "@/hooks/flow/use-flow-mutations";
+import { useAddSharedPlaylistTracks } from "@/hooks/flow/use-flow-mutations";
 import { useSharedPlaylists } from "@/hooks/flow/use-flow-selectors";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { SHEET_BOTTOM_PADDING } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
 import { buildSharedTrackIdentity } from "@/lib/shared-track-identity";
 import type { ApiError } from "@/lib/api/client";
 import type { SharedPlaylist, SharedPlaylistTrack } from "@/lib/types/flow";
+
+const ROW_ARTWORK_SIZE = 44;
 
 type Props = {
   /** The track to save. The sheet is closed while this is null. */
@@ -57,7 +52,7 @@ export function useAddToPlaylist() {
 
 /**
  * Bottom sheet that saves one track into a static playlist — an existing one,
- * or a new one named inline. Mounted only while a track is set, so the flow
+ * or a new one named in a sheet on top. Mounted only while a track is set, so the flow
  * status query behind useSharedPlaylists() does not run until the sheet opens.
  * Callers must gate on the accessFlow permission; that query 403s without it.
  */
@@ -73,16 +68,13 @@ function AddToPlaylistSheetContent({
   track: SharedPlaylistTrack;
   onClose: () => void;
 }) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme];
-  const insets = useSafeAreaInsets();
+  const colors = Colors[useColorScheme()];
   const sheetRef = useRef<BottomSheetModal>(null);
-  const [draftName, setDraftName] = useState("");
+  const [isNaming, setIsNaming] = useState(false);
 
   const playlists = useSharedPlaylists();
   const addTracks = useAddSharedPlaylistTracks();
-  const createPlaylist = useCreateSharedPlaylist();
-  const isPending = addTracks.isPending || createPlaylist.isPending;
+  const isPending = addTracks.isPending;
 
   // The server skips an append when the playlist already contains the track,
   // so a tap there would toast "Added" while changing nothing. Marking those
@@ -123,51 +115,57 @@ function AddToPlaylistSheetContent({
     );
   };
 
-  const handleCreate = () => {
-    const name = draftName.trim();
-    if (!name || isPending) return;
-    createPlaylist.mutate(
-      { name, tracks: [track] },
-      {
-        onSuccess: () => finishSuccess(`Created "${name}"`),
-        onError: (err) => finishError("Couldn't create playlist", err),
-      },
-    );
-  };
-
   const subtitle = `"${track.trackName}" · ${track.artistName}`;
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      background="card"
-      enableDynamicSizing
-      enablePanDownToClose
-      stackBehavior="push"
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      onDismiss={handleDismiss}
-    >
-      <BottomSheetScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + 16 },
-        ]}
-        keyboardShouldPersistTaps="handled"
+    <>
+      <AppSheet
+        ref={sheetRef}
+        background="card"
+        enableDynamicSizing
+        enablePanDownToClose
+        stackBehavior="push"
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        onDismiss={handleDismiss}
       >
-        <Text variant="title" style={[styles.title, { ...Fonts.semiBold }]}>
-          Add to Playlist
-        </Text>
-        <Text
-          variant="caption"
-          numberOfLines={1}
-          style={[styles.subtitle, { color: colors.subtle }]}
+        <BottomSheetScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: SHEET_BOTTOM_PADDING },
+          ]}
+          keyboardShouldPersistTaps="handled"
         >
-          {subtitle}
-        </Text>
+          <Text variant="title" style={[styles.title, { ...Fonts.semiBold }]}>
+            Add to Playlist
+          </Text>
+          <Text
+            variant="caption"
+            numberOfLines={1}
+            style={[styles.subtitle, { color: colors.subtle }]}
+          >
+            {subtitle}
+          </Text>
 
-        {playlists.length > 0 ? (
           <View style={[styles.list, { borderColor: colors.separator }]}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setIsNaming(true)}
+              style={({ pressed }) => [
+                styles.playlistRow,
+                { borderBottomColor: colors.separator },
+                { opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <View
+                style={[styles.newIcon, { backgroundColor: colors.brandMuted }]}
+              >
+                <Ionicons name="add" size={24} color={colors.brandStrong} />
+              </View>
+              <Text variant="body" style={{ ...Fonts.medium }}>
+                New Playlist
+              </Text>
+            </Pressable>
             {playlists.map((playlist) => {
               const alreadyAdded =
                 !!playlist.trackIdentities?.includes(trackIdentity);
@@ -189,18 +187,12 @@ function AddToPlaylistSheetContent({
                     },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.playlistIcon,
-                      { backgroundColor: colors.brandMuted },
-                    ]}
-                  >
-                    <Ionicons
-                      name="musical-notes"
-                      size={16}
-                      color={colors.brandStrong}
-                    />
-                  </View>
+                  <CollectionArtwork
+                    collection={playlist}
+                    kind="playlist"
+                    size={ROW_ARTWORK_SIZE}
+                    radius={8}
+                  />
                   <View style={styles.playlistBody}>
                     <Text
                       variant="body"
@@ -228,33 +220,18 @@ function AddToPlaylistSheetContent({
               );
             })}
           </View>
-        ) : null}
-
-        <Text
-          variant="caption"
-          style={[styles.newLabel, { color: colors.subtle }]}
-        >
-          New Playlist
-        </Text>
-        <BottomSheetTextInput
-          style={[inputBaseStyle, inputThemedStyle(colorScheme), styles.input]}
-          placeholder="Playlist name"
-          placeholderTextColor={colors.placeholder}
-          value={draftName}
-          onChangeText={setDraftName}
-          autoCapitalize="words"
-          autoCorrect={false}
-          returnKeyType="done"
-          onSubmitEditing={handleCreate}
+        </BottomSheetScrollView>
+      </AppSheet>
+      {isNaming ? (
+        <NewPlaylistSheet
+          track={track}
+          subtitle={subtitle}
+          onCreated={(name) => finishSuccess(`Created "${name}"`)}
+          onFailed={(err) => finishError("Couldn't create playlist", err)}
+          onDismiss={() => setIsNaming(false)}
         />
-        <Button
-          title="Create and Add"
-          onPress={handleCreate}
-          loading={createPlaylist.isPending}
-          disabled={!draftName.trim() || isPending}
-        />
-      </BottomSheetScrollView>
-    </AppSheet>
+      ) : null}
+    </>
   );
 }
 
@@ -281,9 +258,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  playlistIcon: {
-    width: 36,
-    height: 36,
+  newIcon: {
+    width: ROW_ARTWORK_SIZE,
+    height: ROW_ARTWORK_SIZE,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
@@ -291,14 +268,5 @@ const styles = StyleSheet.create({
   playlistBody: {
     flex: 1,
     gap: 2,
-  },
-  newLabel: {
-    ...Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  input: {
-    marginBottom: 12,
   },
 });

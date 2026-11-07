@@ -12,20 +12,6 @@ jest.mock("@/contexts/auth-context", () => ({
   }),
 }));
 
-jest.mock("@/lib/player/player", () => ({
-  pause: jest.fn(),
-  pauseClip: jest.fn(),
-  playItem: jest.fn(),
-  resume: jest.fn(),
-  usePlayerStatus: () => ({
-    currentId: null,
-    isPlaying: false,
-    isPaused: false,
-    isBuffering: false,
-    progress: 0,
-  }),
-}));
-
 jest.mock("@/components/player/MiniPlayerHost", () => ({
   MiniPlayerHost: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -35,42 +21,30 @@ jest.mock("@shopify/flash-list", () => {
   return { FlashList: FlatList };
 });
 
-jest.mock("@/components/ui/AppSheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    AppSheet: React.forwardRef(function MockAppSheet(
-      { children }: any,
-      _ref: any,
-    ) {
-      return React.createElement(View, null, children);
-    }),
-  };
+// expo-router's testing library installs a Reanimated mock too thin for the
+// page, so its content has its own suite. This one proves the route resolves.
+jest.mock("@/components/flow/PlaylistDetailScreen", () => {
+  const { Text } = require("react-native");
+  return { PlaylistDetailScreen: () => <Text>The playlist page</Text> };
 });
 
-jest.mock("@gorhom/bottom-sheet", () => ({
-  useBottomSheetScrollableCreator: () => undefined,
-}));
-
 import React from "react";
-import { Text } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  act,
   fireEvent,
   renderRouter,
   screen,
   waitFor,
 } from "expo-router/testing-library";
-import { router } from "expo-router";
 import LibraryLayout from "@/app/(app)/(tabs)/(library)/_layout";
 import LibraryHome from "@/app/(app)/(tabs)/(library)/index";
 import LibraryPlaylistsScreen, {
   ErrorBoundary,
 } from "@/app/(app)/(tabs)/(library)/playlists";
-import { FlowAudioPreviewProvider } from "@/hooks/flow";
+import PlaylistRoute, {
+  ErrorBoundary as PlaylistErrorBoundary,
+} from "@/app/(app)/(tabs)/(library)/playlist/[id]";
 import { api } from "@/lib/api/client";
-import { pauseClip } from "@/lib/player/player";
 
 const mockGet = api.get as jest.Mock;
 
@@ -81,6 +55,7 @@ const ROAD_TRIP = {
   name: "Road Trip",
   trackCount: 2,
   tracks: [],
+  recordHistory: true,
 };
 
 const statusResponse = {
@@ -111,7 +86,11 @@ async function open(initialUrl: string) {
     _layout: LibraryLayout,
     index: LibraryHome,
     playlists: { default: LibraryPlaylistsScreen, ErrorBoundary },
-    "playlist-edit": () => <Text>The playlist editor</Text>,
+    "playlist/[id]": {
+      default: PlaylistRoute,
+      ErrorBoundary: PlaylistErrorBoundary,
+    },
+    "playlist-edit": OtherRoute,
     // The layout's other screens, so it finds every route it names.
     artists: OtherRoute,
     albums: OtherRoute,
@@ -135,9 +114,7 @@ async function open(initialUrl: string) {
     {
       initialUrl,
       wrapper: ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={client}>
-          <FlowAudioPreviewProvider>{children}</FlowAudioPreviewProvider>
-        </QueryClientProvider>
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
       ),
     },
   );
@@ -193,28 +170,15 @@ describe("Library > Playlists", () => {
     expect(screen.queryByText("Create Flow")).toBeNull();
   });
 
-  it("edits a playlist from its detail sheet", async () => {
+  it("opens a playlist's page", async () => {
     await open("/playlists");
     await waitFor(() => expect(screen.getByText("Road Trip")).toBeTruthy());
 
     await fireEvent.press(screen.getByText("Road Trip"));
-    await fireEvent.press(await screen.findByLabelText("Edit playlist"));
 
     await waitFor(() =>
-      expect(screen.getByText("The playlist editor")).toBeTruthy(),
+      expect(screen.getByText("The playlist page")).toBeTruthy(),
     );
-    expect(screen).toHavePathname("/playlist-edit");
-    expect(screen).toHaveSearchParams({ id: "pl-1" });
-  });
-
-  it("stops a preview when going back to the Library home", async () => {
-    await open("/");
-    await fireEvent.press(screen.getByText("Playlists"));
-    await waitFor(() => expect(screen.getByText("Road Trip")).toBeTruthy());
-    expect(pauseClip).not.toHaveBeenCalled();
-
-    await act(async () => router.back());
-
-    await waitFor(() => expect(pauseClip).toHaveBeenCalled());
+    expect(screen).toHavePathname("/playlist/pl-1");
   });
 });

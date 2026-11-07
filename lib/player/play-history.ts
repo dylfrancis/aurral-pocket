@@ -16,8 +16,10 @@ import { AppStorage } from "@/lib/storage";
  * A play is reported when a track reaches its natural end, which is what the
  * Aurral web player reports too. A skip is not a play, however far in it came.
  *
- * Only library tracks are reported. A preview clip is a 30-second sample from
- * a discovery surface, not something the user chose to listen to.
+ * Only library, flow and playlist tracks are reported, and a flow or playlist
+ * can opt out. A
+ * preview clip is a 30-second sample from a discovery surface, not something
+ * the user chose to listen to.
  */
 
 /** The value Aurral stores in a play event's `source` column. */
@@ -66,7 +68,7 @@ export function forgetPlayHistory(): Promise<void> {
 }
 
 function toPlayEvent(track: PlayerTrack): PlayEventInput | null {
-  if (!track.streamPath) return null;
+  if (!track.streamPath || track.recordHistory === false) return null;
 
   // The engine reports a track's length as it streams, so the duration comes
   // from the last progress report rather than from the queued track, whose

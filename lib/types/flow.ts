@@ -67,6 +67,7 @@ export type SharedPlaylist = {
   sourceFlowId: string | null;
   trackCount: number;
   tracks?: SharedPlaylistTrack[];
+  recordHistory: boolean;
   /**
    * Dedup keys for the playlist's tracks, from the status snapshot. Compare
    * with buildSharedTrackIdentity to tell whether a track is already in the
@@ -90,6 +91,8 @@ export type FlowJob = {
   trackName: string;
   albumName: string | null;
   artistMbid: string | null;
+  albumMbid: string | null;
+  trackMbid: string | null;
   status: FlowJobStatus;
   finalPath?: string | null;
   reason?: string | null;

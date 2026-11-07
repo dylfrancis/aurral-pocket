@@ -190,7 +190,20 @@ function authedSource(uri: string, token: string | null): FlowAuthedSource {
  * keeps its header; expo-image can send one. Null while signed out.
  */
 export function getFlowStreamUrl(jobId: string): string | null {
-  return buildAuthenticatedUrl(`${FLOW}/stream/${encodeURIComponent(jobId)}`);
+  return buildAuthenticatedUrl(getFlowStreamPath(jobId));
+}
+
+export function getFlowStreamPath(jobId: string): string {
+  return `${FLOW}/stream/${encodeURIComponent(jobId)}`;
+}
+
+/** Server-relative, as a queued track's `coverPath` is. */
+export function getFlowArtworkPath(
+  playlistId: string,
+  artworkRevision?: number,
+): string {
+  const version = artworkRevision != null ? `?v=${artworkRevision}` : "";
+  return `/api${FLOW}/artwork/${encodeURIComponent(playlistId)}${version}`;
 }
 
 /**

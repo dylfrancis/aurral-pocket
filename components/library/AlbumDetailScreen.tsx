@@ -16,7 +16,6 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
 import PlaylistPlay from "@expo/material-symbols/playlist_play.xml";
@@ -27,6 +26,7 @@ import DeleteIcon from "@expo/material-symbols/delete.xml";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
 import { CircleButton } from "@/components/ui/CircleButton";
+import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
 import { Text } from "@/components/ui/Text";
 import { AlbumStatusBadge } from "./AlbumStatusBadge";
 import { CoverArtImage } from "./CoverArtImage";
@@ -50,7 +50,6 @@ import type { DownloadStatusValue } from "@/lib/types/library";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
-const PLAY_ROW_HEIGHT = 50;
 
 type AlbumRouteParams = {
   ref: string;
@@ -351,18 +350,12 @@ export function AlbumDetailScreen() {
           )}
         </View>
 
-        <View style={styles.playRow}>
-          <CircleButton
-            icon="shuffle"
-            size={PLAY_ROW_HEIGHT}
-            accessibilityLabel={`Shuffle ${title}`}
-            onPress={() => void shuffleAlbum(albumTracks, playContext)}
-            disabled={albumTracks.length === 0}
-          />
-          <PlayButton
-            onPress={() => void playAlbum(albumTracks, playContext)}
-            disabled={albumTracks.length === 0}
-          />
+        <PlayRow
+          title={title}
+          disabled={albumTracks.length === 0}
+          onPlay={() => void playAlbum(albumTracks, playContext)}
+          onShuffle={() => void shuffleAlbum(albumTracks, playContext)}
+        >
           {/* Shows while the album loads, so the heart doesn't pop in. The
               spacer keeps Play centered when the album can't be favorited. */}
           {albumLoading || album?.identityKey ? (
@@ -379,7 +372,7 @@ export function AlbumDetailScreen() {
           ) : (
             <View style={styles.circleSpacer} />
           )}
-        </View>
+        </PlayRow>
 
         {tracksLoading ? (
           <ActivityIndicator style={styles.loader} color={colors.brand} />
@@ -408,38 +401,6 @@ export function AlbumDetailScreen() {
   );
 }
 
-function PlayButton({
-  onPress,
-  disabled,
-}: {
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  const colors = Colors[useColorScheme()];
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.playButton,
-        {
-          backgroundColor: colors.brand,
-          opacity: disabled ? 0.5 : pressed ? 0.8 : 1,
-        },
-      ]}
-    >
-      <Ionicons name="play" size={18} color={colors.buttonPrimaryText} />
-      <Text
-        variant="body"
-        style={[styles.playLabel, { color: colors.buttonPrimaryText }]}
-      >
-        Play
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   hero: {
     alignItems: "center",
@@ -454,29 +415,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     ...Fonts.medium,
   },
-  playRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-  },
-  playButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    width: PLAY_ROW_HEIGHT * 3,
-    height: PLAY_ROW_HEIGHT,
-    borderRadius: PLAY_ROW_HEIGHT / 2,
-    borderCurve: "continuous",
-  },
   circleSpacer: {
     width: PLAY_ROW_HEIGHT,
-  },
-  playLabel: {
-    ...Fonts.semiBold,
   },
   loader: {
     paddingVertical: 32,

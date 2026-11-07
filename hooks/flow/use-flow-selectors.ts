@@ -25,16 +25,6 @@ export function useSharedPlaylists(): SharedPlaylist[] {
   return data?.sharedPlaylists ?? [];
 }
 
-export function useSharedPlaylist(
-  playlistId: string | undefined,
-): SharedPlaylist | undefined {
-  const playlists = useSharedPlaylists();
-  return useMemo(
-    () => (playlistId ? playlists.find((p) => p.id === playlistId) : undefined),
-    [playlistId, playlists],
-  );
-}
-
 export function useJobsForPlaylist(
   playlistId: string | undefined,
   { includeFailed = false }: { includeFailed?: boolean } = {},
@@ -53,18 +43,4 @@ export function useFlowStats(
   const { data } = useFlowStatus();
   if (!flowId) return undefined;
   return data?.flowStats?.[flowId];
-}
-
-export function usePlaylistStats(
-  playlistId: string | undefined,
-): PlaylistStats | undefined {
-  const { data } = useFlowStatus();
-  if (!playlistId) return undefined;
-  return data?.sharedPlaylistStats?.[playlistId];
-}
-
-export function useRetryCyclePaused(playlistId: string | undefined): boolean {
-  const { data } = useFlowStatus();
-  if (!playlistId) return false;
-  return !!data?.retryCyclePausedByPlaylist?.[playlistId];
 }
