@@ -11,9 +11,11 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 jest.mock("@/lib/api/client", () => ({
+  ApiError: jest.requireActual("@/lib/api/client").ApiError,
   notifyReAuthResult: jest.fn(),
   setAuthToken: jest.fn(),
   setBaseUrl: jest.fn(),
+  setOnAccountSuspended: jest.fn(),
   setOnSessionExpired: jest.fn(),
   setOnAuthRefreshed: jest.fn(),
 }));
@@ -29,7 +31,7 @@ import { render, waitFor, fireEvent, act } from "@testing-library/react-native";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
-import { setAuthToken, setBaseUrl } from "@/lib/api/client";
+import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { getMe, login } from "@/lib/api/auth";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
@@ -79,6 +81,7 @@ function TestConsumer() {
       <Text testID="serverUrl">{auth.serverUrl ?? "null"}</Text>
       <Text testID="user">{auth.user?.username ?? "null"}</Text>
       <Text testID="sessionExpired">{String(auth.sessionExpired)}</Text>
+      <Text testID="accountSuspended">{String(auth.accountSuspended)}</Text>
       <Text testID="rememberCredentials">
         {String(auth.rememberCredentials)}
       </Text>
@@ -545,6 +548,33 @@ describe("AuthProvider — proactive expiry timer", () => {
     );
 
     jest.useFakeTimers();
+  });
+
+  it("reports a suspension when the silent renewal is refused", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+      if (key === "auth_token") return "expired-token";
+      if (key === "user_json")
+        return '{"id":1,"username":"alice","role":"user"}';
+      if (key === "token_expires_at") return String(Date.now() - 60_000);
+      if (key === "remember_credentials") return "true";
+      if (key === "saved_username") return "alice";
+      if (key === "saved_password") return "pass123";
+      return null;
+    });
+    mockLogin.mockRejectedValue(
+      new ApiError(403, "This account has been suspended or disabled"),
+    );
+
+    const { getByTestId } = await renderWithProvider();
+
+    await act(async () => {
+      await jest.runOnlyPendingTimersAsync();
+    });
+    await waitFor(() => {
+      expect(getByTestId("accountSuspended").props.children).toBe("true");
+    });
+    expect(getByTestId("sessionExpired").props.children).toBe("false");
   });
 
   it("fires immediately when token is already expired on restore", async () => {

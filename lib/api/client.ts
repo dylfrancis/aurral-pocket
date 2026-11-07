@@ -1,5 +1,17 @@
 import { SecureStorage } from "@/lib/storage";
+import type { LoginResponse } from "@/lib/types/auth";
 import { fetch } from "expo/fetch";
+
+/**
+ * Aurral's refusal for a suspended or disabled account, at login and in the
+ * OIDC redirect. It carries no code, so the wording is the only signal, and a
+ * 403 from a reverse proxy must not read as a suspension.
+ */
+const ACCOUNT_SUSPENDED_MESSAGE = "This account has been suspended or disabled";
+
+export function isAccountSuspendedMessage(message: string) {
+  return message === ACCOUNT_SUSPENDED_MESSAGE;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -25,6 +37,10 @@ export class ApiError extends Error {
     return this.status === 400 && this.errorLabel === "no_local_password";
   }
 
+  get isAccountSuspended() {
+    return this.status === 403 && isAccountSuspendedMessage(this.message);
+  }
+
   private get errorLabel() {
     return typeof this.body === "object" && this.body !== null
       ? (this.body as { error?: unknown }).error
@@ -45,6 +61,7 @@ type ApiResponse<T> = { data: T; status: number };
 let baseURL = "";
 let authToken: string | null = null;
 let onSessionExpired: (() => void) | null = null;
+let onAccountSuspended: (() => void) | null = null;
 let onAuthRefreshed:
   ((token: string, userJson: string, expiresAt: number) => void) | null = null;
 let reAuthPromise: Promise<boolean> | null = null;
@@ -127,6 +144,10 @@ export function setOnSessionExpired(cb: (() => void) | null) {
   onSessionExpired = cb;
 }
 
+export function setOnAccountSuspended(cb: (() => void) | null) {
+  onAccountSuspended = cb;
+}
+
 export function setOnAuthRefreshed(
   cb: ((token: string, userJson: string, expiresAt: number) => void) | null,
 ) {
@@ -157,22 +178,16 @@ function buildUrl(path: string, params?: Record<string, unknown>): string {
   return `${root}${root.includes("?") ? "&" : "?"}${qs}`;
 }
 
-async function attemptSilentReAuth(): Promise<boolean> {
+async function attemptSilentReAuth(): Promise<
+  "refreshed" | "suspended" | "failed"
+> {
   try {
     const creds = await SecureStorage.getCredentials();
-    if (!creds) return false;
+    if (!creds) return "failed";
 
-    const response = await fetch(`${baseURL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(creds),
-    });
-    if (!response.ok) return false;
-    const data = (await response.json()) as {
-      token: string;
-      expiresAt: number;
-      user: { id: number; username: string; role: string };
-    };
+    const { data } = await request<LoginResponse>("POST", "/auth/login", creds);
+    // The user signed out while this was in flight, and that stands.
+    if (!authToken) return "failed";
 
     authToken = data.token;
     const userJson = JSON.stringify(data.user);
@@ -182,9 +197,11 @@ async function attemptSilentReAuth(): Promise<boolean> {
       SecureStorage.setExpiresAt(data.expiresAt),
     ]);
     onAuthRefreshed?.(data.token, userJson, data.expiresAt);
-    return true;
-  } catch {
-    return false;
+    return "refreshed";
+  } catch (error) {
+    return error instanceof ApiError && error.isAccountSuspended
+      ? "suspended"
+      : "failed";
   }
 }
 
@@ -219,8 +236,14 @@ async function handle401<T>(
 
   if (!reAuthPromise) {
     reAuthPromise = (async () => {
-      const remember = await SecureStorage.getRememberCredentials();
-      if (remember && (await attemptSilentReAuth())) return true;
+      if (await SecureStorage.getRememberCredentials()) {
+        const outcome = await attemptSilentReAuth();
+        if (outcome === "refreshed") return true;
+        if (outcome === "suspended") {
+          onAccountSuspended?.();
+          return false;
+        }
+      }
       if (!authToken) return false;
       // Silent path unavailable or failed — open the modal and wait for the
       // user to finish re-auth (password or Face ID → setAuth → notify).
