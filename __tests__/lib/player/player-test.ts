@@ -24,6 +24,7 @@ import {
   playNextInQueue,
   previous,
   playAlbumFromTrack,
+  refreshQueueUrls,
   playItem,
   playQueueFrom,
   playQueueItem,
@@ -526,6 +527,139 @@ describe("playback events", () => {
     };
   });
 
+  describe("when a new token replaces the queue's URLs", () => {
+    const albumTracks = [
+      track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
+      track({ id: "72", trackNumber: 2, streamPath: "/stream/12/72" }),
+    ];
+
+    /** The engine playing track 72, this far in. */
+    async function listenTo72(position: number) {
+      await forgetQueue();
+      await playAlbumFromTrack(albumTracks, albumTracks[1], album);
+      engine.trackChange({ ...clip, id: "72" }, "user_action");
+      engine.progress(position, 240, false);
+      jest.clearAllMocks();
+      setAuthToken("new-token");
+    }
+
+    it("keeps playing, and goes back to its place once the track is ready", async () => {
+      await listenTo72(42);
+      engine.stateChange("playing", undefined);
+
+      await refreshQueueUrls();
+      expect(player.play).toHaveBeenCalledTimes(1);
+      player.seek.mockClear();
+
+      // The engine ignored the seek it got while the track was loading.
+      engine.progress(0, 240, false);
+      expect(player.seek).toHaveBeenCalledTimes(1);
+      expect(player.seek).toHaveBeenCalledWith(42);
+
+      // Once only: repeat-one coming back around must not jump to 42 again.
+      engine.progress(1, 240, false);
+      expect(player.seek).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a rebuilt track alone when the engine kept its place", async () => {
+      await listenTo72(42);
+      engine.stateChange("playing", undefined);
+
+      await refreshQueueUrls();
+      player.seek.mockClear();
+      engine.progress(42, 240, false);
+
+      expect(player.seek).not.toHaveBeenCalled();
+    });
+
+    it("lets a seek by the listener win over the rebuilt track's place", async () => {
+      await listenTo72(42);
+      engine.stateChange("playing", undefined);
+
+      await refreshQueueUrls();
+      await seekTo(100);
+      player.seek.mockClear();
+      engine.progress(100, 240, false);
+
+      expect(player.seek).not.toHaveBeenCalled();
+    });
+
+    it("stays paused at the same place", async () => {
+      await listenTo72(42);
+      engine.stateChange("paused", undefined);
+
+      await refreshQueueUrls();
+
+      expect(player.play).not.toHaveBeenCalled();
+      player.seek.mockClear();
+
+      // Like a restored queue: the place is asked for again on play, when the
+      // track is ready, and not by a report that arrives while it sits paused.
+      engine.progress(0, 240, false);
+      expect(player.seek).not.toHaveBeenCalled();
+      await resume();
+      expect(player.seek).toHaveBeenCalledWith(42);
+      expect(player.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not report a track cut off near its end as played", async () => {
+      await listenTo72(239);
+      engine.stateChange("playing", undefined);
+      const completed: string[] = [];
+      const unsubscribe = onTrackCompleted((item) => completed.push(item.id));
+
+      // The old stream's last report, then the rebuilt playlist's track, which
+      // is the same one.
+      queue.loadPlaylist.mockImplementationOnce(async () => {
+        engine.progress(239, 240, false);
+        engine.trackChange({ ...clip, id: "72" }, "skip");
+      });
+
+      await refreshQueueUrls();
+
+      expect(completed).toEqual([]);
+      unsubscribe();
+    });
+
+    it("isn't thrown off its place by a report from the old stream", async () => {
+      await listenTo72(42);
+      engine.stateChange("playing", undefined);
+      queue.addTracksToPlaylist.mockImplementationOnce(async () => {
+        engine.progress(43, 240, false);
+      });
+
+      await refreshQueueUrls();
+      player.seek.mockClear();
+      engine.progress(0, 240, false);
+
+      expect(player.seek).toHaveBeenCalledWith(42);
+    });
+
+    it("starts a queue that played out from the top of its last track", async () => {
+      await listenTo72(240);
+      engine.stateChange("stopped", "end");
+
+      await refreshQueueUrls();
+
+      expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 1);
+      expect(player.seek).not.toHaveBeenCalled();
+    });
+
+    it("can still play after a rebuild that failed partway", async () => {
+      await listenTo72(42);
+      queue.createPlaylist.mockRejectedValueOnce(new Error("engine said no"));
+
+      await expect(refreshQueueUrls()).rejects.toThrow("engine said no");
+      queue.deletePlaylist.mockClear();
+      await playAlbumFromTrack(albumTracks, albumTracks[0], album);
+
+      // The rebuild already deleted the old one.
+      expect(queue.deletePlaylist).not.toHaveBeenCalled();
+      expect(queue.loadPlaylist).toHaveBeenLastCalledWith("playlist-1", 0);
+      expect(player.play).toHaveBeenCalled();
+    });
+  });
+
   it("emits track-started when the engine moves onto a track", () => {
     const started: string[] = [];
     const unsubscribe = onTrackStarted((track) => started.push(track.id));
@@ -738,5 +872,72 @@ describe("setQueuedAlbumCovers", () => {
 
     expect(await queuedCovers()).toEqual([null]);
     expect(player.updateTracks).not.toHaveBeenCalled();
+  });
+});
+
+describe("refreshQueueUrls", () => {
+  const albumTracks = [
+    track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
+    track({ id: "72", trackNumber: 2, streamPath: "/stream/12/72" }),
+  ];
+
+  beforeEach(async () => {
+    await forgetQueue();
+    await playAlbumFromTrack(albumTracks, albumTracks[1], album);
+    jest.clearAllMocks();
+    queue.createPlaylist.mockResolvedValue("playlist-2");
+  });
+
+  it("rebuilds the queue on the new token, on the same track", async () => {
+    setAuthToken("new-token");
+
+    await refreshQueueUrls();
+
+    expect(queue.addTracksToPlaylist).toHaveBeenCalledWith("playlist-2", [
+      expect.objectContaining({
+        id: "71",
+        url: "https://test.example/api/stream/12/71?token=new-token",
+      }),
+      expect.objectContaining({
+        id: "72",
+        url: "https://test.example/api/stream/12/72?token=new-token",
+      }),
+    ]);
+    expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-2", 1);
+  });
+
+  it("does nothing while the token is the same", async () => {
+    await refreshQueueUrls();
+
+    expect(queue.createPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("keeps the queue as it is after sign-out, with no token to give it", async () => {
+    setAuthToken(null);
+
+    await refreshQueueUrls();
+
+    expect(queue.createPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("has nothing to rebuild once sign-out has forgotten the queue", async () => {
+    await forgetQueue();
+    jest.clearAllMocks();
+    setAuthToken("next-accounts-token");
+
+    await refreshQueueUrls();
+
+    expect(queue.createPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("leaves a preview clip alone, since its URL carries no token", async () => {
+    await forgetQueue();
+    await playItem(clip);
+    jest.clearAllMocks();
+    setAuthToken("new-token");
+
+    await refreshQueueUrls();
+
+    expect(queue.createPlaylist).not.toHaveBeenCalled();
   });
 });

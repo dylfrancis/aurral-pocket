@@ -16,7 +16,7 @@ import {
   type PlayerClip,
   type PlayerTrack,
 } from "@/lib/player/track-item";
-import { authenticatedImageUrl } from "@/lib/api/client";
+import { authenticatedImageUrl, buildAuthenticatedUrl } from "@/lib/api/client";
 import type { Track } from "@/lib/types/library";
 import { useSyncExternalStore } from "react";
 import {
@@ -231,18 +231,21 @@ export function setQueuedAlbumCovers(
     }
     if (updates.size === 0) return;
 
-    const updated = (item: PlayerTrack) => updates.get(item.id) ?? item;
-    queueOrder = queueOrder.map(updated);
-    originalOrder = originalOrder.map(updated);
-    if (currentEventTrack) currentEventTrack = updated(currentEventTrack);
-    refreshQueueSnapshot();
-    if (displayedTrack) setDisplayedTrack(updated(displayedTrack));
+    mapQueuedTracks((item) => updates.get(item.id) ?? item);
     // The URLs are unchanged, so the engine treats this as a metadata edit: the
     // playing track carries on, and the lock screen picks up its new image.
     await TrackPlayer.updateTracks([...updates.values()].map(toEngineTrack));
   });
   lastPlay = run.catch(() => {});
   return run;
+}
+
+function mapQueuedTracks(update: (item: PlayerTrack) => PlayerTrack): void {
+  queueOrder = queueOrder.map(update);
+  originalOrder = originalOrder.map(update);
+  if (currentEventTrack) currentEventTrack = update(currentEventTrack);
+  refreshQueueSnapshot();
+  if (displayedTrack) setDisplayedTrack(update(displayedTrack));
 }
 
 export async function pause(): Promise<void> {
@@ -427,6 +430,7 @@ export type PlaybackProgress = {
 const trackStartedListeners = new Set<Listener<PlayerTrack>>();
 const progressListeners = new Set<Listener<PlaybackProgress>>();
 const trackCompletedListeners = new Set<Listener<PlayerTrack>>();
+const playbackFailedListeners = new Set<() => void>();
 
 // Wake-up calls for the player hooks. They carry no payload — each hook
 // re-reads its snapshot below, and useSyncExternalStore drops the render
@@ -493,6 +497,8 @@ let pendingRestoreSeek: {
   trackId: string;
   position: number;
   duration: number;
+  /** A rebuilt queue that was playing, so no tap on play will send the seek. */
+  resumesPlaying?: boolean;
 } | null = null;
 
 function setProgress(position: number, duration: number): void {
@@ -651,6 +657,79 @@ function inSavedOrder(items: PlayerTrack[], ids: string[]): PlayerTrack[] {
   return ordered.length === items.length ? ordered : items;
 }
 
+/** How far short of its position a rebuilt track can start and still count. */
+const RESUME_TOLERANCE_SECONDS = 2;
+
+/** Returns the same object when the URL already holds the current token. */
+function withCurrentToken(item: PlayerTrack): PlayerTrack {
+  const url = item.streamPath ? buildAuthenticatedUrl(item.streamPath) : null;
+  return url && url !== item.url ? { ...item, url } : item;
+}
+
+/**
+ * Give the queue the current session's token after a new sign-in replaced the
+ * old one, as when a restored backup drops every session. Does nothing when the
+ * token hasn't changed.
+ *
+ * The playlist is rebuilt, not updated: the engine refuses a new URL for the
+ * track it holds, and the old URL stops working with the old session. A track
+ * that's playing carries on from its place after a short gap. One whose stream
+ * has already failed comes back paused there.
+ */
+export function refreshQueueUrls(): Promise<void> {
+  const run = lastPlay.then(async () => {
+    if (!currentPlaylistId || !displayedTrack) return;
+    if (queueOrder.every((item) => withCurrentToken(item) === item)) return;
+
+    const wasPlaying =
+      playbackState === "playing" || playbackState === "buffering";
+    // A queue that played out starts its last track over, as the button does.
+    const position = endedAtQueueEnd ? 0 : currentPosition();
+    const duration = progressSnapshot.duration;
+    const previousPlaylistId = currentPlaylistId;
+
+    restoringQueue = true;
+    try {
+      pendingRestoreSeek = {
+        trackId: displayedTrack.id,
+        position,
+        duration,
+        resumesPlaying: wasPlaying,
+      };
+      // A track cut off near its end must not read as finished.
+      lastProgress = null;
+      setProgress(position, duration);
+      mapQueuedTracks(withCurrentToken);
+
+      // Cleared first, so a failure below can't leave the next play aiming at
+      // a playlist that's gone.
+      currentPlaylistId = null;
+      await PlayerQueue.deletePlaylist(previousPlaylistId);
+      const playlistId = await PlayerQueue.createPlaylist(PLAYLIST_NAME);
+      currentPlaylistId = playlistId;
+      await PlayerQueue.addTracksToPlaylist(
+        playlistId,
+        queueOrder.map(toEngineTrack),
+      );
+      await PlayerQueue.loadPlaylist(
+        playlistId,
+        queueOrder.findIndex((item) => item.id === displayedTrack?.id),
+      );
+      if (position > 0) {
+        await TrackPlayer.seek(position);
+      }
+      if (wasPlaying) {
+        await TrackPlayer.play();
+      }
+    } finally {
+      restoringQueue = false;
+    }
+    persistQueue(position);
+  });
+  lastPlay = run.catch(() => {});
+  return run;
+}
+
 /**
  * Stop the player and forget the queue, in memory and in storage. Sign-out
  * calls this, so no part of one account's listening reaches the next.
@@ -747,7 +826,20 @@ function wireEngineEvents(): void {
   );
   callbackManager.subscribeToPlaybackProgressChange(
     function handleProgress(position, totalDuration): void {
-      if (!currentEventTrack) return;
+      // During a rebuild, a report can only come from the stream being replaced.
+      if (!currentEventTrack || restoringQueue) return;
+      // The engine drops a seek sent before the track is ready, and a report
+      // means it is. Skipped, so the scrubber never shows the track at zero.
+      const resuming = pendingRestoreSeek?.resumesPlaying
+        ? pendingRestoreSeek
+        : null;
+      if (resuming?.trackId === currentEventTrack.id) {
+        pendingRestoreSeek = null;
+        if (position < resuming.position - RESUME_TOLERANCE_SECONDS) {
+          void TrackPlayer.seek(resuming.position);
+          return;
+        }
+      }
       const progress = {
         trackId: currentEventTrack.id,
         position,
@@ -774,6 +866,9 @@ function wireEngineEvents(): void {
     function handleStateChange(state, reason): void {
       playbackState = state;
       playbackStateListeners.forEach((listener) => listener());
+      if (state === "stopped" && reason === "error") {
+        playbackFailedListeners.forEach((listener) => listener());
+      }
       // The last track has no next track to change onto. Android reports its
       // completion as the engine stopping, reason "end". iOS reports nothing:
       // the player just pauses at the track's end with no reason, exactly
@@ -834,6 +929,15 @@ export function onProgress(listener: Listener<PlaybackProgress>): () => void {
   progressListeners.add(listener);
   return function unsubscribe(): void {
     progressListeners.delete(listener);
+  };
+}
+
+/** Hear about the engine giving up on a stream. Returns unsubscribe. */
+export function onPlaybackFailed(listener: () => void): () => void {
+  wireEngineEvents();
+  playbackFailedListeners.add(listener);
+  return function unsubscribe(): void {
+    playbackFailedListeners.delete(listener);
   };
 }
 
