@@ -24,7 +24,6 @@ jest.mock("@/lib/api/flow", () => ({
   setRetryCyclePaused: jest.fn(),
   getWorkerSettings: jest.fn(),
   updateWorkerSettings: jest.fn(),
-  getFlowStreamUrl: jest.fn(),
   getFlowArtworkSource: jest.fn(),
 }));
 

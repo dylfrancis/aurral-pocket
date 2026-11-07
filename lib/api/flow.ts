@@ -1,4 +1,4 @@
-import { api, buildAuthenticatedUrl } from "./client";
+import { api } from "./client";
 import type {
   Flow,
   FlowFormValues,
@@ -184,15 +184,7 @@ function authedSource(uri: string, token: string | null): FlowAuthedSource {
     : { uri };
 }
 
-/**
- * The URL that streams a finished download job — self-authenticating because
- * the audio engine sends no headers (see buildAuthenticatedUrl). Artwork
- * keeps its header; expo-image can send one. Null while signed out.
- */
-export function getFlowStreamUrl(jobId: string): string | null {
-  return buildAuthenticatedUrl(getFlowStreamPath(jobId));
-}
-
+/** The player adds the session token. */
 export function getFlowStreamPath(jobId: string): string {
   return `${FLOW}/stream/${encodeURIComponent(jobId)}`;
 }

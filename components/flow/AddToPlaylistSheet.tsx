@@ -8,9 +8,6 @@ import { AppSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import { NewPlaylistSheet } from "./NewPlaylistSheet";
 import { CollectionArtwork } from "./CollectionArtwork";
-// Imported from the hook modules, not the @/hooks/flow barrel: the barrel
-// pulls in use-flow-audio-preview and with it the audio engine, which
-// artist-page consumers of this sheet do not otherwise load.
 import { useAddSharedPlaylistTracks } from "@/hooks/flow/use-flow-mutations";
 import { useSharedPlaylists } from "@/hooks/flow/use-flow-selectors";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";

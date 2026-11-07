@@ -24,7 +24,6 @@ import {
 } from "@/contexts/theme-context";
 import { OidcLogoutWebView } from "@/components/auth/OidcLogoutWebView";
 import { ReAuthModal } from "@/components/auth/ReAuthModal";
-import { FlowAudioPreviewProvider } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { queryClient } from "@/lib/query-client";
@@ -118,15 +117,13 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <ThemePreferenceProvider>
-                <FlowAudioPreviewProvider>
-                  <BottomSheetModalProvider>
-                    <RootLayoutNav />
-                    <ReAuthModal />
-                    {/* Above the router, so a logout survives the navigation
-                        back to the login screen. */}
-                    <OidcLogoutWebView />
-                  </BottomSheetModalProvider>
-                </FlowAudioPreviewProvider>
+                <BottomSheetModalProvider>
+                  <RootLayoutNav />
+                  <ReAuthModal />
+                  {/* Above the router, so a logout survives the navigation
+                      back to the login screen. */}
+                  <OidcLogoutWebView />
+                </BottomSheetModalProvider>
               </ThemePreferenceProvider>
             </AuthProvider>
           </QueryClientProvider>

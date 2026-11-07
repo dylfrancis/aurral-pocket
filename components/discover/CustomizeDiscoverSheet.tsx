@@ -205,7 +205,7 @@ const Row = memo(function Row({
       </Text>
       {/* Keying on `enabled` remounts the Switch on toggle, working around
           facebook/react-native#53856 where it can lose its visual state on
-          re-render — see also FlowDetailSheet for the same pattern. */}
+          re-render. */}
       <Switch
         key={`section-${section.id}-${section.enabled}`}
         value={section.enabled}
