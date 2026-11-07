@@ -33,7 +33,7 @@ export type PlayerClip = {
  */
 export type PlayerTrack = PlayerClip & {
   streamPath: string | null;
-  /** The album's cover on the server. Tried before `artwork`. */
+  /** The track's cover on the server, usually its album's. Tried before `artwork`. */
   coverPath: string | null;
   trackMbid: string | null;
   artistMbid: string | null;
@@ -99,9 +99,14 @@ export type PlaybackCollection = {
   recordHistory?: boolean;
 };
 
+/**
+ * The collection's cover stays off the track: it names the collection, not the
+ * song. `albumCover` is the image if it's known yet.
+ */
 export function jobToPlayerTrack(
   job: FlowJob,
   collection: PlaybackCollection,
+  albumCover: string | null = null,
 ): PlayerTrack | null {
   if (job.status !== "done") return null;
 
@@ -118,9 +123,9 @@ export function jobToPlayerTrack(
     album: job.albumName ?? "",
     duration: 0,
     url,
-    artwork: null,
+    artwork: albumCover,
     streamPath,
-    coverPath: getFlowArtworkPath(collection.id, collection.artworkRevision),
+    coverPath: job.artworkUrl ?? null,
     trackMbid: job.trackMbid,
     artistMbid: job.artistMbid,
     albumMbid: job.albumMbid,

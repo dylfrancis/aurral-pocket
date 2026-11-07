@@ -18,6 +18,11 @@ jest.mock("@/lib/api/flow", () => ({
   setRetryCyclePaused: jest.fn(() => Promise.resolve()),
 }));
 
+jest.mock("@/lib/api/library", () => ({
+  ...jest.requireActual("@/lib/api/library"),
+  getAlbumCover: jest.fn(() => Promise.resolve({ images: [] })),
+}));
+
 let mockCurrentTrackId: string | null = null;
 jest.mock("@/lib/player/player", () => ({
   pause: jest.fn(),
@@ -25,6 +30,7 @@ jest.mock("@/lib/player/player", () => ({
   playItem: jest.fn(),
   playQueueFrom: jest.fn(() => Promise.resolve()),
   resume: jest.fn(),
+  setQueuedAlbumCovers: jest.fn(() => Promise.resolve()),
   setShuffle: jest.fn(() => Promise.resolve()),
   useCurrentTrack: () =>
     mockCurrentTrackId ? { id: mockCurrentTrackId } : null,
@@ -39,7 +45,18 @@ jest.mock("@/components/library/TrackRow", () => ({
   },
 }));
 
-jest.mock("expo-image", () => ({ Image: () => null }));
+// The test's Reanimated stub has none of what the skeleton animates with.
+jest.mock("@/components/ui/Skeleton", () => ({ Skeleton: () => null }));
+
+// A test id carrying the URL, so a test can tell which image a row loaded.
+jest.mock("expo-image", () => {
+  const { View } = require("react-native");
+  return {
+    Image: ({ source }: { source?: { uri?: string } }) => (
+      <View testID={`image:${source?.uri}`} />
+    ),
+  };
+});
 
 let mockSearchBar: {
   onChangeText: (event: { nativeEvent: { text: string } }) => void;
@@ -119,10 +136,17 @@ import {
   setRetryCyclePaused,
 } from "@/lib/api/flow";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
-import { playQueueFrom, setShuffle } from "@/lib/player/player";
+import { getAlbumCover } from "@/lib/api/library";
+import {
+  playQueueFrom,
+  setQueuedAlbumCovers,
+  setShuffle,
+} from "@/lib/player/player";
 import type { FlowJob, FlowStatusSnapshot } from "@/lib/types/flow";
 
 const mockPlayQueueFrom = playQueueFrom as jest.Mock;
+const mockGetAlbumCover = getAlbumCover as jest.Mock;
+const mockSetQueuedAlbumCovers = setQueuedAlbumCovers as jest.Mock;
 
 function job(id: string, overrides: Partial<FlowJob> = {}): FlowJob {
   return {
@@ -271,6 +295,131 @@ describe("PlaylistDetailScreen", () => {
     await open();
 
     expect(screen.getByText("3 tracks")).toBeTruthy();
+  });
+
+  describe("album covers", () => {
+    const coverUrl = (mbid: string) => `https://img.example/${mbid}.jpg`;
+    const coverOf = (mbid: string) => ({
+      images: [{ image: coverUrl(mbid), front: true }],
+    });
+
+    beforeEach(() => {
+      mockGetAlbumCover.mockImplementation((mbid: string) =>
+        Promise.resolve(coverOf(mbid)),
+      );
+    });
+
+    afterEach(() => {
+      mockGetAlbumCover.mockReset();
+      mockGetAlbumCover.mockResolvedValue({ images: [] });
+    });
+
+    it("shows each track's own album cover in its row", async () => {
+      serve({
+        jobs: [
+          job("a", { albumMbid: "album-a" }),
+          job("c", { albumMbid: "album-c" }),
+        ],
+      });
+
+      await open();
+
+      expect(
+        await screen.findByTestId(`image:${coverUrl("album-a")}`),
+      ).toBeTruthy();
+      expect(
+        await screen.findByTestId(`image:${coverUrl("album-c")}`),
+      ).toBeTruthy();
+      expect(mockGetAlbumCover).toHaveBeenCalledWith("album-a", {
+        artistName: "Artist a",
+        albumTitle: "Album a",
+      });
+    });
+
+    it("shows artwork uploaded for a track rather than its album's", async () => {
+      serve({
+        jobs: [
+          job("a", {
+            albumMbid: "album-a",
+            artworkUrl: "/api/playlists/track-artwork/a?v=1",
+          }),
+        ],
+      });
+
+      await open();
+
+      expect(
+        await screen.findByTestId(
+          "image:http://server/api/playlists/track-artwork/a?v=1",
+        ),
+      ).toBeTruthy();
+      expect(mockGetAlbumCover).not.toHaveBeenCalled();
+    });
+
+    it("starts a track with the cover its row loaded, not the playlist's", async () => {
+      serve({ jobs: [job("a", { albumMbid: "album-a" })] });
+      await open();
+      await screen.findByTestId(`image:${coverUrl("album-a")}`);
+
+      await fireEvent.press(screen.getByText("Play"));
+
+      const [track] = mockPlayQueueFrom.mock.calls[0][0];
+      expect(track.artwork).toBe(coverUrl("album-a"));
+      expect(track.coverPath).toBeNull();
+    });
+
+    it("plays without waiting for a cover, then hands it to the player", async () => {
+      let release = () => {};
+      const arrived = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      mockGetAlbumCover.mockImplementation(async (mbid: string) => {
+        await arrived;
+        return coverOf(mbid);
+      });
+      serve({ jobs: [job("a", { albumMbid: "album-a" })] });
+      await open();
+
+      await fireEvent.press(screen.getByText("Play"));
+
+      expect(mockPlayQueueFrom).toHaveBeenCalledTimes(1);
+      expect(mockSetQueuedAlbumCovers).not.toHaveBeenCalled();
+
+      await act(async () => release());
+
+      await waitFor(() =>
+        expect(mockSetQueuedAlbumCovers).toHaveBeenCalledWith(
+          new Map([["album-a", coverUrl("album-a")]]),
+        ),
+      );
+    });
+
+    it("gets to every album in a big playlist", async () => {
+      const mbids = Array.from({ length: 13 }, (_, i) => `album-${i}`);
+      let release = () => {};
+      const arrived = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      mockGetAlbumCover.mockImplementation(async (mbid: string) => {
+        await arrived;
+        return coverOf(mbid);
+      });
+      serve({
+        jobs: mbids.map((albumMbid) => job(albumMbid, { albumMbid })),
+      });
+      await renderPage();
+      await screen.findByText("Track album-0");
+
+      await fireEvent.press(screen.getByText("Play"));
+      await act(async () => release());
+
+      await waitFor(() => {
+        const handedOver = mockSetQueuedAlbumCovers.mock.calls.flatMap(
+          ([covers]: [Map<string, string>]) => [...covers.keys()],
+        );
+        expect(handedOver.sort()).toEqual([...mbids].sort());
+      });
+    });
   });
 
   describe("playing", () => {

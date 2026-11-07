@@ -75,7 +75,7 @@ describe("CoverArtImage", () => {
     // The server answers 404 for an album it has no artwork for.
     await fireEvent(screen.getByTestId("cover-image"), "error");
 
-    expect(mockGetAlbumCover).toHaveBeenCalledWith("rg-1");
+    expect(mockGetAlbumCover).toHaveBeenCalledWith("rg-1", undefined);
     await waitFor(() =>
       expect(screen.getByTestId("cover-image").props.accessibilityLabel).toBe(
         "https://covers.example/rg-1.jpg",

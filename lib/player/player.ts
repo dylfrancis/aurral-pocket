@@ -209,6 +209,39 @@ export async function playQueueFrom(
   await run;
 }
 
+/**
+ * A flow or playlist can hold many albums, and it starts playing before they've
+ * all been looked up.
+ *
+ * Chained on the play queue so it can't land on a queue being rebuilt. A cover
+ * for an album that's no longer queued does nothing.
+ */
+export function setQueuedAlbumCovers(
+  covers: Map<string, string>,
+): Promise<void> {
+  const run = lastPlay.then(async () => {
+    const updates = new Map<string, PlayerTrack>();
+    for (const item of queueOrder) {
+      const artwork =
+        !item.artwork && item.albumMbid ? covers.get(item.albumMbid) : null;
+      if (artwork) updates.set(item.id, { ...item, artwork });
+    }
+    if (updates.size === 0) return;
+
+    const updated = (item: PlayerTrack) => updates.get(item.id) ?? item;
+    queueOrder = queueOrder.map(updated);
+    originalOrder = originalOrder.map(updated);
+    if (currentEventTrack) currentEventTrack = updated(currentEventTrack);
+    refreshQueueSnapshot();
+    if (displayedTrack) setDisplayedTrack(updated(displayedTrack));
+    // The URLs are unchanged, so the engine treats this as a metadata edit: the
+    // playing track carries on, and the lock screen picks up its new image.
+    await TrackPlayer.updateTracks([...updates.values()].map(toEngineTrack));
+  });
+  lastPlay = run.catch(() => {});
+  return run;
+}
+
 export async function pause(): Promise<void> {
   await TrackPlayer.pause();
   persistQueue();

@@ -93,6 +93,8 @@ export type FlowJob = {
   artistMbid: string | null;
   albumMbid: string | null;
   trackMbid: string | null;
+  /** Artwork uploaded for this track, as a server path. */
+  artworkUrl?: string | null;
   status: FlowJobStatus;
   finalPath?: string | null;
   reason?: string | null;

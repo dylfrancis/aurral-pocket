@@ -128,7 +128,7 @@ describe("jobToPlayerTrack", () => {
     artworkRevision: 7,
   };
 
-  it("gives the track its own artist and album, under the playlist's cover", () => {
+  it("gives the track its own artist and album, and not the playlist's cover", () => {
     expect(jobToPlayerTrack(job, playlist)).toEqual({
       id: "job-1",
       title: "Alison",
@@ -138,13 +138,27 @@ describe("jobToPlayerTrack", () => {
       url: "https://test.example/api/playlists/stream/job-1?token=test-token-123",
       artwork: null,
       streamPath: "/playlists/stream/job-1",
-      coverPath: "/api/playlists/artwork/pl-1?v=7",
+      coverPath: null,
       trackMbid: "track-mb",
       artistMbid: "artist-mb",
       albumMbid: "album-mb",
       identityKey: null,
       recordHistory: false,
     });
+  });
+
+  it("carries its album's cover once it's known", () => {
+    const cover = "https://img.example/souvlaki.jpg";
+
+    expect(jobToPlayerTrack(job, playlist, cover)?.artwork).toBe(cover);
+  });
+
+  it("loads artwork uploaded for the track first", () => {
+    const artworkUrl = "/api/playlists/track-artwork/job-1?v=3";
+
+    expect(jobToPlayerTrack({ ...job, artworkUrl }, playlist)?.coverPath).toBe(
+      artworkUrl,
+    );
   });
 
   it("leaves the album empty when the job has none", () => {

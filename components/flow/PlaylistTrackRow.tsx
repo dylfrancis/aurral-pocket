@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { PlayingBars } from "@/components/library/TrackRow";
 import { TrackMenuButton } from "@/components/library/TrackMenuButton";
 import { Text } from "@/components/ui/Text";
@@ -8,6 +9,8 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { useCurrentTrack, usePlaybackState } from "@/lib/player/player";
 import type { FlowJob } from "@/lib/types/flow";
+
+const COVER_SIZE = 44;
 
 type Props = {
   job: FlowJob;
@@ -52,6 +55,17 @@ export const PlaylistTrackRow = React.memo(function PlaylistTrackRow({
           </Text>
         )}
       </View>
+      <CoverArtImage
+        type="album"
+        mbid={job.albumMbid ?? ""}
+        coverUrl={job.artworkUrl}
+        hints={{
+          artistName: job.artistName,
+          albumTitle: job.albumName ?? undefined,
+        }}
+        size={COVER_SIZE}
+        borderRadius={6}
+      />
       <View style={styles.body}>
         <Text
           variant="body"

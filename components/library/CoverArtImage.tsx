@@ -7,6 +7,7 @@ import { useCoverArtUrl } from "@/hooks/library/use-cover-art-url";
 import { serverImageSource } from "@/lib/api/client";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
+import type { AlbumCoverHints } from "@/lib/api/library";
 import type { CoverArtType } from "@/lib/types/library";
 
 type CoverArtImageProps = {
@@ -21,6 +22,7 @@ type CoverArtImageProps = {
    * the MBID lookup, which runs only if it fails.
    */
   coverUrl?: string | null;
+  hints?: AlbumCoverHints;
 };
 
 export function CoverArtImage({
@@ -31,6 +33,7 @@ export function CoverArtImage({
   borderRadius = 8,
   blurRadius,
   coverUrl,
+  hints,
 }: CoverArtImageProps) {
   // Kept per record, because list cells are recycled for other records.
   const recordKey = `${type}:${coverUrl ?? ""}:${mbid}`;
@@ -43,6 +46,7 @@ export function CoverArtImage({
   const mbidLookup = useCoverArtUrl({
     type,
     mbid: loadFromServer ? undefined : mbid,
+    hints,
   });
   const source = loadFromServer
     ? serverSource
