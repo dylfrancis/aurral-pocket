@@ -117,8 +117,6 @@ export function ReAuthModal() {
 
   const handleSignOut = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    notifyReAuthResult(false);
-    dismissSessionExpired();
     await clearAuth();
   };
 

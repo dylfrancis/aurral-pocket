@@ -1,5 +1,6 @@
 import { getMe, login } from "@/lib/api/auth";
 import {
+  notifyReAuthResult,
   setAuthToken,
   setBaseUrl,
   setOnAuthRefreshed,
@@ -291,6 +292,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setExpiresAt(null);
     setAuthToken(null);
     setIsOidcSession(false);
+    // Signing out ends any re-auth in progress. A prompt left open would sit
+    // over the login screen, and the requests waiting on it would never settle.
+    setSessionExpiredState(false);
+    notifyReAuthResult(false);
     await Promise.all([
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),

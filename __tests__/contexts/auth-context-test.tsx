@@ -11,6 +11,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 jest.mock("@/lib/api/client", () => ({
+  notifyReAuthResult: jest.fn(),
   setAuthToken: jest.fn(),
   setBaseUrl: jest.fn(),
   setOnSessionExpired: jest.fn(),
