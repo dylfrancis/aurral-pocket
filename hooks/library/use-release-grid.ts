@@ -7,6 +7,7 @@ import {
   ALBUM_SORT_OPTIONS,
   type AlbumSortMode,
 } from "@/components/library/AlbumSortPicker";
+import { librarySection, matchesReleaseSection } from "@/lib/release-groups";
 import { stripArticle } from "@/lib/strings";
 import type { PrimaryReleaseType } from "@/lib/types/library";
 
@@ -115,12 +116,11 @@ export function useReleaseGrid<T>(config: ReleaseGridConfig<T>) {
 
   const sourceItems = useMemo(() => {
     if (config.variant === "albums") {
-      return (typedAlbums?.filter(
-        (a) => a.albumType === (albumType as PrimaryReleaseType),
-      ) ?? []) as T[];
+      return (typedAlbums?.filter((a) => librarySection(a) === albumType) ??
+        []) as T[];
     }
-    return (otherReleases?.filter(
-      (rg) => rg["primary-type"] === (albumType as PrimaryReleaseType),
+    return (otherReleases?.filter((rg) =>
+      matchesReleaseSection(rg, albumType as PrimaryReleaseType),
     ) ?? []) as T[];
   }, [config.variant, typedAlbums, otherReleases, albumType]);
 

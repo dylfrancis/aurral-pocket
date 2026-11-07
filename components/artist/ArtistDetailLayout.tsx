@@ -43,6 +43,7 @@ import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
+import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
 import type {
   Album,
   PreviewTrack,
@@ -87,25 +88,6 @@ function sortByDate(albums: Album[]): Album[] {
     );
   });
 }
-
-function sortReleaseGroupsByDate(rgs: ReleaseGroup[]): ReleaseGroup[] {
-  return rgs.slice().sort((a, b) => {
-    if (!a["first-release-date"]) return 1;
-    if (!b["first-release-date"]) return -1;
-    return (
-      new Date(b["first-release-date"]).getTime() -
-      new Date(a["first-release-date"]).getTime()
-    );
-  });
-}
-
-const CATEGORIES: { type: PrimaryReleaseType; label: string }[] = [
-  { type: "Album", label: "Albums" },
-  { type: "EP", label: "EPs" },
-  { type: "Single", label: "Singles" },
-  { type: "Broadcast", label: "Broadcasts" },
-  { type: "Other", label: "Other" },
-];
 
 type ArtistDetailLayoutProps = {
   mbid: string;
@@ -229,28 +211,16 @@ export function ArtistDetailLayout({
 
   const groupedReleases = useMemo(() => {
     if (!allReleaseGroups) return null;
-    const filtered = allReleaseGroups.filter(
-      (rg) => !libraryAlbumMbids.has(rg.id),
+    return groupReleasesBySection(
+      allReleaseGroups.filter((rg) => !libraryAlbumMbids.has(rg.id)),
     );
-    const map = new Map<PrimaryReleaseType, ReleaseGroup[]>();
-    for (const rg of filtered) {
-      const type = (rg["primary-type"] ?? "Album") as PrimaryReleaseType;
-      if (!CATEGORIES.some((c) => c.type === type)) continue;
-      const list = map.get(type) ?? [];
-      list.push(rg);
-      map.set(type, list);
-    }
-    for (const [key, list] of map) {
-      map.set(key, sortReleaseGroupsByDate(list));
-    }
-    return map;
   }, [allReleaseGroups, libraryAlbumMbids]);
 
   const groupedLibraryAlbums = useMemo(() => {
     if (!typedAlbums) return null;
     const map = new Map<PrimaryReleaseType, Album[]>();
     for (const album of typedAlbums) {
-      const type = album.albumType ?? "Album";
+      const type = librarySection(album);
       const list = map.get(type) ?? [];
       list.push(album);
       map.set(type, list);
