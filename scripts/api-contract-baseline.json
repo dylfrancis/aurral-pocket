@@ -60,6 +60,25 @@
       "topGenres": [],
       "topTags": []
     },
+    "GET /discover/editorial": {
+      "forYou": [],
+      "genres": [
+        {
+          "id": "number",
+          "name": "string",
+          "playlists": [
+            {
+              "artworkUrl": "string",
+              "curator": "string",
+              "description": "null",
+              "id": "string",
+              "name": "string",
+              "trackCount": "number"
+            }
+          ]
+        }
+      ]
+    },
     "GET /discover/feedback": {
       "feedback": []
     },

@@ -1,7 +1,7 @@
 import {
   CustomizeDiscoverSheet,
   DiscoverHeaderSection,
-  DiscoverPlaylistsSection,
+  EditorialPlaylistsSection,
   GenreSectionsPanel,
   GlobalTrendingSection,
   RecentlyAddedSection,
@@ -75,6 +75,9 @@ export default function DiscoverScreen() {
         refetchRecentReleases(),
         queryClient.invalidateQueries({
           queryKey: discoverKeys.nearbyShowsAll(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: discoverKeys.editorialShelf(),
         }),
       ]);
     } finally {
@@ -197,6 +200,9 @@ export default function DiscoverScreen() {
   const handleViewAllNearbyShows = useCallback(() => {
     router.push("/(app)/(tabs)/(discover)/nearby-shows");
   }, [router]);
+  const handleViewAllPlaylists = useCallback(() => {
+    router.push("/(app)/(tabs)/(discover)/editorial");
+  }, [router]);
 
   const notConfigured =
     discovery?.configured === false &&
@@ -291,7 +297,12 @@ export default function DiscoverScreen() {
                           />
                         );
                       case "playlists":
-                        return <DiscoverPlaylistsSection key={section.id} />;
+                        return (
+                          <EditorialPlaylistsSection
+                            key={section.id}
+                            onViewAll={handleViewAllPlaylists}
+                          />
+                        );
                       case "recommendedShows":
                         return (
                           <ShowsNearYouSection

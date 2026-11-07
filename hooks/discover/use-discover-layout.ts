@@ -13,7 +13,7 @@ const STORAGE_KEY_PREFIX = "discoverLayout";
 
 export const DEFAULT_DISCOVER_SECTIONS: readonly DiscoverSection[] = [
   { id: "recentlyAdded", label: "Recently Added", enabled: true },
-  { id: "playlists", label: "Playlists for You", enabled: true },
+  { id: "playlists", label: "Playlists", enabled: true },
   { id: "recommendedShows", label: "Shows Near You", enabled: true },
   { id: "recentReleases", label: "Recent Releases", enabled: true },
   { id: "recommended", label: "Recommended for You", enabled: true },

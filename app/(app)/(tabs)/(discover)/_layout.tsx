@@ -43,6 +43,18 @@ export default function DiscoverLayout() {
           }}
         />
         <Stack.Screen
+          name="editorial/index"
+          options={{
+            title: "Playlists",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
+          name="editorial/[id]"
+          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
+        />
+        <Stack.Screen
           name="tag-results"
           options={({ route }) => ({
             title: (route.params as { q?: string })?.q ?? "Results",

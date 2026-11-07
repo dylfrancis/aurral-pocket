@@ -58,7 +58,7 @@ jest.mock("@/components/discover", () => {
     RecommendedForYouSection: stub("recommended"),
     GlobalTrendingSection: stub("globalTop"),
     GenreSectionsPanel: stub("genreSections"),
-    DiscoverPlaylistsSection: stub("playlists"),
+    EditorialPlaylistsSection: stub("playlists"),
     CustomizeDiscoverSheet: () => null,
   };
 });
@@ -125,7 +125,7 @@ describe("DiscoverScreen layout", () => {
   it("renders only enabled sections in layout order", async () => {
     mockUseDiscoverLayout.mockReturnValue({
       sections: [
-        { id: "playlists", label: "Playlists for You", enabled: true },
+        { id: "playlists", label: "Playlists", enabled: true },
         { id: "recentlyAdded", label: "Recently Added", enabled: false },
         { id: "recommended", label: "Recommended for You", enabled: true },
       ],
