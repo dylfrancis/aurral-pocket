@@ -151,7 +151,7 @@ describe("CustomizeDiscoverSheet", () => {
     const sheetRef = makeSheetRef();
     const onSave = jest.fn().mockResolvedValue(undefined);
     const customSections: DiscoverSection[] = [
-      { id: "playlists", label: "Playlists for You", enabled: false },
+      { id: "playlists", label: "Playlists", enabled: false },
       { id: "recentlyAdded", label: "Recently Added", enabled: false },
       { id: "recommendedShows", label: "Shows Near You", enabled: false },
       { id: "recentReleases", label: "Recent Releases", enabled: false },

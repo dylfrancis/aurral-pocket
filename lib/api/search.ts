@@ -10,6 +10,10 @@ import type {
   AddArtistRequest,
   AddArtistResponse,
   DiscoveryResponse,
+  EditorialLibraryAddResponse,
+  EditorialLinks,
+  EditorialPlaylist,
+  EditorialShelfResponse,
   RecentlyAddedResponse,
   RecentReleasesResponse,
   NearbyShowsResponse,
@@ -82,56 +86,34 @@ export async function getRecentReleases() {
   return r.data;
 }
 
-export type AdoptDiscoverFlowResponse = {
-  success: boolean;
-  flowId: string;
-  alreadyAdopted?: boolean;
-};
+export async function getEditorialShelf() {
+  const r = await api.get<EditorialShelfResponse>("/discover/editorial");
+  return r.data;
+}
 
-export type AdoptDiscoverStaticResponse = {
-  success: boolean;
-  playlistId: string;
-  alreadyAdopted?: boolean;
-};
-
-export async function adoptDiscoverPlaylistAsFlow(presetId: string) {
-  const r = await api.post<AdoptDiscoverFlowResponse>(
-    "/discover/playlists/adopt",
-    { presetId },
+export async function getEditorialPlaylist(playlistId: string) {
+  const r = await api.get<EditorialPlaylist>(
+    `/discover/editorial/${encodeURIComponent(playlistId)}`,
   );
   return r.data;
 }
 
-export async function adoptDiscoverPlaylistAsStatic(presetId: string) {
-  const r = await api.post<AdoptDiscoverStaticResponse>(
-    "/discover/playlists/adopt-playlist",
-    { presetId },
+export async function addEditorialPlaylistToLibrary(playlistId: string) {
+  const r = await api.post<EditorialLibraryAddResponse>(
+    `/discover/editorial/${encodeURIComponent(playlistId)}/library`,
   );
   return r.data;
 }
 
-export type AuthedImageSource = {
-  uri: string;
-  headers?: Record<string, string>;
-};
-
-/**
- * Authenticated image source for a discover playlist's generated cover. The
- * backend serves it from /discover/artwork/:presetId behind token auth; expo
- * passes the Bearer header for us. `version` (the discovery `lastUpdated`
- * stamp) busts the cache when the playlist is rebuilt.
- */
-export function getDiscoverArtworkSource(
-  presetId: string,
-  token: string | null,
-  version?: string | null,
-): AuthedImageSource {
-  const base = api.defaults.baseURL;
-  const v = version ? `?v=${encodeURIComponent(version)}` : "";
-  const uri = `${base}/discover/artwork/${encodeURIComponent(presetId)}${v}`;
-  return token
-    ? { uri, headers: { Authorization: `Bearer ${token}` } }
-    : { uri };
+export async function getEditorialLinks(params: {
+  artist: string;
+  album?: string | null;
+  albumId?: string | null;
+}) {
+  const r = await api.get<EditorialLinks>("/discover/editorial/links", {
+    params,
+  });
+  return r.data;
 }
 
 export async function getNearbyShows(

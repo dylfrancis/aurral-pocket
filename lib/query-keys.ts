@@ -68,6 +68,14 @@ export const discoverKeys = {
   nearbyShowsAll: () => ["discover", "nearbyShows"] as const,
   nearbyShows: (zipCode?: string, limit?: number) =>
     ["discover", "nearbyShows", zipCode ?? "", limit ?? null] as const,
+  editorialShelf: () => ["discover", "editorial", "shelf"] as const,
+  editorialPlaylist: (playlistId: string) =>
+    ["discover", "editorial", "playlist", playlistId] as const,
+  editorialLinks: (
+    artist: string,
+    album?: string | null,
+    albumId?: string | null,
+  ) => ["discover", "editorial", "links", artist, album, albumId] as const,
 };
 
 export const flowKeys = {

@@ -8,25 +8,15 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 jest.mock("@/lib/api/search", () => ({
-  adoptDiscoverPlaylistAsFlow: jest.fn(() => Promise.resolve({})),
-  adoptDiscoverPlaylistAsStatic: jest.fn(() => Promise.resolve({})),
   getDiscovery: jest.fn(),
   getRecentlyAdded: jest.fn(),
   getRecentReleases: jest.fn(),
   getNearbyShows: jest.fn(),
 }));
 
-jest.mock("burnt", () => ({ toast: jest.fn() }));
-
 import React from "react";
-import {
-  act,
-  cleanup,
-  renderHook,
-  waitFor,
-} from "@testing-library/react-native";
+import { cleanup, renderHook, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import * as Burnt from "burnt";
 import {
   getDiscovery,
   getRecentlyAdded,
@@ -39,7 +29,6 @@ import {
   useRecentReleases,
   useNearbyShows,
 } from "@/hooks/discover";
-import { useAdoptDiscoverPlaylist } from "@/hooks/discover/use-adopt-discover-playlist";
 
 const mockGetDiscovery = getDiscovery as jest.Mock;
 const mockGetRecentlyAdded = getRecentlyAdded as jest.Mock;
@@ -79,22 +68,6 @@ afterEach(() => {
   cleanup();
   clients.forEach((client) => client.clear());
   clients.length = 0;
-});
-
-describe("useAdoptDiscoverPlaylist", () => {
-  it.each([
-    ["flow", "Added to Flows"],
-    ["static", "Added to Playlists in Library"],
-  ] as const)("says where a %s went", async (kind, title) => {
-    const { wrapper } = makeWrapper();
-    const { result } = await renderHook(() => useAdoptDiscoverPlaylist(), {
-      wrapper,
-    });
-
-    await act(() => result.current.mutateAsync({ presetId: "p-1", kind }));
-
-    expect(Burnt.toast).toHaveBeenCalledWith({ title, preset: "done" });
-  });
 });
 
 describe("useDiscovery", () => {

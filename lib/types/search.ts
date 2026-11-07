@@ -138,61 +138,58 @@ export type BasedOnArtist = {
   source?: string;
 };
 
-export type DiscoverPlaylistType =
-  "flow" | "release_radar" | "focus" | "editorial";
-
-export type DiscoverPlaylistMix = {
-  discover: number;
-  mix: number;
-  trending: number;
-  focus: number;
-};
-
-export type DiscoverPlaylistRecipe = {
-  discover?: number;
-  mix?: number;
-  trending?: number;
-  focus?: number;
-  releaseRadar?: number;
-};
-
-export type DiscoverPlaylistTrack = {
-  artistName: string | null;
-  trackName: string | null;
-  albumName: string | null;
-  artistMbid: string | null;
-  albumMbid: string | null;
-  trackMbid: string | null;
-  releaseYear: number | null;
-  reason: string | null;
-};
-
-/**
- * The server sends two playlist shapes under `discoverPlaylists`. A preset
- * playlist carries the flow fields: `mix`, `size`, `deepDive`, `tags`,
- * `relatedArtists` and `recipe`. An editorial playlist is built from a
- * Last.fm tag chart and omits all six, so each one is optional here.
- */
-export type DiscoverPlaylist = {
-  presetId: string;
+export type EditorialPlaylistSummary = {
+  id: string;
   name: string;
   description: string | null;
-  type: DiscoverPlaylistType;
-  mix?: DiscoverPlaylistMix;
-  size?: number;
-  deepDive?: boolean;
-  tags?: string[];
-  relatedArtists?: string[];
-  recipe?: DiscoverPlaylistRecipe;
-  tracks: DiscoverPlaylistTrack[];
   trackCount: number;
-  /** Editorial playlists only: the chart tag and the editorial sub-type. */
-  tag?: string;
-  editorialType?: string;
-  artworkStyle?: string;
-  hasArtwork?: boolean;
-  adoptedFlowId: string | null;
-  adoptedPlaylistId: string | null;
+  artworkUrl: string | null;
+  curator: string | null;
+};
+
+export type EditorialGenre = {
+  id: number;
+  name: string;
+  playlists: EditorialPlaylistSummary[];
+};
+
+export type EditorialShelfResponse = {
+  forYou: EditorialPlaylistSummary[];
+  genres: EditorialGenre[];
+};
+
+export type EditorialTrack = {
+  artistName: string;
+  trackName: string;
+  albumName: string | null;
+  /** Server-relative. Null when Deezer has no clip for the track. */
+  preview_url: string | null;
+  artworkUrl: string | null;
+  deezerAlbumId: string | null;
+};
+
+export type EditorialPlaylist = {
+  id: string;
+  name: string;
+  description: string | null;
+  curator: string | null;
+  artworkUrl: string | null;
+  tracks: EditorialTrack[];
+  libraryPlaylistId: string | null;
+};
+
+export type EditorialLibraryAddResponse =
+  | { playlistId: string; name: string; alreadyAdded: true }
+  | {
+      playlistId: string;
+      name: string;
+      alreadyAdded: false;
+      tracksQueued: number;
+    };
+
+export type EditorialLinks = {
+  artistMbid: string | null;
+  albumMbid: string | null;
 };
 
 export type DiscoveryResponse = {
@@ -201,9 +198,6 @@ export type DiscoveryResponse = {
   basedOn: BasedOnArtist[];
   topTags: string[];
   topGenres: string[];
-  discoverPlaylists?: DiscoverPlaylist[];
-  playlistsUpdating?: boolean;
-  playlistsUpdateMessage?: string;
   lastUpdated: string | null;
   configured: boolean;
 };

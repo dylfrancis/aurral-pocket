@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { absolutizeServerPath } from "@/lib/api/client";
 import {
   pause,
   pauseClip,
@@ -57,7 +58,8 @@ export function useAudioPreview() {
         artist: meta.artist || "Unknown Artist",
         album: meta.album || "Unknown Album",
         duration: 0,
-        url: previewUrl,
+        // The server sends Deezer clips as paths. They need no token.
+        url: absolutizeServerPath(previewUrl),
         artwork: meta.artwork ?? null,
       });
     },

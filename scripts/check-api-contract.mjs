@@ -129,16 +129,14 @@ const MAX_RELOGINS = 2;
  * Keep this list short. Every entry is a call pocket makes that 404s in
  * production.
  */
-const KNOWN_DRIFT = new Map([
-  [
-    "POST /discover/playlists/adopt",
-    "#263 — removed in Aurral 2.11.0 with the Discover mixes",
-  ],
-  [
-    "POST /discover/playlists/adopt-playlist",
-    "#263 — removed in Aurral 2.11.0 with the Discover mixes",
-  ],
-]);
+const KNOWN_DRIFT = new Map([]);
+
+/**
+ * GET routes whose body comes straight from a third party. When Deezer is down
+ * these answer 502, which says nothing about Aurral, so a run that can't read
+ * one skips its shape instead of failing. A 200 still has to match the baseline.
+ */
+const THIRD_PARTY_ROUTES = new Set(["GET /discover/editorial"]);
 
 /**
  * Aurral's app contract, version 1, as docs/src/content/docs/api/app-contract.mdx
@@ -644,6 +642,10 @@ function compareBaseline(shapes) {
   const recorded = baseline.shapes ?? {};
 
   for (const [key, baseShape] of Object.entries(recorded)) {
+    if (!shapes.has(key) && THIRD_PARTY_ROUTES.has(key)) {
+      console.log(`  note: ${key} did not answer 200; its shape was skipped.`);
+      continue;
+    }
     if (!shapes.has(key)) {
       console.error(
         `\nFAIL: ${key} is in the shape baseline but no longer answers 200 ` +

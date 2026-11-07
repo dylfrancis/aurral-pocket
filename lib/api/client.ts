@@ -39,14 +39,16 @@ export function setBaseUrl(url: string) {
   baseURL = url ? `${url}/api` : "";
 }
 
+export function absolutizeServerPath(urlOrPath: string): string {
+  if (!urlOrPath.startsWith("/")) return urlOrPath;
+  return `${baseURL.replace(/\/api\/?$/, "")}${urlOrPath}`;
+}
+
 export function absolutizeImageUrl(
   raw: string | null | undefined,
 ): string | null {
   if (!raw) return null;
-  if (raw.startsWith("/")) {
-    const origin = baseURL.replace(/\/api\/?$/, "");
-    return origin ? `${origin}${raw}` : raw;
-  }
+  if (raw.startsWith("/")) return absolutizeServerPath(raw);
   return raw.replace(/^http:\/\//, "https://");
 }
 

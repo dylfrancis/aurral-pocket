@@ -14,6 +14,11 @@ export function recentlyAddedMbid(artist: RecentlyAddedArtist): string {
   return artist.mbid || artist.foreignArtistId || artist.id;
 }
 
+export function formatTrackCount(count: number): string {
+  if (count <= 0) return "";
+  return `${count} track${count === 1 ? "" : "s"}`;
+}
+
 export type GenreSection = {
   genre: string;
   artists: DiscoveryArtist[];

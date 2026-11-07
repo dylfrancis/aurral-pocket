@@ -9,6 +9,10 @@ jest.mock("@/lib/api/client", () => ({
 
 import { api } from "@/lib/api/client";
 import {
+  addEditorialPlaylistToLibrary,
+  getEditorialLinks,
+  getEditorialPlaylist,
+  getEditorialShelf,
   searchArtists,
   searchAlbums,
   addArtist,
@@ -332,5 +336,40 @@ describe("getNearbyShows", () => {
   it("propagates errors", async () => {
     mockApi.get.mockRejectedValue(new Error("503"));
     await expect(getNearbyShows()).rejects.toThrow("503");
+  });
+});
+
+describe("editorial playlists", () => {
+  it("reads the shelf and a playlist by its Deezer id", async () => {
+    mockApi.get.mockResolvedValue({ data: {} });
+
+    await getEditorialShelf();
+    await getEditorialPlaylist("878989033");
+
+    expect(mockApi.get.mock.calls.map(([path]) => path)).toEqual([
+      "/discover/editorial",
+      "/discover/editorial/878989033",
+    ]);
+  });
+
+  it("saves a playlist through its library route", async () => {
+    mockApi.post.mockResolvedValue({ data: {} });
+
+    await addEditorialPlaylistToLibrary("878989033");
+
+    expect(mockApi.post).toHaveBeenCalledWith(
+      "/discover/editorial/878989033/library",
+    );
+  });
+
+  it("names the link lookup's query as the server reads it", async () => {
+    mockApi.get.mockResolvedValue({ data: {} });
+    const params = { artist: "Nirvana", album: "Nevermind", albumId: "119853" };
+
+    await getEditorialLinks(params);
+
+    expect(mockApi.get).toHaveBeenCalledWith("/discover/editorial/links", {
+      params,
+    });
   });
 });
