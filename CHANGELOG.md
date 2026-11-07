@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.14.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.13.0...v0.14.0) (2026-11-07)
+
+
+### Features
+
+* **discover:** replace Playlists for You with Deezer editorial playlist ([#308](https://github.com/dylfrancis/aurral-pocket/issues/308)) ([03e28c7](https://github.com/dylfrancis/aurral-pocket/commit/03e28c78535fc682b8d06fac78419cfd413946fd))
+* **flow:** open flows and playlists on their own pages ([#304](https://github.com/dylfrancis/aurral-pocket/issues/304)) ([#306](https://github.com/dylfrancis/aurral-pocket/issues/306)) ([e256c20](https://github.com/dylfrancis/aurral-pocket/commit/e256c20b89320d262468617b2473b04c49fdb278))
+* **library:** add a favorites screen ([#240](https://github.com/dylfrancis/aurral-pocket/issues/240)) ([#302](https://github.com/dylfrancis/aurral-pocket/issues/302)) ([7d2be42](https://github.com/dylfrancis/aurral-pocket/commit/7d2be4298e1092e73817a8b009f9c2c2f61460ca))
+* **library:** add a genres list and genre detail screen ([#239](https://github.com/dylfrancis/aurral-pocket/issues/239)) ([#299](https://github.com/dylfrancis/aurral-pocket/issues/299)) ([aa794a5](https://github.com/dylfrancis/aurral-pocket/commit/aa794a523548fa4ae55cea63d54b577eb5f2c5cd))
+* **library:** add a whole-library albums screen ([#238](https://github.com/dylfrancis/aurral-pocket/issues/238)) ([#296](https://github.com/dylfrancis/aurral-pocket/issues/296)) ([5cde7cc](https://github.com/dylfrancis/aurral-pocket/commit/5cde7ccd0a2eafbbc2dec843790cddcc050126ee))
+* **library:** load album and artist covers from Aurral's artwork path ([#269](https://github.com/dylfrancis/aurral-pocket/issues/269)) ([#297](https://github.com/dylfrancis/aurral-pocket/issues/297)) ([56ac3bf](https://github.com/dylfrancis/aurral-pocket/commit/56ac3bff599b0b4e5fec9b80eb36dc07bf606d38))
+* **library:** move static playlists from the Flows tab to Library ([#304](https://github.com/dylfrancis/aurral-pocket/issues/304)) ([#305](https://github.com/dylfrancis/aurral-pocket/issues/305)) ([f05c712](https://github.com/dylfrancis/aurral-pocket/commit/f05c712d6c7211458ab9336aa5cee9eab00dcf96))
+
+
+### Bug Fixes
+
+* **deps:** bump react-native-nitro-player to 1.8.1 ([#292](https://github.com/dylfrancis/aurral-pocket/issues/292)) ([3f2ff73](https://github.com/dylfrancis/aurral-pocket/commit/3f2ff73129cffedccda0a45c8772eb793611870f))
+* **discover:** keep the News entry and row styles when saving the layout ([#281](https://github.com/dylfrancis/aurral-pocket/issues/281)) ([#295](https://github.com/dylfrancis/aurral-pocket/issues/295)) ([befb543](https://github.com/dylfrancis/aurral-pocket/commit/befb543a85a1513df77764617b53ae28264c440d))
+* **flow:** add new releases, recent listening and excluded tags to the flow editor ([#280](https://github.com/dylfrancis/aurral-pocket/issues/280)) ([#294](https://github.com/dylfrancis/aurral-pocket/issues/294)) ([405b216](https://github.com/dylfrancis/aurral-pocket/commit/405b216aca64d29f2d199550576ce3da89545a6f))
+* **player:** delete engine playlists left by earlier sessions ([#288](https://github.com/dylfrancis/aurral-pocket/issues/288)) ([#291](https://github.com/dylfrancis/aurral-pocket/issues/291)) ([8a3552b](https://github.com/dylfrancis/aurral-pocket/commit/8a3552b84792774f8b9f4d8f25e6f8131c15ca7f))
+* **player:** load the queue from the started track ([#301](https://github.com/dylfrancis/aurral-pocket/issues/301)) ([#310](https://github.com/dylfrancis/aurral-pocket/issues/310)) ([b7dad47](https://github.com/dylfrancis/aurral-pocket/commit/b7dad47a326915a66b7076a502994ea0346dd888))
+
 ## [0.13.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.12.0...v0.13.0) (2026-11-05)
 
 
