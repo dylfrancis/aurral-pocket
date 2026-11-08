@@ -121,9 +121,15 @@ function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
         : undefined,
     artistId: item.artistId != null ? String(item.artistId) : "",
     artistName: item.albumArtist ?? "",
-    mbid: item.mbid ?? item.releaseGroupMbid ?? "",
+    // A row scanned from tagged files keeps its release's id in `mbid`. Release
+    // lists, cover lookups and the web's album route all use the release group.
+    mbid: item.releaseGroupMbid || item.mbid || "",
     foreignAlbumId:
-      item.mbid ?? item.releaseGroupMbid ?? item.identityKey ?? String(item.id),
+      metadata.foreignAlbumId ||
+      item.releaseGroupMbid ||
+      item.mbid ||
+      item.identityKey ||
+      String(item.id),
     albumName: item.title ?? "",
     title: item.title ?? "",
     releaseDate: item.releaseDate ?? null,
