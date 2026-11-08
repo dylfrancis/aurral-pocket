@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   },
   tagList: {
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 4,
   },

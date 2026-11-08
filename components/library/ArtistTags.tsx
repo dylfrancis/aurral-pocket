@@ -31,7 +31,7 @@ export function ArtistTags({ mbid }: ArtistTagsProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 6,
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },

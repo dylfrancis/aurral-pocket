@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
-import { Fonts, Radius } from "@/constants/theme";
-import { getTagColor } from "@/lib/tag-colors";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors, Fonts, Radius } from "@/constants/theme";
 
 export type TagPillProps = {
   name: string;
@@ -10,9 +10,13 @@ export type TagPillProps = {
 };
 
 export function TagPill({ name, onPress }: TagPillProps) {
-  const color = getTagColor(name);
+  const colors = Colors[useColorScheme()];
   const label = (
-    <Text variant="caption" style={styles.label}>
+    <Text
+      variant="caption"
+      numberOfLines={1}
+      style={[styles.label, { color: colors.text }]}
+    >
       #{name}
     </Text>
   );
@@ -27,7 +31,9 @@ export function TagPill({ name, onPress }: TagPillProps) {
         }}
         style={({ pressed }) => [
           styles.tag,
-          { backgroundColor: color, opacity: pressed ? 0.7 : 1 },
+          {
+            backgroundColor: pressed ? colors.tagFillPressed : colors.tagFill,
+          },
         ]}
       >
         {label}
@@ -35,18 +41,21 @@ export function TagPill({ name, onPress }: TagPillProps) {
     );
   }
 
-  return <View style={[styles.tag, { backgroundColor: color }]}>{label}</View>;
+  return (
+    <View style={[styles.tag, { backgroundColor: colors.tagFill }]}>
+      {label}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   tag: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: Radius.compact,
+    justifyContent: "center",
+    minHeight: 32,
+    paddingHorizontal: 12,
+    borderRadius: Radius.round,
   },
   label: {
-    color: "#fff",
-    fontSize: 14,
     ...Fonts.medium,
   },
 });

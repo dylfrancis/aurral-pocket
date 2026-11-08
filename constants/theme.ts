@@ -21,6 +21,8 @@ export const Colors = {
     placeholder: "#a1a1aa",
     brandStrong: "#4d7c0f",
     brandMuted: "#65a30d29",
+    tagFill: "#1111111a",
+    tagFillPressed: "#11111129",
     buttonPrimary: "#65a30d",
     // Foreground on the brand green is always black, in both schemes: the green
     // is light enough that white text drops below contrast in light mode.
@@ -50,6 +52,8 @@ export const Colors = {
     placeholder: "#535353",
     brandStrong: "#a3e635",
     brandMuted: "#84cc1629",
+    tagFill: "#ffffff1a",
+    tagFillPressed: "#ffffff29",
     buttonPrimary: "#84cc16",
     buttonPrimaryText: "#000000",
     complete: "#60a5fa",
@@ -60,9 +64,9 @@ export const Colors = {
 export const Radius = {
   /** Cards, panels, modals, hero/media surfaces */
   surface: 20,
-  /** Nested list items, tabs, small menus, tag pills */
+  /** Nested list items, tabs, small menus */
   compact: 15,
-  /** Every clickable action: buttons, pills, icon buttons */
+  /** Every clickable action: buttons, pills, tag pills, icon buttons */
   round: 9999,
 };
 
