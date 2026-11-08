@@ -10,14 +10,14 @@ jest.mock("@/lib/api/play-events", () => ({
 
 jest.mock("@/lib/player/player", () => ({
   onProgress: jest.fn(() => () => {}),
-  onTrackCompleted: jest.fn(() => () => {}),
+  onTrackStarted: jest.fn(() => () => {}),
 }));
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ApiError } from "@/lib/api/client";
 import { recordPlayEvent } from "@/lib/api/play-events";
 import { forgetPlayHistory, startPlayHistory } from "@/lib/player/play-history";
-import { onProgress, onTrackCompleted } from "@/lib/player/player";
+import { onProgress, onTrackStarted } from "@/lib/player/player";
 import type { PlaybackProgress } from "@/lib/player/player";
 import type { PlayerTrack } from "@/lib/player/track-item";
 
@@ -50,17 +50,34 @@ function track(overrides: Partial<PlayerTrack> = {}): PlayerTrack {
 /** Torn down between tests, so no run's progress reaches the next. */
 let stopCurrent: (() => void) | null = null;
 
-/** Start reporting and hand back the two listeners the player would call. */
+/** Start reporting and play the part of the player that drives it. */
 function start() {
   const stop = startPlayHistory();
   stopCurrent = stop;
   const progress = (onProgress as jest.Mock).mock.calls[0][0] as (
     value: PlaybackProgress,
   ) => void;
-  const completed = (onTrackCompleted as jest.Mock).mock.calls[0][0] as (
+  const started = (onTrackStarted as jest.Mock).mock.calls[0][0] as (
     value: PlayerTrack,
   ) => void;
-  return { stop, progress, completed };
+
+  /** One progress report a second, from one position to another. */
+  function listen(
+    from: number,
+    to: number,
+    { playing = track(), duration = 200 } = {},
+  ): void {
+    for (let position = from; position <= to; position += 1) {
+      progress({ track: playing, position, duration, seeked: false });
+    }
+  }
+
+  /** The report that follows a seek. */
+  function seek(position: number): void {
+    progress({ track: track(), position, duration: 200, seeked: true });
+  }
+
+  return { started, progress, listen, seek };
 }
 
 /** Let the module's write-and-send chain run to its end. */
@@ -93,11 +110,10 @@ afterEach(() => {
 });
 
 describe("startPlayHistory", () => {
-  it("reports a track that played to its end", async () => {
-    const { progress, completed } = start();
+  it("reports what played once the listener reaches the threshold", async () => {
+    const { listen } = start();
 
-    progress({ trackId: "77", position: 250, duration: 251 });
-    completed(track());
+    listen(0, 126, { duration: 251.2 });
     await settle();
 
     expect(mockRecord).toHaveBeenCalledWith({
@@ -108,62 +124,171 @@ describe("startPlayHistory", () => {
       artistMbid: "artist-mb-1",
       albumMbid: "album-mb-1",
       trackMbid: "track-mb-1",
-      durationMs: 251_000,
+      durationMs: 251_200,
       playedAt: 1_800_000_000_000,
       source: "pocket",
     });
     expect(outbox()).toEqual([]);
   });
 
+  it.each([
+    { duration: 200, threshold: 100 },
+    { duration: 600, threshold: 240 },
+    { duration: 31, threshold: 16 },
+  ])(
+    "reports a $duration-second track at $threshold seconds, and only then",
+    async ({ duration, threshold }) => {
+      const { listen } = start();
+
+      listen(0, threshold - 1, { duration });
+      await settle();
+      expect(mockRecord).not.toHaveBeenCalled();
+
+      listen(threshold, threshold, { duration });
+      await settle();
+      expect(mockRecord).toHaveBeenCalledTimes(1);
+
+      listen(threshold + 1, duration, { duration });
+      await settle();
+      expect(mockRecord).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([30, 12])("never reports a %d-second track", async (duration) => {
+    const { listen } = start();
+
+    listen(0, duration, { duration });
+    await settle();
+
+    expect(mockRecord).not.toHaveBeenCalled();
+  });
+
   // A preview clip is a 30-second sample the user did not choose to hear.
   it("ignores a preview clip", async () => {
-    const { completed } = start();
+    const { listen } = start();
 
-    completed(track({ streamPath: null }));
+    listen(0, 200, { playing: track({ streamPath: null }) });
     await settle();
 
     expect(mockRecord).not.toHaveBeenCalled();
   });
 
   it("ignores a track from a playlist that opted out", async () => {
-    const { completed } = start();
+    const { listen } = start();
 
-    completed(track({ recordHistory: false }));
+    listen(0, 200, { playing: track({ recordHistory: false }) });
     await settle();
 
     expect(mockRecord).not.toHaveBeenCalled();
   });
 
-  // The engine learns a track's length from the stream, so the queued track
-  // carries none. A play with no length is still a play.
-  it("reports no duration when the engine never gave one", async () => {
-    const { completed } = start();
+  it("does not count a seek past the threshold as listening", async () => {
+    const { listen, seek } = start();
 
-    completed(track());
+    listen(0, 10);
+    seek(150);
+    listen(151, 200);
     await settle();
 
+    expect(mockRecord).not.toHaveBeenCalled();
+  });
+
+  it("does not count a run of short seeks as listening", async () => {
+    const { seek } = start();
+
+    for (let position = 5; position < 200; position += 5) seek(position);
+    await settle();
+
+    expect(mockRecord).not.toHaveBeenCalled();
+  });
+
+  it("does not count a jump the engine did not flag as a seek", async () => {
+    const { listen } = start();
+
+    listen(0, 10);
+    listen(150, 200);
+    await settle();
+
+    expect(mockRecord).not.toHaveBeenCalled();
+  });
+
+  it("adds up the listening on either side of a seek", async () => {
+    const { listen, seek } = start();
+
+    listen(0, 60);
+    seek(150);
+    listen(151, 190);
+    await settle();
+
+    expect(mockRecord).toHaveBeenCalledTimes(1);
+  });
+
+  // The web player treats a seek back as more of the same play, not a new one.
+  it("keeps a seek back to the start within the same play", async () => {
+    const { listen, seek } = start();
+
+    listen(0, 60);
+    seek(0);
+    listen(1, 150);
+    await settle();
+
+    expect(mockRecord).toHaveBeenCalledTimes(1);
+  });
+
+  // The engine learns a track's length from the stream, so listening has to
+  // count from before the length arrives.
+  it("counts listening from before the engine knows the length", async () => {
+    const { listen } = start();
+
+    listen(0, 120, { duration: 0 });
+    await settle();
+    expect(mockRecord).not.toHaveBeenCalled();
+
+    listen(121, 121);
+    await settle();
     expect(mockRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ durationMs: null }),
+      expect.objectContaining({ durationMs: 200_000 }),
     );
   });
 
-  it("ignores a duration measured against a different track", async () => {
-    const { progress, completed } = start();
+  it("starts counting afresh when the next track starts", async () => {
+    const { listen, started } = start();
 
-    progress({ trackId: "78", position: 10, duration: 180 });
-    completed(track());
+    listen(0, 90);
+    started(track({ id: "78" }));
+    listen(0, 90, { playing: track({ id: "78" }) });
     await settle();
 
-    expect(mockRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ durationMs: null }),
-    );
+    expect(mockRecord).not.toHaveBeenCalled();
+  });
+
+  // The next track's first report can arrive before its track change.
+  it("does not measure a skipped track against the next one's length", async () => {
+    const { listen, progress } = start();
+
+    listen(0, 60, { duration: 300 });
+    progress({ track: track(), position: 0.5, duration: 100, seeked: false });
+    await settle();
+
+    expect(mockRecord).not.toHaveBeenCalled();
+  });
+
+  it("reports a track played twice in a row as two plays", async () => {
+    const { listen, started } = start();
+
+    listen(0, 200);
+    started(track());
+    listen(0, 200);
+    await settle();
+
+    expect(mockRecord).toHaveBeenCalledTimes(2);
   });
 
   it("keeps a play the server never received", async () => {
     mockRecord.mockRejectedValue(new ApiError(0, "Network request failed"));
-    const { completed } = start();
+    const { listen } = start();
 
-    completed(track());
+    listen(0, 100);
     await settle();
 
     expect(outbox()).toEqual([expect.objectContaining({ trackId: "77" })]);
@@ -173,19 +298,20 @@ describe("startPlayHistory", () => {
   // holding it would block every later play behind it.
   it("drops a play the server rejected", async () => {
     mockRecord.mockRejectedValue(new ApiError(400, "trackId is required"));
-    const { completed } = start();
+    const { listen } = start();
 
-    completed(track());
+    listen(0, 100);
     await settle();
 
+    expect(mockRecord).toHaveBeenCalledTimes(1);
     expect(outbox()).toEqual([]);
   });
 
   it("keeps a play refused for an expired session", async () => {
     mockRecord.mockRejectedValue(new ApiError(401, "Session expired"));
-    const { completed } = start();
+    const { listen } = start();
 
-    completed(track());
+    listen(0, 100);
     await settle();
 
     expect(outbox()).toEqual([expect.objectContaining({ trackId: "77" })]);
@@ -230,14 +356,14 @@ describe("startPlayHistory", () => {
 
   it("stops reporting once the listeners are removed", () => {
     const stopProgress = jest.fn();
-    const stopCompleted = jest.fn();
+    const stopStarted = jest.fn();
     (onProgress as jest.Mock).mockReturnValueOnce(stopProgress);
-    (onTrackCompleted as jest.Mock).mockReturnValueOnce(stopCompleted);
+    (onTrackStarted as jest.Mock).mockReturnValueOnce(stopStarted);
 
     startPlayHistory()();
 
     expect(stopProgress).toHaveBeenCalled();
-    expect(stopCompleted).toHaveBeenCalled();
+    expect(stopStarted).toHaveBeenCalled();
   });
 });
 

@@ -17,7 +17,6 @@ import {
   forgetQueue,
   next,
   onProgress,
-  onTrackCompleted,
   onTrackStarted,
   pause,
   pauseClip,
@@ -602,11 +601,13 @@ describe("playback events", () => {
       expect(player.play).toHaveBeenCalledTimes(1);
     });
 
-    it("does not report a track cut off near its end as played", async () => {
+    // Listening time belongs to the play in progress, so the rebuilt track
+    // must not reset it, even when the track was about to end.
+    it("carries on the same play instead of starting one", async () => {
       await listenTo72(239);
       engine.stateChange("playing", undefined);
-      const completed: string[] = [];
-      const unsubscribe = onTrackCompleted((item) => completed.push(item.id));
+      const started: string[] = [];
+      const unsubscribe = onTrackStarted((item) => started.push(item.id));
 
       // The old stream's last report, then the rebuilt playlist's track, which
       // is the same one.
@@ -616,8 +617,10 @@ describe("playback events", () => {
       });
 
       await refreshQueueUrls();
+      engine.progress(0, 240, false);
+      engine.progress(239, 240, true);
 
-      expect(completed).toEqual([]);
+      expect(started).toEqual([]);
       unsubscribe();
     });
 
@@ -702,91 +705,82 @@ describe("playback events", () => {
   });
 
   it("emits progress against the track that is playing", () => {
-    const seen: { trackId: string; position: number; duration: number }[] = [];
+    const seen: unknown[] = [];
     const unsubscribe = onProgress((progress) => seen.push(progress));
 
     engine.trackChange({ ...clip, id: "42" }, "user_action");
-    engine.progress(30, 240, false);
+    engine.progress(30, 240, undefined);
+    engine.progress(90, 240, true);
 
-    expect(seen).toEqual([{ trackId: "42", position: 30, duration: 240 }]);
+    expect(seen).toEqual([
+      {
+        track: expect.objectContaining({ id: "42" }),
+        position: 30,
+        duration: 240,
+        seeked: false,
+      },
+      {
+        track: expect.objectContaining({ id: "42" }),
+        position: 90,
+        duration: 240,
+        seeked: true,
+      },
+    ]);
     unsubscribe();
   });
 
-  it("emits track-completed when a track plays to its end", () => {
-    const completed: string[] = [];
-    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+  describe("on repeat-one", () => {
+    beforeEach(() => setRepeatMode("one"));
+    afterEach(() => setRepeatMode("off"));
 
-    engine.trackChange({ ...clip, id: "42" }, "user_action");
-    // The engine reports the end of one track as the start of the next,
-    // reason "end".
-    engine.trackChange({ ...clip, id: "43" }, "end");
+    // Repeat-one stays on the track, so no track change reports the new start.
+    it.each([
+      { engineReport: "an unflagged fall from the end", from: 239.5 },
+      { engineReport: "a seek flag from the end", from: 239.5, flag: true },
+      { engineReport: "a fall short of an estimated end", from: 230 },
+    ])(
+      "emits track-started when the track loops with $engineReport",
+      ({ from, flag }) => {
+        const started: string[] = [];
+        const unsubscribe = onTrackStarted((track) => started.push(track.id));
 
-    expect(completed).toEqual(["42"]);
-    unsubscribe();
+        engine.trackChange({ ...clip, id: "42" }, "user_action");
+        engine.progress(from, 240, undefined);
+        engine.progress(0.4, 240, flag);
+
+        expect(started).toEqual(["42", "42"]);
+        unsubscribe();
+      },
+    );
+
+    it.each([
+      { seekBack: "to the start", to: 0, flag: true },
+      { seekBack: "elsewhere, unflagged", to: 60 },
+    ])(
+      "does not emit track-started for a seek back $seekBack",
+      ({ to, flag }) => {
+        const started: string[] = [];
+        const unsubscribe = onTrackStarted((track) => started.push(track.id));
+
+        engine.trackChange({ ...clip, id: "42" }, "user_action");
+        engine.progress(120, 240, undefined);
+        engine.progress(to, 240, flag);
+
+        expect(started).toEqual(["42"]);
+        unsubscribe();
+      },
+    );
   });
 
-  // iOS calls a track running out "skip" — the same word it uses for the next
-  // button. The position is what tells them apart.
-  it("completes a track the engine calls a skip at its end", () => {
-    const completed: string[] = [];
-    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
+  it("does not emit track-started for a seek back from the end without a repeat", () => {
+    const started: string[] = [];
+    const unsubscribe = onTrackStarted((track) => started.push(track.id));
 
     engine.trackChange({ ...clip, id: "42" }, "user_action");
-    engine.progress(239.2, 240, false);
-    engine.trackChange({ ...clip, id: "43" }, "skip");
+    engine.progress(239.5, 240, undefined);
+    engine.progress(0, 240, true);
 
-    expect(completed).toEqual(["42"]);
-    unsubscribe();
-  });
-
-  it("does not complete a track the listener skipped away from", () => {
-    const completed: string[] = [];
-    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
-
-    engine.trackChange({ ...clip, id: "42" }, "user_action");
-    engine.progress(120, 240, false);
-    engine.trackChange({ ...clip, id: "43" }, "skip");
-
-    expect(completed).toEqual([]);
-    unsubscribe();
-  });
-
-  it("completes the last track when the queue runs out", () => {
-    const completed: string[] = [];
-    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
-
-    engine.trackChange({ ...clip, id: "42" }, "user_action");
-    // No next track to change onto — the engine just stops, reason "end".
-    engine.stateChange("stopped", "end");
-
-    expect(completed).toEqual(["42"]);
-    unsubscribe();
-  });
-
-  it("completes the last track when the engine only pauses at its end", () => {
-    // iOS never reports the queue running out: the player pauses at the final
-    // track's end with no reason, exactly like a user pause. The position
-    // tells them apart.
-    const completed: string[] = [];
-    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
-
-    engine.trackChange({ ...clip, id: "42" }, "user_action");
-    engine.progress(239.2, 240, false);
-    engine.stateChange("paused", undefined);
-
-    expect(completed).toEqual(["42"]);
-    unsubscribe();
-  });
-
-  it("does not complete a track paused midway", () => {
-    const completed: string[] = [];
-    const unsubscribe = onTrackCompleted((track) => completed.push(track.id));
-
-    engine.trackChange({ ...clip, id: "42" }, "user_action");
-    engine.progress(120, 240, false);
-    engine.stateChange("paused", undefined);
-
-    expect(completed).toEqual([]);
+    expect(started).toEqual(["42"]);
     unsubscribe();
   });
 });
