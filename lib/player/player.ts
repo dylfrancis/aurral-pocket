@@ -420,16 +420,17 @@ type Listener<T> = (value: T) => void;
 
 /** Progress through the current track, for play-history recording. */
 export type PlaybackProgress = {
-  trackId: string;
+  track: PlayerTrack;
   /** Seconds into the track. */
   position: number;
   /** Track length in seconds. Zero while the engine does not know it yet. */
   duration: number;
+  /** The engine marked this report as following a seek. */
+  seeked: boolean;
 };
 
 const trackStartedListeners = new Set<Listener<PlayerTrack>>();
 const progressListeners = new Set<Listener<PlaybackProgress>>();
-const trackCompletedListeners = new Set<Listener<PlayerTrack>>();
 const playbackFailedListeners = new Set<() => void>();
 
 // Wake-up calls for the player hooks. They carry no payload — each hook
@@ -444,7 +445,10 @@ const progressTickListeners = new Set<() => void>();
 let engineEventsWired = false;
 /** The current track per the last track-change event. */
 let currentEventTrack: PlayerTrack | null = null;
-/** The last progress report, for spotting a pause that is really the end. */
+/**
+ * The last progress report, for spotting a pause that is really the end and a
+ * repeat that has looped the track.
+ */
 let lastProgress: PlaybackProgress | null = null;
 
 /** What playback is doing, as the facade speaks it. */
@@ -785,22 +789,26 @@ function isAtTrackEnd(): boolean {
   );
 }
 
+/**
+ * Whether a repeat just looped the track. Repeat-one loops without a track
+ * change on either platform, so the position falling back to the start is the
+ * only sign. A flagged seek is the listener's own unless it left the track's end,
+ * because iOS can flag the loop as one. An unflagged fall need not start at the
+ * end: a long track reports less often, and its reported length can be an estimate.
+ */
+function hasLooped(position: number, seeked: boolean): boolean {
+  if (repeatMode !== "one" || lastProgress === null) return false;
+  if (position >= TRACK_END_EPSILON_SECONDS) return false;
+  return seeked ? isAtTrackEnd() : position < lastProgress.position;
+}
+
 function wireEngineEvents(): void {
   if (engineEventsWired) return;
   engineEventsWired = true;
 
   callbackManager.subscribeToTrackChange(
-    function handleTrackChange(engineTrack, reason): void {
+    function handleTrackChange(engineTrack): void {
       const started = asPlayerTrack(engineTrack);
-      // The engine reports the end of one track as the start of the next. The
-      // reason it gives for that is not dependable: iOS calls a track running
-      // out "skip", the same word it uses for the next button. So the
-      // position decides — a track that ran out stops at its own end, and one
-      // the listener skipped away from stops wherever they left it. Read
-      // before the progress reset below, while it still describes the track
-      // that is ending.
-      const completed =
-        reason === "end" || isAtTrackEnd() ? currentEventTrack : null;
       currentEventTrack = started;
       lastProgress = null;
       endedAtQueueEnd = false;
@@ -818,34 +826,38 @@ function wireEngineEvents(): void {
         started.duration || restored?.duration || 0,
       );
       setDisplayedTrack(started);
-      if (completed) {
-        trackCompletedListeners.forEach((listener) => listener(completed));
+      // A queue rebuilt or restored partway through a track carries on the
+      // same play rather than starting a new one.
+      if (!restored?.position) {
+        trackStartedListeners.forEach((listener) => listener(started));
       }
-      trackStartedListeners.forEach((listener) => listener(started));
     },
   );
   callbackManager.subscribeToPlaybackProgressChange(
-    function handleProgress(position, totalDuration): void {
+    function handleProgress(position, totalDuration, isManuallySeeked): void {
+      const track = currentEventTrack;
       // During a rebuild, a report can only come from the stream being replaced.
-      if (!currentEventTrack || restoringQueue) return;
+      if (!track || restoringQueue) return;
       // The engine drops a seek sent before the track is ready, and a report
       // means it is. Skipped, so the scrubber never shows the track at zero.
       const resuming = pendingRestoreSeek?.resumesPlaying
         ? pendingRestoreSeek
         : null;
-      if (resuming?.trackId === currentEventTrack.id) {
+      if (resuming?.trackId === track.id) {
         pendingRestoreSeek = null;
         if (position < resuming.position - RESUME_TOLERANCE_SECONDS) {
           void TrackPlayer.seek(resuming.position);
           return;
         }
       }
-      const progress = {
-        trackId: currentEventTrack.id,
-        position,
-        duration: totalDuration,
-      };
+      const seeked = isManuallySeeked === true;
+      // Read before this report replaces the last position.
+      const looped = hasLooped(position, seeked);
+      const progress = { track, position, duration: totalDuration, seeked };
       lastProgress = progress;
+      if (looped) {
+        trackStartedListeners.forEach((listener) => listener(track));
+      }
       progressListeners.forEach((listener) => listener(progress));
       // Whole-second resolution — see progressSnapshot.
       if (
@@ -879,12 +891,10 @@ function wireEngineEvents(): void {
         reason === undefined &&
         isAtTrackEnd();
       if (!endedNaturally && !endedSilently) return;
-      const completed = currentEventTrack;
-      if (!completed) return;
+      if (!currentEventTrack) return;
       currentEventTrack = null;
       lastProgress = null;
       endedAtQueueEnd = true;
-      trackCompletedListeners.forEach((listener) => listener(completed));
     },
   );
 }
@@ -914,7 +924,10 @@ function asPlayerTrack(engineTrack: TrackItem): PlayerTrack {
   };
 }
 
-/** Hear about every track the player moves onto. Returns unsubscribe. */
+/**
+ * Hear about every time a track starts, whether the player moved onto it or a
+ * repeat looped it. Returns unsubscribe.
+ */
 export function onTrackStarted(listener: Listener<PlayerTrack>): () => void {
   wireEngineEvents();
   trackStartedListeners.add(listener);
@@ -938,15 +951,6 @@ export function onPlaybackFailed(listener: () => void): () => void {
   playbackFailedListeners.add(listener);
   return function unsubscribe(): void {
     playbackFailedListeners.delete(listener);
-  };
-}
-
-/** Hear about tracks that played to their natural end. Returns unsubscribe. */
-export function onTrackCompleted(listener: Listener<PlayerTrack>): () => void {
-  wireEngineEvents();
-  trackCompletedListeners.add(listener);
-  return function unsubscribe(): void {
-    trackCompletedListeners.delete(listener);
   };
 }
 

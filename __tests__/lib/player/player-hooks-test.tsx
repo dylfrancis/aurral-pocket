@@ -253,20 +253,33 @@ describe("togglePlayback", () => {
     expect(player.playSong).not.toHaveBeenCalled();
   });
 
-  it("restarts the finished track instead of resuming into silence", async () => {
-    await act(() => playItem(clip));
-    await act(async () => {
-      engine.trackChange(clip, "user_action");
-      // iOS reports the queue running out as a plain pause at the end.
-      engine.progress(239.5, 240, false);
-      engine.stateChange("paused", undefined);
-    });
-    player.playSong.mockClear();
+  it.each([
+    {
+      platform: "iOS, which reports a plain pause at the end",
+      runOut: () => {
+        engine.progress(239.5, 240, false);
+        engine.stateChange("paused", undefined);
+      },
+    },
+    {
+      platform: "Android, which reports the engine stopping",
+      runOut: () => engine.stateChange("stopped", "end"),
+    },
+  ])(
+    "restarts the finished track instead of resuming into silence on $platform",
+    async ({ runOut }) => {
+      await act(() => playItem(clip));
+      await act(async () => {
+        engine.trackChange(clip, "user_action");
+        runOut();
+      });
+      player.playSong.mockClear();
 
-    await togglePlayback();
+      await togglePlayback();
 
-    expect(player.playSong).toHaveBeenCalledWith("preview-9", "playlist-1");
-  });
+      expect(player.playSong).toHaveBeenCalledWith("preview-9", "playlist-1");
+    },
+  );
 });
 
 describe("usePlayerModes", () => {

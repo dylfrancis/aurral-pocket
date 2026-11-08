@@ -11,7 +11,7 @@ export type PlayEventInput = {
   artistMbid: string | null;
   albumMbid: string | null;
   trackMbid: string | null;
-  /** Track length in milliseconds. Null when the engine never reported one. */
+  /** Track length in milliseconds. Null only on a play an older version saved. */
   durationMs: number | null;
   /** Milliseconds since the epoch. The server reads values this large as ms. */
   playedAt: number;

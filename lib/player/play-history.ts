@@ -1,8 +1,7 @@
 import { ApiError } from "@/lib/api/client";
 import { recordPlayEvent } from "@/lib/api/play-events";
-import { onProgress, onTrackCompleted } from "@/lib/player/player";
+import { onProgress, onTrackStarted } from "@/lib/player/player";
 import type { PlaybackProgress } from "@/lib/player/player";
-import type { PlayerTrack } from "@/lib/player/track-item";
 import type { PlayEventInput } from "@/lib/types/play-events";
 import { AppStorage } from "@/lib/storage";
 
@@ -13,8 +12,9 @@ import { AppStorage } from "@/lib/storage";
  * providers the account linked. Pocket links nothing and reads no provider
  * status — linking happens on the web app. Reporting is all pocket does.
  *
- * A play is reported when a track reaches its natural end, which is what the
- * Aurral web player reports too. A skip is not a play, however far in it came.
+ * A play counts once the listener has heard half the track or four minutes,
+ * whichever comes first, the same rule as the Aurral web player. Seeking adds no
+ * listening time, and skipping after that point still leaves the play counted.
  *
  * Only library, flow and playlist tracks are reported, and a flow or playlist
  * can opt out. A
@@ -25,6 +25,19 @@ import { AppStorage } from "@/lib/storage";
 /** The value Aurral stores in a play event's `source` column. */
 const SOURCE = "pocket";
 
+/** A track of this length or shorter never counts as a play. */
+const MIN_DURATION_SECONDS = 30;
+
+/** Hearing this much is a play, however long the track runs. */
+const MAX_LISTEN_SECONDS = 240;
+
+/**
+ * The most that one progress report can add to the listening time. Reports come
+ * at most five seconds apart, so a bigger move is a seek the engine did not flag:
+ * on iOS the flag goes to the next report, which can come before the jump.
+ */
+const MAX_REPORT_GAP_SECONDS = 10;
+
 /**
  * Plays that have not reached the server yet, oldest first. A phone loses its
  * connection mid-track often enough that dropping the play would be wrong,
@@ -32,7 +45,6 @@ const SOURCE = "pocket";
  */
 const MAX_PENDING = 100;
 
-let lastProgress: PlaybackProgress | null = null;
 /** Writes and sends run one at a time, so a burst cannot land out of order. */
 let work: Promise<void> = Promise.resolve();
 
@@ -42,19 +54,46 @@ let work: Promise<void> = Promise.resolve();
  * that stops reporting.
  */
 export function startPlayHistory(): () => void {
-  const stopProgress = onProgress((progress) => {
-    lastProgress = progress;
+  let reachesPlay = createPlayTracker();
+  const stopStarted = onTrackStarted(() => {
+    reachesPlay = createPlayTracker();
   });
-  const stopCompleted = onTrackCompleted((track) => {
-    const event = toPlayEvent(track);
+  const stopProgress = onProgress((progress) => {
+    if (!reachesPlay(progress)) return;
+    const event = toPlayEvent(progress);
     if (event) enqueue(event);
   });
   flushSoon();
 
   return function stop(): void {
+    stopStarted();
     stopProgress();
-    stopCompleted();
-    lastProgress = null;
+  };
+}
+
+/**
+ * Tracks the listening time of one play. The function it returns takes each
+ * progress report and answers true on the one report that makes it a play.
+ */
+function createPlayTracker(): (progress: PlaybackProgress) => boolean {
+  let listened = 0;
+  let lastPosition: number | null = null;
+  let counted = false;
+
+  return function reachesPlay({ position, duration, seeked }): boolean {
+    const advanced = lastPosition === null ? 0 : position - lastPosition;
+    lastPosition = position;
+    // Only a report that adds listening can complete a play. The first report of
+    // the next track can arrive before its track change, carrying that track's
+    // length, and must not be measured against what was heard of this one.
+    if (seeked || advanced <= 0 || advanced > MAX_REPORT_GAP_SECONDS) {
+      return false;
+    }
+    listened += advanced;
+
+    if (counted || duration <= MIN_DURATION_SECONDS) return false;
+    counted = listened >= Math.min(duration / 2, MAX_LISTEN_SECONDS);
+    return counted;
   };
 }
 
@@ -67,14 +106,11 @@ export function forgetPlayHistory(): Promise<void> {
   return work;
 }
 
-function toPlayEvent(track: PlayerTrack): PlayEventInput | null {
+function toPlayEvent({
+  track,
+  duration,
+}: PlaybackProgress): PlayEventInput | null {
   if (!track.streamPath || track.recordHistory === false) return null;
-
-  // The engine reports a track's length as it streams, so the duration comes
-  // from the last progress report rather than from the queued track, whose
-  // own duration is zero until the engine fills it in.
-  const seconds =
-    lastProgress?.trackId === track.id ? lastProgress.duration : 0;
 
   return {
     trackId: track.id,
@@ -84,7 +120,10 @@ function toPlayEvent(track: PlayerTrack): PlayEventInput | null {
     artistMbid: track.artistMbid,
     albumMbid: track.albumMbid,
     trackMbid: track.trackMbid,
-    durationMs: seconds > 0 ? Math.round(seconds * 1000) : null,
+    // The engine reports a track's length as it streams, so the duration comes
+    // from the progress report rather than from the queued track, whose own
+    // duration is zero until the engine fills it in.
+    durationMs: Math.round(duration * 1000),
     playedAt: Date.now(),
     source: SOURCE,
   };
