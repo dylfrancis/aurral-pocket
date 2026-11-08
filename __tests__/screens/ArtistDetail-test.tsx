@@ -257,6 +257,7 @@ import {
 } from "@/hooks/library/use-library-artist";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
+import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { ApiError, setBaseUrl } from "@/lib/api/client";
 import type { Artist, Album } from "@/lib/types/library";
 
@@ -280,6 +281,7 @@ async function renderScreen() {
 const mockUseLibraryArtist = useLibraryArtist as jest.Mock;
 const mockUseCanonicalArtist = useCanonicalArtist as jest.Mock;
 const mockUseLibraryAlbums = useLibraryAlbums as jest.Mock;
+const mockUseLibraryLookup = useLibraryLookup as jest.Mock;
 
 const baseArtist: Artist = {
   id: "1",
@@ -338,6 +340,10 @@ beforeEach(() => {
   });
   mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook });
   mockUseLibraryArtistSuspense.mockReturnValue({ ...defaultSuspenseHook });
+  mockUseLibraryLookup.mockReturnValue({
+    isInLibrary: () => true,
+    isLoading: false,
+  });
   consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -409,6 +415,19 @@ describe("ArtistDetailScreen", () => {
         "https://music.example/api/library/artists/7/cover?v=2",
         "https://music.example/api/library/artists/7/cover?v=2",
       ]);
+    });
+
+    it("offers neither Add to Library nor the badge until the lookup answers", async () => {
+      // Unanswered reads as "not in the library", which flashed Add to Library
+      // on a library artist before the badge replaced it.
+      mockUseLibraryLookup.mockReturnValue({
+        isInLibrary: () => false,
+        isLoading: true,
+      });
+
+      await renderScreen();
+      expect(screen.queryByText("Add to Library")).toBeNull();
+      expect(screen.queryByText("In Your Library")).toBeNull();
     });
 
     it("reads the artist's cover again once its first album is indexed", async () => {

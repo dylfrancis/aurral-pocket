@@ -25,7 +25,7 @@ export function useLibraryLookup(
     .sort()
     .join(",");
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: libraryKeys.artistLookup(key),
     queryFn: () => lookupLibraryArtists(key.split(",")),
     enabled: !!serverUrl && !!token && key !== "",
@@ -38,7 +38,7 @@ export function useLibraryLookup(
     [data],
   );
 
-  return { isInLibrary };
+  return { isInLibrary, isLoading };
 }
 
 /**

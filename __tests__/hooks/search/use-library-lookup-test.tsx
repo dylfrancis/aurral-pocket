@@ -10,7 +10,12 @@ jest.mock("@/lib/api/library", () => ({
 }));
 
 import React from "react";
-import { cleanup, renderHook, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  cleanup,
+  renderHook,
+  waitFor,
+} from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lookupLibraryArtists } from "@/lib/api/library";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
@@ -43,20 +48,39 @@ afterEach(() => {
 });
 
 describe("useLibraryLookup", () => {
-  it("marks the artists the lookup reports in the library", async () => {
-    mockLookupLibraryArtists.mockResolvedValue({
-      "mb-a": true,
-      "mb-b": false,
-    });
+  it("marks the artists the lookup reports in the library once it answers", async () => {
+    let answer!: (batch: Record<string, boolean>) => void;
+    mockLookupLibraryArtists.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
 
     const { result } = await renderHook(
       () => useLibraryLookup(["mb-b", "mb-a"]),
       { wrapper: makeWrapper() },
     );
 
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isInLibrary("mb-a")).toBe(false);
+
+    await act(async () => answer({ "mb-a": true, "mb-b": false }));
     await waitFor(() => expect(result.current.isInLibrary("mb-a")).toBe(true));
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.isInLibrary("mb-b")).toBe(false);
     expect(result.current.isInLibrary("mb-unknown")).toBe(false);
+  });
+
+  it("stops loading when the lookup fails, leaving the artist unmarked", async () => {
+    // A screen waiting on the answer must not wait forever.
+    mockLookupLibraryArtists.mockRejectedValue(new Error("offline"));
+
+    const { result } = await renderHook(() => useLibraryLookup(["mb-a"]), {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isInLibrary("mb-a")).toBe(false);
   });
 
   it("shares one lookup per set of MBIDs, whatever the order, duplicates or blanks", async () => {

@@ -112,7 +112,9 @@ export function ArtistDetailLayout({
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const { isInLibrary } = useLibraryLookup([mbid]);
+  const { isInLibrary, isLoading: libraryStatusLoading } = useLibraryLookup([
+    mbid,
+  ]);
   const inLibrary = isInLibrary(mbid);
   const { data: libraryArtist, refetch: refetchArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,
@@ -466,7 +468,7 @@ export function ArtistDetailLayout({
           }}
           scrollY={scrollY}
           refreshing={refreshing}
-          inLibrary={inLibrary}
+          inLibrary={libraryStatusLoading ? undefined : inLibrary}
           onBadgePress={handleBadgePress}
           // Shows while the artist loads, so the heart doesn't pop in and shift
           // the badge.

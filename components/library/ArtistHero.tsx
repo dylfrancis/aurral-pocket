@@ -12,22 +12,24 @@ import Animated, {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { CircleButton } from "@/components/ui/CircleButton";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { LibraryBadge } from "./LibraryBadge";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors, Fonts, Radius } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import type { Artist } from "@/lib/types/library";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const FAVORITE_BUTTON_SIZE = 44;
+const LIBRARY_ACTION_PLACEHOLDER = { width: 170, height: 45 };
 
 type ArtistHeroProps = {
   artist: Pick<Artist, "mbid" | "artistName" | "coverUrl">;
   scrollY?: SharedValue<number>;
   refreshing?: boolean;
-  inLibrary: boolean;
+  inLibrary: boolean | undefined;
   onBadgePress?: () => void;
   onAddPress?: () => void;
   /** Library artists only. Omit when the artist can't be favorited. */
@@ -87,7 +89,13 @@ export function ArtistHero({
         <Text variant="title" style={styles.name}>
           {artist.artistName}
         </Text>
-        {inLibrary ? (
+        {inLibrary === undefined ? (
+          <Skeleton
+            width={LIBRARY_ACTION_PLACEHOLDER.width}
+            height={LIBRARY_ACTION_PLACEHOLDER.height}
+            borderRadius={Radius.round}
+          />
+        ) : inLibrary ? (
           <View style={styles.libraryActions}>
             {onBadgePress && <LibraryBadge onPress={onBadgePress} />}
             {favorite && (
