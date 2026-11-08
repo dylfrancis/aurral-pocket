@@ -13,6 +13,7 @@ import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
 import { useChangePassword } from "@/hooks/me/use-change-password";
 import { useLogout } from "@/hooks/auth/use-logout";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { ApiError } from "@/lib/api/client";
 import { Colors, Fonts } from "@/constants/theme";
 
 const passwordSchema = z
@@ -79,6 +80,15 @@ export function PasswordSection() {
         },
         onError: (error) => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          // Android shows only the title, so it has to say what to do.
+          if (error instanceof ApiError && error.isReauthRequired) {
+            Burnt.toast({
+              title: "Sign in again with SSO",
+              message: "Then you can set a password.",
+              preset: "error",
+            });
+            return;
+          }
           Burnt.toast({
             title: "Couldn't update password",
             message:

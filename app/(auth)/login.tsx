@@ -52,6 +52,7 @@ export default function LoginScreen() {
     useBiometrics,
     setRememberCredentials,
     setUseBiometrics,
+    requestOidcLogout,
   } = useAuth();
   const loginMutation = useLogin();
   const biometricLabel = useBiometricAvailability();
@@ -245,6 +246,11 @@ export default function LoginScreen() {
           onSession={async (session) => {
             setOidcVisible(false);
             await applyOidcSession(session);
+          }}
+          // The provider would otherwise sign this account straight back in,
+          // and no other account could use SSO on this device.
+          onAccountSuspended={() => {
+            if (health?.oidcLogoutUrl) requestOidcLogout(health.oidcLogoutUrl);
           }}
         />
       )}

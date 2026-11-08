@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { isAccountSuspendedMessage } from "@/lib/api/client";
 import {
   buildOidcExchangePageUrl,
   buildOidcExchangeScript,
@@ -37,6 +38,8 @@ type Props = {
   serverUrl: string;
   onClose: () => void;
   onSession: (session: OidcSession) => void;
+  /** The provider signed the user in, and Aurral refused the account. */
+  onAccountSuspended: () => void;
 };
 
 /**
@@ -57,6 +60,7 @@ export function OidcSignInModal({
   serverUrl,
   onClose,
   onSession,
+  onAccountSuspended,
 }: Props) {
   return (
     <Modal
@@ -72,6 +76,7 @@ export function OidcSignInModal({
           serverUrl={serverUrl}
           onClose={onClose}
           onSession={onSession}
+          onAccountSuspended={onAccountSuspended}
         />
       ) : null}
     </Modal>
@@ -82,6 +87,7 @@ function OidcSignInFlow({
   serverUrl,
   onClose,
   onSession,
+  onAccountSuspended,
 }: Omit<Props, "visible">) {
   const colors = Colors[useColorScheme()];
   // WebView 14 defaults its props generic to `undefined`, which turns every
@@ -92,6 +98,14 @@ function OidcSignInFlow({
   const [attempt, setAttempt] = useState(0);
   const exchangeCode = useRef<string | null>(null);
   const exchangeInjected = useRef(false);
+
+  const fail = useCallback(
+    (message: string) => {
+      setError(message);
+      if (isAccountSuspendedMessage(message)) onAccountSuspended();
+    },
+    [onAccountSuspended],
+  );
 
   const startExchange = useCallback((code: string) => {
     exchangeCode.current = code;
@@ -115,13 +129,13 @@ function OidcSignInFlow({
         return true;
       }
       if (completion.kind === "error") {
-        setError(completion.message);
+        fail(completion.message);
         return true;
       }
       startExchange(completion.code);
       return true;
     },
-    [phase, serverUrl, startExchange],
+    [phase, serverUrl, startExchange, fail],
   );
 
   const handleShouldStartLoad = useCallback(
@@ -155,12 +169,12 @@ function OidcSignInFlow({
       const message = parseOidcMessage(event.nativeEvent.data);
       if (!message) return;
       if (message.type === "error") {
-        setError(message.message);
+        fail(message.message);
         return;
       }
       onSession(message.session);
     },
-    [serverUrl, onSession],
+    [serverUrl, onSession, fail],
   );
 
   const handleRetry = useCallback(() => {
@@ -203,8 +217,16 @@ function OidcSignInFlow({
           <Text variant="subtitle" style={styles.errorText}>
             {error}
           </Text>
-          <Button title="Try Again" onPress={handleRetry} />
-          <Button title="Cancel" variant="inline" onPress={onClose} />
+          {/* The provider remembers the user, so trying again would land on
+              the same refusal. */}
+          {isAccountSuspendedMessage(error) ? (
+            <Button title="Close" onPress={onClose} />
+          ) : (
+            <>
+              <Button title="Try Again" onPress={handleRetry} />
+              <Button title="Cancel" variant="inline" onPress={onClose} />
+            </>
+          )}
         </View>
       ) : (
         <View style={styles.webViewPane}>

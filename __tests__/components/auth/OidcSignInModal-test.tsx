@@ -44,7 +44,7 @@ jest.mock("react-native-webview", () => {
 });
 
 import React from "react";
-import { act, render } from "@testing-library/react-native";
+import { act, fireEvent, render } from "@testing-library/react-native";
 import { OidcSignInModal } from "@/components/auth/OidcSignInModal";
 
 const SERVER = "https://aurral.example.com";
@@ -61,16 +61,18 @@ async function renderModal(
 ) {
   const onSession = jest.fn();
   const onClose = jest.fn();
+  const onAccountSuspended = jest.fn();
   const utils = await render(
     <OidcSignInModal
       visible
       serverUrl={SERVER}
       onClose={onClose}
       onSession={onSession}
+      onAccountSuspended={onAccountSuspended}
       {...overrides}
     />,
   );
-  return { ...utils, onSession, onClose };
+  return { ...utils, onSession, onClose, onAccountSuspended };
 }
 
 beforeEach(() => {
@@ -201,6 +203,57 @@ describe("OidcSignInModal", () => {
       });
     });
     expect(getByText("Exchange failed")).toBeTruthy();
+  });
+
+  it.each([
+    [
+      "the redirect",
+      () =>
+        mockWebViewProps?.onShouldStartLoadWithRequest({
+          url: `${SERVER}/sso/complete#error=This%20account%20has%20been%20suspended%20or%20disabled`,
+        }),
+    ],
+    [
+      "the exchange",
+      () =>
+        mockWebViewProps?.onMessage({
+          nativeEvent: {
+            url: `${SERVER}/sso/complete`,
+            data: JSON.stringify({
+              type: "error",
+              message: "This account has been suspended or disabled",
+            }),
+          },
+        }),
+    ],
+  ])("offers no retry to a suspended account, from %s", async (_, refuse) => {
+    const { getByText, queryByText, onAccountSuspended, onClose } =
+      await renderModal();
+
+    await act(async () => {
+      refuse();
+    });
+
+    expect(onAccountSuspended).toHaveBeenCalledTimes(1);
+    expect(
+      getByText("This account has been suspended or disabled"),
+    ).toBeTruthy();
+    // The provider remembers the user, so a retry lands on the same refusal.
+    expect(queryByText("Try Again")).toBeNull();
+    await fireEvent.press(getByText("Close"));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("does not read any other sign-in failure as a suspension", async () => {
+    const { onAccountSuspended } = await renderModal();
+
+    await act(async () => {
+      mockWebViewProps?.onShouldStartLoadWithRequest({
+        url: `${SERVER}/sso/complete#error=OIDC%20login%20failed`,
+      });
+    });
+
+    expect(onAccountSuspended).not.toHaveBeenCalled();
   });
 
   it("starts a fresh transaction on retry", async () => {

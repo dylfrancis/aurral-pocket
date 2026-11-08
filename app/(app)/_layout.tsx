@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
+import { useQueueFollowsSession } from "@/hooks/player/use-queue-follows-session";
 import { startPlayHistory } from "@/lib/player/play-history";
 import { restoreSavedQueue } from "@/lib/player/player";
 
@@ -14,6 +15,8 @@ export default function AppLayout() {
   // Reporting starts with the session too: plays held over from a run that
   // ended offline are sent as soon as there is a token to send them with.
   useEffect(() => startPlayHistory(), []);
+
+  useQueueFollowsSession();
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

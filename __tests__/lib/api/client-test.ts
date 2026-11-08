@@ -23,6 +23,7 @@ import {
   serverImageSource,
   setAuthToken,
   setBaseUrl,
+  setOnAccountSuspended,
   setOnAuthRefreshed,
   setOnSessionExpired,
 } from "@/lib/api/client";
@@ -75,6 +76,7 @@ beforeEach(() => {
   mockSecureStore.setItemAsync.mockReset();
   setAuthToken(null);
   setOnSessionExpired(null);
+  setOnAccountSuspended(null);
   setOnAuthRefreshed(null);
   setBaseUrl("https://test.example");
 });
@@ -353,6 +355,24 @@ describe("response parsing", () => {
 });
 
 describe("401 handling", () => {
+  beforeEach(() => setAuthToken("session-token"));
+
+  function rememberAlice() {
+    mockSecureStore.getItemAsync.mockImplementation(async (key: string) => {
+      if (key === "remember_credentials") return "true";
+      if (key === "saved_username") return "alice";
+      if (key === "saved_password") return "secret";
+      return null;
+    });
+  }
+
+  const lostSession = () =>
+    mockResponse({
+      ok: false,
+      status: 401,
+      body: { error: "Unauthorized", code: "SESSION_INVALID" },
+    });
+
   it("opens the re-auth modal and throws 401 when the user dismisses it", async () => {
     mockSecureStore.getItemAsync.mockResolvedValue(null);
     mockFetch.mockResolvedValueOnce(
@@ -473,5 +493,140 @@ describe("401 handling", () => {
     });
     expect(onExpired).not.toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves reauth_required to the caller, because the session is still good", async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({
+        ok: false,
+        status: 401,
+        body: {
+          error: "reauth_required",
+          message: "Please confirm your credentials to continue",
+        },
+      }),
+    );
+    const onExpired = jest.fn();
+    setOnSessionExpired(onExpired);
+
+    await expect(api.post("/users/me/password", {})).rejects.toMatchObject({
+      isReauthRequired: true,
+      message: "Please confirm your credentials to continue",
+    });
+    expect(onExpired).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a 401 from /auth/logout as the session already being over", async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    mockFetch.mockResolvedValueOnce(lostSession());
+    const onExpired = jest.fn();
+    setOnSessionExpired(onExpired);
+
+    await expect(api.post("/auth/logout")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(onExpired).not.toHaveBeenCalled();
+  });
+
+  it("reports a suspension instead of asking for a password nobody can use", async () => {
+    rememberAlice();
+    mockFetch.mockResolvedValueOnce(lostSession());
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({
+        ok: false,
+        status: 403,
+        body: { error: "This account has been suspended or disabled" },
+      }),
+    );
+    const onExpired = jest.fn();
+    const onSuspended = jest.fn();
+    setOnSessionExpired(onExpired);
+    setOnAccountSuspended(onSuspended);
+
+    await expect(api.get("/library/artists")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(onSuspended).toHaveBeenCalledTimes(1);
+    expect(onExpired).not.toHaveBeenCalled();
+  });
+
+  it("does not read a proxy's 403 on silent re-auth as a suspension", async () => {
+    rememberAlice();
+    mockFetch.mockResolvedValueOnce(lostSession());
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({ ok: false, status: 403, body: { error: "Forbidden" } }),
+    );
+    const onExpired = jest.fn(() => notifyReAuthResult(false));
+    const onSuspended = jest.fn();
+    setOnSessionExpired(onExpired);
+    setOnAccountSuspended(onSuspended);
+
+    await expect(api.get("/library/artists")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(onExpired).toHaveBeenCalledTimes(1);
+    expect(onSuspended).not.toHaveBeenCalled();
+  });
+
+  it("opens nothing for a 401 that lands after sign-out", async () => {
+    rememberAlice();
+    mockFetch.mockImplementationOnce(async () => {
+      setAuthToken(null);
+      return lostSession();
+    });
+    const onExpired = jest.fn();
+    setOnSessionExpired(onExpired);
+
+    await expect(api.get("/library/artists")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(onExpired).not.toHaveBeenCalled();
+    // A saved password must not sign the user back in after they left.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a sign-out stand when the silent login answers after it", async () => {
+    rememberAlice();
+    mockFetch.mockResolvedValueOnce(lostSession());
+    mockFetch.mockImplementationOnce(async () => {
+      setAuthToken(null);
+      return mockResponse({
+        body: {
+          token: "new-token",
+          expiresAt: Date.now() + 60_000,
+          user: { id: 1, username: "alice", role: "user" },
+        },
+      });
+    });
+    const onRefreshed = jest.fn();
+    setOnAuthRefreshed(onRefreshed);
+
+    await expect(api.get("/library/artists")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(onRefreshed).not.toHaveBeenCalled();
+    expect(buildAuthenticatedUrl("/ping")).toBeNull();
+  });
+
+  it("opens no prompt when sign-out lands during the silent attempt", async () => {
+    rememberAlice();
+    mockFetch.mockResolvedValueOnce(lostSession());
+    mockFetch.mockImplementationOnce(async () => {
+      setAuthToken(null);
+      return mockResponse({
+        ok: false,
+        status: 401,
+        body: { error: "Invalid username or password" },
+      });
+    });
+    const onExpired = jest.fn();
+    setOnSessionExpired(onExpired);
+
+    await expect(api.get("/library/artists")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(onExpired).not.toHaveBeenCalled();
   });
 });
