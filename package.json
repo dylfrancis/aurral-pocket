@@ -28,7 +28,7 @@
     "@expo/ui": "~58.0.27",
     "@expo/vector-icons": "^15.0.3",
     "@gorhom/bottom-sheet": "^5.2.13",
-    "@hookform/resolvers": "^7.0.1",
+    "@hookform/resolvers": "^7.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/slider": "5.2.1",
     "@react-native-picker/picker": "2.11.4",
