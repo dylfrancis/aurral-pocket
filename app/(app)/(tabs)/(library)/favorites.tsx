@@ -126,6 +126,7 @@ function playerContext(
       : null,
     albumMbid,
     artistMbid: track.album?.artistMbid ?? null,
+    albumRef: track.album ? albumRouteParams(track.album).ref : null,
   };
 }
 

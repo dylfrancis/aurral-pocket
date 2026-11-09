@@ -202,6 +202,8 @@ function canonicalTrackToTrack(
   );
   const file = firstAvailableFile(item, albumId);
   const streamable = file?.available === true;
+  // The scanner records bits per second.
+  const bitrate = Number(file?.quality?.bitrate);
   const hasFile = streamable || item.metadata?.hasFile === true;
   return {
     id: String(item.id),
@@ -217,6 +219,7 @@ function canonicalTrackToTrack(
         ? `/library/canonical-stream/${encodeURIComponent(albumId)}/${encodeURIComponent(String(item.id))}`
         : null,
     streamFormat: file?.format ?? null,
+    bitrateKbps: bitrate > 0 ? Math.round(bitrate / 1000) : null,
     sources: item.sources,
     available: streamable,
     artistName: item.artistName,

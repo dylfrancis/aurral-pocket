@@ -124,6 +124,11 @@ export type Track = {
   streamPath?: string | null;
   /** Canonical read path only. The container format of the file. */
   streamFormat?: string | null;
+  /**
+   * Canonical read path only. The file's average bitrate in kbps, when the
+   * scanner recorded one.
+   */
+  bitrateKbps?: number | null;
   /** Canonical read path only. The scanners that found this track. */
   sources?: LibrarySource[];
   /** Canonical read path only. True when a readable file exists. */

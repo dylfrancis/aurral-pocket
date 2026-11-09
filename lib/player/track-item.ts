@@ -1,5 +1,6 @@
 import { buildAuthenticatedUrl } from "@/lib/api/client";
 import { getFlowArtworkPath, getFlowStreamPath } from "@/lib/api/flow";
+import { audioFormatLabel } from "@/lib/player/audio-format";
 import type { FlowJob } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
 
@@ -40,6 +41,11 @@ export type PlayerTrack = PlayerClip & {
   albumMbid: string | null;
   /** The key the favorites API addresses this track by. */
   identityKey: string | null;
+  /** The album page's `ref`, for a track played from a library album. */
+  albumRef?: string | null;
+  /** As the player names it, such as "FLAC". */
+  audioFormat?: string | null;
+  bitrateKbps?: number | null;
   recordHistory?: boolean;
 };
 
@@ -58,6 +64,8 @@ export type PlayerAlbumContext = {
    * artist page.
    */
   artistMbid: string | null;
+  /** The album page's `ref`; a collection has none. */
+  albumRef?: string | null;
 };
 
 /**
@@ -89,6 +97,9 @@ export function toPlayerTrack(
     artistMbid: album.artistMbid,
     albumMbid: album.albumMbid,
     identityKey: track.identityKey ?? null,
+    albumRef: album.albumRef ?? null,
+    audioFormat: audioFormatLabel(track.quality, track.streamFormat),
+    bitrateKbps: track.bitrateKbps ?? null,
   };
 }
 
@@ -130,6 +141,8 @@ export function jobToPlayerTrack(
     artistMbid: job.artistMbid,
     albumMbid: job.albumMbid,
     identityKey: null,
+    audioFormat: audioFormatLabel(job.qualityFormat, job.streamFormat),
+    bitrateKbps: job.qualityBitrateKbps ?? null,
     recordHistory: collection.recordHistory,
   };
 }

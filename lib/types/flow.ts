@@ -99,6 +99,14 @@ export type FlowJob = {
   finalPath?: string | null;
   reason?: string | null;
   createdAt?: number;
+  /**
+   * The file's format family: "flac", "mp3" or "m4a". Empty until the server
+   * has checked the download's quality.
+   */
+  qualityFormat?: string | null;
+  qualityBitrateKbps?: number | null;
+  /** The downloaded file's extension. */
+  streamFormat?: string | null;
 };
 
 export type PlaylistStats = {
