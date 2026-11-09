@@ -42,7 +42,7 @@ function track(overrides: Partial<PlayerTrack> = {}): PlayerTrack {
     trackMbid: "track-mb-1",
     artistMbid: "artist-mb-1",
     albumMbid: "album-mb-1",
-    identityKey: null,
+    favorite: null,
     ...overrides,
   };
 }

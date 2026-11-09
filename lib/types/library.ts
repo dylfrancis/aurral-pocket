@@ -430,6 +430,11 @@ export type LibraryFavorites = {
   artists: Artist[];
   albums: Album[];
   tracks: FavoriteTrack[];
+  /**
+   * Starred flow and shared-playlist downloads that Aurral hasn't matched to a
+   * library track, by favoriteEntityId. A matched one is in `tracks`.
+   */
+  playlistSongIds: string[];
 };
 
 /**

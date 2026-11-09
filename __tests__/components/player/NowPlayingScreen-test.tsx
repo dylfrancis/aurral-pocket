@@ -126,6 +126,7 @@ import {
   playAlbumFromTrack,
   playQueueFrom,
 } from "@/lib/player/player";
+import type { PlayerTrack } from "@/lib/player/track-item";
 import type { Track } from "@/lib/types/library";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
@@ -169,8 +170,8 @@ const albumTracks = [
   track("3", "The National Anthem"),
 ];
 
-function favoritesWith(...tracks: { identityKey: string }[]) {
-  return { artists: [], albums: [], tracks };
+function favoritesWith(...tracks: Partial<Track>[]) {
+  return { artists: [], albums: [], tracks, playlistSongIds: [] };
 }
 
 let engine: {
@@ -296,6 +297,73 @@ describe("NowPlayingScreen favorite button", () => {
 
     expect(queryByLabelText(/favorites$/)).toBeNull();
   });
+
+  describe("on a flow's own track", () => {
+    const alison: PlayerTrack = {
+      id: "job-1",
+      title: "Alison",
+      artist: "Slowdive",
+      album: "Souvlaki",
+      duration: 0,
+      url: "https://test.example/api/playlists/stream/job-1",
+      artwork: null,
+      streamPath: "/playlists/stream/job-1",
+      coverPath: null,
+      trackMbid: "alison-mb",
+      artistMbid: "slowdive-mb",
+      albumMbid: null,
+      favorite: { kind: "flow-song", key: "flow-1:job-1" },
+    };
+
+    async function renderPlayingAlison() {
+      const utils = await renderScreen();
+      await act(() =>
+        playQueueFrom([alison], alison.id, {
+          albumTitle: "Weekly Flow",
+          artistName: "",
+          coverPath: null,
+          artworkUrl: null,
+          albumMbid: null,
+          artistMbid: null,
+        }),
+      );
+      return utils;
+    }
+
+    it("adds it to favorites by its place in the flow", async () => {
+      const { findByLabelText } = await renderPlayingAlison();
+
+      await fireEvent.press(await findByLabelText("Add Alison to favorites"));
+
+      expect(mockUpdateLibraryFavorites).toHaveBeenCalledWith(
+        ["flow-song:flow-1:job-1"],
+        true,
+      );
+    });
+
+    it.each([
+      [
+        "starred under its own id",
+        { ...favoritesWith(), playlistSongIds: ["flow-song:flow-1:job-1"] },
+      ],
+      // Aurral reports a starred download it has kept as the library track.
+      [
+        "kept in the library",
+        favoritesWith({
+          identityKey: "recording:alison",
+          mbid: "alison-mb",
+          available: true,
+        }),
+      ],
+    ])("fills the heart when it's %s", async (_case, favorites) => {
+      mockGetLibraryFavorites.mockResolvedValue(favorites);
+      const { findByLabelText } = await renderPlayingAlison();
+
+      expect(
+        await findByLabelText("Remove Alison from favorites"),
+      ).toBeTruthy();
+    });
+  });
 });
 
 describe("NowPlayingScreen", () => {
@@ -396,7 +464,7 @@ describe("NowPlayingScreen", () => {
             trackMbid: null,
             artistMbid: "slowdive-mb",
             albumMbid: null,
-            identityKey: null,
+            favorite: null,
           },
         ],
         "job-1",

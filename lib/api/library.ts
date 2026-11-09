@@ -426,16 +426,30 @@ export async function getCanonicalGenres(): Promise<CanonicalGenre[]> {
   return page.genres ?? [];
 }
 
-/** The entity kinds the favorites API addresses. Tracks are "song". */
-export type FavoriteKind = "artist" | "album" | "song";
+/**
+ * The entity kinds the favorites API addresses. Library tracks are "song". A
+ * flow's or shared playlist's own download is a "flow-song" or "shared-song",
+ * keyed `<playlist id>:<job id>`.
+ */
+export type FavoriteKind =
+  "artist" | "album" | "song" | "flow-song" | "shared-song";
+
+export type TrackFavorite = {
+  kind: Extract<FavoriteKind, "song" | "flow-song" | "shared-song">;
+  /** A library track's identity key, or `<playlist id>:<job id>`. */
+  key: string;
+};
 
 /**
  * Build the id the favorites API addresses an entity by. Mirrors subsonicId in
- * the server's libraryMediaStore, which leaves the colons in identity keys
- * readable.
+ * the server's libraryMediaStore, which leaves the colons in keys readable.
  */
-export function favoriteEntityId(kind: FavoriteKind, identityKey: string) {
-  return `${kind}:${encodeURIComponent(identityKey).replaceAll("%3A", ":")}`;
+export function favoriteEntityId(kind: FavoriteKind, key: string) {
+  return `${kind}:${encodeURIComponent(key).replaceAll("%3A", ":")}`;
+}
+
+function isPlaylistSongId(id: string) {
+  return id.startsWith("flow-song:") || id.startsWith("shared-song:");
 }
 
 /**
@@ -494,6 +508,7 @@ export async function getLibraryFavorites(): Promise<LibraryFavorites> {
           album: albumsById.get(String(streamAlbumId)),
         };
       }),
+    playlistSongIds: [...starred].filter(isPlaylistSongId),
   };
 }
 

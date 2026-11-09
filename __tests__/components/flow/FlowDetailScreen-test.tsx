@@ -303,6 +303,17 @@ describe("FlowDetailScreen", () => {
       expect(context).toMatchObject({ albumTitle: "Chill" });
     });
 
+    it("favorites a track as the flow's own song", async () => {
+      await open();
+
+      await fireEvent.press(screen.getByText("Play"));
+
+      expect(mockPlayQueueFrom.mock.calls[0][0][0].favorite).toEqual({
+        kind: "flow-song",
+        key: "flow-1:a",
+      });
+    });
+
     it("keeps a flow's plays out of history when it opted out", async () => {
       serve({ flow: { ...FLOW, recordHistory: false } });
       await open();

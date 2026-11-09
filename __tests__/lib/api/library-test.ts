@@ -1298,6 +1298,24 @@ describe("getLibraryFavorites", () => {
     expect(result.albums.map((a) => a.title)).toEqual(["Second Album"]);
   });
 
+  it("keeps the ids of starred flow and playlist downloads it has no library row for", async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        ...wire,
+        song: [
+          ...wire.song,
+          { id: "flow-song:flow-1:job-1" },
+          { id: "shared-song:pl-1:job-2" },
+        ],
+      },
+    });
+
+    expect((await getLibraryFavorites()).playlistSongIds).toEqual([
+      "flow-song:flow-1:job-1",
+      "shared-song:pl-1:job-2",
+    ]);
+  });
+
   it("drops rows with no identity key rather than matching them loosely", async () => {
     mockApi.get.mockResolvedValue({
       data: {
@@ -1316,6 +1334,7 @@ describe("getLibraryFavorites", () => {
       artists: [],
       albums: [],
       tracks: [],
+      playlistSongIds: [],
     });
   });
 });

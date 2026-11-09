@@ -120,8 +120,12 @@ function FlowPage({
   const jobs = useJobsForPlaylist(flow.id);
   // Same cache entry as useJobsForPlaylist; only the initial-load flag is read.
   const jobsLoading = usePlaylistJobs(flow.id).isLoading;
+  const collection = useMemo(
+    () => ({ ...flow, kind: "flow" as const }),
+    [flow],
+  );
   const { canPlay, playFrom, playAll, shuffle } = usePlaylistPlayback(
-    flow,
+    collection,
     jobs,
   );
 

@@ -54,6 +54,7 @@ import {
 import { useCoverColor } from "@/hooks/player/use-cover-color";
 import { useDragToClose } from "@/hooks/player/use-drag-to-close";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import type { TrackFavorite } from "@/lib/api/library";
 import {
   next,
   playQueueItem,
@@ -202,12 +203,13 @@ export function NowPlayingScreen() {
 
   const fileQuality = track ? describeFileQuality(track) : null;
 
-  const favorite = track?.identityKey ? (
+  const favorite = track?.favorite ? (
     <FavoriteButton
       // Remounts per track, so a toggle still in flight doesn't show on the
       // next one.
-      key={track.identityKey}
-      identityKey={track.identityKey}
+      key={`${track.favorite.kind}:${track.favorite.key}`}
+      favorite={track.favorite}
+      trackMbid={track.trackMbid}
       trackTitle={track.title}
     />
   ) : null;
@@ -680,14 +682,16 @@ function TrackTitles({
 }
 
 function FavoriteButton({
-  identityKey,
+  favorite,
+  trackMbid,
   trackTitle,
 }: {
-  identityKey: string;
+  favorite: TrackFavorite;
+  trackMbid: string | null;
   trackTitle: string;
 }) {
   const { data: isFavoriteOnServer = false, isPending: isCheckingFavorite } =
-    useIsFavoriteTrack(identityKey);
+    useIsFavoriteTrack(favorite, trackMbid);
   const colors = usePlayerColors();
   const toggleFavorite = useToggleFavorite();
   // Shows the tap at once. A refused toggle falls back to the server's answer.
@@ -699,11 +703,7 @@ function FavoriteButton({
     <Pressable
       onPress={() => {
         if (isCheckingFavorite || toggleFavorite.isPending) return;
-        toggleFavorite.mutate({
-          kind: "song",
-          identityKey,
-          starred: !isFavorite,
-        });
+        toggleFavorite.mutate({ ...favorite, starred: !isFavorite });
       }}
       hitSlop={8}
       accessibilityRole="button"

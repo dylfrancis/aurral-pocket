@@ -278,6 +278,18 @@ describe("PlaylistDetailScreen", () => {
     ).toEqual(["a"]);
   });
 
+  it("favorites a track as the playlist's own song", async () => {
+    serve({ jobs: [job("a")] });
+    await open();
+
+    await fireEvent.press(screen.getByText("Play"));
+
+    expect(mockPlayQueueFrom.mock.calls[0][0][0].favorite).toEqual({
+      kind: "shared-song",
+      key: "pl-1:a",
+    });
+  });
+
   it("claims no ready count when the server sent no stats", async () => {
     (getFlowStatus as jest.Mock).mockResolvedValue({
       flows: [],

@@ -133,7 +133,7 @@ export function ArtistDetailLayout({
     if (!canonicalArtist?.identityKey || toggleFavorite.isPending) return;
     toggleFavorite.mutate({
       kind: "artist",
-      identityKey: canonicalArtist.identityKey,
+      key: canonicalArtist.identityKey,
       starred: !isFavorite,
     });
   };

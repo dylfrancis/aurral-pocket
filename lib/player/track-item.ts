@@ -1,5 +1,6 @@
 import { buildAuthenticatedUrl } from "@/lib/api/client";
 import { getFlowArtworkPath, getFlowStreamPath } from "@/lib/api/flow";
+import type { TrackFavorite } from "@/lib/api/library";
 import { audioFormatLabel } from "@/lib/player/audio-format";
 import type { FlowJob } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
@@ -39,8 +40,7 @@ export type PlayerTrack = PlayerClip & {
   trackMbid: string | null;
   artistMbid: string | null;
   albumMbid: string | null;
-  /** The key the favorites API addresses this track by. */
-  identityKey: string | null;
+  favorite: TrackFavorite | null;
   /** The album page's `ref`, for a track played from a library album. */
   albumRef?: string | null;
   /** As the player names it, such as "FLAC". */
@@ -96,7 +96,9 @@ export function toPlayerTrack(
     trackMbid: track.mbid || null,
     artistMbid: album.artistMbid,
     albumMbid: album.albumMbid,
-    identityKey: track.identityKey ?? null,
+    favorite: track.identityKey
+      ? { kind: "song", key: track.identityKey }
+      : null,
     albumRef: album.albumRef ?? null,
     audioFormat: audioFormatLabel(track.quality, track.streamFormat),
     bitrateKbps: track.bitrateKbps ?? null,
@@ -104,6 +106,7 @@ export function toPlayerTrack(
 }
 
 export type PlaybackCollection = {
+  kind: "flow" | "shared";
   id: string;
   name: string;
   artworkRevision?: number;
@@ -140,7 +143,10 @@ export function jobToPlayerTrack(
     trackMbid: job.trackMbid,
     artistMbid: job.artistMbid,
     albumMbid: job.albumMbid,
-    identityKey: null,
+    favorite: {
+      kind: collection.kind === "flow" ? "flow-song" : "shared-song",
+      key: `${collection.id}:${job.id}`,
+    },
     audioFormat: audioFormatLabel(job.qualityFormat, job.streamFormat),
     bitrateKbps: job.qualityBitrateKbps ?? null,
     recordHistory: collection.recordHistory,
