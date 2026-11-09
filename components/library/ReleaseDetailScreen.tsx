@@ -40,6 +40,7 @@ import {
   triggerAlbumSearch,
   type ReleaseGroupTrack,
 } from "@/lib/api/library";
+import { formatReleaseWait } from "@/lib/album-status";
 import { ApiError } from "@/lib/api/client";
 import { libraryAlbumsRef } from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
@@ -208,23 +209,35 @@ export function ReleaseDetailScreen() {
           ? await queryClient.fetchQuery(artistIdQuery)
           : null);
       if (artistId) {
-        await addLibraryAlbum(artistId, mbid, title);
-        return { createdArtist: false };
+        const added = await addLibraryAlbum(artistId, mbid, title);
+        return { createdArtist: false, albumStatus: added.albumStatus };
       }
       if (!params.artistMbid) {
         throw new Error("Cannot add album without an artist reference");
       }
-      const r = await requestAlbumFromSearch({
+      const requested = await requestAlbumFromSearch({
         albumMbid: mbid,
         albumName: title,
         artistMbid: params.artistMbid,
         artistName,
       });
-      return { createdArtist: !!r.createdArtist };
+      return {
+        createdArtist: !!requested.createdArtist,
+        albumStatus: requested.albumStatus,
+      };
     },
-    onSuccess: ({ createdArtist }) => {
+    onSuccess: ({ createdArtist, albumStatus }) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       invalidateAfterMutation();
+      // The date goes in the title, since Android shows only the title.
+      if (albumStatus?.status === "unreleased") {
+        Burnt.toast({
+          title: formatReleaseWait(albumStatus.releaseDate),
+          message: `${title} isn't out yet`,
+          preset: "done",
+        });
+        return;
+      }
       Burnt.toast({
         title: createdArtist ? `Added ${artistName}` : "Added to library",
         message: createdArtist ? "Now in your library" : title,

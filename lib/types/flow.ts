@@ -93,7 +93,13 @@ export type SharedPlaylist = {
 };
 
 export type FlowJobStatus =
-  "pending" | "downloading" | "blocked" | "done" | "failed";
+  | "pending"
+  | "downloading"
+  | "cancel_requested"
+  | "cancelled"
+  | "blocked"
+  | "done"
+  | "failed";
 
 export type FlowJob = {
   id: string;

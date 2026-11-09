@@ -1,24 +1,44 @@
 import { useQuery } from "@tanstack/react-query";
+import { hasActiveAurralStatus } from "@/lib/album-status";
 import { getDownloadStatuses } from "@/lib/api/library";
+import { albumStatusKey } from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
 import type { Album, DownloadStatusMap } from "@/lib/types/library";
 
-/**
- * Poll Lidarr's download status for the albums Lidarr manages. The map is
- * keyed by Lidarr album id; read it with albumDownloadStatus.
- */
-export function useDownloadStatuses(albums: Album[] | undefined) {
-  const lidarrAlbums = albums?.filter((a) => a.lidarrId) ?? [];
-  const ids = lidarrAlbums.map((a) => a.lidarrId!);
-  const hasIncomplete = lidarrAlbums.some(
-    (a) => a.statistics.percentOfTracks < 100 && a.statistics.sizeOnDisk === 0,
+const POLL_MS = 15_000;
+
+function isIncomplete(album: Album) {
+  return (
+    album.statistics.percentOfTracks < 100 && album.statistics.sizeOnDisk === 0
   );
+}
+
+/** The map is keyed by albumStatusKey; read it with albumDownloadStatus. */
+export function useDownloadStatuses(albums: Album[] | undefined) {
+  const incomplete = albums?.filter(isIncomplete) ?? [];
+  const aurralKeys = incomplete
+    .filter((album) => album.managedBy === "aurral")
+    .map(albumStatusKey)
+    .filter((key): key is string => !!key);
+  const lidarrAlbums = (albums ?? []).filter(
+    (album) => album.managedBy !== "aurral" && album.lidarrId,
+  );
+  const hasIncompleteLidarr = lidarrAlbums.some(isIncomplete);
+  const keys = [
+    ...(hasIncompleteLidarr
+      ? lidarrAlbums.map((album) => album.lidarrId!)
+      : []),
+    ...aurralKeys,
+  ];
 
   return useQuery<DownloadStatusMap>({
-    queryKey: libraryKeys.downloadStatuses(ids.join(",")),
-    queryFn: () => getDownloadStatuses(ids),
-    enabled: ids.length > 0 && hasIncomplete,
-    refetchInterval: 15_000,
+    queryKey: libraryKeys.downloadStatuses(keys.join(",")),
+    queryFn: () => getDownloadStatuses(keys),
+    enabled: keys.length > 0,
+    refetchInterval: (query) =>
+      hasIncompleteLidarr || hasActiveAurralStatus(query.state.data)
+        ? POLL_MS
+        : false,
     refetchIntervalInBackground: false,
   });
 }

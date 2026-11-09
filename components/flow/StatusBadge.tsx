@@ -7,6 +7,8 @@ const CONFIG: Record<
 > = {
   pending: { label: "Queued", variant: "subtle" },
   downloading: { label: "Downloading", variant: "brand" },
+  cancel_requested: { label: "Cancelling", variant: "subtle" },
+  cancelled: { label: "Cancelled", variant: "subtle" },
   blocked: { label: "Blocked", variant: "error" },
   done: { label: "Ready", variant: "brand" },
   failed: { label: "Failed", variant: "error" },

@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useDateTimeFormat } from "@/hooks/use-date-time-format";
+import { formatReleaseWait } from "@/lib/album-status";
 import { Colors, Fonts } from "@/constants/theme";
 import type { Album, DownloadStatusValue } from "@/lib/types/library";
 
@@ -14,6 +16,9 @@ const STATUS_LABELS: Record<string, string> = {
   downloading: "Downloading...",
   moving: "Moving...",
   processing: "Processing...",
+  queued: "Queued",
+  blocked: "Needs attention",
+  cancelled: "Cancelled",
   failed: "Failed",
 };
 
@@ -34,6 +39,9 @@ export const AlbumCard = React.memo(function AlbumCard({
   showArtist = false,
 }: AlbumCardProps) {
   const colors = Colors[useColorScheme()];
+  // This card is memoized, so subscribe here: a changed server format has to
+  // repaint the release date even when the album props stay the same.
+  useDateTimeFormat();
 
   const year = album.releaseDate
     ? new Date(album.releaseDate).getFullYear()
@@ -66,26 +74,34 @@ export const AlbumCard = React.memo(function AlbumCard({
             {album.artistName || "Unknown Artist"}
           </Text>
         )}
-        <Text variant="caption" numberOfLines={1}>
-          {year && `${year} · `}
-          {trackCount} {trackCount === 1 ? "track" : "tracks"}
-          {" · "}
-          <Text
-            variant="caption"
-            style={{
-              color:
-                percent === 100
-                  ? colors.brandStrong
-                  : downloadStatus === "failed"
-                    ? colors.error
-                    : colors.subtle,
-            }}
-          >
-            {downloadStatus && percent < 100
-              ? (STATUS_LABELS[downloadStatus] ?? `${percent}%`)
-              : `${percent}%`}
+        {downloadStatus === "unreleased" && percent < 100 ? (
+          // The date already names the year, and a card is too narrow for
+          // the track count beside it.
+          <Text variant="caption" numberOfLines={1}>
+            {formatReleaseWait(album.releaseDate)}
           </Text>
-        </Text>
+        ) : (
+          <Text variant="caption" numberOfLines={1}>
+            {year && `${year} · `}
+            {trackCount} {trackCount === 1 ? "track" : "tracks"}
+            {" · "}
+            <Text
+              variant="caption"
+              style={{
+                color:
+                  percent === 100
+                    ? colors.brandStrong
+                    : downloadStatus === "failed"
+                      ? colors.error
+                      : colors.subtle,
+              }}
+            >
+              {downloadStatus && percent < 100
+                ? (STATUS_LABELS[downloadStatus] ?? `${percent}%`)
+                : `${percent}%`}
+            </Text>
+          </Text>
+        )}
       </View>
     </Pressable>
   );

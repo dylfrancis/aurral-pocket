@@ -358,6 +358,7 @@ describe("getCanonicalLibraryPage", () => {
       {
         id: "12",
         canonicalId: "12",
+        managedBy: null,
         artistId: "7",
         artistName: "Radiohead",
         mbid: "mb-rg-1",
@@ -417,6 +418,7 @@ describe("getCanonicalLibraryPage", () => {
       {
         id: "13",
         canonicalId: "13",
+        managedBy: null,
         artistId: "7",
         artistName: "Radiohead",
         mbid: "mb-rg-2",
@@ -541,11 +543,11 @@ describe("getCanonicalLibraryPage", () => {
     });
   });
 
-  it("carries Lidarr's album id apart from the canonical id, for Lidarr rows only", async () => {
+  it("carries the album's owner, and Lidarr's album id for Lidarr rows only", async () => {
     // Both ids are small integers from different tables, so a canonical id
     // sent to a Lidarr route names some other album. An Aurral-managed row
     // stores its MBID in the same metadata slot, and a file-scanned row has
-    // no Lidarr id at all.
+    // no Lidarr id and no owner at all.
     mockApi.get.mockResolvedValue({
       data: {
         kind: "albums",
@@ -559,11 +561,13 @@ describe("getCanonicalLibraryPage", () => {
             id: 14,
             title: "Lidarr Album",
             metadata: { id: 301, librarySource: "lidarr" },
+            managedBy: "lidarr",
           },
           {
             id: 15,
             title: "Aurral Album",
             metadata: { id: "mb-rg-5", librarySource: "aurral" },
+            managedBy: "aurral",
           },
           {
             id: 16,
@@ -576,10 +580,16 @@ describe("getCanonicalLibraryPage", () => {
     });
 
     const page = await getCanonicalLibraryPage({ kind: "albums" });
-    expect(page.albums.map(({ id, lidarrId }) => ({ id, lidarrId }))).toEqual([
-      { id: "14", lidarrId: "301" },
-      { id: "15", lidarrId: undefined },
-      { id: "16", lidarrId: undefined },
+    expect(
+      page.albums.map(({ id, lidarrId, managedBy }) => ({
+        id,
+        lidarrId,
+        managedBy,
+      })),
+    ).toEqual([
+      { id: "14", lidarrId: "301", managedBy: "lidarr" },
+      { id: "15", lidarrId: undefined, managedBy: "aurral" },
+      { id: "16", lidarrId: undefined, managedBy: null },
     ]);
   });
 

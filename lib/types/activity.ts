@@ -1,3 +1,5 @@
+import { aurralStatusKey } from "@/lib/library-read";
+
 export type RequestStatus = "processing" | "available" | "failed";
 
 /**
@@ -40,6 +42,7 @@ export type ActivityKind =
   | "artist_added"
   | "track_download"
   | "track_reused_lidarr"
+  | "missing_track_search"
   | "activity";
 
 /**
@@ -63,7 +66,13 @@ export type ActivityHistoryItem = {
   trackName: string | null;
   artistName: string | null;
   albumName: string | null;
+  /**
+   * Lidarr's album id on a Lidarr request. A request for an album Aurral
+   * manages, and a missing-track search, carry the canonical id here.
+   */
   albumId: string | null;
+  /** Set on requests for albums Aurral manages and on library track downloads. */
+  canonicalAlbumId: string | null;
   requestedBy: { id: number | string; username: string | null } | null;
   sourceFilename: string | null;
   inQueue: boolean;
@@ -98,6 +107,17 @@ export function activityArtistMbid(item: ActivityItem): string | null {
   const mbid = item.artistMbid;
   if (!mbid || mbid === "null" || mbid === "undefined") return null;
   return mbid;
+}
+
+/**
+ * Only album requests have a key. A missing-track search also carries a
+ * canonical id in `albumId`, which Lidarr would read as some other album.
+ */
+export function activityStatusKey(item: ActivityItem): string | null {
+  if (isAlbumRequest(item)) return item.albumId;
+  if (item.kind !== "album_requested") return null;
+  if (item.canonicalAlbumId) return aurralStatusKey(item.canonicalAlbumId);
+  return item.albumId;
 }
 
 /**

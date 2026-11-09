@@ -11,7 +11,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { formatDate } from "@/lib/date-time";
 import { Colors, Fonts } from "@/constants/theme";
-import type { DownloadStatusValue } from "@/lib/types/library";
+import type { DownloadStatusEntry } from "@/lib/types/library";
 import {
   activityArtistMbid,
   isAlbumRequest,
@@ -23,6 +23,7 @@ const KIND_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   track_download: "cloud-download-outline",
   track_reused_lidarr: "repeat-outline",
   album_requested: "musical-notes-outline",
+  missing_track_search: "search-outline",
 };
 
 function fallbackIcon(item: ActivityItem): keyof typeof Ionicons.glyphMap {
@@ -56,7 +57,7 @@ function reviewJobId(item: ActivityItem): string | null {
 
 type ActivityRowProps = {
   item: ActivityItem;
-  downloadStatus?: DownloadStatusValue;
+  downloadEntry?: DownloadStatusEntry;
   hasActions: boolean;
   onPress?: () => void;
   onLongPress: () => void;
@@ -64,7 +65,7 @@ type ActivityRowProps = {
 
 export const ActivityRow = React.memo(function ActivityRow({
   item,
-  downloadStatus,
+  downloadEntry,
   hasActions,
   onPress,
   onLongPress,
@@ -139,7 +140,7 @@ export const ActivityRow = React.memo(function ActivityRow({
           </Text>
         ) : null}
         <View style={styles.statusRow}>
-          <ActivityStatusBadge item={item} downloadStatus={downloadStatus} />
+          <ActivityStatusBadge item={item} downloadEntry={downloadEntry} />
         </View>
         <Text variant="caption" numberOfLines={1} style={styles.date}>
           {requestedLabel}

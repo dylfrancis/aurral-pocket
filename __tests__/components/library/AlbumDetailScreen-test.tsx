@@ -410,6 +410,22 @@ describe("AlbumDetailScreen", () => {
     expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["301"]);
   });
 
+  it("reads an Aurral album's status by its canonical id and says when an unreleased one downloads", async () => {
+    mockGetDownloadStatuses.mockResolvedValue({
+      "aurral:14": { status: "unreleased", releaseDate: "2027-03-05" },
+    });
+
+    await openAlbumPage({
+      ...lidarrAlbum,
+      lidarrId: undefined,
+      managedBy: "aurral",
+      releaseDate: "2027-03-05",
+    });
+
+    expect(await screen.findByText("Downloads Mar 5, 2027")).toBeTruthy();
+    expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["aurral:14"]);
+  });
+
   it("loads the hero cover from the server's artwork path, from the live record once it loads", async () => {
     // No MBID, so the server's path is the only way to a cover.
     const row: Album = {

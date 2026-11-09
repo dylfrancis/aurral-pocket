@@ -14,6 +14,9 @@ export type ArtistStatistics = {
 /** Which scanner owns the records in the canonical library. */
 export type LibrarySource = "aurral" | "lidarr" | "all";
 
+/** Which manager downloads and monitors an album. */
+export type LibraryOwner = "aurral" | "lidarr";
+
 export type Artist = {
   id: string;
   mbid: string;
@@ -93,6 +96,12 @@ export type Album = {
    * Lidarr does not manage the album.
    */
   lidarrId?: string;
+  /**
+   * Canonical read path only. Null when the server has no owner on record,
+   * as for an album Lidarr added without Aurral; such a row still carries
+   * `lidarrId`.
+   */
+  managedBy?: LibraryOwner | null;
   /** Canonical read path only. The scanners that found this album. */
   sources?: LibrarySource[];
   /** Canonical read path only. True when at least one track has a file. */
@@ -149,7 +158,7 @@ export type PreviewTrack = {
   duration_ms: number;
 };
 
-export type DownloadStatusValue =
+export type LidarrDownloadStatus =
   | "adding"
   | "searching"
   | "downloading"
@@ -159,10 +168,30 @@ export type DownloadStatusValue =
   | "added"
   | "available";
 
+/** `unreleased` means Aurral queues nothing until the release date. */
+export type AurralAlbumStatus =
+  | "complete"
+  | "downloading"
+  | "queued"
+  | "unreleased"
+  | "blocked"
+  | "cancelled"
+  | "failed"
+  | "partial"
+  | "missing";
+
+export type DownloadStatusValue = LidarrDownloadStatus | AurralAlbumStatus;
+
 export type DownloadStatusEntry = {
   status: DownloadStatusValue;
+  /** Aurral entries only. */
+  releaseDate?: string | null;
 };
 
+/**
+ * GET /library/downloads/status. Lidarr entries are keyed by Lidarr album id
+ * and Aurral entries by `aurral:<canonicalId>`; see albumStatusKey.
+ */
 export type DownloadStatusMap = Record<string, DownloadStatusEntry>;
 
 export type CoverArtImage = {
@@ -368,6 +397,7 @@ export type CanonicalAlbumItem = {
   available?: boolean;
   trackCount?: number;
   availableTrackCount?: number;
+  managedBy?: LibraryOwner | null;
   /**
    * The server-relative path of the album's cover: custom artwork when set,
    * otherwise `/api/library/albums/:id/cover?v=…`, which answers 404 when the
