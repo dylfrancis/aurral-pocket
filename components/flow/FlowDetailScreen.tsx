@@ -29,11 +29,15 @@ import {
   useConvertFlowToStaticPlaylist,
   useDeleteFlow,
   useFlowStatusSuspense,
-  useJobsForPlaylist,
   usePlaylistJobs,
   useStartFlow,
+  useTrackJobMenu,
 } from "@/hooks/flow";
 import { usePlaylistPlayback } from "@/hooks/flow/use-playlist-playback";
+import type {
+  TrackMenuAction,
+  TrackMenuActionId,
+} from "@/components/player/track-menu-types";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
@@ -47,6 +51,8 @@ import type {
   SharedPlaylist,
   StatusHintPhase,
 } from "@/lib/types/flow";
+
+const NO_JOBS: FlowJob[] = [];
 
 const BUSY_PHASES: StatusHintPhase[] = ["preparing", "downloading", "queued"];
 
@@ -116,10 +122,11 @@ function FlowPage({
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // Hides failed tracks: the server replaces them with others on the next run.
-  const jobs = useJobsForPlaylist(flow.id);
-  // Same cache entry as useJobsForPlaylist; only the initial-load flag is read.
-  const jobsLoading = usePlaylistJobs(flow.id).isLoading;
+  // Failed and cancelled tracks stay listed, so they can be retried before the
+  // next run replaces them.
+  const { data: jobs = NO_JOBS, isLoading: jobsLoading } = usePlaylistJobs(
+    flow.id,
+  );
   const collection = useMemo(
     () => ({ ...flow, kind: "flow" as const }),
     [flow],
@@ -192,19 +199,27 @@ function FlowPage({
   // A flow's tracks are regenerated on every run; saving one into a static
   // playlist is how it survives the next refresh.
   const openAddToPlaylist = addToPlaylist.open;
-  const trackMenuAction = useCallback(
-    (job: FlowJob) =>
+  const { actionsFor: jobActionsFor, runAction: runJobAction } =
+    useTrackJobMenu();
+  const trackMenuActions = useCallback(
+    (job: FlowJob): TrackMenuAction[] =>
       job.status === "done"
-        ? () =>
-            openAddToPlaylist({
-              artistName: job.artistName,
-              trackName: job.trackName,
-              albumName: job.albumName ?? null,
-              artistMbid: job.artistMbid ?? null,
-              reason: job.reason ?? null,
-            })
-        : undefined,
-    [openAddToPlaylist],
+        ? [{ id: "playlist", title: "Add to Playlist" }]
+        : jobActionsFor(job),
+    [jobActionsFor],
+  );
+  const handleTrackMenuAction = useCallback(
+    (job: FlowJob, id: TrackMenuActionId) => {
+      if (runJobAction(job, id) || id !== "playlist") return;
+      openAddToPlaylist({
+        artistName: job.artistName,
+        trackName: job.trackName,
+        albumName: job.albumName ?? null,
+        artistMbid: job.artistMbid ?? null,
+        reason: job.reason ?? null,
+      });
+    },
+    [runJobAction, openAddToPlaylist],
   );
 
   const isStartPending = startFlow.isPending;
@@ -265,7 +280,8 @@ function FlowPage({
             : "Turn the flow on in the Flows list, or choose Start Now from the menu, to get tracks."
         }
         onPlayTrack={playFrom}
-        trackMenuAction={trackMenuAction}
+        trackMenuActions={trackMenuActions}
+        onTrackMenuAction={handleTrackMenuAction}
         header={
           <>
             <CollectionHero

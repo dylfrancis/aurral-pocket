@@ -2,7 +2,7 @@ import { Host } from "@expo/ui";
 import type { ComponentProps } from "react";
 import { Button, Image, Menu } from "@expo/ui/swift-ui";
 import {
-  accessibilityLabel,
+  accessibilityLabel as accessibilityLabelModifier,
   contentShape,
   frame,
   shapes,
@@ -18,22 +18,33 @@ const SYMBOLS: Record<TrackMenuActionId, SFSymbol> = {
   playlist: "text.badge.plus",
   album: "square.stack",
   artist: "music.microphone",
+  retry: "arrow.clockwise",
+  stop: "stop.circle",
+  remove: "trash",
 };
 
-export function TrackMenu({ actions, onAction, triggerColor }: TrackMenuProps) {
+export function TrackMenu({
+  actions,
+  onAction,
+  triggerColor,
+  compact = false,
+  accessibilityLabel = "More actions",
+}: TrackMenuProps) {
   return (
-    <Host matchContents>
+    // Without this, a Host in a row under the translucent header applies the
+    // screen's safe area and draws its trigger below the row.
+    <Host matchContents ignoreSafeArea="all">
       <Menu
         label={
           <Image
             systemName="ellipsis"
-            size={22}
+            size={compact ? 17 : 22}
             color={triggerColor}
             modifiers={[
               // A full-size target, including the glyph's empty space.
               frame({ width: 44, height: 44 }),
               contentShape(shapes.rectangle()),
-              accessibilityLabel("More actions"),
+              accessibilityLabelModifier(accessibilityLabel),
             ]}
           />
         }
@@ -43,6 +54,7 @@ export function TrackMenu({ actions, onAction, triggerColor }: TrackMenuProps) {
             key={action.id}
             label={action.title}
             systemImage={SYMBOLS[action.id]}
+            role={action.destructive ? "destructive" : undefined}
             onPress={() => onAction(action.id)}
           />
         ))}

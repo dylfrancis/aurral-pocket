@@ -26,6 +26,34 @@ jest.mock("expo/fetch", () => ({
   fetch: jest.fn(),
 }));
 
+// The track menu is native SwiftUI or Compose, which can't render under Jest.
+// It stands in as a group labelled like its trigger, holding a plain button per
+// action that carries the action's title.
+jest.mock("@/components/player/TrackMenu", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return {
+    TrackMenu: ({ actions, onAction, accessibilityLabel }: any) =>
+      React.createElement(
+        View,
+        { accessibilityLabel: accessibilityLabel ?? "More actions" },
+        actions.map((action: any) =>
+          React.createElement(
+            Pressable,
+            {
+              key: action.id,
+              accessibilityLabel: action.title,
+              onPress: () => onAction(action.id),
+            },
+            React.createElement(Text, null, action.title),
+          ),
+        ),
+      ),
+  };
+});
+
 // AsyncStorage has no native module under Jest, and it throws at import time.
 // `lib/storage` reaches many modules indirectly, so install the mock the library
 // ships. Suites that assert on storage calls still mock it themselves.

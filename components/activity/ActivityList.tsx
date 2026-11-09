@@ -14,6 +14,7 @@ import {
 } from "@/hooks/activity/use-activity";
 import { useActivityDownloadStatuses } from "@/hooks/activity/use-activity-download-statuses";
 import { useActivityFilter } from "@/hooks/activity/use-activity-view";
+import { useActivityJobControls } from "@/hooks/activity/use-activity-job-controls";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -94,8 +95,10 @@ export function ActivityList({ view }: ActivityListProps) {
 
   // Other history entries stay read-only: artist_added rows look actionable,
   // but DELETE /requests/:mbid removes the artist from Lidarr entirely.
+  const jobControlsFor = useActivityJobControls();
   const rowHasActions = useCallback(
     (item: ActivityItem) => {
+      if (jobControlsFor(item)) return true;
       const albumStatus = downloadEntryFor(item)?.status;
       if (aurralRequestAlbumId(item)) {
         return isActiveAurralStatus(albumStatus) && hasPermission("addAlbum");
@@ -105,7 +108,7 @@ export function ActivityList({ view }: ActivityListProps) {
       const canStop = item.inQueue && hasPermission("deleteAlbum");
       return canStop || isFailed;
     },
-    [downloadEntryFor, hasPermission],
+    [jobControlsFor, downloadEntryFor, hasPermission],
   );
 
   // Playlist links need accessFlow: both lists and the lookup behind them
@@ -146,8 +149,13 @@ export function ActivityList({ view }: ActivityListProps) {
     [downloadEntryFor, rowHasActions, rowPressHandler, handleLongPress],
   );
 
-  const activeStatus = selected
-    ? downloadEntryFor(selected)?.status
+  // The feed polls while the sheet is open, so it offers what the entry
+  // allows now, not what it allowed when it was pressed.
+  const sheetItem = selected
+    ? (items.find((item) => item.id === selected.id) ?? selected)
+    : null;
+  const activeStatus = sheetItem
+    ? downloadEntryFor(sheetItem)?.status
     : undefined;
 
   return (
@@ -216,7 +224,7 @@ export function ActivityList({ view }: ActivityListProps) {
       />
       <ActivityActionsSheet
         sheetRef={sheetRef}
-        request={selected}
+        request={sheetItem}
         downloadStatus={activeStatus}
       />
     </>

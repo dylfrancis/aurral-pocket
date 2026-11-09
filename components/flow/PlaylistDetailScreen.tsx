@@ -25,15 +25,21 @@ import {
   useDeleteSharedPlaylist,
   useDeleteSharedPlaylistTrack,
   useFlowStatusSuspense,
-  useJobsForPlaylist,
   usePlaylistJobs,
   useSetRetryCyclePaused,
+  useTrackJobMenu,
 } from "@/hooks/flow";
 import { usePlaylistPlayback } from "@/hooks/flow/use-playlist-playback";
+import type {
+  TrackMenuAction,
+  TrackMenuActionId,
+} from "@/components/player/track-menu-types";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import type { FlowJob, PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
+
+const NO_JOBS: FlowJob[] = [];
 
 export function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -83,9 +89,9 @@ function PlaylistPage({
 
   // Failed tracks stay listed, as an album's missing tracks do. The count above
   // them includes them, and the list would otherwise come up short with no reason.
-  const jobs = useJobsForPlaylist(playlist.id, { includeFailed: true });
-  // Same cache entry as useJobsForPlaylist; only the initial-load flag is read.
-  const jobsLoading = usePlaylistJobs(playlist.id).isLoading;
+  const { data: jobs = NO_JOBS, isLoading: jobsLoading } = usePlaylistJobs(
+    playlist.id,
+  );
   const collection = useMemo(
     () => ({ ...playlist, kind: "shared" as const }),
     [playlist],
@@ -122,9 +128,19 @@ function PlaylistPage({
     );
   }, [playlist.id, playlist.name, router, deleteMutate]);
 
+  const { actionsFor: jobActionsFor, runAction: runJobAction } =
+    useTrackJobMenu();
+  const trackMenuActions = useCallback(
+    (job: FlowJob): TrackMenuAction[] => [
+      ...jobActionsFor(job),
+      { id: "remove", title: "Remove Track", destructive: true },
+    ],
+    [jobActionsFor],
+  );
   const deleteTrackMutate = deleteTrack.mutate;
-  const trackMenuAction = useCallback(
-    (job: FlowJob) => () =>
+  const handleTrackMenuAction = useCallback(
+    (job: FlowJob, id: TrackMenuActionId) => {
+      if (runJobAction(job, id) || id !== "remove") return;
       Alert.alert(
         "Remove Track",
         `Remove "${job.trackName}" from "${playlist.name}"?`,
@@ -137,8 +153,9 @@ function PlaylistPage({
               deleteTrackMutate({ playlistId: playlist.id, jobId: job.id }),
           },
         ],
-      ),
-    [deleteTrackMutate, playlist.id, playlist.name],
+      );
+    },
+    [runJobAction, deleteTrackMutate, playlist.id, playlist.name],
   );
 
   const isRetryPending = setRetryPaused.isPending;
@@ -194,7 +211,8 @@ function PlaylistPage({
       toolbar={toolbar}
       emptyMessage="No tracks yet"
       onPlayTrack={playFrom}
-      trackMenuAction={trackMenuAction}
+      trackMenuActions={trackMenuActions}
+      onTrackMenuAction={handleTrackMenuAction}
       header={
         <>
           <CollectionHero
