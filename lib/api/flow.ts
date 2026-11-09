@@ -4,6 +4,7 @@ import type {
   FlowFormValues,
   FlowJob,
   FlowStatusSnapshot,
+  FlowTemplate,
   SharedPlaylist,
   SharedPlaylistTrack,
   WorkerSettings,
@@ -53,6 +54,22 @@ export async function createFlow(payload: FlowFormValues): Promise<Flow> {
     `${FLOW}/flows`,
     payload,
   );
+  return r.data.flow;
+}
+
+export async function getFlowTemplates(): Promise<FlowTemplate[]> {
+  const r = await api.get<{ templates: FlowTemplate[] }>(
+    `${FLOW}/flow-templates`,
+  );
+  return r.data.templates;
+}
+
+export async function createFlowFromTemplate(
+  templateId: string,
+): Promise<Flow> {
+  const r = await api.post<{ success: boolean; flow: Flow }>(`${FLOW}/flows`, {
+    templateId,
+  });
   return r.data.flow;
 }
 

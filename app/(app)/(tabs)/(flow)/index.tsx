@@ -1,15 +1,22 @@
 import { useCallback, useState } from "react";
-import { RefreshControl, StyleSheet, View } from "react-native";
+import { Alert, RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import * as Burnt from "burnt";
 import Settings from "@expo/material-symbols/settings.xml";
 import Add from "@expo/material-symbols/add.xml";
+import Tune from "@expo/material-symbols/tune.xml";
+import GraphicEq from "@expo/material-symbols/graphic_eq.xml";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { EmptyState } from "@/components/library/EmptyState";
 import { FlowCard } from "@/components/flow/FlowCard";
 import { FlowAccessGate } from "@/components/flow/FlowAccessGate";
-import { useFlowStatusSuspense, useSetFlowEnabled } from "@/hooks/flow";
+import {
+  useCreateFlowFromTemplate,
+  useFlowStatusSuspense,
+  useFlowTemplates,
+  useSetFlowEnabled,
+} from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
@@ -79,6 +86,15 @@ function FlowScreenContent() {
     [router],
   );
 
+  const { data: templates } = useFlowTemplates();
+  const createFromTemplate = useCreateFlowFromTemplate();
+  const pickTemplate = (templateId: string) =>
+    createFromTemplate.mutate(templateId, {
+      onSuccess: (flow) =>
+        router.push({ pathname: "/flow/[id]", params: { id: flow.id } }),
+      onError: (err) => Alert.alert("Could not create", err.message),
+    });
+
   return (
     <>
       <Stack.Toolbar placement="right">
@@ -89,13 +105,32 @@ function FlowScreenContent() {
         >
           Worker settings
         </Stack.Toolbar.Button>
-        <Stack.Toolbar.Button
+        <Stack.Toolbar.Menu
           icon={IS_IOS ? "plus" : Add}
           accessibilityLabel="Create flow"
-          onPress={openCreateFlow}
+          disabled={createFromTemplate.isPending}
         >
-          Create flow
-        </Stack.Toolbar.Button>
+          <Stack.Toolbar.MenuAction
+            icon={IS_IOS ? "slider.horizontal.3" : Tune}
+            onPress={openCreateFlow}
+          >
+            Custom Flow
+          </Stack.Toolbar.MenuAction>
+          {templates?.length ? (
+            <Stack.Toolbar.Menu inline title="Start from a template">
+              {templates.map((template) => (
+                <Stack.Toolbar.MenuAction
+                  key={template.id}
+                  icon={IS_IOS ? "waveform" : GraphicEq}
+                  disabled={!template.available}
+                  onPress={() => pickTemplate(template.id)}
+                >
+                  {template.name}
+                </Stack.Toolbar.MenuAction>
+              ))}
+            </Stack.Toolbar.Menu>
+          ) : null}
+        </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <FlashList
         data={data.flows}

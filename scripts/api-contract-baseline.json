@@ -237,6 +237,16 @@
     },
     "GET /library/recent": [],
     "GET /library/recent-releases": [],
+    "GET /playlists/flow-templates": {
+      "templates": [
+        {
+          "available": "boolean",
+          "description": "string",
+          "id": "string",
+          "name": "string"
+        }
+      ]
+    },
     "GET /playlists/status": {
       "flowStats": {},
       "flows": [],
