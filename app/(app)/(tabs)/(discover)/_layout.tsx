@@ -43,16 +43,23 @@ export default function DiscoverLayout() {
           }}
         />
         <Stack.Screen
-          name="editorial/index"
-          options={{
-            title: "Playlists",
-            headerLargeTitleEnabled: true,
-            headerBackButtonDisplayMode: "minimal",
-          }}
-        />
-        <Stack.Screen
           name="editorial/[id]"
           options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
+        />
+        <Stack.Screen
+          name="trending/[chart]"
+          options={({ route }) => {
+            const { chart, name } = (route.params ?? {}) as {
+              chart?: string;
+              name?: string;
+            };
+            return {
+              title:
+                chart === "songs" ? "Top Songs" : name ? `Top ${name}` : "",
+              headerLargeTitleEnabled: true,
+              headerBackButtonDisplayMode: "minimal",
+            };
+          }}
         />
         <Stack.Screen
           name="tag-results"

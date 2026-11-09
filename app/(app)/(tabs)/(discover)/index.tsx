@@ -9,6 +9,11 @@ import {
   RecommendedForYouSection,
   ShowsNearYouSection,
 } from "@/components/discover";
+import { DiscoverTabPanel } from "@/components/discover/DiscoverTabPanel";
+import { DiscoverTabs } from "@/components/discover/DiscoverTabs";
+import type { DiscoverTab } from "@/components/discover/discover-tabs";
+import { EditorialShelf } from "@/components/discover/EditorialShelf";
+import { TrendingCharts } from "@/components/discover/TrendingCharts";
 import { SettingsSheet } from "@/components/settings/SettingsSheet";
 import { ShazamSheet } from "@/components/shazam";
 import { isShazamAvailable } from "@/modules/shazam";
@@ -37,14 +42,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Linking,
   Pressable,
   RefreshControl,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
 } from "react-native";
 
@@ -62,14 +69,35 @@ export default function DiscoverScreen() {
     saveLayout,
   } = useDiscoverLayout();
 
+  const [tab, setTab] = useState<DiscoverTab>("forYou");
+  const [openedTabs, setOpenedTabs] = useState<ReadonlySet<DiscoverTab>>(
+    () => new Set(["forYou"]),
+  );
+  const selectTab = useCallback((next: DiscoverTab) => {
+    setOpenedTabs((opened) =>
+      opened.has(next) ? opened : new Set(opened).add(next),
+    );
+    setTab(next);
+  }, []);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const settingsSheetRef = useRef<BottomSheetModal>(null);
   const customizeSheetRef = useRef<BottomSheetModal>(null);
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      await Promise.all([
+  // The header shrinks as the large title collapses; the page's top is where
+  // the expanded title ends.
+  const headerHeight = useHeaderHeight();
+  const expandedHeaderHeight = useRef(0);
+  useEffect(() => {
+    expandedHeaderHeight.current = Math.max(
+      expandedHeaderHeight.current,
+      headerHeight,
+    );
+  }, [headerHeight]);
+
+  const refreshForYou = useCallback(
+    () =>
+      Promise.all([
         refetchDiscovery(),
         refetchRecentlyAdded(),
         refetchRecentReleases(),
@@ -79,16 +107,32 @@ export default function DiscoverScreen() {
         queryClient.invalidateQueries({
           queryKey: discoverKeys.editorialShelf(),
         }),
-      ]);
+      ]),
+    [
+      queryClient,
+      refetchDiscovery,
+      refetchRecentlyAdded,
+      refetchRecentReleases,
+    ],
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      if (tab === "forYou") {
+        await refreshForYou();
+      } else {
+        await queryClient.invalidateQueries({
+          queryKey:
+            tab === "playlists"
+              ? discoverKeys.editorialShelf()
+              : discoverKeys.trending(),
+        });
+      }
     } finally {
       setIsRefreshing(false);
     }
-  }, [
-    queryClient,
-    refetchDiscovery,
-    refetchRecentlyAdded,
-    refetchRecentReleases,
-  ]);
+  }, [queryClient, refreshForYou, tab]);
 
   const pushArtist = useCallback(
     (mbid: string, name?: string) => {
@@ -201,8 +245,13 @@ export default function DiscoverScreen() {
     router.push("/(app)/(tabs)/(discover)/nearby-shows");
   }, [router]);
   const handleViewAllPlaylists = useCallback(() => {
-    router.push("/(app)/(tabs)/(discover)/editorial");
-  }, [router]);
+    selectTab("playlists");
+    // The tabs share one scroll view, so Playlists would open partway down.
+    scrollRef.current?.scrollTo({
+      y: IS_IOS ? -expandedHeaderHeight.current : 0,
+      animated: false,
+    });
+  }, [selectTab]);
 
   const notConfigured =
     discovery?.configured === false &&
@@ -231,7 +280,11 @@ export default function DiscoverScreen() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <ScrollView
+        ref={scrollRef}
         contentInsetAdjustmentBehavior="automatic"
+        // View All scrolls to a negative offset, where the expanded large
+        // title rests on iOS.
+        scrollToOverflowEnabled
         keyboardDismissMode="on-drag"
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.contentContainer}
@@ -243,114 +296,131 @@ export default function DiscoverScreen() {
           />
         }
       >
-        {notConfigured ? (
-          <Card bordered style={styles.emptyCard}>
-            <Ionicons name="sparkles-outline" size={32} color={colors.subtle} />
-            <Text
-              variant="body"
-              style={[
-                styles.emptyTitle,
-                { color: colors.text, ...Fonts.semiBold },
-              ]}
-            >
-              Discovery not configured
-            </Text>
-            <Text
-              variant="caption"
-              style={[styles.emptyBody, { color: colors.subtle }]}
-            >
-              Add artists to your library or configure Last.fm in Settings to
-              see personalized recommendations.
-            </Text>
-            <Pressable
-              onPress={handleOpenSettings}
-              style={[styles.emptyButton, { backgroundColor: colors.brand }]}
-            >
+        <DiscoverTabs selected={tab} onSelect={selectTab} />
+        <DiscoverTabPanel active={tab === "forYou"}>
+          {notConfigured ? (
+            <Card bordered style={styles.emptyCard}>
+              <Ionicons
+                name="sparkles-outline"
+                size={32}
+                color={colors.subtle}
+              />
+              <Text
+                variant="body"
+                style={[
+                  styles.emptyTitle,
+                  { color: colors.text, ...Fonts.semiBold },
+                ]}
+              >
+                Discovery not configured
+              </Text>
               <Text
                 variant="caption"
-                style={{
-                  color: colors.buttonPrimaryText,
-                  ...Fonts.semiBold,
-                }}
+                style={[styles.emptyBody, { color: colors.subtle }]}
               >
-                Open Settings
+                Add artists to your library or configure Last.fm in Settings to
+                see personalized recommendations.
               </Text>
-            </Pressable>
-          </Card>
-        ) : (
-          <>
-            <DiscoverHeaderSection
-              onTagPress={handleTagPress}
-              onCustomize={handleOpenCustomize}
-            />
-            {layoutHydrated
-              ? sections
-                  .filter((section) => section.enabled)
-                  .map((section) => {
-                    switch (section.id) {
-                      case "recentlyAdded":
-                        return (
-                          <RecentlyAddedSection
-                            key={section.id}
-                            onArtistPress={handleRecentlyAddedPress}
-                            onViewAll={handleViewAllRecentlyAdded}
-                          />
-                        );
-                      case "playlists":
-                        return (
-                          <EditorialPlaylistsSection
-                            key={section.id}
-                            onViewAll={handleViewAllPlaylists}
-                          />
-                        );
-                      case "recommendedShows":
-                        return (
-                          <ShowsNearYouSection
-                            key={section.id}
-                            onShowPress={handleShowPress}
-                            onOpenSettings={handleOpenSettings}
-                            onViewAll={handleViewAllNearbyShows}
-                          />
-                        );
-                      case "recentReleases":
-                        return (
-                          <RecentReleasesSection
-                            key={section.id}
-                            onAlbumPress={handleAlbumPress}
-                            onViewAll={handleViewAllRecentReleases}
-                          />
-                        );
-                      case "recommended":
-                        return (
-                          <RecommendedForYouSection
-                            key={section.id}
-                            onArtistPress={handleDiscoveryArtistPress}
-                            onViewAll={handleViewAllRecommended}
-                          />
-                        );
-                      case "globalTop":
-                        return (
-                          <GlobalTrendingSection
-                            key={section.id}
-                            onArtistPress={handleDiscoveryArtistPress}
-                            onViewAll={handleViewAllTrending}
-                          />
-                        );
-                      case "genreSections":
-                        return (
-                          <GenreSectionsPanel
-                            key={section.id}
-                            onArtistPress={handleGenreArtistPress}
-                            onViewAllGenre={handleTagPress}
-                          />
-                        );
-                      default:
-                        return null;
-                    }
-                  })
-              : null}
-          </>
-        )}
+              <Pressable
+                onPress={handleOpenSettings}
+                style={[styles.emptyButton, { backgroundColor: colors.brand }]}
+              >
+                <Text
+                  variant="caption"
+                  style={{
+                    color: colors.buttonPrimaryText,
+                    ...Fonts.semiBold,
+                  }}
+                >
+                  Open Settings
+                </Text>
+              </Pressable>
+            </Card>
+          ) : (
+            <>
+              <DiscoverHeaderSection
+                onTagPress={handleTagPress}
+                onCustomize={handleOpenCustomize}
+              />
+              {layoutHydrated
+                ? sections
+                    .filter((section) => section.enabled)
+                    .map((section) => {
+                      switch (section.id) {
+                        case "recentlyAdded":
+                          return (
+                            <RecentlyAddedSection
+                              key={section.id}
+                              onArtistPress={handleRecentlyAddedPress}
+                              onViewAll={handleViewAllRecentlyAdded}
+                            />
+                          );
+                        case "playlists":
+                          return (
+                            <EditorialPlaylistsSection
+                              key={section.id}
+                              onViewAll={handleViewAllPlaylists}
+                            />
+                          );
+                        case "recommendedShows":
+                          return (
+                            <ShowsNearYouSection
+                              key={section.id}
+                              onShowPress={handleShowPress}
+                              onOpenSettings={handleOpenSettings}
+                              onViewAll={handleViewAllNearbyShows}
+                            />
+                          );
+                        case "recentReleases":
+                          return (
+                            <RecentReleasesSection
+                              key={section.id}
+                              onAlbumPress={handleAlbumPress}
+                              onViewAll={handleViewAllRecentReleases}
+                            />
+                          );
+                        case "recommended":
+                          return (
+                            <RecommendedForYouSection
+                              key={section.id}
+                              onArtistPress={handleDiscoveryArtistPress}
+                              onViewAll={handleViewAllRecommended}
+                            />
+                          );
+                        case "globalTop":
+                          return (
+                            <GlobalTrendingSection
+                              key={section.id}
+                              onArtistPress={handleDiscoveryArtistPress}
+                              onViewAll={handleViewAllTrending}
+                            />
+                          );
+                        case "genreSections":
+                          return (
+                            <GenreSectionsPanel
+                              key={section.id}
+                              onArtistPress={handleGenreArtistPress}
+                              onViewAllGenre={handleTagPress}
+                            />
+                          );
+                        default:
+                          return null;
+                      }
+                    })
+                : null}
+            </>
+          )}
+        </DiscoverTabPanel>
+        {openedTabs.has("playlists") ? (
+          <DiscoverTabPanel active={tab === "playlists"}>
+            <EditorialShelf />
+          </DiscoverTabPanel>
+        ) : null}
+        {openedTabs.has("trending") ? (
+          <DiscoverTabPanel active={tab === "trending"}>
+            <TrendingCharts active={tab === "trending"} />
+          </DiscoverTabPanel>
+        ) : null}
       </ScrollView>
       <SettingsSheet sheetRef={settingsSheetRef} />
       <CustomizeDiscoverSheet

@@ -90,6 +90,15 @@
     "GET /discover/tags": {
       "tags": ["string"]
     },
+    "GET /discover/trending": {
+      "albums": "null",
+      "artists": "null",
+      "genreShare": "null",
+      "genres": [],
+      "region": "null",
+      "songs": "null",
+      "updatedAt": "null"
+    },
     "GET /health/bootstrap": {
       "api": {
         "features": ["string"],

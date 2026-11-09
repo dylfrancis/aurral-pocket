@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigation, useRouter } from "expo-router";
 import * as Burnt from "burnt";
@@ -15,7 +15,13 @@ import type {
   EditorialPlaylist,
   EditorialPlaylistSummary,
   EditorialTrack,
+  TrendingChartsResponse,
 } from "@/lib/types/search";
+
+export type TrackLinkTarget = Pick<
+  EditorialTrack,
+  "artistName" | "albumName" | "deezerAlbumId"
+>;
 
 const SHELF_STALE_MS = 60 * 60 * 1000;
 const PLAYLIST_STALE_MS = 5 * 60 * 1000;
@@ -72,6 +78,17 @@ export function useAddEditorialPlaylist(playlistId: string) {
         (cached) =>
           cached && { ...cached, libraryPlaylistId: saved.playlistId },
       );
+      // Trending's songs chart is a Deezer playlist saved through this route.
+      queryClient.setQueryData<TrendingChartsResponse>(
+        discoverKeys.trending(),
+        (cached) =>
+          cached?.songs?.playlistId === playlistId
+            ? {
+                ...cached,
+                songs: { ...cached.songs, libraryPlaylistId: saved.playlistId },
+              }
+            : cached,
+      );
       void queryClient.invalidateQueries({ queryKey: flowKeys.status() });
       Burnt.toast(
         saved.alreadyAdded
@@ -101,15 +118,24 @@ export function useAddEditorialPlaylist(playlistId: string) {
  * Deezer tracks carry no MBIDs, so a tap looks them up first. As on the web, an
  * album that can't be found opens its artist instead.
  */
-export function useEditorialTrackLinks(onLeave: () => void) {
+export function useEditorialTrackLinks(onLeave: () => void, active = true) {
   const router = useRouter();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [lookupRowId, setLookupRowId] = useState<string | null>(null);
   const lookupRunning = useRef(false);
+  // A hidden Discover tab stays mounted and its screen focused, so focus alone
+  // can't tell that the rows are out of sight.
+  const activeRef = useRef(active);
+  useEffect(() => {
+    activeRef.current = active;
+    return () => {
+      activeRef.current = false;
+    };
+  }, [active]);
 
   const openLink = useCallback(
-    async (rowId: string, track: EditorialTrack, kind: "artist" | "album") => {
+    async (rowId: string, track: TrackLinkTarget, kind: "artist" | "album") => {
       if (lookupRunning.current) return;
       lookupRunning.current = true;
       setLookupRowId(rowId);
@@ -136,7 +162,7 @@ export function useEditorialTrackLinks(onLeave: () => void) {
         });
 
         // A slow lookup must not pull back someone who has already moved on.
-        if (!navigation.isFocused()) return;
+        if (!activeRef.current || !navigation.isFocused()) return;
 
         if (!artistMbid) {
           Burnt.toast({
@@ -185,11 +211,11 @@ export function useEditorialTrackLinks(onLeave: () => void) {
   );
 
   const openArtist = useCallback(
-    (rowId: string, track: EditorialTrack) => openLink(rowId, track, "artist"),
+    (rowId: string, track: TrackLinkTarget) => openLink(rowId, track, "artist"),
     [openLink],
   );
   const openAlbum = useCallback(
-    (rowId: string, track: EditorialTrack) => openLink(rowId, track, "album"),
+    (rowId: string, track: TrackLinkTarget) => openLink(rowId, track, "album"),
     [openLink],
   );
 

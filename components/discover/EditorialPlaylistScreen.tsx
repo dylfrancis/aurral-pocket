@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
@@ -6,7 +6,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
-import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
@@ -21,10 +20,9 @@ import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
   useAddEditorialPlaylist,
   useEditorialPlaylist,
-  useEditorialTrackLinks,
 } from "@/hooks/discover/use-editorial-playlists";
+import { usePreviewRows } from "@/hooks/discover/use-preview-rows";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
-import { useAudioPreview } from "@/hooks/library/use-audio-preview";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ApiError } from "@/lib/api/client";
 import { formatTrackCount } from "@/lib/discover/format";
@@ -65,13 +63,12 @@ export function EditorialPlaylistScreen() {
     playingId,
     loadingId,
     progress,
-    toggle: togglePreview,
-    stop: stopPreview,
-  } = useAudioPreview();
-  useEffect(() => () => stopPreview(), [stopPreview]);
-
-  const { lookupRowId, openArtist, openAlbum } =
-    useEditorialTrackLinks(stopPreview);
+    lookupRowId,
+    stopPreview,
+    togglePreview,
+    openRowArtist,
+    openRowAlbum,
+  } = usePreviewRows();
 
   const trackItems = useMemo<EditorialTrackItem[]>(
     () =>
@@ -82,28 +79,6 @@ export function EditorialPlaylistScreen() {
     [playlist?.tracks, id],
   );
 
-  const handleTogglePreview = useCallback(
-    ({ id: rowId, track }: EditorialTrackItem) => {
-      if (!track.preview_url) return;
-      void Haptics.selectionAsync();
-      void togglePreview(rowId, track.preview_url, {
-        title: track.trackName,
-        artist: track.artistName,
-        album: track.albumName ?? undefined,
-        artwork: track.artworkUrl,
-      });
-    },
-    [togglePreview],
-  );
-  const handleOpenArtist = useCallback(
-    ({ id: rowId, track }: EditorialTrackItem) => void openArtist(rowId, track),
-    [openArtist],
-  );
-  const handleOpenAlbum = useCallback(
-    ({ id: rowId, track }: EditorialTrackItem) => void openAlbum(rowId, track),
-    [openAlbum],
-  );
-
   const renderItem = useCallback(
     ({ item }: { item: EditorialTrackItem }) => (
       <EditorialTrackRow
@@ -112,9 +87,9 @@ export function EditorialPlaylistScreen() {
         isLoading={loadingId === item.id}
         progress={playingId === item.id ? progress : 0}
         isLookingUpLink={lookupRowId === item.id}
-        onTogglePreview={handleTogglePreview}
-        onOpenArtist={handleOpenArtist}
-        onOpenAlbum={handleOpenAlbum}
+        onTogglePreview={togglePreview}
+        onOpenArtist={openRowArtist}
+        onOpenAlbum={openRowAlbum}
       />
     ),
     [
@@ -122,9 +97,9 @@ export function EditorialPlaylistScreen() {
       loadingId,
       progress,
       lookupRowId,
-      handleTogglePreview,
-      handleOpenArtist,
-      handleOpenAlbum,
+      togglePreview,
+      openRowArtist,
+      openRowAlbum,
     ],
   );
 

@@ -5,12 +5,14 @@ import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Text } from "@/components/ui/Text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import type { EditorialTrack } from "@/lib/types/search";
+import type { EditorialTrack, TrendingMovement } from "@/lib/types/search";
+import { ChartRank } from "./ChartRank";
 
 const COVER_SIZE = 44;
 const PLAY_BUTTON_SIZE = 32;
 
-export type EditorialTrackItem = { id: string; track: EditorialTrack };
+export type EditorialTrackItem<Track extends EditorialTrack = EditorialTrack> =
+  { id: string; track: Track };
 
 type Props = {
   item: EditorialTrackItem;
@@ -21,6 +23,8 @@ type Props = {
   onTogglePreview: (item: EditorialTrackItem) => void;
   onOpenArtist: (item: EditorialTrackItem) => void;
   onOpenAlbum: (item: EditorialTrackItem) => void;
+  rank?: number;
+  movement?: TrendingMovement;
 };
 
 /** A plain View, so a screen reader can reach each of the row's actions. */
@@ -33,12 +37,17 @@ export const EditorialTrackRow = React.memo(function EditorialTrackRow({
   onTogglePreview,
   onOpenArtist,
   onOpenAlbum,
+  rank,
+  movement,
 }: Props) {
   const colors = Colors[useColorScheme()];
   const { track } = item;
 
   return (
     <View style={[styles.row, { borderBottomColor: colors.separator }]}>
+      {rank !== undefined ? (
+        <ChartRank position={rank} movement={movement} />
+      ) : null}
       <View style={styles.playSlot}>
         {track.preview_url ? (
           <Pressable

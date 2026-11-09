@@ -80,6 +80,9 @@ export const discoverKeys = {
     album?: string | null,
     albumId?: string | null,
   ) => ["discover", "editorial", "links", artist, album, albumId] as const,
+  trending: () => ["discover", "trending"] as const,
+  trendingGenre: (genreId: string) =>
+    ["discover", "trending", "genre", genreId] as const,
 };
 
 export const flowKeys = {

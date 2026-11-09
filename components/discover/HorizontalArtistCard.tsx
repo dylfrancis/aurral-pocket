@@ -11,8 +11,9 @@ export type HorizontalArtistCardProps = {
   name: string;
   subtitle?: string;
   isInLibrary?: boolean;
-  onPress: () => void;
+  onPress?: () => void;
   fill?: boolean;
+  imageUrl?: string | null;
 };
 
 const CARD_WIDTH = 130;
@@ -24,6 +25,7 @@ function HorizontalArtistCardComponent({
   isInLibrary,
   onPress,
   fill,
+  imageUrl,
 }: HorizontalArtistCardProps) {
   const colors = Colors[useColorScheme()];
 
@@ -34,11 +36,13 @@ function HorizontalArtistCardComponent({
         { opacity: pressed ? 0.7 : 1 },
       ]}
       onPress={onPress}
+      disabled={!onPress}
     >
       <View style={styles.coverWrap}>
         <CoverArtImage
           type="artist"
           mbid={mbid}
+          coverUrl={imageUrl}
           size={fill ? "fill" : CARD_WIDTH}
           borderRadius={10}
         />
