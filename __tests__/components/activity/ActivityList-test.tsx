@@ -130,12 +130,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ActivityList } from "@/components/activity/ActivityList";
 import { ActivityErrorBoundary as ErrorBoundary } from "@/components/activity/ActivityErrorBoundary";
 import { useActivitySuspense } from "@/hooks/activity/use-activity";
+import { useActivityDownloadStatuses } from "@/hooks/activity/use-activity-download-statuses";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { getFlowStatus } from "@/lib/api/flow";
 import { flowKeys } from "@/lib/query-keys";
 import type { ActivityHistoryItem, AlbumRequest } from "@/lib/types/activity";
 
 const mockUseActivitySuspense = useActivitySuspense as jest.Mock;
+const mockUseActivityDownloadStatuses =
+  useActivityDownloadStatuses as jest.Mock;
 const mockUseHasPermission = useHasPermission as jest.Mock;
 const mockGetFlowStatus = getFlowStatus as jest.Mock;
 
@@ -212,6 +215,7 @@ function makeHistoryItem(
     artistName: `Artist ${overrides.id}`,
     albumName: null,
     albumId: null,
+    canonicalAlbumId: null,
     requestedBy: null,
     sourceFilename: null,
     inQueue: false,
@@ -223,6 +227,7 @@ function makeHistoryItem(
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseActivitySuspense.mockReturnValue({ ...defaultHook });
+  mockUseActivityDownloadStatuses.mockReturnValue({ data: undefined });
 });
 
 describe("ActivityList", () => {
@@ -303,6 +308,34 @@ describe("ActivityList", () => {
     expect(getByText("First Album")).toBeTruthy();
     expect(getByText("Second Album")).toBeTruthy();
   });
+  it("shows an Aurral request its own album's status, not a Lidarr album's with the same id", async () => {
+    mockUseActivityDownloadStatuses.mockReturnValue({
+      data: {
+        "12": { status: "failed" },
+        "aurral:12": { status: "queued" },
+      },
+    });
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [
+        makeHistoryItem({
+          id: "aurral-request",
+          kind: "album_requested",
+          source: "aurral",
+          title: "Requested Kid A",
+          statusLabel: "Requested",
+          albumId: "12",
+          canonicalAlbumId: "12",
+        }),
+      ],
+    });
+    const { getByText, queryByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+    expect(getByText("Queued")).toBeTruthy();
+    expect(queryByText("Failed")).toBeNull();
+  });
+
   it("shows only queue-eligible items in the queue view", async () => {
     mockUseActivitySuspense.mockReturnValue({
       ...defaultHook,

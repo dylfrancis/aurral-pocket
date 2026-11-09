@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Chip } from "@/components/ui/Chip";
-import type { DownloadStatusValue } from "@/lib/types/library";
+import { formatReleaseWait } from "@/lib/album-status";
+import type { DownloadStatusEntry } from "@/lib/types/library";
 import { isAlbumRequest, type ActivityItem } from "@/lib/types/activity";
 
 type BadgeConfig = {
@@ -11,8 +12,9 @@ type BadgeConfig = {
 
 function resolveBadge(
   item: ActivityItem,
-  downloadStatus: DownloadStatusValue | undefined,
+  downloadEntry: DownloadStatusEntry | undefined,
 ): BadgeConfig {
+  const downloadStatus = downloadEntry?.status;
   switch (downloadStatus) {
     case "adding":
       return { label: "Adding...", icon: "sync-outline", variant: "brand" };
@@ -30,15 +32,58 @@ function resolveBadge(
       return { label: "Processing", icon: "sync-outline", variant: "brand" };
     case "added":
     case "available":
+    case "complete":
       return {
         label: "Available",
         icon: "checkmark-circle",
         variant: "brand",
       };
+    case "queued":
+      return { label: "Queued", icon: "time-outline", variant: "subtle" };
+    case "unreleased":
+      return {
+        label: formatReleaseWait(downloadEntry?.releaseDate),
+        icon: "calendar-outline",
+        variant: "subtle",
+      };
+    case "blocked":
+      return {
+        label: "Needs attention",
+        icon: "alert-circle-outline",
+        variant: "error",
+      };
+    case "cancelled":
+      return {
+        label: "Cancelled",
+        icon: "close-circle-outline",
+        variant: "subtle",
+      };
+    case "partial":
+      return {
+        label: "Partially available",
+        icon: "checkmark-circle-outline",
+        variant: "subtle",
+      };
+    // Aurral marks its request completed at once, so the row's own label
+    // would read as done for an album with nothing on disk or queued.
+    case "missing":
+      return {
+        label: "Missing",
+        icon: "alert-circle-outline",
+        variant: "subtle",
+      };
   }
 
   if (downloadStatus === "failed" || item.status === "failed") {
     return { label: "Failed", icon: "alert-circle", variant: "error" };
+  }
+
+  if (item.status === "cancelled") {
+    return {
+      label: (!isAlbumRequest(item) && item.statusLabel) || "Cancelled",
+      icon: "close-circle-outline",
+      variant: "subtle",
+    };
   }
 
   // History entries ship a server-rendered label ("Added", "Reused", ...).
@@ -66,13 +111,13 @@ function resolveBadge(
 
 type ActivityStatusBadgeProps = {
   item: ActivityItem;
-  downloadStatus?: DownloadStatusValue;
+  downloadEntry?: DownloadStatusEntry;
 };
 
 export function ActivityStatusBadge({
   item,
-  downloadStatus,
+  downloadEntry,
 }: ActivityStatusBadgeProps) {
-  const { label, icon, variant } = resolveBadge(item, downloadStatus);
+  const { label, icon, variant } = resolveBadge(item, downloadEntry);
   return <Chip label={label} icon={icon} variant={variant} />;
 }

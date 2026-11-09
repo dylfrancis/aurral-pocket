@@ -166,16 +166,33 @@ export function albumRouteParams(
   };
 }
 
+/** The status route reads an id with this prefix as a canonical album id. */
+export function aurralStatusKey(canonicalId: string) {
+  return `aurral:${canonicalId}`;
+}
+
 /**
- * Read one album's entry from a download status map. The map comes from
- * Lidarr and is keyed by Lidarr album id, so an album Lidarr does not manage
- * has no entry.
+ * Every album Aurral doesn't manage goes to Lidarr, including those with no
+ * owner on record. Lidarr needs its own album id: a bare canonical id would
+ * read as some other Lidarr album.
  */
+export function albumStatusKey(album: {
+  managedBy?: string | null;
+  canonicalId?: string;
+  lidarrId?: string;
+}) {
+  if (album.managedBy === "aurral") {
+    return album.canonicalId ? aurralStatusKey(album.canonicalId) : undefined;
+  }
+  return album.lidarrId || undefined;
+}
+
 export function albumDownloadStatus(
   statuses: DownloadStatusMap | undefined,
-  album: { lidarrId?: string },
+  album: Parameters<typeof albumStatusKey>[0],
 ) {
-  return album.lidarrId ? statuses?.[album.lidarrId]?.status : undefined;
+  const key = albumStatusKey(album);
+  return key ? statuses?.[key]?.status : undefined;
 }
 
 /**

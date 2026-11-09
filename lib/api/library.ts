@@ -5,6 +5,7 @@ import type {
   ArtistLibraryLookup,
   ArtistLookupBatch,
   Album,
+  AurralAlbumStatus,
   Track,
   CoverArtResponse,
   ReleaseGroup,
@@ -119,6 +120,7 @@ function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
       metadata.librarySource === "lidarr" && metadata.id != null
         ? String(metadata.id)
         : undefined,
+    managedBy: item.managedBy ?? null,
     artistId: item.artistId != null ? String(item.artistId) : "",
     artistName: item.albumArtist ?? "",
     // A row scanned from tagged files keeps its release's id in `mbid`. Release
@@ -568,15 +570,15 @@ export async function getAlbumCover(
   return r.data;
 }
 
-// The album routes below are Lidarr's. Each takes Lidarr album ids
-// (Album.lidarrId), never a canonical id.
-
-export async function getDownloadStatuses(lidarrAlbumIds: string[]) {
-  let r = await api.get<DownloadStatusMap>("/library/downloads/status", {
-    params: { albumIds: lidarrAlbumIds.join(",") },
+export async function getDownloadStatuses(statusKeys: string[]) {
+  const r = await api.get<DownloadStatusMap>("/library/downloads/status", {
+    params: { albumIds: statusKeys.join(",") },
   });
   return r.data;
 }
+
+// The album routes below are Lidarr's. Each takes Lidarr album ids
+// (Album.lidarrId), never a canonical id.
 
 export async function triggerAlbumSearch(lidarrAlbumId: string) {
   const r = await api.post("/library/downloads/album/search", {
@@ -751,12 +753,23 @@ export async function searchDeezerAlbum(
   }
 }
 
+/** Only an album Aurral manages answers a request with one. */
+export type RequestedAlbumStatus = {
+  status: AurralAlbumStatus;
+  releaseDate: string | null;
+};
+
+/** POST /library/albums. Only the keys pocket reads are declared. */
+export type AddAlbumResponse = {
+  albumStatus?: RequestedAlbumStatus | null;
+};
+
 export async function addLibraryAlbum(
   artistId: string,
   releaseGroupMbid: string,
   albumName: string,
 ) {
-  const r = await api.post<Album>("/library/albums", {
+  const r = await api.post<AddAlbumResponse>("/library/albums", {
     artistId,
     releaseGroupMbid,
     albumName,
@@ -783,9 +796,9 @@ export type RequestAlbumResponse = {
   createdArtist: boolean;
   createdAlbum: boolean;
   triggeredSearch: boolean;
-  status: "available" | "searching" | "inLibrary";
-  /** The route hardcodes false today; queued adds arrive elsewhere. */
+  status: "available" | "searching" | "inLibrary" | "queued" | "blocked";
   queued: boolean;
+  albumStatus?: RequestedAlbumStatus | null;
 };
 
 export async function requestAlbumFromSearch(payload: RequestAlbumPayload) {

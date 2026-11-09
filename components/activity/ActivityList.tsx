@@ -21,6 +21,7 @@ import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import {
   activityArtistMbid,
+  activityStatusKey,
   historyPlaylistId,
   isAlbumRequest,
   type ActivityItem,
@@ -59,6 +60,13 @@ export function ActivityList({ view }: ActivityListProps) {
   const { data: downloadStatuses } = useActivityDownloadStatuses(items);
   const { typeFilter, setTypeFilter, visible } = useActivityFilter(items, view);
   const counts = getActivityCounts(items);
+  const downloadEntryFor = useCallback(
+    (item: ActivityItem) => {
+      const key = activityStatusKey(item);
+      return key ? downloadStatuses?.[key] : undefined;
+    },
+    [downloadStatuses],
+  );
 
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
@@ -89,12 +97,12 @@ export function ActivityList({ view }: ActivityListProps) {
   const rowHasActions = useCallback(
     (item: ActivityItem) => {
       if (!isAlbumRequest(item) || !item.albumId) return false;
-      const albumStatus = downloadStatuses?.[String(item.albumId)]?.status;
+      const albumStatus = downloadEntryFor(item)?.status;
       const isFailed = albumStatus === "failed" || item.status === "failed";
       const canStop = item.inQueue && hasPermission("deleteAlbum");
       return canStop || isFailed;
     },
-    [downloadStatuses, hasPermission],
+    [downloadEntryFor, hasPermission],
   );
 
   // Playlist links need accessFlow: both lists and the lookup behind them
@@ -127,21 +135,17 @@ export function ActivityList({ view }: ActivityListProps) {
     ({ item }: { item: ActivityItem }) => (
       <ActivityRow
         item={item}
-        downloadStatus={
-          item.albumId
-            ? downloadStatuses?.[String(item.albumId)]?.status
-            : undefined
-        }
+        downloadEntry={downloadEntryFor(item)}
         hasActions={rowHasActions(item)}
         onPress={rowPressHandler(item)}
         onLongPress={() => handleLongPress(item)}
       />
     ),
-    [downloadStatuses, rowHasActions, rowPressHandler, handleLongPress],
+    [downloadEntryFor, rowHasActions, rowPressHandler, handleLongPress],
   );
 
-  const activeStatus = selected?.albumId
-    ? downloadStatuses?.[String(selected.albumId)]?.status
+  const activeStatus = selected
+    ? downloadEntryFor(selected)?.status
     : undefined;
 
   return (

@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Chip } from "@/components/ui/Chip";
+import { useDateTimeFormat } from "@/hooks/use-date-time-format";
+import { formatReleaseWait } from "@/lib/album-status";
 import type { Album, DownloadStatusValue } from "@/lib/types/library";
 
 type AlbumStatus =
@@ -9,18 +11,27 @@ type AlbumStatus =
   | "downloading"
   | "moving"
   | "processing"
+  | "queued"
+  | "unreleased"
+  | "blocked"
+  | "cancelled"
   | "failed"
   | "partial"
   | "monitored"
   | "unmonitored";
 
-const ACTIVE_STATUSES: DownloadStatusValue[] = [
+const OVERRIDING_STATUSES: ReadonlySet<DownloadStatusValue> = new Set([
   "adding",
   "searching",
   "downloading",
   "moving",
   "processing",
-];
+  "queued",
+  "unreleased",
+  "blocked",
+  "cancelled",
+  "failed",
+]);
 
 function getAlbumStatus(
   album: Album,
@@ -28,9 +39,8 @@ function getAlbumStatus(
 ): AlbumStatus {
   const percent = album.statistics.percentOfTracks;
   if (percent >= 100 || album.statistics.sizeOnDisk > 0) return "complete";
-  if (downloadStatus && ACTIVE_STATUSES.includes(downloadStatus))
+  if (downloadStatus && OVERRIDING_STATUSES.has(downloadStatus))
     return downloadStatus as AlbumStatus;
-  if (downloadStatus === "failed") return "failed";
   if (percent > 0) return "partial";
   if (album.monitored) return "monitored";
   return "unmonitored";
@@ -58,6 +68,18 @@ const statusConfig: Record<
     icon: "sync-outline",
     variant: "brand",
   },
+  queued: { label: "Queued", icon: "time-outline", variant: "subtle" },
+  unreleased: { label: "", icon: "calendar-outline", variant: "subtle" },
+  blocked: {
+    label: "Needs attention",
+    icon: "alert-circle-outline",
+    variant: "error",
+  },
+  cancelled: {
+    label: "Cancelled",
+    icon: "close-circle-outline",
+    variant: "subtle",
+  },
   failed: { label: "Failed", icon: "alert-circle", variant: "error" },
   partial: {
     label: "Downloading",
@@ -81,12 +103,15 @@ export function AlbumStatusBadge({
   album,
   downloadStatus,
 }: AlbumStatusBadgeProps) {
+  useDateTimeFormat();
   const status = getAlbumStatus(album, downloadStatus);
   const config = statusConfig[status];
   const label =
     status === "partial"
       ? `${Math.round(album.statistics.percentOfTracks)}%`
-      : config.label;
+      : status === "unreleased"
+        ? formatReleaseWait(album.releaseDate)
+        : config.label;
 
   return <Chip label={label} icon={config.icon} variant={config.variant} />;
 }

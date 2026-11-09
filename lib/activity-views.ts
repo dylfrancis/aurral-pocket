@@ -112,7 +112,9 @@ export function matchesActivityType(
       return item.kind === "album_requested";
     case "downloads":
       return (
-        item.kind === "track_download" || item.kind === "track_reused_lidarr"
+        item.kind === "track_download" ||
+        item.kind === "track_reused_lidarr" ||
+        item.kind === "missing_track_search"
       );
     case "library":
       return item.kind === "artist_added";

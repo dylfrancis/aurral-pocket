@@ -51,6 +51,7 @@ function history(
     artistName: null,
     albumName: null,
     albumId: null,
+    canonicalAlbumId: null,
     requestedBy: null,
     sourceFilename: null,
     inQueue: false,
