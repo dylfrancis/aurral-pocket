@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Stack } from "expo-router";
+import { useReducedMotion } from "react-native-reanimated";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { useQueueFollowsSession } from "@/hooks/player/use-queue-follows-session";
 import { startPlayHistory } from "@/lib/player/play-history";
@@ -17,19 +18,18 @@ export default function AppLayout() {
   useEffect(() => startPlayHistory(), []);
 
   useQueueFollowsSession();
+  const reduceMotion = useReducedMotion();
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
-      {/* The full player: a full-height sheet over the tabs, opened from
-          the mini player. The grabber and the swipe-down dismiss come from
-          the native sheet on both platforms. */}
+      {/* A native sheet stops short of the top edge, so the full player is a
+          transparent modal that draws its own sheet and drag-to-close. */}
       <Stack.Screen
         name="now-playing"
         options={{
-          presentation: "formSheet",
-          sheetAllowedDetents: [1.0],
-          sheetGrabberVisible: true,
+          presentation: "transparentModal",
+          animation: reduceMotion ? "fade" : "slide_from_bottom",
         }}
       />
     </Stack>

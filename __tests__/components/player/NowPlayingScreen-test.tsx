@@ -10,8 +10,83 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
   removeItem: jest.fn(),
 }));
 
-jest.mock("@/hooks/use-color-scheme", () => ({
-  useColorScheme: jest.fn(() => "dark"),
+// Reanimated's shipped mock fails to load under jest-expo. This stand-in renders
+// every animated view at rest.
+jest.mock("react-native-reanimated", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  const AnimatedView = React.forwardRef(function AnimatedView(
+    { entering, layout, ...props }: any,
+    ref: any,
+  ) {
+    return React.createElement(View, { ...props, ref });
+  });
+  const fade = { duration: () => fade };
+  return {
+    __esModule: true,
+    default: { View: AnimatedView },
+    Easing: { bezier: () => (t: number) => t },
+    Extrapolation: { CLAMP: "clamp" },
+    FadeIn: fade,
+    ReduceMotion: { System: "system" },
+    LayoutAnimationConfig: ({ children }: any) => children,
+    interpolate: (_value: number, _input: number[], output: number[]) =>
+      output[0],
+    useSharedValue: (initial: number) => {
+      let current = initial;
+      return { get: () => current, set: (next: number) => (current = next) };
+    },
+    useAnimatedStyle: (fn: () => object) => fn(),
+    useReducedMotion: () => false,
+    withTiming: (target: number) => target,
+    withSpring: (target: number) => target,
+  };
+});
+jest.mock("react-native-worklets", () => ({ scheduleOnRN: jest.fn() }));
+// The drag to close needs a real gesture system, so it is checked on a device.
+jest.mock("react-native-gesture-handler", () => ({
+  GestureHandlerRootView: ({ children }: any) => children,
+  GestureDetector: ({ children }: any) => children,
+  usePanGesture: () => ({}),
+}));
+jest.mock("@gorhom/bottom-sheet", () => ({
+  BottomSheetModalProvider: ({ children }: any) => children,
+}));
+
+// The menu is native SwiftUI or Compose, which can't render under Jest, so
+// each action stands in as a plain button carrying its title.
+jest.mock("@/components/player/TrackMenu", () => {
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  return {
+    TrackMenu: ({ actions, onAction }: any) =>
+      React.createElement(
+        View,
+        null,
+        actions.map((action: any) =>
+          React.createElement(
+            Pressable,
+            {
+              key: action.id,
+              accessibilityLabel: action.title,
+              onPress: () => onAction(action.id),
+            },
+            React.createElement(Text, null, action.title),
+          ),
+        ),
+      ),
+  };
+});
+
+const mockOpenAddToPlaylist = jest.fn();
+jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
+  useAddToPlaylist: () => ({
+    canAddToPlaylist: true,
+    track: null,
+    open: mockOpenAddToPlaylist,
+    close: jest.fn(),
+  }),
+  AddToPlaylistSheet: () => null,
 }));
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -73,6 +148,7 @@ function track(id: string, name: string): Track {
     quality: "FLAC",
     streamPath: `/stream/12/${id}`,
     streamFormat: "flac",
+    bitrateKbps: 1042,
     available: true,
   };
 }
@@ -84,6 +160,7 @@ const album = {
   artworkUrl: "https://art.example/kid-a.jpg",
   albumMbid: "album-mb-1",
   artistMbid: "artist-mb-1",
+  albumRef: "canonical-album-1",
 };
 
 const albumTracks = [
@@ -222,18 +299,40 @@ describe("NowPlayingScreen favorite button", () => {
 });
 
 describe("NowPlayingScreen", () => {
-  it("shows artwork metadata, transport, and the up-next list", async () => {
-    const { getByText, getByLabelText } = await renderPlaying();
+  it("shows the track and transport, with up next behind the queue button", async () => {
+    const { getByText, getByLabelText, queryByText } = await renderPlaying();
 
     expect(getByText("Everything In Its Right Place")).toBeTruthy();
-    expect(getByText("Radiohead · Kid A")).toBeTruthy();
+    expect(getByText("Radiohead")).toBeTruthy();
     expect(getByLabelText("Play")).toBeTruthy();
     expect(getByLabelText("Previous track")).toBeTruthy();
     expect(getByLabelText("Next track")).toBeTruthy();
+    expect(queryByText("The National Anthem")).toBeNull();
+
+    await fireEvent.press(getByLabelText("Queue"));
 
     // Up next lists what follows the current track, in order.
     expect(getByText("Kid A")).toBeTruthy();
     expect(getByText("The National Anthem")).toBeTruthy();
+
+    await fireEvent.press(getByLabelText("Queue"));
+
+    expect(queryByText("The National Anthem")).toBeNull();
+  });
+
+  it("shows the file's format and bitrate, and reads them out in full", async () => {
+    const { getByText, getByLabelText } = await renderPlaying();
+
+    expect(getByText("FLAC · 1042 kbps")).toBeTruthy();
+    expect(getByLabelText("FLAC, 1042 kilobits per second")).toBeTruthy();
+  });
+
+  it("closes from the grabber, for anyone who can't drag it", async () => {
+    const { getByLabelText } = await renderPlaying();
+
+    await fireEvent.press(getByLabelText("Close player"));
+
+    expect(mockBack).toHaveBeenCalledTimes(1);
   });
 
   it("opens the artist page from the artist line, under the sheet", async () => {
@@ -248,8 +347,39 @@ describe("NowPlayingScreen", () => {
     });
   });
 
+  it("opens the album page from the menu, under the player", async () => {
+    const { getByLabelText } = await renderPlaying();
+
+    await fireEvent.press(getByLabelText("Go to Album"));
+
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith({
+      pathname: "/(app)/(tabs)/(library)/album/[ref]",
+      params: expect.objectContaining({
+        ref: "canonical-album-1",
+        title: "Kid A",
+      }),
+    });
+  });
+
+  it("adds the playing track to a playlist from the menu", async () => {
+    const { getByLabelText } = await renderPlaying();
+
+    await fireEvent.press(getByLabelText("Add to Playlist"));
+
+    expect(mockOpenAddToPlaylist).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artistName: "Radiohead",
+        trackName: "Everything In Its Right Place",
+        albumName: "Kid A",
+        artistMbid: "artist-mb-1",
+      }),
+    );
+  });
+
   it("opens a playlist track's own artist, with no album to show", async () => {
-    const { getByLabelText, getByText } = await renderScreen();
+    const { getByLabelText, getByText, queryByLabelText } =
+      await renderScreen();
     await act(() =>
       playQueueFrom(
         [
@@ -282,6 +412,7 @@ describe("NowPlayingScreen", () => {
     );
 
     expect(getByText("Slowdive")).toBeTruthy();
+    expect(queryByLabelText("Go to Album")).toBeNull();
     await fireEvent.press(getByLabelText("View artist Slowdive"));
 
     expect(mockNavigate).toHaveBeenCalledWith({
@@ -366,7 +497,8 @@ describe("NowPlayingScreen", () => {
   });
 
   it("shows nothing up next when the playing item is not in the queue", async () => {
-    const { getByText } = await renderPlaying();
+    const { getByText, getByLabelText } = await renderPlaying();
+    await fireEvent.press(getByLabelText("Queue"));
 
     // A clip mid-transition: the engine reports an item the facade never
     // queued, so no queue position exists.
@@ -390,6 +522,7 @@ describe("NowPlayingScreen", () => {
 
   it("plays a tapped up-next track without rebuilding the queue", async () => {
     const { getByLabelText } = await renderPlaying();
+    await fireEvent.press(getByLabelText("Queue"));
     player.playSong.mockClear();
     queue.createPlaylist.mockClear();
 

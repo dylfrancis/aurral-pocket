@@ -1,9 +1,8 @@
 import Slider from "@react-native-community/slider";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { usePlayerColors } from "@/components/player/player-colors";
 import { Text } from "@/components/ui/Text";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { seekTo, useCurrentTrack, useProgress } from "@/lib/player/player";
 
 /**
@@ -20,7 +19,7 @@ const SEEK_SETTLE_SECONDS = 2;
  * nothing else. While a drag is in flight the drag value wins over the ticks.
  */
 export function Scrubber() {
-  const colors = Colors[useColorScheme()];
+  const colors = usePlayerColors();
   const trackId = useCurrentTrack()?.id ?? null;
   const { position, duration } = useProgress();
   const [dragValue, setDragValue] = useState<number | null>(null);
@@ -73,8 +72,10 @@ export function Scrubber() {
         accessibilityLabel="Seek within the track"
       />
       <View style={styles.times}>
-        <Text variant="caption">{formatTime(shown)}</Text>
-        <Text variant="caption">
+        <Text variant="caption" style={{ color: colors.subtle }}>
+          {formatTime(shown)}
+        </Text>
+        <Text variant="caption" style={{ color: colors.subtle }}>
           {hasDuration ? formatTime(duration) : "--:--"}
         </Text>
       </View>
