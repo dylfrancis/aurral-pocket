@@ -86,8 +86,12 @@ function PlaylistPage({
   const jobs = useJobsForPlaylist(playlist.id, { includeFailed: true });
   // Same cache entry as useJobsForPlaylist; only the initial-load flag is read.
   const jobsLoading = usePlaylistJobs(playlist.id).isLoading;
+  const collection = useMemo(
+    () => ({ ...playlist, kind: "shared" as const }),
+    [playlist],
+  );
   const { canPlay, playFrom, playAll, shuffle } = usePlaylistPlayback(
-    playlist,
+    collection,
     jobs,
   );
 

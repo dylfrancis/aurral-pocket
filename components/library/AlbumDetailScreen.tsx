@@ -146,7 +146,7 @@ export function AlbumDetailScreen() {
     if (!album?.identityKey || toggleFavorite.isPending) return;
     toggleFavorite.mutate({
       kind: "album",
-      identityKey: album.identityKey,
+      key: album.identityKey,
       starred: !isFavorite,
     });
   };

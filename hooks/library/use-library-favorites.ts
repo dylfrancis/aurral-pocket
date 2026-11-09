@@ -11,6 +11,7 @@ import {
   getLibraryFavorites,
   updateLibraryFavorites,
   type FavoriteKind,
+  type TrackFavorite,
 } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import type { LibraryFavorites } from "@/lib/types/library";
@@ -25,33 +26,58 @@ export function useLibraryFavorites() {
   });
 }
 
-/** Shares the list's cache, without rereading the unpaged payload on every mount. */
-export function useIsFavoriteTrack(identityKey: string) {
+/**
+ * Shares the list's cache, without rereading the unpaged payload on every
+ * mount. `trackMbid` finds a starred flow or playlist download that Aurral
+ * reports as the library track it matched.
+ */
+export function useIsFavoriteTrack(
+  favorite: TrackFavorite,
+  trackMbid: string | null,
+) {
   return useQuery({
     queryKey: libraryKeys.favorites(),
     queryFn: getLibraryFavorites,
-    select: (favorites) =>
-      favorites.tracks.some((track) => track.identityKey === identityKey),
+    select: (favorites) => isFavoriteTrack(favorites, favorite, trackMbid),
   });
+}
+
+function isFavoriteTrack(
+  favorites: LibraryFavorites,
+  { kind, key }: TrackFavorite,
+  trackMbid: string | null,
+) {
+  if (kind === "song") {
+    return favorites.tracks.some((track) => track.identityKey === key);
+  }
+  return (
+    favorites.playlistSongIds.includes(favoriteEntityId(kind, key)) ||
+    (!!trackMbid &&
+      favorites.tracks.some(
+        (track) => track.available && track.mbid === trackMbid,
+      ))
+  );
 }
 
 function withoutFavorite(
   favorites: LibraryFavorites,
   kind: FavoriteKind,
-  identityKey: string,
+  key: string,
 ): LibraryFavorites {
   const keep = (rowKind: FavoriteKind) => (row: { identityKey?: string }) =>
-    rowKind !== kind || row.identityKey !== identityKey;
+    rowKind !== kind || row.identityKey !== key;
+  const removedId = favoriteEntityId(kind, key);
   return {
     artists: favorites.artists.filter(keep("artist")),
     albums: favorites.albums.filter(keep("album")),
     tracks: favorites.tracks.filter(keep("song")),
+    playlistSongIds: favorites.playlistSongIds.filter((id) => id !== removedId),
   };
 }
 
 type ToggleFavorite = {
   kind: FavoriteKind;
-  identityKey: string;
+  key: string;
   starred: boolean;
 };
 
@@ -66,16 +92,16 @@ export function useToggleFavorite() {
 
   return useMutation({
     mutationKey: favoritesKey,
-    mutationFn: ({ kind, identityKey, starred }: ToggleFavorite) =>
-      updateLibraryFavorites([favoriteEntityId(kind, identityKey)], starred),
-    onMutate: async ({ kind, identityKey, starred }) => {
+    mutationFn: ({ kind, key, starred }: ToggleFavorite) =>
+      updateLibraryFavorites([favoriteEntityId(kind, key)], starred),
+    onMutate: async ({ kind, key, starred }) => {
       await queryClient.cancelQueries({ queryKey: favoritesKey });
       const previousFavorites =
         queryClient.getQueryData<LibraryFavorites>(favoritesKey);
       if (previousFavorites && !starred) {
         queryClient.setQueryData(
           favoritesKey,
-          withoutFavorite(previousFavorites, kind, identityKey),
+          withoutFavorite(previousFavorites, kind, key),
         );
       }
       return { previousFavorites };

@@ -19,7 +19,7 @@ function track(id: string): PlayerTrack {
     trackMbid: null,
     artistMbid: null,
     albumMbid: null,
-    identityKey: null,
+    favorite: null,
   };
 }
 

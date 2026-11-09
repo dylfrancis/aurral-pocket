@@ -140,7 +140,7 @@ function TrackActionsContent({
             onPress={closeThen(() =>
               toggleFavorite.mutate({
                 kind: "song",
-                identityKey,
+                key: identityKey,
                 starred: !isFavorite,
               }),
             )}

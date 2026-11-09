@@ -1,5 +1,6 @@
 import { fetch } from "expo/fetch";
 import { buildAuthenticatedUrl } from "@/lib/api/client";
+import type { TrackFavorite } from "@/lib/api/library";
 import type { RepeatMode } from "@/lib/player/player";
 import type { PlayerAlbumContext, PlayerTrack } from "@/lib/player/track-item";
 import { AppStorage } from "@/lib/storage";
@@ -27,10 +28,11 @@ type SavedTrack = {
   artistMbid?: string | null;
   albumMbid?: string | null;
   /**
-   * Written since the player offers favorites. A queue saved before that reads
-   * back without it, and its tracks show no favorite button.
+   * Written since the player offers favorites on flow and playlist tracks. A
+   * library track saved before that kept only its `identityKey`, which still
+   * reads back as its favorite.
    */
-  identityKey?: string | null;
+  favorite?: TrackFavorite | null;
   /** Written since the player opens the album page. */
   albumRef?: string | null;
   /** Written since the player shows the file's format and bitrate. */
@@ -57,6 +59,12 @@ export type SavedQueue = {
 const SAVED_QUEUE_VERSION = 1;
 
 const REPEAT_MODES: readonly RepeatMode[] = ["off", "all", "one"];
+
+const TRACK_FAVORITE_KINDS: readonly TrackFavorite["kind"][] = [
+  "song",
+  "flow-song",
+  "shared-song",
+];
 
 export async function saveQueue(queue: SavedQueue): Promise<void> {
   await AppStorage.setPlaybackQueue(
@@ -116,7 +124,11 @@ function parseTrack(raw: unknown): SavedTrack | null {
     trackMbid: isString(raw.trackMbid) ? raw.trackMbid : null,
     artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,
     albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
-    identityKey: isString(raw.identityKey) ? raw.identityKey : null,
+    favorite:
+      parseFavorite(raw.favorite) ??
+      (isString(raw.identityKey)
+        ? { kind: "song", key: raw.identityKey }
+        : null),
     albumRef: isString(raw.albumRef) ? raw.albumRef : null,
     audioFormat: isString(raw.audioFormat) ? raw.audioFormat : null,
     bitrateKbps:
@@ -125,6 +137,12 @@ function parseTrack(raw: unknown): SavedTrack | null {
         : null,
     recordHistory: raw.recordHistory !== false,
   };
+}
+
+function parseFavorite(raw: unknown): TrackFavorite | null {
+  if (!isRecord(raw) || !isString(raw.key)) return null;
+  const kind = TRACK_FAVORITE_KINDS.find((known) => known === raw.kind);
+  return kind ? { kind, key: raw.key } : null;
 }
 
 function parseAlbum(raw: unknown): PlayerAlbumContext | null {
@@ -153,7 +171,7 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
     trackMbid: item.trackMbid,
     artistMbid: item.artistMbid,
     albumMbid: item.albumMbid,
-    identityKey: item.identityKey,
+    favorite: item.favorite,
     albumRef: item.albumRef,
     audioFormat: item.audioFormat,
     bitrateKbps: item.bitrateKbps,
@@ -195,7 +213,7 @@ function toPlayableTrack(
     streamPath: saved.streamPath,
     coverPath: saved.coverPath ?? null,
     trackMbid: saved.trackMbid ?? null,
-    identityKey: saved.identityKey ?? null,
+    favorite: saved.favorite ?? null,
     recordHistory: saved.recordHistory,
     artistMbid: saved.artistMbid ?? album.artistMbid,
     albumMbid: saved.albumMbid ?? album.albumMbid,

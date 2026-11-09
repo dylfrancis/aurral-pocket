@@ -258,7 +258,7 @@ describe("saving the queue", () => {
           trackMbid: null,
           artistMbid: null,
           albumMbid: "album-1",
-          identityKey: null,
+          favorite: null,
         },
       ],
       "job-1",
@@ -289,7 +289,7 @@ describe("saving the queue", () => {
           trackMbid: null,
           artistMbid: null,
           albumMbid: null,
-          identityKey: null,
+          favorite: null,
           recordHistory: false,
         },
       ],
@@ -590,19 +590,19 @@ describe("restoring the queue", () => {
         trackMbid: null,
         artistMbid: "artist-mb-1",
         albumMbid: "album-mb-1",
-        identityKey: null,
+        favorite: null,
       }),
     );
   });
 
-  it("keeps a track's favorites key, album page and quality through a restart", async () => {
+  it("keeps a track's favorite, album page and quality through a restart", async () => {
     mockStorage.getItem.mockResolvedValue(
       JSON.stringify({
         ...JSON.parse(savedRecord()),
         items: albumTracks.map((item) => ({
           id: item.id,
           streamPath: item.streamPath,
-          identityKey: `recording:${item.id}`,
+          favorite: { kind: "flow-song", key: `flow-1:${item.id}` },
           albumRef: "canonical-album-12",
           audioFormat: "FLAC",
           bitrateKbps: 1042,
@@ -617,10 +617,34 @@ describe("restoring the queue", () => {
     expect(lastSavedQueue().items).toContainEqual(
       expect.objectContaining({
         id: "72",
-        identityKey: "recording:72",
+        favorite: { kind: "flow-song", key: "flow-1:72" },
         albumRef: "canonical-album-12",
         audioFormat: "FLAC",
         bitrateKbps: 1042,
+      }),
+    );
+  });
+
+  it("reads a favorite from a queue saved with only the library identity key", async () => {
+    mockStorage.getItem.mockResolvedValue(
+      JSON.stringify({
+        ...JSON.parse(savedRecord()),
+        items: albumTracks.map((item) => ({
+          id: item.id,
+          streamPath: item.streamPath,
+          identityKey: `recording:${item.id}`,
+        })),
+      }),
+    );
+    const player = await freshFacade();
+
+    await player.restoreSavedQueue();
+    await flush();
+
+    expect(lastSavedQueue().items).toContainEqual(
+      expect.objectContaining({
+        id: "72",
+        favorite: { kind: "song", key: "recording:72" },
       }),
     );
   });

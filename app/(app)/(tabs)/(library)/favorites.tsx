@@ -94,6 +94,7 @@ function matchingFavorites(
   const matches = (...fields: (string | undefined)[]) =>
     fields.some((field) => field?.toLocaleLowerCase().includes(lowerCaseQuery));
   return {
+    ...favorites,
     artists: favorites.artists.filter((artist) => matches(artist.artistName)),
     albums: favorites.albums.filter((album) =>
       matches(album.albumName, album.artistName),
@@ -176,7 +177,7 @@ export default function LibraryFavoritesScreen() {
       accessibilityLabel={`Remove ${name} from favorites`}
       onPress={() => {
         if (!identityKey) return;
-        toggleFavorite.mutate({ kind, identityKey, starred: false });
+        toggleFavorite.mutate({ kind, key: identityKey, starred: false });
       }}
     />
   );

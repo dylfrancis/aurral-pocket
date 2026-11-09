@@ -309,7 +309,7 @@ describe("transport", () => {
       trackMbid: null,
       artistMbid: null,
       albumMbid: null,
-      identityKey: null,
+      favorite: null,
     };
     await playQueueFrom([playlistTrack], playlistTrack.id, album);
 
@@ -803,7 +803,7 @@ describe("setQueuedAlbumCovers", () => {
       trackMbid: null,
       artistMbid: null,
       albumMbid,
-      identityKey: null,
+      favorite: null,
     };
   }
 

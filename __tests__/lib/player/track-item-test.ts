@@ -11,8 +11,12 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
-import { jobToPlayerTrack, toPlayerTrack } from "@/lib/player/track-item";
-import type { FlowJob, SharedPlaylist } from "@/lib/types/flow";
+import {
+  jobToPlayerTrack,
+  toPlayerTrack,
+  type PlaybackCollection,
+} from "@/lib/player/track-item";
+import type { FlowJob } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
 
 function track(overrides: Partial<Track> = {}): Track {
@@ -65,7 +69,7 @@ describe("toPlayerTrack", () => {
       trackMbid: "mb-track",
       artistMbid: "artist-mb-1",
       albumMbid: "album-mb-1",
-      identityKey: null,
+      favorite: null,
       albumRef: "canonical-album-12",
       audioFormat: "FLAC",
       bitrateKbps: 1042,
@@ -78,7 +82,7 @@ describe("toPlayerTrack", () => {
       album,
     );
 
-    expect(item?.identityKey).toBe("recording:mb-track");
+    expect(item?.favorite).toEqual({ kind: "song", key: "recording:mb-track" });
   });
 
   it("refuses a track that Aurral cannot stream", () => {
@@ -114,7 +118,8 @@ describe("toPlayerTrack", () => {
 describe("jobToPlayerTrack", () => {
   const job: FlowJob = {
     id: "job-1",
-    playlistType: "pl-1",
+    // A shared playlist can hold a track its source flow downloaded.
+    playlistType: "flow-9",
     artistName: "Slowdive",
     trackName: "Alison",
     albumName: "Souvlaki",
@@ -126,12 +131,10 @@ describe("jobToPlayerTrack", () => {
     qualityBitrateKbps: 256,
     streamFormat: "m4a",
   };
-  const playlist: SharedPlaylist = {
+  const playlist: PlaybackCollection = {
+    kind: "shared",
     id: "pl-1",
     name: "Road Trip",
-    sourceName: null,
-    sourceFlowId: null,
-    trackCount: 1,
     recordHistory: false,
     artworkRevision: 7,
   };
@@ -150,12 +153,18 @@ describe("jobToPlayerTrack", () => {
       trackMbid: "track-mb",
       artistMbid: "artist-mb",
       albumMbid: "album-mb",
-      identityKey: null,
+      favorite: { kind: "shared-song", key: "pl-1:job-1" },
       // The server's lossy "m4a" family is AAC.
       audioFormat: "AAC",
       bitrateKbps: 256,
       recordHistory: false,
     });
+  });
+
+  it("addresses a flow's own track as a flow song", () => {
+    expect(
+      jobToPlayerTrack(job, { ...playlist, kind: "flow" })?.favorite,
+    ).toEqual({ kind: "flow-song", key: "pl-1:job-1" });
   });
 
   it("carries its album's cover once it's known", () => {
