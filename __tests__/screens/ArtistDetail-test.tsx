@@ -76,9 +76,23 @@ jest.mock("@/hooks/library/use-cover-art-url", () => ({
 
 const mockPush = jest.fn();
 jest.mock("expo-router", () => {
-  const Toolbar = Object.assign(() => null, {
-    Menu: () => null,
-    MenuAction: () => null,
+  const React = require("react");
+  const { Pressable, Text } = require("react-native");
+  // The native menu renders nothing under Jest, so each action renders as a
+  // pressable labelled by its title, and a hidden action renders nothing.
+  const MenuAction = ({ children, hidden, onPress }: any) =>
+    hidden
+      ? null
+      : React.createElement(
+          Pressable,
+          { onPress },
+          React.createElement(Text, null, children),
+        );
+  const Passthrough = ({ children }: any) =>
+    React.createElement(React.Fragment, null, children);
+  const Toolbar = Object.assign(Passthrough, {
+    Menu: Passthrough,
+    MenuAction,
     Button: () => null,
   });
   return {
@@ -242,6 +256,11 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: jest.fn(() => () => true),
 }));
 
+const mockLidarrConfigured = jest.fn(() => true);
+jest.mock("@/hooks/auth/use-lidarr-configured", () => ({
+  useLidarrConfigured: () => mockLidarrConfigured(),
+}));
+
 import React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -332,6 +351,7 @@ const defaultSuspenseHook = {
 let consoleErrorSpy: jest.SpyInstance | undefined;
 beforeEach(() => {
   jest.clearAllMocks();
+  mockLidarrConfigured.mockReturnValue(true);
   (useLocalSearchParams as jest.Mock).mockReturnValue({ mbid: "abc-123" });
   mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook });
   mockUseCanonicalArtist.mockReturnValue({
@@ -387,6 +407,26 @@ describe("ArtistDetailScreen ErrorBoundary", () => {
 });
 
 describe("ArtistDetailScreen", () => {
+  // The server's refresh only asks Lidarr to search the artist.
+  it.each([
+    ["an artist with no owner on record", true, { managedBy: null }, true],
+    ["an Aurral-managed artist", true, { managedBy: "aurral" }, false],
+    ["a server without Lidarr", false, { managedBy: null }, false],
+    ["an artist still loading", true, undefined, false],
+  ] as const)(
+    "offers Refresh for %s: %p/%p/%p",
+    async (_case, connected, artist, offered) => {
+      mockLidarrConfigured.mockReturnValue(connected);
+      mockUseLibraryArtist.mockReturnValue({
+        ...defaultArtistHook,
+        data: artist && { ...baseArtist, ...artist },
+      });
+      await renderScreen();
+
+      expect(screen.queryByText("Refresh") !== null).toBe(offered);
+    },
+  );
+
   describe("with artist loaded", () => {
     it("loads the hero from the route's cover, then the live record's", async () => {
       setBaseUrl("https://music.example");

@@ -64,6 +64,8 @@ export type HealthResponse = {
   dateTimeFormat?: DateTimeFormat;
   // Absent before Aurral 2.11.0, which reads as a server with no features.
   api?: ApiContract;
+  /** Sent only to a signed-in caller. */
+  lidarrConfigured?: boolean;
 };
 
 export type LoginRequest = {

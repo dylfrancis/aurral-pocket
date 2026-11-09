@@ -4,6 +4,7 @@ jest.mock("react", () => {
 });
 
 jest.mock("@/lib/api/library", () => ({
+  researchAurralAlbum: jest.fn(),
   triggerAlbumSearch: jest.fn(),
   updateLibraryAlbum: jest.fn(),
 }));
@@ -32,7 +33,11 @@ jest.mock("@tanstack/react-query", () => ({
 }));
 
 import { useMutation } from "@tanstack/react-query";
-import { triggerAlbumSearch, updateLibraryAlbum } from "@/lib/api/library";
+import {
+  researchAurralAlbum,
+  triggerAlbumSearch,
+  updateLibraryAlbum,
+} from "@/lib/api/library";
 import {
   getEligibleMissingAlbums,
   useResearchMissingAlbums,
@@ -42,6 +47,9 @@ import type { Album } from "@/lib/types/library";
 const mockUseMutation = useMutation as jest.Mock;
 const mockTriggerAlbumSearch = triggerAlbumSearch as jest.Mock;
 const mockUpdateLibraryAlbum = updateLibraryAlbum as jest.Mock;
+const mockResearchAurralAlbum = researchAurralAlbum as jest.Mock;
+
+const artist = { mbid: "artist-mb", name: "Artist" };
 
 // Canonical ids are numeric and Lidarr ids here are "a"-prefixed, so a
 // Lidarr call that received a canonical id shows up in the assertion.
@@ -61,6 +69,10 @@ function makeAlbum(overrides: Partial<Album> = {}): Album {
     statistics: { trackCount: 10, sizeOnDisk: 0, percentOfTracks: 0 },
     ...overrides,
   };
+}
+
+function makeAurralAlbum(overrides: Partial<Album> = {}): Album {
+  return makeAlbum({ lidarrId: undefined, managedBy: "aurral", ...overrides });
 }
 
 beforeEach(() => {
@@ -114,6 +126,27 @@ describe("getEligibleMissingAlbums", () => {
     const album = makeAlbum({ monitored: false });
     expect(getEligibleMissingAlbums([album], {})).toEqual([]);
   });
+
+  it.each([
+    ["partial", true, true],
+    ["queued", true, false],
+    ["unreleased", true, false],
+    // Aurral doesn't count an unmonitored album's tracks toward failed.
+    ["failed", false, false],
+  ])(
+    "reads an Aurral album's %p status by its canonical id (monitored %p)",
+    (status, monitored, eligible) => {
+      const album = makeAurralAlbum({ monitored });
+      // A Lidarr album with the canonical id as its id must not decide it.
+      const statuses = {
+        "900": { status: "failed" as const },
+        "aurral:900": { status: status as "partial" },
+      };
+      expect(getEligibleMissingAlbums([album], statuses)).toEqual(
+        eligible ? [album] : [],
+      );
+    },
+  );
 });
 
 describe("useResearchMissingAlbums", () => {
@@ -126,7 +159,7 @@ describe("useResearchMissingAlbums", () => {
         statistics: { trackCount: 10, sizeOnDisk: 1, percentOfTracks: 100 },
       }),
     ];
-    const result = useResearchMissingAlbums(albums, {});
+    const result = useResearchMissingAlbums(albums, {}, artist);
     expect(result.missingCount).toBe(1);
   });
 
@@ -143,7 +176,7 @@ describe("useResearchMissingAlbums", () => {
       }),
     ];
 
-    useResearchMissingAlbums(albums, { a2: { status: "failed" } });
+    useResearchMissingAlbums(albums, { a2: { status: "failed" } }, artist);
     const { config } = mockUseMutation.mock.results[0].value;
     const count = await config.mutationFn();
 
@@ -155,9 +188,36 @@ describe("useResearchMissingAlbums", () => {
     expect(count).toBe(2);
   });
 
-  it("optimistically marks eligible albums as searching", () => {
-    const albums = [makeAlbum({ monitored: true })];
-    useResearchMissingAlbums(albums, {});
+  it("re-searches an Aurral album through Aurral, never Lidarr", async () => {
+    mockResearchAurralAlbum.mockResolvedValue(null);
+    const album = makeAurralAlbum({ artistName: "" });
+
+    useResearchMissingAlbums(
+      [album],
+      { "aurral:900": { status: "partial" } },
+      artist,
+    );
+    const { config } = mockUseMutation.mock.results[0].value;
+    await config.mutationFn();
+
+    expect(mockResearchAurralAlbum).toHaveBeenCalledWith(
+      expect.objectContaining({ canonicalId: "900", monitored: true }),
+      { mbid: "artist-mb", name: "Artist" },
+    );
+    expect(mockTriggerAlbumSearch).not.toHaveBeenCalled();
+    expect(mockUpdateLibraryAlbum).not.toHaveBeenCalled();
+  });
+
+  it("optimistically marks eligible albums as in flight, under each one's status key", () => {
+    const albums = [
+      makeAlbum({ monitored: true }),
+      makeAurralAlbum({ id: "901", canonicalId: "901" }),
+    ];
+    useResearchMissingAlbums(
+      albums,
+      { "aurral:901": { status: "cancelled" } },
+      artist,
+    );
     const { config } = mockUseMutation.mock.results[0].value;
 
     config.onMutate();
@@ -166,6 +226,9 @@ describe("useResearchMissingAlbums", () => {
       expect.any(Function),
     );
     const updater = mockSetQueriesData.mock.calls[0][1];
-    expect(updater({})).toEqual({ a1: { status: "searching" } });
+    expect(updater({})).toEqual({
+      a1: { status: "searching" },
+      "aurral:901": { status: "queued" },
+    });
   });
 });

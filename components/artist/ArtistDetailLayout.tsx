@@ -30,6 +30,7 @@ import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import { useLidarrConfigured } from "@/hooks/auth/use-lidarr-configured";
 import {
   useBlocklist,
   useBlocklistMutations,
@@ -165,7 +166,17 @@ export function ArtistDetailLayout({
   const hasPermission = useHasPermission();
   const canResearchMissing = hasPermission("addAlbum");
   const { missingCount, researchMissing, isResearching } =
-    useResearchMissingAlbums(rawAlbums, downloadStatuses);
+    useResearchMissingAlbums(rawAlbums, downloadStatuses, {
+      mbid,
+      name: libraryArtist?.artistName || artistName,
+    });
+  // The server's refresh only asks Lidarr to search the artist.
+  const lidarrConfigured = useLidarrConfigured();
+  const canRefresh =
+    inLibrary &&
+    lidarrConfigured &&
+    !!libraryArtist &&
+    libraryArtist.managedBy !== "aurral";
 
   const pollCount = useRef(0);
   useEffect(() => {
@@ -402,7 +413,7 @@ export function ArtistDetailLayout({
           icon={IS_IOS ? "ellipsis" : MoreVert}
           accessibilityLabel="More actions"
         >
-          {inLibrary && (
+          {canRefresh && (
             <Stack.Toolbar.MenuAction
               icon={IS_IOS ? "arrow.clockwise" : Sync}
               disabled={refreshMutation.isPending}

@@ -13,16 +13,22 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import { useCancelAurralAlbum } from "@/hooks/activity/use-cancel-aurral-album";
 import { useDeleteAlbumRequest } from "@/hooks/activity/use-delete-album-request";
 import { useResearchAlbum } from "@/hooks/activity/use-research-album";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
+import { isActiveAurralStatus } from "@/lib/album-status";
 import type { DownloadStatusValue } from "@/lib/types/library";
-import type { AlbumRequest } from "@/lib/types/activity";
+import {
+  aurralRequestAlbumId,
+  isAlbumRequest,
+  type ActivityItem,
+} from "@/lib/types/activity";
 
 type RequestActionsSheetProps = {
   sheetRef: React.RefObject<BottomSheetModal | null>;
-  request: AlbumRequest | null;
+  request: ActivityItem | null;
   downloadStatus?: DownloadStatusValue;
 };
 
@@ -35,34 +41,53 @@ export function ActivityActionsSheet({
   const insets = useSafeAreaInsets();
   const hasPermission = useHasPermission();
   const deleteMutation = useDeleteAlbumRequest();
+  const cancelMutation = useCancelAurralAlbum();
   const researchMutation = useResearchAlbum();
 
-  const canStop =
-    !!request?.inQueue && !!request?.albumId && hasPermission("deleteAlbum");
-  const isFailed = downloadStatus === "failed" || request?.status === "failed";
-  const canResearch = !!request?.albumId && isFailed;
+  const lidarrRequest = request && isAlbumRequest(request) ? request : null;
+  const aurralAlbumId = request ? aurralRequestAlbumId(request) : null;
+  const canStop = aurralAlbumId
+    ? isActiveAurralStatus(downloadStatus) && hasPermission("addAlbum")
+    : !!lidarrRequest?.inQueue &&
+      !!lidarrRequest.albumId &&
+      hasPermission("deleteAlbum");
+  const isStopping = deleteMutation.isPending || cancelMutation.isPending;
+  const isFailed =
+    downloadStatus === "failed" || lidarrRequest?.status === "failed";
+  const canResearch = !!lidarrRequest?.albumId && isFailed;
 
   const close = () => sheetRef.current?.dismiss();
 
+  const stopDownload = () => {
+    // Dismissing an Aurral request would leave its album downloading.
+    if (aurralAlbumId) {
+      cancelMutation.mutate(aurralAlbumId, { onSettled: close });
+    } else if (lidarrRequest?.albumId) {
+      deleteMutation.mutate(String(lidarrRequest.albumId), {
+        onSettled: close,
+      });
+    }
+  };
+
   const handleStop = () => {
-    if (!request?.albumId) return;
+    if (!request || !canStop) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert("Stop Download", `Stop downloading "${request.albumName}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Stop",
-        style: "destructive",
-        onPress: () => {
-          deleteMutation.mutate(String(request.albumId), { onSettled: close });
-        },
-      },
-    ]);
+    Alert.alert(
+      "Stop Download",
+      `Stop downloading "${request.albumName ?? "this album"}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Stop", style: "destructive", onPress: stopDownload },
+      ],
+    );
   };
 
   const handleResearch = () => {
-    if (!request?.albumId) return;
+    if (!lidarrRequest?.albumId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    researchMutation.mutate(String(request.albumId), { onSettled: close });
+    researchMutation.mutate(String(lidarrRequest.albumId), {
+      onSettled: close,
+    });
   };
 
   return (
@@ -108,13 +133,13 @@ export function ActivityActionsSheet({
         {canStop && (
           <Pressable
             onPress={handleStop}
-            disabled={deleteMutation.isPending}
+            disabled={isStopping}
             style={({ pressed }) => [
               styles.action,
               { opacity: pressed ? 0.5 : 1 },
             ]}
           >
-            {deleteMutation.isPending ? (
+            {isStopping ? (
               <ActivityIndicator size={18} color={colors.error} />
             ) : (
               <Ionicons

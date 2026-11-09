@@ -46,7 +46,7 @@
  * invalidate.
  */
 
-import type { DownloadStatusMap } from "@/lib/types/library";
+import type { DownloadStatusMap, LibraryOwner } from "@/lib/types/library";
 
 type ArtistReference = {
   /** The Lidarr artist id. */
@@ -172,19 +172,31 @@ export function aurralStatusKey(canonicalId: string) {
 }
 
 /**
- * Every album Aurral doesn't manage goes to Lidarr, including those with no
- * owner on record. Lidarr needs its own album id: a bare canonical id would
- * read as some other Lidarr album.
+ * Aurral addresses the albums it manages by canonical id. Every other album
+ * goes to Lidarr, including those with no owner on record, and Lidarr needs
+ * its own album id: a bare canonical id would read as some other Lidarr album.
  */
-export function albumStatusKey(album: {
+export function albumManager(album: {
   managedBy?: string | null;
   canonicalId?: string;
   lidarrId?: string;
-}) {
+}): { name: LibraryOwner; albumId: string } | undefined {
   if (album.managedBy === "aurral") {
-    return album.canonicalId ? aurralStatusKey(album.canonicalId) : undefined;
+    return album.canonicalId
+      ? { name: "aurral", albumId: album.canonicalId }
+      : undefined;
   }
-  return album.lidarrId || undefined;
+  return album.lidarrId
+    ? { name: "lidarr", albumId: album.lidarrId }
+    : undefined;
+}
+
+export function albumStatusKey(album: Parameters<typeof albumManager>[0]) {
+  const manager = albumManager(album);
+  if (!manager) return undefined;
+  return manager.name === "aurral"
+    ? aurralStatusKey(manager.albumId)
+    : manager.albumId;
 }
 
 export function albumDownloadStatus(

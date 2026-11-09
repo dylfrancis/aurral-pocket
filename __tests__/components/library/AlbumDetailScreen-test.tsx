@@ -1,9 +1,16 @@
 jest.mock("@/lib/api/library", () => ({
   deleteAlbum: jest.fn(() => Promise.resolve({})),
+  deleteAurralAlbum: jest.fn(() => Promise.resolve({})),
+  researchAurralAlbum: jest.fn(() => Promise.resolve(null)),
   triggerAlbumSearch: jest.fn(() => Promise.resolve({})),
   getDownloadStatuses: jest.fn(() => Promise.resolve({})),
   updateLibraryFavorites: jest.fn(() => Promise.resolve({})),
   favoriteEntityId: jest.requireActual("@/lib/api/library").favoriteEntityId,
+}));
+
+const mockHasPermission = jest.fn((_permission: string) => true);
+jest.mock("@/hooks/auth/use-has-permission", () => ({
+  useHasPermission: () => mockHasPermission,
 }));
 
 jest.mock("@/hooks/library/use-library-albums", () => ({
@@ -144,7 +151,9 @@ import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import {
   deleteAlbum,
+  deleteAurralAlbum,
   getDownloadStatuses,
+  researchAurralAlbum,
   triggerAlbumSearch,
   updateLibraryFavorites,
 } from "@/lib/api/library";
@@ -156,6 +165,8 @@ const mockUseLibraryAlbum = useLibraryAlbum as jest.Mock;
 const mockUseLibraryTracks = useLibraryTracks as jest.Mock;
 const mockDeleteAlbum = deleteAlbum as jest.Mock;
 const mockTriggerAlbumSearch = triggerAlbumSearch as jest.Mock;
+const mockDeleteAurralAlbum = deleteAurralAlbum as jest.Mock;
+const mockResearchAurralAlbum = researchAurralAlbum as jest.Mock;
 const mockGetDownloadStatuses = getDownloadStatuses as jest.Mock;
 const mockCoverArtImage = CoverArtImage as unknown as jest.Mock;
 const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
@@ -200,6 +211,7 @@ async function openAlbumPage(album: Album) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockHasPermission.mockReturnValue(true);
   mockUseLibraryTracks.mockReturnValue({ data: [], isLoading: false });
   jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons) => {
     buttons?.find((button) => button.style === "destructive")?.onPress?.();
@@ -223,6 +235,74 @@ describe("AlbumDetailScreen", () => {
 
     expect(mockTriggerAlbumSearch).toHaveBeenCalledWith("301");
     expect(mockDeleteAlbum).toHaveBeenCalledWith("301");
+  });
+
+  describe("an album Aurral manages", () => {
+    const aurralAlbum: Album = {
+      ...lidarrAlbum,
+      lidarrId: undefined,
+      managedBy: "aurral",
+    };
+
+    beforeEach(() => {
+      mockGetDownloadStatuses.mockResolvedValue({
+        "aurral:14": { status: "cancelled" },
+      });
+    });
+
+    it("sends re-search and delete to Aurral by canonical id, and deletes the files", async () => {
+      await openAlbumPage(aurralAlbum);
+
+      const research = await screen.findByText("Re-search");
+      await act(async () => {
+        fireEvent.press(research);
+      });
+      await act(async () => {
+        fireEvent.press(screen.getByText("Delete Album"));
+      });
+
+      expect(mockResearchAurralAlbum).toHaveBeenCalledWith(
+        expect.objectContaining({ canonicalId: "14", monitored: true }),
+        { mbid: "artist-mb", name: "Radiohead" },
+      );
+      expect(mockDeleteAurralAlbum).toHaveBeenCalledWith("14", true);
+      expect(mockTriggerAlbumSearch).not.toHaveBeenCalled();
+      expect(mockDeleteAlbum).not.toHaveBeenCalled();
+    });
+
+    it("offers an unmonitored album that isn't out yet for when it's out", async () => {
+      mockGetDownloadStatuses.mockResolvedValue({
+        "aurral:14": { status: "unreleased", releaseDate: "2099-06-01" },
+      });
+      await openAlbumPage({
+        ...aurralAlbum,
+        monitored: false,
+        releaseDate: "2099-06-01",
+      });
+
+      expect(await screen.findByText("Download When It's Out")).toBeTruthy();
+    });
+
+    it("asks again whether the artist is in the library, since its last album takes it along", async () => {
+      const queryClient = await openAlbumPage(aurralAlbum);
+      const membership = libraryKeys.artistLookup("artist-mb");
+      queryClient.setQueryData(membership, { "artist-mb": true });
+
+      await act(async () => {
+        fireEvent.press(screen.getByText("Delete Album"));
+      });
+
+      expect(queryClient.getQueryState(membership)?.isInvalidated).toBe(true);
+    });
+
+    it("hides both actions from a user who may not take them", async () => {
+      mockHasPermission.mockReturnValue(false);
+      await openAlbumPage(aurralAlbum);
+      await screen.findByText("Cancelled");
+
+      expect(screen.queryByText("Re-search")).toBeNull();
+      expect(screen.queryByText("Delete Album")).toBeNull();
+    });
   });
 
   it("refreshes the whole-library album list and genre counts after a delete", async () => {

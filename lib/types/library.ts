@@ -34,6 +34,11 @@ export type Artist = {
   canonicalId?: string;
   /** Canonical read path only. The scanners that found this artist. */
   sources?: LibrarySource[];
+  /**
+   * GET /library/artists/:mbid only. Null when the server has no owner on
+   * record, as for an artist found by scanning files.
+   */
+  managedBy?: LibraryOwner | null;
   /** Canonical read path only. True when at least one file exists. */
   available?: boolean;
   /** Canonical read path only. The key the favorites API addresses this artist by. */
