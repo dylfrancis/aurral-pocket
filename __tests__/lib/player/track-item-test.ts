@@ -27,6 +27,7 @@ function track(overrides: Partial<Track> = {}): Track {
     quality: "FLAC",
     streamPath: "/library/canonical-stream/12/77",
     streamFormat: "flac",
+    bitrateKbps: 1042,
     available: true,
     ...overrides,
   };
@@ -39,6 +40,7 @@ const album = {
   artworkUrl: "https://art.example/kid-a.jpg",
   albumMbid: "album-mb-1",
   artistMbid: "artist-mb-1",
+  albumRef: "canonical-album-12",
 };
 
 beforeEach(() => {
@@ -64,6 +66,9 @@ describe("toPlayerTrack", () => {
       artistMbid: "artist-mb-1",
       albumMbid: "album-mb-1",
       identityKey: null,
+      albumRef: "canonical-album-12",
+      audioFormat: "FLAC",
+      bitrateKbps: 1042,
     });
   });
 
@@ -117,6 +122,9 @@ describe("jobToPlayerTrack", () => {
     albumMbid: "album-mb",
     trackMbid: "track-mb",
     status: "done",
+    qualityFormat: "m4a",
+    qualityBitrateKbps: 256,
+    streamFormat: "m4a",
   };
   const playlist: SharedPlaylist = {
     id: "pl-1",
@@ -143,6 +151,9 @@ describe("jobToPlayerTrack", () => {
       artistMbid: "artist-mb",
       albumMbid: "album-mb",
       identityKey: null,
+      // The server's lossy "m4a" family is AAC.
+      audioFormat: "AAC",
+      bitrateKbps: 256,
       recordHistory: false,
     });
   });

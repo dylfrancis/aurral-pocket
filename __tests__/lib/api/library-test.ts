@@ -641,6 +641,8 @@ describe("getCanonicalLibraryPage", () => {
         quality: "FLAC",
         streamPath: "/library/canonical-stream/12/31",
         streamFormat: "flac",
+        // The scanner records bits per second.
+        bitrateKbps: 1024,
         sources: ["lidarr"],
         available: true,
         artistName: "Radiohead",
@@ -692,6 +694,7 @@ describe("getCanonicalLibraryPage", () => {
         quality: null,
         streamPath: null,
         streamFormat: null,
+        bitrateKbps: null,
         sources: ["lidarr"],
         available: false,
         identityKey: "song:wanted",

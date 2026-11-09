@@ -31,6 +31,11 @@ type SavedTrack = {
    * back without it, and its tracks show no favorite button.
    */
   identityKey?: string | null;
+  /** Written since the player opens the album page. */
+  albumRef?: string | null;
+  /** Written since the player shows the file's format and bitrate. */
+  audioFormat?: string | null;
+  bitrateKbps?: number | null;
   /** Absent on tracks that report their plays. */
   recordHistory?: boolean;
 };
@@ -112,6 +117,12 @@ function parseTrack(raw: unknown): SavedTrack | null {
     artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,
     albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
     identityKey: isString(raw.identityKey) ? raw.identityKey : null,
+    albumRef: isString(raw.albumRef) ? raw.albumRef : null,
+    audioFormat: isString(raw.audioFormat) ? raw.audioFormat : null,
+    bitrateKbps:
+      typeof raw.bitrateKbps === "number" && raw.bitrateKbps > 0
+        ? raw.bitrateKbps
+        : null,
     recordHistory: raw.recordHistory !== false,
   };
 }
@@ -125,6 +136,7 @@ function parseAlbum(raw: unknown): PlayerAlbumContext | null {
     artworkUrl: isString(raw.artworkUrl) ? raw.artworkUrl : null,
     albumMbid: isString(raw.albumMbid) ? raw.albumMbid : null,
     artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,
+    albumRef: isString(raw.albumRef) ? raw.albumRef : null,
   };
 }
 
@@ -142,6 +154,9 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
     artistMbid: item.artistMbid,
     albumMbid: item.albumMbid,
     identityKey: item.identityKey,
+    albumRef: item.albumRef,
+    audioFormat: item.audioFormat,
+    bitrateKbps: item.bitrateKbps,
     recordHistory: item.recordHistory,
   };
 }
@@ -184,6 +199,9 @@ function toPlayableTrack(
     recordHistory: saved.recordHistory,
     artistMbid: saved.artistMbid ?? album.artistMbid,
     albumMbid: saved.albumMbid ?? album.albumMbid,
+    albumRef: saved.albumRef ?? album.albumRef ?? null,
+    audioFormat: saved.audioFormat ?? null,
+    bitrateKbps: saved.bitrateKbps ?? null,
   };
 }
 

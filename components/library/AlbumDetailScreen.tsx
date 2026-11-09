@@ -130,6 +130,7 @@ export function AlbumDetailScreen() {
     artworkUrl,
     albumMbid: albumMbid || null,
     artistMbid: params.artistMbid || null,
+    albumRef: params.ref,
   };
 
   const play = usePlayTrack();

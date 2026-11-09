@@ -20,7 +20,12 @@ jest.mock("expo-router", () => ({
 }));
 
 import React from "react";
-import { act, fireEvent, render } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render as renderWithoutProviders,
+} from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MiniPlayer } from "@/components/player/MiniPlayer";
 import { onTrackStarted, playItem } from "@/lib/player/player";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
@@ -39,6 +44,16 @@ const clip = {
   url: "https://preview.example/9.mp3",
   artwork: null,
 };
+
+// The mini player warms the full player's cover color through a query.
+function render(ui: React.ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  return renderWithoutProviders(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
+}
 
 let engineStateChange: Parameters<typeof manager.subscribeToPlaybackState>[0];
 

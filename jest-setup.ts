@@ -46,6 +46,11 @@ jest.mock("@/modules/shazam", () => ({
   addLevelListener: jest.fn(() => null),
 }));
 
+// The cover-color module isn't linked under Jest.
+jest.mock("react-native-image-colors", () => ({
+  getColors: jest.fn(() => Promise.reject(new Error("not linked"))),
+}));
+
 // The audio engine builds its native objects at import time, which throws
 // under Jest. Mock the whole module so any importer is safe. The player facade
 // test drives these same functions.

@@ -595,7 +595,7 @@ describe("restoring the queue", () => {
     );
   });
 
-  it("keeps a track's favorites key through a restart", async () => {
+  it("keeps a track's favorites key, album page and quality through a restart", async () => {
     mockStorage.getItem.mockResolvedValue(
       JSON.stringify({
         ...JSON.parse(savedRecord()),
@@ -603,6 +603,9 @@ describe("restoring the queue", () => {
           id: item.id,
           streamPath: item.streamPath,
           identityKey: `recording:${item.id}`,
+          albumRef: "canonical-album-12",
+          audioFormat: "FLAC",
+          bitrateKbps: 1042,
         })),
       }),
     );
@@ -612,7 +615,13 @@ describe("restoring the queue", () => {
     await flush();
 
     expect(lastSavedQueue().items).toContainEqual(
-      expect.objectContaining({ id: "72", identityKey: "recording:72" }),
+      expect.objectContaining({
+        id: "72",
+        identityKey: "recording:72",
+        albumRef: "canonical-album-12",
+        audioFormat: "FLAC",
+        bitrateKbps: 1042,
+      }),
     );
   });
 
