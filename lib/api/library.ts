@@ -21,6 +21,7 @@ import type {
   CanonicalTrackItem,
   LibraryFavorites,
   LibraryFavoritesWire,
+  LibraryOwner,
   LibraryScanJob,
   LibraryScanStatus,
 } from "@/lib/types/library";
@@ -628,6 +629,68 @@ export async function deleteAlbum(lidarrAlbumId: string, deleteFiles = false) {
   return r.data;
 }
 
+// The album routes below are Aurral's. Each takes a canonical id
+// (Album.canonicalId), and answers 409 album_owner_conflict for an album
+// Aurral does not manage.
+
+/** Only the keys pocket reads are declared. */
+export type AurralMonitoringResponse = {
+  albumStatus?: RequestedAlbumStatus | null;
+};
+
+/** Monitoring an album queues its missing tracks; unmonitoring cancels them. */
+export async function setAurralAlbumMonitored(
+  canonicalId: string,
+  monitored: boolean,
+) {
+  const r = await api.put<AurralMonitoringResponse>(
+    `/library/albums/aurral/${canonicalId}`,
+    { monitored },
+  );
+  return r.data;
+}
+
+/**
+ * Without its files, a deleted album comes back on the next full scan. Either
+ * way Aurral stops monitoring the release, so it is not downloaded again.
+ */
+export async function deleteAurralAlbum(
+  canonicalId: string,
+  deleteFiles: boolean,
+) {
+  const r = await api.delete<{ success: boolean; excluded: boolean }>(
+    `/library/albums/aurral/${canonicalId}`,
+    { params: { deleteFiles } },
+  );
+  return r.data;
+}
+
+export async function cancelAurralAlbum(canonicalId: string) {
+  const r = await api.post<{ cancelledJobIds: string[] }>(
+    `/library/albums/aurral/${canonicalId}/cancel`,
+  );
+  return r.data;
+}
+
+/** Re-searches the way the web does. */
+export async function researchAurralAlbum(
+  album: Pick<Album, "monitored" | "mbid" | "title"> & { canonicalId: string },
+  artist: { mbid: string; name: string },
+) {
+  if (!album.monitored) {
+    const updated = await setAurralAlbumMonitored(album.canonicalId, true);
+    return updated.albumStatus ?? null;
+  }
+  const requested = await requestAlbumFromSearch({
+    albumMbid: album.mbid,
+    albumName: album.title,
+    artistMbid: artist.mbid,
+    artistName: artist.name,
+    managedBy: "aurral",
+  });
+  return requested.albumStatus ?? null;
+}
+
 export type ReleaseGroupTrack = {
   id?: string;
   mbid?: string;
@@ -783,6 +846,8 @@ export type RequestAlbumPayload = {
   artistMbid: string;
   artistName: string;
   triggerSearch?: boolean;
+  /** Keeps an album Aurral already manages with Aurral when Lidarr is connected. */
+  managedBy?: LibraryOwner;
 };
 
 /**

@@ -19,13 +19,14 @@ import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
+import { isActiveAurralStatus } from "@/lib/album-status";
 import {
   activityArtistMbid,
   activityStatusKey,
+  aurralRequestAlbumId,
   historyPlaylistId,
   isAlbumRequest,
   type ActivityItem,
-  type AlbumRequest,
 } from "@/lib/types/activity";
 import {
   ACTIVITY_EMPTY_STATES,
@@ -53,7 +54,7 @@ export function ActivityList({ view }: ActivityListProps) {
   const hasPermission = useHasPermission();
   const openPlaylist = useOpenPlaylist();
   const sheetRef = useRef<BottomSheetModal>(null);
-  const [selected, setSelected] = useState<AlbumRequest | null>(null);
+  const [selected, setSelected] = useState<ActivityItem | null>(null);
 
   const { data: items, refetch } = useActivitySuspense();
   const refreshActivity = useRefreshActivity();
@@ -91,13 +92,15 @@ export function ActivityList({ view }: ActivityListProps) {
     }
   }, [refreshActivity]);
 
-  // Only Lidarr album requests expose safe actions. artist_added rows look
-  // actionable but DELETE /requests/:mbid removes the artist from Lidarr
-  // entirely, so history entries stay read-only.
+  // Other history entries stay read-only: artist_added rows look actionable,
+  // but DELETE /requests/:mbid removes the artist from Lidarr entirely.
   const rowHasActions = useCallback(
     (item: ActivityItem) => {
-      if (!isAlbumRequest(item) || !item.albumId) return false;
       const albumStatus = downloadEntryFor(item)?.status;
+      if (aurralRequestAlbumId(item)) {
+        return isActiveAurralStatus(albumStatus) && hasPermission("addAlbum");
+      }
+      if (!isAlbumRequest(item) || !item.albumId) return false;
       const isFailed = albumStatus === "failed" || item.status === "failed";
       const canStop = item.inQueue && hasPermission("deleteAlbum");
       return canStop || isFailed;
@@ -126,7 +129,6 @@ export function ActivityList({ view }: ActivityListProps) {
   );
 
   const handleLongPress = useCallback((item: ActivityItem) => {
-    if (!isAlbumRequest(item)) return;
     setSelected(item);
     sheetRef.current?.present();
   }, []);

@@ -98,11 +98,13 @@ jest.mock("@gorhom/bottom-sheet", () => {
   };
 });
 
+const mockActivityActionsSheet = jest.fn();
 jest.mock("@/components/activity/ActivityActionsSheet", () => {
   const React = require("react");
   const { View } = require("react-native");
   return {
-    ActivityActionsSheet: function MockActivityActionsSheet() {
+    ActivityActionsSheet: function MockActivityActionsSheet(props: any) {
+      mockActivityActionsSheet(props);
       return React.createElement(View, { testID: "activity-actions-sheet" });
     },
   };
@@ -334,6 +336,35 @@ describe("ActivityList", () => {
     );
     expect(getByText("Queued")).toBeTruthy();
     expect(queryByText("Failed")).toBeNull();
+  });
+
+  it("opens the actions for an Aurral request while its album downloads", async () => {
+    mockUseHasPermission.mockReturnValue(() => true);
+    mockUseActivityDownloadStatuses.mockReturnValue({
+      data: { "aurral:12": { status: "downloading" } },
+    });
+    const request = makeHistoryItem({
+      id: "aurral-request",
+      kind: "album_requested",
+      source: "aurral",
+      title: "Requested Kid A",
+      albumName: "Kid A",
+      albumId: "12",
+      canonicalAlbumId: "12",
+    });
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [request],
+    });
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent(getByText("Requested Kid A"), "longPress");
+
+    expect(mockActivityActionsSheet).toHaveBeenLastCalledWith(
+      expect.objectContaining({ request, downloadStatus: "downloading" }),
+    );
   });
 
   it("shows only queue-eligible items in the queue view", async () => {

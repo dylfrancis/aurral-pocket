@@ -24,7 +24,9 @@ import {
   triggerAlbumSearch,
   updateLibraryAlbum,
   deleteAlbum,
+  deleteAurralAlbum,
   requestAlbumFromSearch,
+  researchAurralAlbum,
   favoriteEntityId,
   getLibraryFavorites,
   updateLibraryFavorites,
@@ -135,6 +137,60 @@ describe("deleteAlbum", () => {
     expect(mockApi.delete).toHaveBeenCalledWith("/library/albums/99", {
       params: { deleteFiles: true },
     });
+  });
+});
+
+describe("deleteAurralAlbum", () => {
+  it("deletes the album's files by canonical id when asked to", async () => {
+    mockApi.delete.mockResolvedValue({ data: { success: true } });
+
+    await deleteAurralAlbum("14", true);
+    expect(mockApi.delete).toHaveBeenCalledWith("/library/albums/aurral/14", {
+      params: { deleteFiles: true },
+    });
+  });
+});
+
+describe("researchAurralAlbum", () => {
+  const album = {
+    canonicalId: "14",
+    mbid: "rg-1",
+    title: "Abbey Road",
+  };
+  const artist = { mbid: "artist-1", name: "The Beatles" };
+
+  it("monitors an unmonitored album, which queues its missing tracks", async () => {
+    mockApi.put.mockResolvedValue({
+      data: { albumStatus: { status: "queued", releaseDate: null } },
+    });
+
+    const status = await researchAurralAlbum(
+      { ...album, monitored: false },
+      artist,
+    );
+
+    expect(mockApi.put).toHaveBeenCalledWith("/library/albums/aurral/14", {
+      monitored: true,
+    });
+    expect(mockApi.post).not.toHaveBeenCalled();
+    expect(status).toEqual({ status: "queued", releaseDate: null });
+  });
+
+  it("requests a monitored album again, keeping it with Aurral", async () => {
+    mockApi.post.mockResolvedValue({
+      data: { albumStatus: { status: "queued", releaseDate: null } },
+    });
+
+    await researchAurralAlbum({ ...album, monitored: true }, artist);
+
+    expect(mockApi.post).toHaveBeenCalledWith("/library/albums/request", {
+      albumMbid: "rg-1",
+      albumName: "Abbey Road",
+      artistMbid: "artist-1",
+      artistName: "The Beatles",
+      managedBy: "aurral",
+    });
+    expect(mockApi.put).not.toHaveBeenCalled();
   });
 });
 

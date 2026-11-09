@@ -116,8 +116,14 @@ export function activityArtistMbid(item: ActivityItem): string | null {
 export function activityStatusKey(item: ActivityItem): string | null {
   if (isAlbumRequest(item)) return item.albumId;
   if (item.kind !== "album_requested") return null;
-  if (item.canonicalAlbumId) return aurralStatusKey(item.canonicalAlbumId);
-  return item.albumId;
+  const canonicalId = aurralRequestAlbumId(item);
+  return canonicalId ? aurralStatusKey(canonicalId) : item.albumId;
+}
+
+export function aurralRequestAlbumId(item: ActivityItem): string | null {
+  return isHistoryItem(item) && item.kind === "album_requested"
+    ? item.canonicalAlbumId
+    : null;
 }
 
 /**

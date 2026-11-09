@@ -2,13 +2,21 @@ import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
-import { triggerAlbumSearch, updateLibraryAlbum } from "@/lib/api/library";
-import { albumDownloadStatus } from "@/lib/library-read";
+import { canResearchAurralAlbum } from "@/lib/album-status";
+import {
+  researchAurralAlbum,
+  triggerAlbumSearch,
+  updateLibraryAlbum,
+} from "@/lib/api/library";
+import {
+  albumDownloadStatus,
+  albumManager,
+  albumStatusKey,
+} from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
 import type { Album, DownloadStatusMap } from "@/lib/types/library";
 
-// Statuses that mean a download is already in flight, so re-searching is a no-op.
-const ACTIVE_STATUSES = new Set([
+const LIDARR_ACTIVE_STATUSES = new Set([
   "adding",
   "searching",
   "downloading",
@@ -16,30 +24,28 @@ const ACTIVE_STATUSES = new Set([
   "processing",
 ]);
 
-type LidarrAlbum = Album & { lidarrId: string };
-
-/**
- * Albums eligible for a bulk re-search: albums Lidarr manages that are
- * incomplete, not already mid-download, and either previously failed or
- * monitored. Mirrors aurral's handleReSearchMissingDownloads (PR #295).
- *
- * Lidarr does the monitoring and the searching, so an album without a Lidarr
- * id has nothing to search, and its canonical id must never stand in.
- */
+/** Mirrors the web's handleReSearchMissingDownloads. */
 export function getEligibleMissingAlbums(
   albums: Album[] | undefined,
   downloadStatuses: DownloadStatusMap | undefined,
-): LidarrAlbum[] {
+): Album[] {
   if (!albums) return [];
-  return albums.filter((album): album is LidarrAlbum => {
-    if (!album.lidarrId) return false;
+  return albums.filter((album) => {
+    const manager = albumManager(album);
+    if (!manager) return false;
 
     const { percentOfTracks, sizeOnDisk } = album.statistics;
     const isComplete = percentOfTracks >= 100 || sizeOnDisk > 0;
     if (isComplete) return false;
 
     const status = albumDownloadStatus(downloadStatuses, album);
-    if (status && ACTIVE_STATUSES.has(status)) return false;
+    if (manager.name === "aurral") {
+      // Aurral leaves an unmonitored album's tracks out of its status, so only
+      // a monitored album reads failed. Requesting one again needs only the
+      // addAlbum this action is offered for.
+      return album.monitored && canResearchAurralAlbum(album, status);
+    }
+    if (status && LIDARR_ACTIVE_STATUSES.has(status)) return false;
 
     return status === "failed" || album.monitored;
   });
@@ -48,6 +54,7 @@ export function getEligibleMissingAlbums(
 export function useResearchMissingAlbums(
   albums: Album[] | undefined,
   downloadStatuses: DownloadStatusMap | undefined,
+  artist: { mbid: string; name: string },
 ) {
   const queryClient = useQueryClient();
 
@@ -58,15 +65,31 @@ export function useResearchMissingAlbums(
 
   const mutation = useMutation({
     mutationFn: async () => {
-      // Force-monitor unmonitored albums first so Lidarr will search them.
+      const lidarrAlbums: (Album & { lidarrId: string })[] = [];
+      const aurralAlbums: (Album & { canonicalId: string })[] = [];
       for (const album of eligibleAlbums) {
+        const manager = albumManager(album);
+        if (manager?.name === "lidarr") {
+          lidarrAlbums.push({ ...album, lidarrId: manager.albumId });
+        } else if (manager?.name === "aurral") {
+          aurralAlbums.push({ ...album, canonicalId: manager.albumId });
+        }
+      }
+      // Force-monitor unmonitored albums first so Lidarr will search them.
+      for (const album of lidarrAlbums) {
         if (!album.monitored) {
           await updateLibraryAlbum(album.lidarrId, { monitored: true });
         }
       }
-      await Promise.all(
-        eligibleAlbums.map((album) => triggerAlbumSearch(album.lidarrId)),
-      );
+      await Promise.all([
+        ...lidarrAlbums.map((album) => triggerAlbumSearch(album.lidarrId)),
+        ...aurralAlbums.map((album) =>
+          researchAurralAlbum(album, {
+            mbid: album.artistMbid || artist.mbid,
+            name: album.artistName || artist.name,
+          }),
+        ),
+      ]);
       return eligibleAlbums.length;
     },
     onMutate: () => {
@@ -76,7 +99,11 @@ export function useResearchMissingAlbums(
         (old) => {
           const next = { ...(old ?? {}) };
           for (const album of eligibleAlbums) {
-            next[album.lidarrId] = { status: "searching" };
+            const key = albumStatusKey(album);
+            if (!key) continue;
+            next[key] = {
+              status: album.managedBy === "aurral" ? "queued" : "searching",
+            };
           }
           return next;
         },
