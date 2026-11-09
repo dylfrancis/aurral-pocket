@@ -17,6 +17,8 @@ import type {
   RecentlyAddedResponse,
   RecentReleasesResponse,
   NearbyShowsResponse,
+  TrendingChartsResponse,
+  TrendingGenreChart,
 } from "@/lib/types/search";
 
 /**
@@ -113,6 +115,18 @@ export async function getEditorialLinks(params: {
   const r = await api.get<EditorialLinks>("/discover/editorial/links", {
     params,
   });
+  return r.data;
+}
+
+export async function getTrendingCharts() {
+  const r = await api.get<TrendingChartsResponse>("/discover/trending");
+  return r.data;
+}
+
+export async function getTrendingGenreChart(genreId: string) {
+  const r = await api.get<TrendingGenreChart>(
+    `/discover/trending/genres/${encodeURIComponent(genreId)}`,
+  );
   return r.data;
 }
 

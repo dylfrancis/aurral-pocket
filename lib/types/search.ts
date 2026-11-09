@@ -192,6 +192,89 @@ export type EditorialLinks = {
   albumMbid: string | null;
 };
 
+/**
+ * Places moved since the previous day, positive for up. Null until Aurral has
+ * saved two days of the chart.
+ */
+export type TrendingMovement = number | "new" | null;
+
+export type TrendingSong = EditorialTrack & {
+  key: string;
+  position: number;
+  durationMs: number | null;
+  largeArtworkUrl: string | null;
+};
+
+export type TrendingChartSong = TrendingSong & {
+  movement: TrendingMovement;
+};
+
+export type TrendingSpotlight = {
+  daysAtTop: number;
+  /** Oldest first, one per day for the last 14 days. Null on a day off the chart. */
+  ranks: (number | null)[];
+};
+
+export type TrendingSongsChart = {
+  /** A Deezer playlist id, which the editorial save route takes. */
+  playlistId: string;
+  playlistName: string;
+  libraryPlaylistId: string | null;
+  items: TrendingChartSong[];
+  spotlight: TrendingSpotlight | null;
+};
+
+export type TrendingAlbum = {
+  key: string;
+  position: number;
+  name: string;
+  artistName: string;
+  artworkUrl: string | null;
+  releaseDate: string | null;
+  genre: string | null;
+};
+
+export type TrendingArtist = {
+  key: string;
+  position: number;
+  name: string;
+  imageUrl: string | null;
+  mbid: string | null;
+  fans: number | null;
+};
+
+export type TrendingGenreShare = {
+  total: number;
+  other: number;
+  genres: { name: string; count: number }[];
+};
+
+export type TrendingGenre = {
+  id: number;
+  name: string;
+  covers: string[];
+  artists: string[];
+};
+
+/** Each chart is null, or `genres` empty, until Aurral has loaded it. */
+export type TrendingChartsResponse = {
+  region: string | null;
+  updatedAt: number | null;
+  songs: TrendingSongsChart | null;
+  albums: TrendingAlbum[] | null;
+  genreShare: TrendingGenreShare | null;
+  artists: TrendingArtist[] | null;
+  genres: TrendingGenre[];
+};
+
+export type TrendingGenreChart = {
+  id: number;
+  name: string;
+  region: string;
+  updatedAt: number;
+  items: TrendingSong[];
+};
+
 export type DiscoveryResponse = {
   recommendations: DiscoveryArtist[];
   globalTop: DiscoveryArtist[];

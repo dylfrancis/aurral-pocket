@@ -16,7 +16,7 @@ import {
   screen,
 } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import EditorialShelfRoute from "@/app/(app)/(tabs)/(discover)/editorial";
+import { EditorialShelf } from "@/components/discover/EditorialShelf";
 import { ApiError } from "@/lib/api/client";
 import { getEditorialShelf } from "@/lib/api/search";
 import type { EditorialPlaylistSummary } from "@/lib/types/search";
@@ -54,7 +54,7 @@ async function renderScreen() {
   clients.push(client);
   await render(
     <QueryClientProvider client={client}>
-      <EditorialShelfRoute />
+      <EditorialShelf />
     </QueryClientProvider>,
   );
 }
@@ -69,7 +69,7 @@ afterEach(() => {
   clients.length = 0;
 });
 
-describe("EditorialShelfScreen", () => {
+describe("EditorialShelf", () => {
   it("lists the user's row, then a shelf per genre", async () => {
     mockGetShelf.mockResolvedValue({
       forYou: [playlistSummary("1", "For Your Taste")],
@@ -85,6 +85,22 @@ describe("EditorialShelfScreen", () => {
     expect(screen.getByText("Rock")).toBeTruthy();
     expect(screen.getByText("Rock Hits")).toBeTruthy();
     expect(screen.queryByText("View All")).toBeNull();
+  });
+
+  it("adds the rails below the first few after the tab opens", async () => {
+    const genres = ["Pop", "Rock", "Jazz", "Soul", "Metal"].map(
+      (name, index) => ({
+        id: index + 1,
+        name,
+        playlists: [playlistSummary(String(index + 10), `${name} Hits`)],
+      }),
+    );
+    mockGetShelf.mockResolvedValue({ forYou: [], genres });
+
+    await renderScreen();
+
+    expect(await screen.findByText("Metal Hits")).toBeTruthy();
+    expect(screen.getByText("Pop Hits")).toBeTruthy();
   });
 
   it("leaves out an empty For You", async () => {

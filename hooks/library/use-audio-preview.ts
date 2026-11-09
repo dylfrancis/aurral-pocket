@@ -31,11 +31,6 @@ export function useAudioPreview() {
   // a second tap.
   const loadingId = status.isBuffering ? status.currentId : null;
 
-  // Screens fire this on blur; pauseClip spares unrelated album playback.
-  const stop = useCallback(() => {
-    void pauseClip();
-  }, []);
-
   const toggle = useCallback(
     async (trackId: string, previewUrl: string, meta: PreviewMetadata = {}) => {
       if (status.currentId === trackId) {
@@ -66,5 +61,15 @@ export function useAudioPreview() {
     [status.currentId, status.isPlaying, status.isPaused, status.isBuffering],
   );
 
-  return { playingId, loadingId, progress: status.progress, toggle, stop };
+  return {
+    playingId,
+    loadingId,
+    progress: status.progress,
+    toggle,
+    stop: stopPreviewClip,
+  };
+}
+
+export function stopPreviewClip() {
+  void pauseClip();
 }
