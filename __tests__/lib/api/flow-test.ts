@@ -1,6 +1,7 @@
 jest.mock("@/lib/api/client", () => ({
   api: {
     defaults: { baseURL: "https://example.com/api" },
+    get: jest.fn(),
     post: jest.fn(),
   },
 }));
@@ -8,7 +9,9 @@ jest.mock("@/lib/api/client", () => ({
 import { api } from "@/lib/api/client";
 import {
   addSharedPlaylistTracks,
+  createFlowFromTemplate,
   createSharedPlaylist,
+  getFlowTemplates,
   getFlowStreamPath,
   getFlowArtworkSource,
 } from "@/lib/api/flow";
@@ -38,6 +41,40 @@ const QUEUED_RESPONSE = {
   },
   status: 200,
 };
+
+describe("flow templates", () => {
+  it("lists the templates", async () => {
+    const template = {
+      id: "release-radar",
+      name: "Release Radar",
+      description:
+        "Up to one track from each recent album missing in your library",
+      available: true,
+    };
+    (api.get as jest.Mock).mockResolvedValueOnce({
+      data: { templates: [template] },
+      status: 200,
+    });
+
+    await expect(getFlowTemplates()).resolves.toEqual([template]);
+    expect(api.get).toHaveBeenCalledWith("/playlists/flow-templates");
+  });
+
+  it("creates a flow from a template by its id", async () => {
+    const flow = { id: "flow-1", name: "Release Radar" };
+    (api.post as jest.Mock).mockResolvedValueOnce({
+      data: { success: true, flow },
+      status: 200,
+    });
+
+    await expect(createFlowFromTemplate("release-radar")).resolves.toEqual(
+      flow,
+    );
+    expect(api.post).toHaveBeenCalledWith("/playlists/flows", {
+      templateId: "release-radar",
+    });
+  });
+});
 
 describe("createSharedPlaylist", () => {
   it("posts the payload and returns the queued operation ids", async () => {

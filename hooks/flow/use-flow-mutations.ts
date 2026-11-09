@@ -5,6 +5,7 @@ import {
   addSharedPlaylistTracks,
   convertFlowToStaticPlaylist,
   createFlow,
+  createFlowFromTemplate,
   createSharedPlaylist,
   deleteFlow,
   deleteSharedPlaylist,
@@ -70,6 +71,29 @@ export function useCreateFlow() {
     mutationFn: (payload: FlowFormValues) =>
       createFlow(payload).catch(rethrowClearNameConflict),
     onSuccess: invalidate,
+  });
+}
+
+/**
+ * Adds the new flow to the cached snapshot, so its page can open before the
+ * next status poll lands.
+ */
+export function useCreateFlowFromTemplate() {
+  const queryClient = useQueryClient();
+  const invalidate = useFlowInvalidate();
+  return useMutation({
+    mutationFn: (templateId: string) =>
+      createFlowFromTemplate(templateId).catch(rethrowClearNameConflict),
+    onSuccess: async (flow) => {
+      // A poll already in flight would put back a snapshot without the flow.
+      await queryClient.cancelQueries({ queryKey: flowKeys.status() });
+      queryClient.setQueryData<FlowStatusSnapshot>(flowKeys.status(), (prev) =>
+        prev && !prev.flows.some((entry) => entry.id === flow.id)
+          ? { ...prev, flows: [...prev.flows, flow] }
+          : prev,
+      );
+      void invalidate();
+    },
   });
 }
 

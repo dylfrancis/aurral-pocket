@@ -49,6 +49,17 @@ export type Flow = {
   artworkRevision?: number;
 };
 
+/**
+ * `available` is false while the server can't build the template, as with
+ * Listening History before the user has listened to anything.
+ */
+export type FlowTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  available: boolean;
+};
+
 export type SharedPlaylistTrack = {
   artistName: string;
   trackName: string;

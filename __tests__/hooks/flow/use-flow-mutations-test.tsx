@@ -15,15 +15,21 @@ import { act, renderHook } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { api, ApiError } from "@/lib/api/client";
+import { flowKeys } from "@/lib/query-keys";
 import {
   useConvertFlowToStaticPlaylist,
   useCreateFlow,
+  useCreateFlowFromTemplate,
   useSetFlowEnabled,
   useSetRetryCyclePaused,
   useStartFlow,
   useUpdateFlow,
 } from "@/hooks/flow/use-flow-mutations";
-import type { FlowFormValues, FlowJob } from "@/lib/types/flow";
+import type {
+  FlowFormValues,
+  FlowJob,
+  FlowStatusSnapshot,
+} from "@/lib/types/flow";
 
 const mockGet = api.get as jest.Mock;
 const mockPut = api.put as jest.Mock;
@@ -220,6 +226,35 @@ describe("useConvertFlowToStaticPlaylist", () => {
   });
 });
 
+describe("useCreateFlowFromTemplate", () => {
+  it("lists the new flow in the cached snapshot before the status refetch answers", async () => {
+    // A finite gcTime leaves a timer on the seeded query that keeps Jest alive.
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Infinity },
+        mutations: { retry: false, gcTime: 0 },
+      },
+    });
+    client.setQueryData(flowKeys.status(), {
+      flows: [{ id: "flow-1", name: "Chill" }],
+    } as FlowStatusSnapshot);
+    const created = { id: "flow-2", name: "Release Radar" };
+    mockPost.mockResolvedValue({ data: { success: true, flow: created } });
+    mockGet.mockReturnValue(new Promise(() => {}));
+    const { result } = await renderHook(() => useCreateFlowFromTemplate(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+
+    await act(() => result.current.mutateAsync("release-radar"));
+
+    expect(
+      client.getQueryData<FlowStatusSnapshot>(flowKeys.status())?.flows,
+    ).toEqual([{ id: "flow-1", name: "Chill" }, created]);
+  });
+});
+
 describe("name conflicts", () => {
   const payload = { name: "Chill" } as FlowFormValues;
 
@@ -247,6 +282,15 @@ describe("name conflicts", () => {
       request: mockPost,
       serverMessage: 'Flow name "Chill" already exists',
       useSave: useCreate,
+    },
+    {
+      name: "creating a flow from a template",
+      request: mockPost,
+      serverMessage: 'Flow name "Chill" already exists',
+      useSave: () => {
+        const { mutateAsync } = useCreateFlowFromTemplate();
+        return () => mutateAsync("discover-weekly");
+      },
     },
     {
       name: "renaming a flow",
