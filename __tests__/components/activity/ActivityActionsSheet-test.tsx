@@ -7,6 +7,17 @@ jest.mock("@/lib/api/activity", () => ({
   deleteAlbumRequest: jest.fn(() => Promise.resolve({})),
 }));
 
+jest.mock("@/lib/api/flow", () => ({
+  cancelTrackJob: jest.fn(),
+  retryTrackJob: jest.fn(() =>
+    Promise.resolve({ jobId: "j1", status: "pending" }),
+  ),
+}));
+
+jest.mock("@/contexts/auth-context", () => ({
+  useAuth: () => ({ user: { id: 7, role: "user", permissions: {} } }),
+}));
+
 const mockHasPermission = jest.fn((_permission: string) => true);
 jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: () => mockHasPermission,
@@ -56,6 +67,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet";
 import { deleteAlbumRequest } from "@/lib/api/activity";
+import { retryTrackJob } from "@/lib/api/flow";
 import { cancelAurralAlbum } from "@/lib/api/library";
 import type { ActivityHistoryItem } from "@/lib/types/activity";
 
@@ -88,15 +100,35 @@ const aurralRequest: ActivityHistoryItem = {
   canReSearch: false,
 };
 
-async function openSheet() {
+const failedDownload: ActivityHistoryItem = {
+  ...aurralRequest,
+  id: "aurral-track_download-j1",
+  kind: "track_download",
+  title: "Failed Idioteque",
+  subtitle: "Radiohead · Chill",
+  status: "failed",
+  statusLabel: "Failed",
+  href: null,
+  playlistId: "flow-1",
+  jobId: "j1",
+  trackName: "Idioteque",
+  albumName: null,
+  albumId: null,
+  canonicalAlbumId: null,
+};
+
+async function openSheet(
+  request: ActivityHistoryItem = aurralRequest,
+  sheetRef = React.createRef<BottomSheetModal>(),
+) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false, gcTime: 0 } },
   });
   await render(
     <QueryClientProvider client={queryClient}>
       <ActivityActionsSheet
-        sheetRef={React.createRef<BottomSheetModal>()}
-        request={aurralRequest}
+        sheetRef={sheetRef}
+        request={request}
         downloadStatus="downloading"
       />
     </QueryClientProvider>,
@@ -135,5 +167,20 @@ describe("ActivityActionsSheet", () => {
     await openSheet();
 
     expect(screen.queryByText("Stop Download")).toBeNull();
+  });
+
+  it("retries a failed track download under its track name, then closes", async () => {
+    const dismiss = jest.fn();
+    await openSheet(failedDownload, {
+      current: { dismiss } as unknown as BottomSheetModal,
+    });
+    expect(screen.getByText("Idioteque")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Retry Download"));
+    });
+
+    expect(retryTrackJob).toHaveBeenCalledWith("j1");
+    expect(dismiss).toHaveBeenCalled();
   });
 });

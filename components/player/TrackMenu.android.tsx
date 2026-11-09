@@ -1,7 +1,10 @@
 import AlbumIcon from "@expo/material-symbols/album.xml";
+import DeleteIcon from "@expo/material-symbols/delete.xml";
 import MoreHorizIcon from "@expo/material-symbols/more_horiz.xml";
 import PersonIcon from "@expo/material-symbols/person.xml";
 import PlaylistAddIcon from "@expo/material-symbols/playlist_add.xml";
+import RefreshIcon from "@expo/material-symbols/refresh.xml";
+import StopCircleIcon from "@expo/material-symbols/stop_circle.xml";
 import { Host } from "@expo/ui";
 import {
   DropdownMenu,
@@ -16,19 +19,31 @@ import type {
   TrackMenuActionId,
   TrackMenuProps,
 } from "@/components/player/track-menu-types";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const ICONS: Record<TrackMenuActionId, ImageSourcePropType> = {
   playlist: PlaylistAddIcon,
   album: AlbumIcon,
   artist: PersonIcon,
+  retry: RefreshIcon,
+  stop: StopCircleIcon,
+  remove: DeleteIcon,
 };
 
 // A clipped popup loses the status bar offset, so near the bottom of an
 // edge-to-edge screen it detaches from its button.
 const POPUP_PROPERTIES = { clippingEnabled: false };
 
-export function TrackMenu({ actions, onAction, triggerColor }: TrackMenuProps) {
+export function TrackMenu({
+  actions,
+  onAction,
+  triggerColor,
+  compact = false,
+  accessibilityLabel = "More actions",
+}: TrackMenuProps) {
   const [expanded, setExpanded] = useState(false);
+  const errorColor = Colors[useColorScheme()].error;
 
   return (
     <Host matchContents>
@@ -42,8 +57,8 @@ export function TrackMenu({ actions, onAction, triggerColor }: TrackMenuProps) {
             <Icon
               source={MoreHorizIcon}
               tint={triggerColor}
-              size={26}
-              contentDescription="More actions"
+              size={compact ? 22 : 26}
+              contentDescription={accessibilityLabel}
             />
           </IconButton>
         </DropdownMenu.Trigger>
@@ -51,6 +66,11 @@ export function TrackMenu({ actions, onAction, triggerColor }: TrackMenuProps) {
           {actions.map((action) => (
             <DropdownMenuItem
               key={action.id}
+              elementColors={
+                action.destructive
+                  ? { textColor: errorColor, leadingIconColor: errorColor }
+                  : undefined
+              }
               onClick={() => {
                 setExpanded(false);
                 onAction(action.id);

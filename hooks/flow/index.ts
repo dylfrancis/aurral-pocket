@@ -5,7 +5,7 @@ export {
 } from "./use-flow-status";
 export { useEditSnapshot, usePlaylistEditSnapshot } from "./use-edit-snapshot";
 export { useFlowTemplates } from "./use-flow-templates";
-export { useJobsForPlaylist, useSharedPlaylists } from "./use-flow-selectors";
+export { useSharedPlaylists } from "./use-flow-selectors";
 export {
   useAddSharedPlaylistTracks,
   useConvertFlowToStaticPlaylist,
@@ -21,6 +21,11 @@ export {
   useUpdateFlow,
   useUpdateSharedPlaylist,
 } from "./use-flow-mutations";
+export {
+  useRetryTrackDownload,
+  useStopTrackDownload,
+  useTrackJobMenu,
+} from "./use-track-job-controls";
 export {
   useUpdateWorkerSettings,
   useWorkerSettings,

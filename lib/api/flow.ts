@@ -3,6 +3,7 @@ import type {
   Flow,
   FlowFormValues,
   FlowJob,
+  FlowJobStatus,
   FlowStatusSnapshot,
   FlowTemplate,
   SharedPlaylist,
@@ -243,5 +244,33 @@ export async function approveBlockedJob(jobId: string) {
 
 export async function denyBlockedJob(jobId: string) {
   const r = await api.post(`${FLOW}/jobs/${encodeURIComponent(jobId)}/deny`);
+  return r.data;
+}
+
+/**
+ * `status` is "cancel_requested" when the download client's cleanup is still
+ * running; the job reaches "cancelled" once it finishes.
+ */
+export type TrackJobControlResult = {
+  jobId: string;
+  status: FlowJobStatus;
+};
+
+export async function cancelTrackJob(
+  jobId: string,
+): Promise<TrackJobControlResult> {
+  const r = await api.post<TrackJobControlResult>(
+    `${FLOW}/jobs/${encodeURIComponent(jobId)}/cancel`,
+  );
+  return r.data;
+}
+
+/** An active download is stopped first, then queued again. */
+export async function retryTrackJob(
+  jobId: string,
+): Promise<TrackJobControlResult> {
+  const r = await api.post<TrackJobControlResult>(
+    `${FLOW}/jobs/${encodeURIComponent(jobId)}/retry`,
+  );
   return r.data;
 }

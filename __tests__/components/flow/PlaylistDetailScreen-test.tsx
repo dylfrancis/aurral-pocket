@@ -13,6 +13,7 @@ jest.mock("@/lib/api/flow", () => ({
   ...jest.requireActual("@/lib/api/flow"),
   deleteSharedPlaylist: jest.fn(() => Promise.resolve()),
   deleteSharedPlaylistTrack: jest.fn(() => Promise.resolve()),
+  cancelTrackJob: jest.fn(),
   getFlowStatus: jest.fn(),
   getPlaylistJobs: jest.fn(),
   setRetryCyclePaused: jest.fn(() => Promise.resolve()),
@@ -124,18 +125,20 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { PlaylistDetailScreen } from "@/components/flow/PlaylistDetailScreen";
 import {
+  cancelTrackJob,
   deleteSharedPlaylist,
   deleteSharedPlaylistTrack,
   getFlowStatus,
   getPlaylistJobs,
   setRetryCyclePaused,
 } from "@/lib/api/flow";
-import { setAuthToken, setBaseUrl } from "@/lib/api/client";
+import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { getAlbumCover } from "@/lib/api/library";
 import {
   playQueueFrom,
@@ -208,6 +211,14 @@ async function renderPage() {
 async function open() {
   await renderPage();
   await screen.findByText("Track a");
+}
+
+function pressTrackMenu(trackName: string, action: string) {
+  return fireEvent.press(
+    within(screen.getByLabelText(`More actions for ${trackName}`)).getByText(
+      action,
+    ),
+  );
 }
 
 function confirmAlert(buttonText: string) {
@@ -623,7 +634,7 @@ describe("PlaylistDetailScreen", () => {
     it("asks first, then removes the track", async () => {
       await open();
 
-      await fireEvent.press(screen.getByLabelText("More actions for Track a"));
+      await pressTrackMenu("Track a", "Remove Track");
       expect(deleteSharedPlaylistTrack).not.toHaveBeenCalled();
       await confirmAlert("Remove");
 
@@ -634,10 +645,52 @@ describe("PlaylistDetailScreen", () => {
       serve({ jobs: [job("a"), job("b", { status: "failed" })] });
       await open();
 
-      await fireEvent.press(screen.getByLabelText("More actions for Track b"));
+      await pressTrackMenu("Track b", "Remove Track");
       await confirmAlert("Remove");
 
       expect(deleteSharedPlaylistTrack).toHaveBeenCalledWith("pl-1", "b");
+    });
+  });
+
+  describe("stopping a download", () => {
+    it("asks first, then shows the track cancelling before the server answers", async () => {
+      let answer!: (result: object) => void;
+      (cancelTrackJob as jest.Mock).mockReturnValueOnce(
+        new Promise((resolve) => (answer = resolve)),
+      );
+      await open();
+
+      await pressTrackMenu("Track b", "Stop Download");
+      expect(cancelTrackJob).not.toHaveBeenCalled();
+      await confirmAlert("Stop");
+
+      expect(cancelTrackJob).toHaveBeenCalledWith("b");
+      expect(screen.getByText("Cancelling")).toBeTruthy();
+      expect(screen.queryByText("Downloading")).toBeNull();
+      serve({
+        jobs: [job("a"), job("b", { status: "cancelled" }), job("c")],
+      });
+      await act(async () => answer({ jobId: "b", status: "cancelled" }));
+      expect(await screen.findByText("Cancelled")).toBeTruthy();
+    });
+
+    it("names the server's reason when it refuses", async () => {
+      const reason = "Track download is already finished";
+      (cancelTrackJob as jest.Mock).mockRejectedValueOnce(
+        new ApiError(409, reason, { error: reason, status: "done" }),
+      );
+      await open();
+
+      await pressTrackMenu("Track b", "Stop Download");
+      await confirmAlert("Stop");
+
+      await waitFor(() =>
+        expect(Burnt.toast).toHaveBeenCalledWith({
+          title: reason,
+          message: undefined,
+          preset: "error",
+        }),
+      );
     });
   });
 

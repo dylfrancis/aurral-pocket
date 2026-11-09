@@ -53,31 +53,6 @@ jest.mock("@gorhom/bottom-sheet", () => ({
   BottomSheetModalProvider: ({ children }: any) => children,
 }));
 
-// The menu is native SwiftUI or Compose, which can't render under Jest, so
-// each action stands in as a plain button carrying its title.
-jest.mock("@/components/player/TrackMenu", () => {
-  const React = require("react");
-  const { Pressable, Text, View } = require("react-native");
-  return {
-    TrackMenu: ({ actions, onAction }: any) =>
-      React.createElement(
-        View,
-        null,
-        actions.map((action: any) =>
-          React.createElement(
-            Pressable,
-            {
-              key: action.id,
-              accessibilityLabel: action.title,
-              onPress: () => onAction(action.id),
-            },
-            React.createElement(Text, null, action.title),
-          ),
-        ),
-      ),
-  };
-});
-
 const mockOpenAddToPlaylist = jest.fn();
 jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   useAddToPlaylist: () => ({

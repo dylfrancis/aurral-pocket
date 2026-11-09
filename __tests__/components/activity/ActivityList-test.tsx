@@ -24,6 +24,10 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: jest.fn(() => () => false),
 }));
 
+jest.mock("@/contexts/auth-context", () => ({
+  useAuth: () => ({ user: { id: 7, role: "user", permissions: {} } }),
+}));
+
 jest.mock("@/lib/api/flow", () => ({
   getFlowStatus: jest.fn(),
 }));
@@ -364,6 +368,34 @@ describe("ActivityList", () => {
 
     expect(mockActivityActionsSheet).toHaveBeenLastCalledWith(
       expect.objectContaining({ request, downloadStatus: "downloading" }),
+    );
+  });
+
+  it("opens the actions for a failed track download", async () => {
+    mockUseHasPermission.mockReturnValue(() => true);
+    const download = makeHistoryItem({
+      id: "aurral-track_download-j1",
+      kind: "track_download",
+      source: "aurral",
+      title: "Failed Track One",
+      status: "failed",
+      statusLabel: "Failed",
+      jobId: "j1",
+      playlistId: "flow-1",
+      trackName: "Track One",
+    });
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [download],
+    });
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent(getByText("Failed Track One"), "longPress");
+
+    expect(mockActivityActionsSheet).toHaveBeenLastCalledWith(
+      expect.objectContaining({ request: download }),
     );
   });
 

@@ -17,6 +17,9 @@ jest.mock("@/lib/api/flow", () => ({
   deleteFlow: jest.fn(() => Promise.resolve()),
   getFlowStatus: jest.fn(),
   getPlaylistJobs: jest.fn(),
+  retryTrackJob: jest.fn((jobId: string) =>
+    Promise.resolve({ jobId, status: "pending" }),
+  ),
   startFlow: jest.fn(() => Promise.resolve()),
 }));
 
@@ -107,6 +110,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
@@ -117,6 +121,7 @@ import {
   deleteFlow,
   getFlowStatus,
   getPlaylistJobs,
+  retryTrackJob,
   startFlow,
 } from "@/lib/api/flow";
 import { playQueueFrom } from "@/lib/player/player";
@@ -271,12 +276,33 @@ describe("FlowDetailScreen", () => {
     });
   });
 
-  it("hides failed tracks, which the next run replaces", async () => {
-    serve({ jobs: [job("a"), job("b", { status: "failed" })] });
-
+  it("lists failed and cancelled tracks, and retries one from its menu", async () => {
+    serve({
+      jobs: [
+        job("a"),
+        job("b", { status: "failed" }),
+        job("c", { status: "cancelled" }),
+      ],
+    });
     await open();
+    expect(screen.getByText("Failed")).toBeTruthy();
+    expect(screen.getByText("Cancelled")).toBeTruthy();
+    serve({
+      jobs: [
+        job("a"),
+        job("b", { status: "pending" }),
+        job("c", { status: "cancelled" }),
+      ],
+    });
 
-    expect(screen.queryByText("Track b")).toBeNull();
+    await fireEvent.press(
+      within(screen.getByLabelText("More actions for Track b")).getByText(
+        "Retry Download",
+      ),
+    );
+
+    expect(retryTrackJob).toHaveBeenCalledWith("b");
+    expect(await screen.findByText("Queued")).toBeTruthy();
   });
 
   it("says how to get tracks when a turned-off flow has none", async () => {
@@ -327,12 +353,18 @@ describe("FlowDetailScreen", () => {
   it("saves a ready track to a playlist from its menu", async () => {
     await open();
 
-    await fireEvent.press(screen.getByLabelText("More actions for Track a"));
+    await fireEvent.press(
+      within(screen.getByLabelText("More actions for Track a")).getByText(
+        "Add to Playlist",
+      ),
+    );
 
     expect(screen.getByText("Adding Track a")).toBeTruthy();
   });
 
-  it("offers no menu on a track that isn't ready", async () => {
+  it("offers no menu on a track waiting for review", async () => {
+    serve({ jobs: [job("a"), job("b", { status: "blocked" })] });
+
     await open();
 
     expect(screen.queryByLabelText("More actions for Track b")).toBeNull();

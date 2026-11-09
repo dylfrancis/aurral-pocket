@@ -19,6 +19,10 @@ import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
 import { EmptyState } from "@/components/library/EmptyState";
 import { Text } from "@/components/ui/Text";
 import { PlaylistTrackRow } from "./PlaylistTrackRow";
+import type {
+  TrackMenuAction,
+  TrackMenuActionId,
+} from "@/components/player/track-menu-types";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
@@ -51,7 +55,9 @@ type Props = {
   header: ReactNode;
   emptyMessage: string;
   onPlayTrack: (jobId: string) => void;
-  trackMenuAction: (job: FlowJob) => (() => void) | undefined;
+  /** An empty list leaves the row without a menu. */
+  trackMenuActions: (job: FlowJob) => TrackMenuAction[];
+  onTrackMenuAction: (job: FlowJob, id: TrackMenuActionId) => void;
 };
 
 export function CollectionPage({
@@ -63,7 +69,8 @@ export function CollectionPage({
   header,
   emptyMessage,
   onPlayTrack,
-  trackMenuAction,
+  trackMenuActions,
+  onTrackMenuAction,
 }: Props) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
@@ -99,10 +106,11 @@ export function CollectionPage({
         job={job}
         position={position}
         onPress={job.status === "done" ? () => onPlayTrack(job.id) : undefined}
-        onMenuPress={trackMenuAction(job)}
+        menuActions={trackMenuActions(job)}
+        onMenuAction={onTrackMenuAction}
       />
     ),
-    [onPlayTrack, trackMenuAction],
+    [onPlayTrack, trackMenuActions, onTrackMenuAction],
   );
 
   const scrollY = useSharedValue(0);
