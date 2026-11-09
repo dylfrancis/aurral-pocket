@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import { Text } from "@/components/ui/Text";
 import { Colors, Fonts } from "@/constants/theme";
+import { useCoverColor } from "@/hooks/player/use-cover-color";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   next,
@@ -28,6 +29,8 @@ export function MiniPlayer({ compact = false }: MiniPlayerProps) {
   const router = useRouter();
   const track = useCurrentTrack();
   const state = usePlaybackState();
+  // Warms the cache, so the full player opens already tinted.
+  useCoverColor(track);
 
   if (!track) return null;
 

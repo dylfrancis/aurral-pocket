@@ -1,5 +1,9 @@
 import type { LibraryAlbumsParams } from "@/lib/types/library";
 
+export const playerKeys = {
+  coverColor: (imageUri: string) => ["player", "coverColor", imageUri] as const,
+};
+
 export const authKeys = {
   me: (serverUrl: string) => ["auth", "me", serverUrl] as const,
   health: (serverUrl: string) => ["auth", "health", serverUrl] as const,
