@@ -104,7 +104,11 @@ export function readOidcCompletion(url: string): OidcCompletion | null {
 }
 
 /** Runs the exchange inside the WebView, where the transaction cookie lives. */
-export function buildOidcExchangeScript(code: string): string {
+export function buildOidcExchangeScript(
+  code: string,
+  headers: Record<string, string> = {},
+): string {
+  const requestHeaders = { ...headers, "Content-Type": "application/json" };
   return `(function () {
   var send = function (message) {
     try {
@@ -115,7 +119,7 @@ export function buildOidcExchangeScript(code: string): string {
     fetch(${JSON.stringify(EXCHANGE_PATH)}, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: ${JSON.stringify(requestHeaders)},
       body: JSON.stringify({ code: ${JSON.stringify(code)} })
     })
       .then(function (response) {

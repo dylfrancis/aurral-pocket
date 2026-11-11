@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -11,15 +11,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 import type {
   ShouldStartLoadRequest,
+  WebViewErrorEvent,
   WebViewMessageEvent,
   WebViewNavigation,
+  WebViewNavigationEvent,
 } from "react-native-webview/lib/WebViewTypes";
 
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { isAccountSuspendedMessage } from "@/lib/api/client";
+import { customHeadersFor, isAccountSuspendedMessage } from "@/lib/api/client";
 import {
   buildOidcExchangePageUrl,
   buildOidcExchangeScript,
@@ -96,8 +98,18 @@ function OidcSignInFlow({
   const [phase, setPhase] = useState<Phase>("authorizing");
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [reloadedUri, setReloadedUri] = useState<string | null>(null);
   const exchangeCode = useRef<string | null>(null);
   const exchangeInjected = useRef(false);
+
+  const uri =
+    phase === "authorizing"
+      ? (reloadedUri ?? buildOidcLoginUrl(serverUrl))
+      : buildOidcExchangePageUrl(serverUrl);
+  const source = useMemo(() => {
+    const headers = customHeadersFor(uri);
+    return Object.keys(headers).length > 0 ? { uri, headers } : { uri };
+  }, [uri]);
 
   const fail = useCallback(
     (message: string) => {
@@ -138,9 +150,27 @@ function OidcSignInFlow({
     [phase, serverUrl, startExchange, fail],
   );
 
+  /**
+   * Source headers go with that one load only, and a proxy that sets no cookie
+   * (Cloudflare Access in strict mode) refuses a request without them, such as
+   * the provider's redirect back to the server. Returns true when it cancelled
+   * a navigation to load it again as the source.
+   */
+  const reloadWithHeaders = useCallback(
+    (request: ShouldStartLoadRequest): boolean => {
+      if (phase !== "authorizing" || request.isTopFrame === false) return false;
+      if (request.url === uri) return false;
+      if (Object.keys(customHeadersFor(request.url)).length === 0) return false;
+      setReloadedUri(request.url);
+      return true;
+    },
+    [phase, uri],
+  );
+
   const handleShouldStartLoad = useCallback(
-    (request: ShouldStartLoadRequest) => !consumeCompletion(request.url),
-    [consumeCompletion],
+    (request: ShouldStartLoadRequest) =>
+      !consumeCompletion(request.url) && !reloadWithHeaders(request),
+    [consumeCompletion, reloadWithHeaders],
   );
 
   // Backstop for a platform that skips `onShouldStartLoadWithRequest` on a
@@ -153,13 +183,20 @@ function OidcSignInFlow({
     [consumeCompletion],
   );
 
-  const handleLoadEnd = useCallback(() => {
-    if (phase !== "exchanging") return;
-    const code = exchangeCode.current;
-    if (!code || exchangeInjected.current) return;
-    exchangeInjected.current = true;
-    webViewRef.current?.injectJavaScript(buildOidcExchangeScript(code));
-  }, [phase]);
+  const handleLoadEnd = useCallback(
+    (event: WebViewNavigationEvent | WebViewErrorEvent) => {
+      if (phase !== "exchanging") return;
+      const code = exchangeCode.current;
+      if (!code || exchangeInjected.current) return;
+      exchangeInjected.current = true;
+      // Checked against the page, so a page on another host never sees them.
+      const headers = customHeadersFor(event.nativeEvent.url);
+      webViewRef.current?.injectJavaScript(
+        buildOidcExchangeScript(code, headers),
+      );
+    },
+    [phase],
+  );
 
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
@@ -182,13 +219,9 @@ function OidcSignInFlow({
     setError(null);
     exchangeCode.current = null;
     exchangeInjected.current = false;
+    setReloadedUri(null);
     setAttempt((value) => value + 1);
   }, []);
-
-  const uri =
-    phase === "authorizing"
-      ? buildOidcLoginUrl(serverUrl)
-      : buildOidcExchangePageUrl(serverUrl);
 
   return (
     <SafeAreaView
@@ -235,7 +268,7 @@ function OidcSignInFlow({
             // fresh transaction is wanted. Phase changes must not remount.
             key={attempt}
             ref={webViewRef}
-            source={{ uri }}
+            source={source}
             sharedCookiesEnabled={false}
             thirdPartyCookiesEnabled
             javaScriptEnabled

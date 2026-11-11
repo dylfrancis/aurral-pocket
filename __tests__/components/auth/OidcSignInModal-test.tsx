@@ -17,10 +17,10 @@ jest.mock("expo-haptics", () => ({
 }));
 
 type WebViewProps = {
-  source: { uri: string };
+  source: { uri: string; headers?: Record<string, string> };
   onShouldStartLoadWithRequest: (request: { url: string }) => boolean;
   onNavigationStateChange: (navigation: { url: string }) => void;
-  onLoadEnd: () => void;
+  onLoadEnd: (event: { nativeEvent: { url: string } }) => void;
   onMessage: (event: { nativeEvent: { url: string; data: string } }) => void;
   onError: () => void;
 };
@@ -46,9 +46,11 @@ jest.mock("react-native-webview", () => {
 import React from "react";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { OidcSignInModal } from "@/components/auth/OidcSignInModal";
+import { setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 
 const SERVER = "https://aurral.example.com";
 const COMPLETE = `${SERVER}/sso/complete#code=code-123`;
+const EXCHANGE_PAGE_LOAD = { nativeEvent: { url: `${SERVER}/sso/complete` } };
 
 const SESSION = {
   token: "t0ken",
@@ -113,7 +115,7 @@ describe("OidcSignInModal", () => {
       mockWebViewProps?.onShouldStartLoadWithRequest({ url: COMPLETE });
     });
     await act(async () => {
-      mockWebViewProps?.onLoadEnd();
+      mockWebViewProps?.onLoadEnd(EXCHANGE_PAGE_LOAD);
     });
 
     expect(mockInjectJavaScript).toHaveBeenCalledTimes(1);
@@ -122,14 +124,88 @@ describe("OidcSignInModal", () => {
     expect(script).toContain("code-123");
   });
 
+  describe("behind a proxy that wants custom headers", () => {
+    const PROXY = { "CF-Access-Client-Secret": "s3cr3t" };
+
+    beforeEach(() => {
+      setBaseUrl(SERVER);
+      setCustomHeaders(PROXY);
+    });
+
+    afterEach(() => {
+      setBaseUrl("");
+      setCustomHeaders({});
+    });
+
+    it("sends them to the server's sign-in page and with the exchange", async () => {
+      await renderModal();
+      expect(mockWebViewProps?.source).toEqual({
+        uri: `${SERVER}/api/auth/oidc/login`,
+        headers: PROXY,
+      });
+
+      await act(async () => {
+        mockWebViewProps?.onShouldStartLoadWithRequest({ url: COMPLETE });
+      });
+      await act(async () => {
+        mockWebViewProps?.onLoadEnd(EXCHANGE_PAGE_LOAD);
+      });
+
+      expect(mockInjectJavaScript.mock.calls[0][0]).toContain('"s3cr3t"');
+    });
+
+    it("carries them across the provider's redirect back to the server", async () => {
+      await renderModal();
+      const callback = `${SERVER}/sso/callback?code=abc&state=xyz`;
+      const navigate = (url: string) =>
+        mockWebViewProps?.onShouldStartLoadWithRequest({ url });
+
+      let allowed: boolean | undefined;
+      await act(async () => {
+        allowed = navigate("https://idp.example.com/authorize");
+      });
+      expect(allowed).toBe(true);
+
+      // Sent as the page sends it, the proxy would refuse it.
+      await act(async () => {
+        allowed = navigate(callback);
+      });
+      expect(allowed).toBe(false);
+      expect(mockWebViewProps?.source).toEqual({
+        uri: callback,
+        headers: PROXY,
+      });
+
+      await act(async () => {
+        allowed = navigate(callback);
+      });
+      expect(allowed).toBe(true);
+    });
+
+    it("keeps them out of a page that ended up on another host", async () => {
+      await renderModal();
+      await act(async () => {
+        mockWebViewProps?.onShouldStartLoadWithRequest({ url: COMPLETE });
+      });
+      await act(async () => {
+        mockWebViewProps?.onLoadEnd({
+          nativeEvent: { url: "https://idp.example.com/login" },
+        });
+      });
+
+      expect(mockInjectJavaScript).toHaveBeenCalledTimes(1);
+      expect(mockInjectJavaScript.mock.calls[0][0]).not.toContain("s3cr3t");
+    });
+  });
+
   it("does not run the exchange twice when the page reports two loads", async () => {
     await renderModal();
     await act(async () => {
       mockWebViewProps?.onShouldStartLoadWithRequest({ url: COMPLETE });
     });
     await act(async () => {
-      mockWebViewProps?.onLoadEnd();
-      mockWebViewProps?.onLoadEnd();
+      mockWebViewProps?.onLoadEnd(EXCHANGE_PAGE_LOAD);
+      mockWebViewProps?.onLoadEnd(EXCHANGE_PAGE_LOAD);
     });
     expect(mockInjectJavaScript).toHaveBeenCalledTimes(1);
   });
@@ -137,7 +213,7 @@ describe("OidcSignInModal", () => {
   it("does not run the exchange while still authorizing", async () => {
     await renderModal();
     await act(async () => {
-      mockWebViewProps?.onLoadEnd();
+      mockWebViewProps?.onLoadEnd(EXCHANGE_PAGE_LOAD);
     });
     expect(mockInjectJavaScript).not.toHaveBeenCalled();
   });
