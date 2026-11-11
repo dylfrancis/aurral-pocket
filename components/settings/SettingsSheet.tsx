@@ -3,6 +3,7 @@ import { AccountSection } from "@/components/settings/sections/AccountSection";
 import { AppearanceSection } from "@/components/settings/sections/AppearanceSection";
 import { LinksSection } from "@/components/settings/sections/LinksSection";
 import { PasswordSection } from "@/components/settings/sections/PasswordSection";
+import { ServerSection } from "@/components/settings/sections/ServerSection";
 import { Button } from "@/components/ui/Button";
 import { CloseButton } from "@/components/ui/CloseButton";
 import { Separator } from "@/components/ui/Separator";
@@ -81,6 +82,9 @@ export function SettingsSheet({ sheetRef, onClose }: Props) {
 
         <Separator style={styles.divider} />
         <PasswordSection />
+
+        <SectionHeading title="Server" />
+        <ServerSection />
 
         <SectionHeading title="About" />
         <AboutSection />
