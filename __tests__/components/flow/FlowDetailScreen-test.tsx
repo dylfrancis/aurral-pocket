@@ -15,12 +15,15 @@ jest.mock("@/lib/api/flow", () => ({
     Promise.resolve({ id: "pl-9", name: "Saved" }),
   ),
   deleteFlow: jest.fn(() => Promise.resolve()),
+  downloadSavedFlowTracks: jest.fn(() => Promise.resolve()),
   getFlowStatus: jest.fn(),
   getPlaylistJobs: jest.fn(),
+  researchFlowTrack: jest.fn(() => Promise.resolve()),
   retryTrackJob: jest.fn((jobId: string) =>
     Promise.resolve({ jobId, status: "pending" }),
   ),
   startFlow: jest.fn(() => Promise.resolve()),
+  updateFlow: jest.fn(() => Promise.resolve({})),
 }));
 
 jest.mock("@/lib/player/player", () => ({
@@ -61,10 +64,15 @@ jest.mock("expo-router", () => {
   const { Pressable, Text } = require("react-native");
   // The native menu renders nothing under Jest, so each action renders as a
   // pressable labelled by its title.
-  const MenuAction = ({ children, disabled, onPress }: any) =>
+  const MenuAction = ({ children, disabled, isOn, onPress }: any) =>
     React.createElement(
       Pressable,
-      { disabled, onPress },
+      {
+        accessibilityLabel: children,
+        accessibilityState: isOn === undefined ? undefined : { checked: isOn },
+        disabled,
+        onPress,
+      },
       React.createElement(Text, null, children),
     );
   const Passthrough = ({ children }: any) =>
@@ -115,14 +123,17 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { FlowDetailScreen } from "@/components/flow/FlowDetailScreen";
-import { setAuthToken, setBaseUrl } from "@/lib/api/client";
+import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
   convertFlowToStaticPlaylist,
   deleteFlow,
+  downloadSavedFlowTracks,
   getFlowStatus,
   getPlaylistJobs,
+  researchFlowTrack,
   retryTrackJob,
   startFlow,
+  updateFlow,
 } from "@/lib/api/flow";
 import { playQueueFrom } from "@/lib/player/player";
 import type { FlowJob } from "@/lib/types/flow";
@@ -157,6 +168,7 @@ const FLOW = {
   relatedArtists: [],
   scheduleDays: [1],
   scheduleTime: "06:00",
+  autoDownload: true,
   nextRunAt: null,
 };
 
@@ -305,6 +317,38 @@ describe("FlowDetailScreen", () => {
     expect(await screen.findByText("Queued")).toBeTruthy();
   });
 
+  describe("saved picks", () => {
+    beforeEach(() => {
+      serve({ jobs: [job("a"), job("s", { status: "saved" })] });
+    });
+
+    it("previews one alongside the downloaded tracks, without counting a play", async () => {
+      await open();
+      expect(screen.getByText("Not downloaded")).toBeTruthy();
+
+      await fireEvent.press(screen.getByText("Track s"));
+
+      const [items, startId] = mockPlayQueueFrom.mock.calls[0];
+      expect(items.map((item: { id: string }) => item.id)).toEqual(["a", "s"]);
+      expect(startId).toBe("s");
+      expect(items[0].recordHistory).not.toBe(false);
+      expect(items[1].recordHistory).toBe(false);
+    });
+
+    it("downloads one from its menu", async () => {
+      await open();
+
+      await fireEvent.press(
+        within(screen.getByLabelText("More actions for Track s")).getByText(
+          "Download",
+        ),
+      );
+
+      expect(researchFlowTrack).toHaveBeenCalledWith("flow-1", "s");
+      expect(await screen.findByText("Queued")).toBeTruthy();
+    });
+  });
+
   it("says how to get tracks when a turned-off flow has none", async () => {
     serve({ flow: { ...FLOW, enabled: false }, jobs: [] });
 
@@ -413,6 +457,88 @@ describe("FlowDetailScreen", () => {
           expected,
         ),
       );
+    });
+
+    describe("downloading saved picks", () => {
+      it("is offered only while some picks aren't downloaded", async () => {
+        await open();
+
+        expect(screen.queryByText(/^Download \d/)).toBeNull();
+      });
+
+      it("queues every saved pick", async () => {
+        serve({
+          jobs: [
+            job("a"),
+            job("s", { status: "saved" }),
+            job("t", { status: "saved" }),
+          ],
+        });
+        await open();
+
+        await fireEvent.press(screen.getByText("Download 2 Tracks"));
+
+        expect(downloadSavedFlowTracks).toHaveBeenCalledWith("flow-1");
+        expect(await screen.findAllByText("Queued")).toHaveLength(2);
+        expect(Burnt.toast).toHaveBeenCalledWith({
+          title: "Downloading 2 tracks",
+          preset: "done",
+        });
+      });
+
+      it("shows the server's reason when there is no download source", async () => {
+        const reason =
+          "No download source is configured. Configure yt-dlp in Settings → Downloads to enable downloads for flows and playlists.";
+        (downloadSavedFlowTracks as jest.Mock).mockRejectedValueOnce(
+          new ApiError(409, reason, { error: reason, message: reason }),
+        );
+        serve({ jobs: [job("a"), job("s", { status: "saved" })] });
+        await open();
+
+        await fireEvent.press(screen.getByText("Download 1 Track"));
+
+        await waitFor(() =>
+          expect(Alert.alert).toHaveBeenCalledWith("Couldn't Download", reason),
+        );
+        expect(screen.getByText("Not downloaded")).toBeTruthy();
+      });
+    });
+
+    describe("Download Automatically", () => {
+      it("turns off, so new picks wait to be downloaded", async () => {
+        await open();
+        const toggle = screen.getByLabelText("Download Automatically");
+        expect(toggle.props.accessibilityState).toEqual({ checked: true });
+
+        await fireEvent.press(toggle);
+
+        expect(updateFlow).toHaveBeenCalledWith("flow-1", {
+          autoDownload: false,
+        });
+        await waitFor(() =>
+          expect(Burnt.toast).toHaveBeenCalledWith({
+            title: "New tracks will wait for you to download them",
+            preset: "done",
+          }),
+        );
+      });
+
+      it("turns on and offers the picks saved while it was off", async () => {
+        serve({
+          flow: { ...FLOW, autoDownload: false },
+          jobs: [job("a"), job("s", { status: "saved" })],
+        });
+        await open();
+
+        await fireEvent.press(screen.getByLabelText("Download Automatically"));
+        await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
+        await confirmAlert("Download");
+
+        expect(updateFlow).toHaveBeenCalledWith("flow-1", {
+          autoDownload: true,
+        });
+        expect(downloadSavedFlowTracks).toHaveBeenCalledWith("flow-1");
+      });
     });
 
     it("can't convert a flow with nothing downloaded", async () => {

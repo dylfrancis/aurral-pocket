@@ -100,6 +100,22 @@ export async function startFlow(flowId: string, limit?: number): Promise<void> {
   await api.post(`${FLOW}/start/${flowId}`, limit ? { limit } : {});
 }
 
+/**
+ * Answers 409, with a message naming the sources to set up, when no download
+ * source is configured.
+ */
+export async function downloadSavedFlowTracks(flowId: string): Promise<void> {
+  await api.post(`${FLOW}/flows/${flowId}/download`);
+}
+
+/** Downloads a `saved` track, or searches again for any other finished one. */
+export async function researchFlowTrack(
+  flowId: string,
+  jobId: string,
+): Promise<void> {
+  await api.post(`${FLOW}/flows/${flowId}/tracks/${jobId}/research`);
+}
+
 export async function convertFlowToStaticPlaylist(
   flowId: string,
   name?: string,

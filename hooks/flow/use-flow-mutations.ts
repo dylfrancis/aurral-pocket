@@ -1,4 +1,9 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Alert } from "react-native";
+import {
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -10,6 +15,7 @@ import {
   deleteFlow,
   deleteSharedPlaylist,
   deleteSharedPlaylistTrack,
+  downloadSavedFlowTracks,
   getPlaylistJobs,
   researchSharedPlaylistTrack,
   setFlowEnabled,
@@ -18,9 +24,11 @@ import {
   updateFlow,
   updateSharedPlaylist,
 } from "@/lib/api/flow";
-import { flowKeys } from "@/lib/query-keys";
+import { activityKeys, flowKeys } from "@/lib/query-keys";
 import type {
+  Flow,
   FlowFormValues,
+  FlowJob,
   FlowStatusSnapshot,
   SharedPlaylistTrack,
 } from "@/lib/types/flow";
@@ -120,26 +128,29 @@ export function useDeleteFlow() {
   });
 }
 
+async function patchCachedFlow(
+  queryClient: QueryClient,
+  flowId: string,
+  patch: Partial<Flow>,
+) {
+  await queryClient.cancelQueries({ queryKey: flowKeys.status() });
+  const prev = queryClient.getQueryData<FlowStatusSnapshot>(flowKeys.status());
+  if (prev) {
+    queryClient.setQueryData<FlowStatusSnapshot>(flowKeys.status(), {
+      ...prev,
+      flows: prev.flows.map((f) => (f.id === flowId ? { ...f, ...patch } : f)),
+    });
+  }
+  return { prev };
+}
+
 export function useSetFlowEnabled() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ flowId, enabled }: { flowId: string; enabled: boolean }) =>
       setFlowEnabled(flowId, enabled),
-    onMutate: async ({ flowId, enabled }) => {
-      await queryClient.cancelQueries({ queryKey: flowKeys.status() });
-      const prev = queryClient.getQueryData<FlowStatusSnapshot>(
-        flowKeys.status(),
-      );
-      if (prev) {
-        queryClient.setQueryData<FlowStatusSnapshot>(flowKeys.status(), {
-          ...prev,
-          flows: prev.flows.map((f) =>
-            f.id === flowId ? { ...f, enabled } : f,
-          ),
-        });
-      }
-      return { prev };
-    },
+    onMutate: ({ flowId, enabled }) =>
+      patchCachedFlow(queryClient, flowId, { enabled }),
     onError: (err, { enabled }, context) => {
       if (context?.prev) {
         queryClient.setQueryData(flowKeys.status(), context.prev);
@@ -152,6 +163,84 @@ export function useSetFlowEnabled() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: flowKeys.status() });
       queryClient.invalidateQueries({ queryKey: flowKeys.jobsAll() });
+    },
+  });
+}
+
+export function useSetFlowAutoDownload() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      flowId,
+      autoDownload,
+    }: {
+      flowId: string;
+      autoDownload: boolean;
+    }) => updateFlow(flowId, { autoDownload }),
+    onMutate: ({ flowId, autoDownload }) =>
+      patchCachedFlow(queryClient, flowId, { autoDownload }),
+    onError: (err, _variables, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(flowKeys.status(), context.prev);
+      }
+      toastError("Couldn't change automatic downloads", err);
+    },
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: flowKeys.status() }),
+  });
+}
+
+function setCachedJobStatuses(
+  queryClient: QueryClient,
+  flowId: string,
+  jobIds: ReadonlySet<string>,
+  status: FlowJob["status"],
+) {
+  queryClient.setQueryData<FlowJob[]>(flowKeys.jobs(flowId), (jobs) =>
+    jobs?.map((job) => (jobIds.has(job.id) ? { ...job, status } : job)),
+  );
+}
+
+/**
+ * The server answers before the jobs move, so refetching them on success would
+ * bring back the saved rows for a moment.
+ */
+export function useDownloadSavedFlowTracks() {
+  const queryClient = useQueryClient();
+  const invalidate = useFlowInvalidate();
+  return useMutation({
+    mutationFn: (flowId: string) => downloadSavedFlowTracks(flowId),
+    onMutate: async (flowId) => {
+      await queryClient.cancelQueries({ queryKey: flowKeys.jobs(flowId) });
+      const savedIds = new Set(
+        queryClient
+          .getQueryData<FlowJob[]>(flowKeys.jobs(flowId))
+          ?.filter((job) => job.status === "saved")
+          .map((job) => job.id),
+      );
+      setCachedJobStatuses(queryClient, flowId, savedIds, "pending");
+      return { savedIds };
+    },
+    onSuccess: (_data, _flowId, { savedIds }) => {
+      Burnt.toast({
+        title: `Downloading ${savedIds.size} track${savedIds.size === 1 ? "" : "s"}`,
+        preset: "done",
+      });
+      void queryClient.invalidateQueries({ queryKey: flowKeys.status() });
+      void queryClient.invalidateQueries({ queryKey: activityKeys.list() });
+    },
+    onError: (err, flowId, context) => {
+      if (context) {
+        setCachedJobStatuses(queryClient, flowId, context.savedIds, "saved");
+      }
+      void invalidate();
+      // The message lists the sources to set up. It's too long for a toast,
+      // and Android's toast shows only the title.
+      if (err instanceof ApiError && err.status === 409) {
+        Alert.alert("Couldn't Download", err.message);
+        return;
+      }
+      toastError("Couldn't download tracks", err);
     },
   });
 }

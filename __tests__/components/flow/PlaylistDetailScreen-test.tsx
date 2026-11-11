@@ -16,6 +16,8 @@ jest.mock("@/lib/api/flow", () => ({
   cancelTrackJob: jest.fn(),
   getFlowStatus: jest.fn(),
   getPlaylistJobs: jest.fn(),
+  researchFlowTrack: jest.fn(() => Promise.resolve()),
+  researchSharedPlaylistTrack: jest.fn(() => Promise.resolve()),
   setRetryCyclePaused: jest.fn(() => Promise.resolve()),
 }));
 
@@ -136,6 +138,8 @@ import {
   deleteSharedPlaylistTrack,
   getFlowStatus,
   getPlaylistJobs,
+  researchFlowTrack,
+  researchSharedPlaylistTrack,
   setRetryCyclePaused,
 } from "@/lib/api/flow";
 import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
@@ -650,6 +654,17 @@ describe("PlaylistDetailScreen", () => {
 
       expect(deleteSharedPlaylistTrack).toHaveBeenCalledWith("pl-1", "b");
     });
+  });
+
+  // A shared playlist imported without its files arrives as saved tracks.
+  it("downloads a saved track through the playlist's own route", async () => {
+    serve({ jobs: [job("a"), job("s", { status: "saved" })] });
+    await open();
+
+    await pressTrackMenu("Track s", "Download");
+
+    expect(researchSharedPlaylistTrack).toHaveBeenCalledWith("pl-1", "s");
+    expect(researchFlowTrack).not.toHaveBeenCalled();
   });
 
   describe("stopping a download", () => {

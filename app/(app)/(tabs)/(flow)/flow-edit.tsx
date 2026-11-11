@@ -22,6 +22,7 @@ import { ScheduleHourPicker } from "@/components/flow/ScheduleHourPicker";
 import { FocusEditor } from "@/components/flow/FocusEditor";
 import { YearBoundInput } from "@/components/flow/YearBoundInput";
 import { useCreateFlow, useEditSnapshot, useUpdateFlow } from "@/hooks/flow";
+import { useSignedInHealth } from "@/hooks/auth/use-signed-in-health";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
@@ -43,6 +44,7 @@ function toFormValues(flow: Flow): FlowFormValues {
     // pre-2.5.0 server, which omits the field, seeds as enabled. Seeding false
     // here would send false back and turn the setting off.
     recordHistory: flow.recordHistory !== false,
+    autoDownload: flow.autoDownload,
     yearFrom: flow.yearFrom ?? null,
     yearTo: flow.yearTo ?? null,
     tags: [...flow.tags],
@@ -79,8 +81,9 @@ export default function FlowEditScreen() {
     !!editingId,
     (status) => status.flows.find((flow) => flow.id === editingId),
   );
+  const health = useSignedInHealth();
 
-  if (editingId && isLoading) {
+  if (editingId ? isLoading : health.isLoading) {
     return (
       <View
         style={[styles.placeholder, { backgroundColor: colors.background }]}
@@ -102,15 +105,30 @@ export default function FlowEditScreen() {
     );
   }
 
-  return <FlowEditForm editingId={editingId} existingFlow={existingFlow} />;
+  const downloadSources = health.data?.downloadSources;
+  return (
+    <FlowEditForm
+      editingId={editingId}
+      existingFlow={existingFlow}
+      // Aurral's default for a new flow. Without an answer, on is safe: a run
+      // with no download source saves its picks anyway.
+      newFlowAutoDownload={
+        downloadSources
+          ? Object.values(downloadSources).some((source) => source.configured)
+          : true
+      }
+    />
+  );
 }
 
 function FlowEditForm({
   editingId,
   existingFlow,
+  newFlowAutoDownload,
 }: {
   editingId: string | null;
   existingFlow: Flow | undefined;
+  newFlowAutoDownload: boolean;
 }) {
   const colors = Colors[useColorScheme()];
   const router = useRouter();
@@ -128,7 +146,7 @@ function FlowEditForm({
     resolver: zodResolver(flowFormSchema),
     defaultValues: existingFlow
       ? toFormValues(existingFlow)
-      : createDefaultFlowForm(),
+      : createDefaultFlowForm(newFlowAutoDownload),
   });
 
   const [
@@ -300,6 +318,27 @@ function FlowEditForm({
                 <Switch
                   value={value}
                   onValueChange={onChange}
+                  trackColor={{ false: colors.separator, true: colors.brand }}
+                  thumbColor={colors.switchThumb}
+                  ios_backgroundColor={colors.separator}
+                />
+              }
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="autoDownload"
+          render={({ field: { value, onChange } }) => (
+            <Section
+              title="Download Automatically"
+              subtitle="Download new picks as soon as a run finds them. When off, they wait in the flow as previews until you download them."
+              trailing={
+                <Switch
+                  value={value}
+                  onValueChange={onChange}
+                  accessibilityLabel="Download automatically"
                   trackColor={{ false: colors.separator, true: colors.brand }}
                   thumbColor={colors.switchThumb}
                   ios_backgroundColor={colors.separator}

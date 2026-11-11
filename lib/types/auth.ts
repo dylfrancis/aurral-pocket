@@ -66,6 +66,8 @@ export type HealthResponse = {
   api?: ApiContract;
   /** Sent only to a signed-in caller. */
   lidarrConfigured?: boolean;
+  /** Sent only to a signed-in caller. */
+  downloadSources?: Record<string, { configured: boolean }>;
 };
 
 export type LoginRequest = {

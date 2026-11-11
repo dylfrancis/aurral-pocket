@@ -114,6 +114,14 @@ export type PlaybackCollection = {
 };
 
 /**
+ * A saved job has no file yet: its stream path redirects to a 30-second Deezer
+ * preview.
+ */
+export function isPlayableJob(job: FlowJob) {
+  return job.status === "done" || job.status === "saved";
+}
+
+/**
  * The collection's cover stays off the track: it names the collection, not the
  * song. `albumCover` is the image if it's known yet.
  */
@@ -122,7 +130,7 @@ export function jobToPlayerTrack(
   collection: PlaybackCollection,
   albumCover: string | null = null,
 ): PlayerTrack | null {
-  if (job.status !== "done") return null;
+  if (!isPlayableJob(job)) return null;
 
   const streamPath = getFlowStreamPath(job.id);
   const url = buildAuthenticatedUrl(streamPath);
@@ -149,7 +157,7 @@ export function jobToPlayerTrack(
     },
     audioFormat: audioFormatLabel(job.qualityFormat, job.streamFormat),
     bitrateKbps: job.qualityBitrateKbps ?? null,
-    recordHistory: collection.recordHistory,
+    recordHistory: job.status === "saved" ? false : collection.recordHistory,
   };
 }
 

@@ -42,6 +42,11 @@ export type Flow = {
   tags: string[];
   excludeTags: string[];
   relatedArtists: string[];
+  /**
+   * When false, a run saves its picks as `saved` jobs until the user downloads
+   * them. Runs also save them when the server has no download source.
+   */
+  autoDownload: boolean;
   scheduleDays: number[];
   scheduleTime: string;
   nextRunAt: number | null;
@@ -99,7 +104,8 @@ export type FlowJobStatus =
   | "cancelled"
   | "blocked"
   | "done"
-  | "failed";
+  | "failed"
+  | "saved";
 
 export type FlowJob = {
   id: string;
@@ -194,6 +200,7 @@ export type FlowFormValues = {
   deepDive: boolean;
   recentListening: boolean;
   recordHistory: boolean;
+  autoDownload: boolean;
   yearFrom: number | null;
   yearTo: number | null;
   tags: string[];
@@ -213,13 +220,14 @@ export const DEFAULT_MIX: MixPercent = {
 
 export const DEFAULT_FLOW_SIZE = 30;
 
-export const createDefaultFlowForm = (): FlowFormValues => ({
+export const createDefaultFlowForm = (autoDownload = true): FlowFormValues => ({
   name: "Discover",
   size: DEFAULT_FLOW_SIZE,
   mix: DEFAULT_MIX,
   deepDive: false,
   recentListening: false,
   recordHistory: true,
+  autoDownload,
   yearFrom: null,
   yearTo: null,
   tags: [],

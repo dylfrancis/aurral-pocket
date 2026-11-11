@@ -15,6 +15,8 @@ export {
   useDeleteFlow,
   useDeleteSharedPlaylist,
   useDeleteSharedPlaylistTrack,
+  useDownloadSavedFlowTracks,
+  useSetFlowAutoDownload,
   useSetFlowEnabled,
   useSetRetryCyclePaused,
   useStartFlow,
@@ -22,6 +24,7 @@ export {
   useUpdateSharedPlaylist,
 } from "./use-flow-mutations";
 export {
+  useDownloadSavedTrack,
   useRetryTrackDownload,
   useStopTrackDownload,
   useTrackJobMenu,
