@@ -46,6 +46,7 @@ describe("activityJobControls", () => {
     canonicalAlbumId: null,
     requestedBy: { id: 7, username: "me" },
     sourceFilename: null,
+    upgrade: null,
     inQueue: false,
     canReSearch: false,
     ...overrides,

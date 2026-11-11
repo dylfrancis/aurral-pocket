@@ -3,9 +3,24 @@ import { aurralStatusKey } from "@/lib/library-read";
 export type RequestStatus = "processing" | "available" | "failed";
 
 /**
- * Where Aurral sourced an activity entry. Only history items carry this.
+ * Where Aurral sourced an activity entry. Only history items carry this. A
+ * track download names its download client, or "unknown" when the job never
+ * recorded one.
  */
-export type ActivitySource = "lidarr" | "slskd" | "aurral";
+export type ActivitySource =
+  | "lidarr"
+  | "aurral"
+  | "slskd"
+  | "nzbget"
+  | "sabnzbd"
+  | "tidarr"
+  | "ytdlp"
+  | "deemix"
+  | "share"
+  | "unknown";
+
+/** Set when a download replaces a file already in the library. */
+export type ActivityUpgrade = { fromQuality: string | null };
 
 /**
  * A Lidarr-backed album request. Aurral builds these from Lidarr's queue and
@@ -75,6 +90,7 @@ export type ActivityHistoryItem = {
   canonicalAlbumId: string | null;
   requestedBy: { id: number | string; username: string | null } | null;
   sourceFilename: string | null;
+  upgrade: ActivityUpgrade | null;
   inQueue: boolean;
   canReSearch: boolean;
 };
