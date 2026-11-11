@@ -1,4 +1,5 @@
 import type { OidcSession, User } from "@/lib/types/auth";
+import { originOf } from "@/lib/url";
 
 /**
  * OpenID Connect sign-in against an Aurral server.
@@ -33,16 +34,7 @@ export type OidcMessage =
   | { type: "session"; session: OidcSession }
   | { type: "error"; message: string };
 
-/**
- * React Native's `URL` does not parse, so every helper here works on strings.
- * Switching to `URL` would pass under Jest, which has Node's real one, then
- * silently misread URLs on device.
- */
-function originOf(url: string): string {
-  const match = /^(https?:\/\/[^/?#]+)/i.exec(url.trim());
-  return match ? match[1].toLowerCase() : "";
-}
-
+// React Native's `URL` does not parse, so every helper here works on strings.
 function pathOf(url: string): string {
   const trimmed = url.trim();
   const rest = trimmed.slice(originOf(trimmed).length);

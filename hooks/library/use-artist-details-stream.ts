@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
+import { customHeadersFor } from "@/lib/api/client";
 import { streamSSE } from "@/lib/sse";
 import { libraryKeys } from "@/lib/query-keys";
 import type { ArtistTag, ReleaseGroup } from "@/lib/types/library";
@@ -48,13 +49,12 @@ export function useArtistDetailsStream(mbid: string | undefined) {
         isComplete,
       });
 
-      const authHeaders: Record<string, string> = token
-        ? { Authorization: `Bearer ${token}` }
-        : {};
+      const headers = customHeadersFor(url);
+      if (token) headers.Authorization = `Bearer ${token}`;
       try {
         for await (const evt of streamSSE(url, {
           signal,
-          headers: authHeaders,
+          headers,
         })) {
           if (signal.aborted) break;
           if (evt.event === "complete") {

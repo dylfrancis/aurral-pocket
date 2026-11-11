@@ -8,6 +8,7 @@ jest.mock("react-native-safe-area-context", () => ({
 
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(),
+  selectionAsync: jest.fn(),
   ImpactFeedbackStyle: { Light: "light" },
 }));
 
@@ -58,7 +59,7 @@ jest.mock("@gorhom/bottom-sheet", () => {
     BottomSheetModal: BottomSheet,
     BottomSheetBackdrop: (props: any) => React.createElement(View, props),
     BottomSheetTextInput: (props: any) => React.createElement(TextInput, props),
-    BottomSheetView: ({ children, ...props }: any) =>
+    BottomSheetScrollView: ({ children, ...props }: any) =>
       React.createElement(View, props, children),
   };
 });
@@ -130,8 +131,78 @@ describe("ConnectSheet", () => {
     await fireEvent.press(getByText("Connect"));
 
     await waitFor(() => {
-      expect(mutate).toHaveBeenCalledWith("https://my-server.com");
+      expect(mutate).toHaveBeenCalledWith({
+        url: "https://my-server.com",
+        headers: {},
+      });
     });
+  });
+
+  it("connects with the headers entered under Advanced", async () => {
+    const mutate = jest.fn();
+    mockUseServerConnect.mockReturnValue({
+      mutate,
+      reset: jest.fn(),
+      isPending: false,
+      error: null,
+    });
+
+    const screen = await render(<ConnectSheet />);
+    await fireEvent.changeText(
+      screen.getByPlaceholderText("https://your-server.example.com"),
+      "https://my-server.com",
+    );
+    await fireEvent.press(screen.getByText("Advanced"));
+    await fireEvent.changeText(
+      screen.getByLabelText("Header name"),
+      " CF-Access-Client-Id ",
+    );
+    await fireEvent.changeText(
+      screen.getByLabelText("Value for CF-Access-Client-Id"),
+      "id.access",
+    );
+    await fireEvent.press(screen.getByText("Connect"));
+
+    await waitFor(() => {
+      expect(mutate).toHaveBeenCalledWith({
+        url: "https://my-server.com",
+        headers: { "CF-Access-Client-Id": "id.access" },
+      });
+    });
+  });
+
+  it("reopens Advanced to show a header that blocks connecting", async () => {
+    const mutate = jest.fn();
+    mockUseServerConnect.mockReturnValue({
+      mutate,
+      reset: jest.fn(),
+      isPending: false,
+      error: null,
+    });
+
+    const screen = await render(<ConnectSheet />);
+    await fireEvent.changeText(
+      screen.getByPlaceholderText("https://your-server.example.com"),
+      "https://my-server.com",
+    );
+    await fireEvent.press(screen.getByText("Advanced"));
+    await fireEvent.changeText(
+      screen.getByLabelText("Header name"),
+      "Authorization",
+    );
+    await fireEvent.changeText(
+      screen.getByLabelText("Value for Authorization"),
+      "Basic abc",
+    );
+    await fireEvent.press(screen.getByText("Advanced"));
+    await fireEvent.press(screen.getByText("Connect"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Aurral Pocket sets Authorization itself."),
+      ).toBeTruthy();
+    });
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it("does not call mutate with invalid URL", async () => {

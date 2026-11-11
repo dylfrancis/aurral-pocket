@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { serverImageSource } from "@/lib/api/client";
+import { imageSource, serverImageSource } from "@/lib/api/client";
 
 type PlayerArtworkProps = {
   url: string | null;
@@ -30,7 +30,7 @@ export function PlayerArtwork({
     serverSource && serverSource.uri !== failedUri
       ? serverSource
       : url
-        ? { uri: url }
+        ? imageSource(url)
         : null;
   const colors = Colors[useColorScheme()];
   const sizeStyle =

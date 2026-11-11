@@ -27,6 +27,7 @@ const KEYS = {
   PLAYBACK_QUEUE: "playback_queue",
   PLAY_EVENT_OUTBOX: "play_event_outbox",
   DATE_TIME_FORMAT: "date_time_format",
+  CUSTOM_HEADERS: "custom_headers",
 } as const;
 
 export const SecureStorage = {
@@ -185,6 +186,44 @@ export const SecureStorage = {
   async deleteUseBiometrics(): Promise<void> {
     try {
       await SecureStore.deleteItemAsync(KEYS.USE_BIOMETRICS);
+    } catch {}
+  },
+
+  /** Kept here, not in AsyncStorage, because a proxy header is often a secret. */
+  async getCustomHeaders(): Promise<Record<string, string>> {
+    try {
+      const raw = await SecureStore.getItemAsync(KEYS.CUSTOM_HEADERS);
+      if (!raw) return {};
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return {};
+      }
+      return Object.fromEntries(
+        Object.entries(parsed).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string",
+        ),
+      );
+    } catch {
+      return {};
+    }
+  },
+
+  async setCustomHeaders(headers: Record<string, string>): Promise<void> {
+    try {
+      if (Object.keys(headers).length === 0) {
+        await SecureStore.deleteItemAsync(KEYS.CUSTOM_HEADERS);
+        return;
+      }
+      await SecureStore.setItemAsync(
+        KEYS.CUSTOM_HEADERS,
+        JSON.stringify(headers),
+      );
+    } catch {}
+  },
+
+  async deleteCustomHeaders(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(KEYS.CUSTOM_HEADERS);
     } catch {}
   },
 };

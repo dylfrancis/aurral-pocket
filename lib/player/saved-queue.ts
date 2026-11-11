@@ -1,5 +1,5 @@
 import { fetch } from "expo/fetch";
-import { buildAuthenticatedUrl } from "@/lib/api/client";
+import { buildAuthenticatedUrl, customHeadersFor } from "@/lib/api/client";
 import type { TrackFavorite } from "@/lib/api/library";
 import type { RepeatMode } from "@/lib/player/player";
 import type { PlayerAlbumContext, PlayerTrack } from "@/lib/player/track-item";
@@ -231,7 +231,7 @@ async function stillStreams(url: string): Promise<boolean> {
   const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
-      headers: { Range: "bytes=0-0" },
+      headers: { ...customHeadersFor(url), Range: "bytes=0-0" },
       signal: controller.signal,
     });
     return response.status !== 404 && response.status !== 410;

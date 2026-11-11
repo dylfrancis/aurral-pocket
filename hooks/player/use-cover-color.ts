@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getColors } from "react-native-image-colors";
-import { serverImageSource } from "@/lib/api/client";
+import { imageSource, serverImageSource } from "@/lib/api/client";
 import { pickCoverColor } from "@/lib/player/artwork-tint";
 import type { PlayerTrack } from "@/lib/player/track-item";
 import { playerKeys } from "@/lib/query-keys";
@@ -14,7 +14,7 @@ export function useCoverColor(
   // The same order PlayerArtwork loads in: the server's cover, then the URL.
   const sources = [
     serverImageSource(track?.coverPath),
-    track?.artwork ? { uri: track.artwork } : null,
+    track?.artwork ? imageSource(track.artwork) : null,
   ].filter((source): source is ImageSource => source !== null);
   const key = sources[0]?.uri ?? null;
 

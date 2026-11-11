@@ -4,6 +4,7 @@ jest.mock("@/lib/api/client", () => ({
     get: jest.fn(),
     post: jest.fn(),
   },
+  customHeadersFor: jest.fn(() => ({})),
 }));
 
 import { api } from "@/lib/api/client";

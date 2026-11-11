@@ -1,5 +1,6 @@
 import { SecureStorage } from "@/lib/storage";
 import type { LoginResponse } from "@/lib/types/auth";
+import { originOf } from "@/lib/url";
 import { fetch } from "expo/fetch";
 
 /**
@@ -60,6 +61,7 @@ type ApiResponse<T> = { data: T; status: number };
 
 let baseURL = "";
 let authToken: string | null = null;
+let customHeaders: Record<string, string> = {};
 let onSessionExpired: (() => void) | null = null;
 let onAccountSuspended: (() => void) | null = null;
 let onAuthRefreshed:
@@ -70,6 +72,38 @@ const defaultTimeoutMs = 60_000;
 
 export function setBaseUrl(url: string) {
   baseURL = url ? `${url}/api` : "";
+}
+
+/**
+ * Headers the user added for a reverse proxy in front of Aurral, such as a
+ * Cloudflare Access service token.
+ */
+export function setCustomHeaders(headers: Record<string, string>) {
+  customHeaders = headers;
+}
+
+/**
+ * Only the server's own origin gets them, so a proxy secret never reaches
+ * Deezer, MusicBrainz or a sign-in provider.
+ */
+export function customHeadersFor(url: string): Record<string, string> {
+  if (!baseURL || Object.keys(customHeaders).length === 0) return {};
+  return originOf(url) === originOf(baseURL) ? { ...customHeaders } : {};
+}
+
+function toImageSource(
+  uri: string,
+  headers: Record<string, string>,
+): ServerImageSource {
+  return Object.keys(headers).length > 0 ? { uri, headers } : { uri };
+}
+
+/**
+ * For an absolute URL that may be the server's own, such as an image-proxy
+ * cover from the MBID lookup.
+ */
+export function imageSource(uri: string): ServerImageSource {
+  return toImageSource(uri, customHeadersFor(uri));
 }
 
 export function absolutizeServerPath(urlOrPath: string): string {
@@ -100,12 +134,12 @@ export function serverImageSource(
   raw: string | null | undefined,
 ): ServerImageSource | null {
   if (!raw) return null;
-  if (!raw.startsWith("/")) return { uri: absolutizeImageUrl(raw)! };
+  if (!raw.startsWith("/")) return imageSource(absolutizeImageUrl(raw)!);
   if (!baseURL) return null;
   const uri = absolutizeImageUrl(raw)!;
-  return authToken
-    ? { uri, headers: { Authorization: `Bearer ${authToken}` } }
-    : { uri };
+  const headers = customHeadersFor(uri);
+  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+  return toImageSource(uri, headers);
 }
 
 /**
@@ -273,6 +307,7 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
   const url = buildUrl(path, config.params);
   const headers: Record<string, string> = {
+    ...customHeadersFor(url),
     "Content-Type": "application/json",
   };
   if (authToken) headers.Authorization = `Bearer ${authToken}`;

@@ -15,6 +15,7 @@ jest.mock("@/lib/api/client", () => ({
   notifyReAuthResult: jest.fn(),
   setAuthToken: jest.fn(),
   setBaseUrl: jest.fn(),
+  setCustomHeaders: jest.fn(),
   setOnAccountSuspended: jest.fn(),
   setOnSessionExpired: jest.fn(),
   setOnAuthRefreshed: jest.fn(),
@@ -31,7 +32,12 @@ import { render, waitFor, fireEvent, act } from "@testing-library/react-native";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
-import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
+import {
+  ApiError,
+  setAuthToken,
+  setBaseUrl,
+  setCustomHeaders,
+} from "@/lib/api/client";
 import { getMe, login } from "@/lib/api/auth";
 import { TrackPlayer } from "react-native-nitro-player";
 
@@ -124,12 +130,14 @@ afterEach(() => {
 });
 
 describe("AuthProvider — restore on mount", () => {
-  it("restores token, user, and server URL", async () => {
+  it("restores token, user, server URL and its custom headers", async () => {
     mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
     mockSecureStore.getItemAsync.mockImplementation(async (key) => {
       if (key === "auth_token") return "my-token";
       if (key === "user_json")
         return '{"id":1,"username":"alice","role":"user"}';
+      if (key === "custom_headers")
+        return '{"CF-Access-Client-Id":"id.access"}';
       return null;
     });
 
@@ -145,6 +153,10 @@ describe("AuthProvider — restore on mount", () => {
 
     expect(setBaseUrl).toHaveBeenCalledWith("https://my-server.com");
     expect(setAuthToken).toHaveBeenCalledWith("my-token");
+    // Before the first request, or a proxy would turn it away.
+    expect(setCustomHeaders).toHaveBeenCalledWith({
+      "CF-Access-Client-Id": "id.access",
+    });
   });
 
   it("starts with null state when nothing stored", async () => {
@@ -476,6 +488,11 @@ describe("AuthProvider — clearAll", () => {
       "saved_password",
     );
     expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("server_url");
+    // The headers belong to the server, so the next one starts without them.
+    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(
+      "custom_headers",
+    );
+    expect(setCustomHeaders).toHaveBeenCalledWith({});
   });
 });
 

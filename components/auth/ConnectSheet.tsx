@@ -1,10 +1,10 @@
-import React, { forwardRef, useCallback, useRef } from "react";
-import { Keyboard, Linking, Pressable, StyleSheet } from "react-native";
+import React, { forwardRef, useCallback, useRef, useState } from "react";
+import { Keyboard, Linking, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetModal,
+  BottomSheetScrollView,
   BottomSheetTextInput,
-  BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { AppSheet } from "@/components/ui/AppSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,13 +13,22 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
+import {
+  CustomHeadersEditor,
+  headerRowMessages,
+} from "@/components/auth/CustomHeadersEditor";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useServerConnect } from "@/hooks/auth/use-server-connect";
-import { Colors } from "@/constants/theme";
+import { Colors, Fonts } from "@/constants/theme";
 import { ApiError } from "@/lib/api/client";
+import {
+  headerRowsSchema,
+  newHeaderRow,
+  rowsToHeaders,
+} from "@/lib/custom-headers";
 
 const connectSchema = z.object({
   url: z
@@ -29,6 +38,7 @@ const connectSchema = z.object({
     .refine((v) => v.startsWith("http://") || v.startsWith("https://"), {
       message: "URL must start with http:// or https://",
     }),
+  headers: headerRowsSchema,
 });
 
 type ConnectForm = z.infer<typeof connectSchema>;
@@ -51,6 +61,7 @@ export const ConnectSheet = forwardRef<BottomSheetModal>(
     const connectMutation = useServerConnect();
     const resetRef = useRef(connectMutation.reset);
     resetRef.current = connectMutation.reset;
+    const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const {
       control,
@@ -59,18 +70,27 @@ export const ConnectSheet = forwardRef<BottomSheetModal>(
       reset,
     } = useForm<ConnectForm>({
       resolver: zodResolver(connectSchema),
-      defaultValues: { url: "" },
+      defaultValues: { url: "", headers: [newHeaderRow()] },
     });
 
     const onSubmit = async (data: ConnectForm) => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      connectMutation.mutate(data.url.trim());
+      connectMutation.mutate({
+        url: data.url.trim(),
+        headers: rowsToHeaders(data.headers),
+      });
     };
+
+    // A header filled in and then folded away must still show its error.
+    const submit = handleSubmit(onSubmit, (invalidFields) => {
+      if (invalidFields.headers) setAdvancedOpen(true);
+    });
 
     const handleDismiss = useCallback(() => {
       Keyboard.dismiss();
       resetRef.current();
       reset();
+      setAdvancedOpen(false);
     }, [reset]);
 
     const errorMessage =
@@ -86,8 +106,12 @@ export const ConnectSheet = forwardRef<BottomSheetModal>(
         keyboardBlurBehavior="restore"
         onDismiss={handleDismiss}
       >
-        <BottomSheetView
-          style={[styles.content, { paddingBottom: insets.bottom + 16 }]}
+        <BottomSheetScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: insets.bottom + 16 },
+          ]}
+          keyboardShouldPersistTaps="handled"
         >
           <Text variant="title" style={styles.title}>
             Connect to Server
@@ -127,11 +151,56 @@ export const ConnectSheet = forwardRef<BottomSheetModal>(
                 keyboardType="url"
                 textContentType="URL"
                 returnKeyType="go"
-                onSubmitEditing={() => handleSubmit(onSubmit)()}
+                onSubmitEditing={() => submit()}
                 editable={!connectMutation.isPending}
               />
             )}
           />
+
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setAdvancedOpen((open) => !open);
+            }}
+            style={({ pressed }) => [
+              styles.advancedHeader,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: advancedOpen }}
+          >
+            <Text
+              variant="body"
+              style={[styles.advancedLabel, { ...Fonts.medium }]}
+            >
+              Advanced
+            </Text>
+            <Ionicons
+              name={advancedOpen ? "chevron-up" : "chevron-down"}
+              size={18}
+              color={colors.subtle}
+            />
+          </Pressable>
+
+          {advancedOpen ? (
+            <View style={styles.advanced}>
+              <Text variant="caption" style={styles.advancedHeading}>
+                Custom Headers
+              </Text>
+              <Controller
+                control={control}
+                name="headers"
+                render={({ field: { onChange, value } }) => (
+                  <CustomHeadersEditor
+                    rows={value}
+                    onChange={onChange}
+                    errors={headerRowMessages(errors.headers, value.length)}
+                    editable={!connectMutation.isPending}
+                  />
+                )}
+              />
+            </View>
+          ) : null}
 
           {errorMessage && (
             <Text variant="error" style={styles.error}>
@@ -141,10 +210,10 @@ export const ConnectSheet = forwardRef<BottomSheetModal>(
 
           <Button
             title="Connect"
-            onPress={() => handleSubmit(onSubmit)()}
+            onPress={() => submit()}
             loading={connectMutation.isPending}
           />
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </AppSheet>
     );
   },
@@ -169,7 +238,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   input: {
+    marginBottom: 4,
+  },
+  advancedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    marginBottom: 4,
+  },
+  advancedLabel: {
+    flex: 1,
+  },
+  advanced: {
     marginBottom: 12,
+  },
+  advancedHeading: {
+    marginBottom: 8,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   error: {
     marginBottom: 12,

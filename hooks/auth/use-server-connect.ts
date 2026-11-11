@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
-import { setBaseUrl } from "@/lib/api/client";
+import { setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import {
   checkServerLive,
   getServerHealth,
@@ -11,13 +11,20 @@ function normalizeUrl(url: string): string {
   return url.trim().replace(/\/+$/, "");
 }
 
+type ServerConnection = {
+  url: string;
+  /** Applied before the health check, which a proxy refuses without them. */
+  headers: Record<string, string>;
+};
+
 export function useServerConnect() {
   const { setServer } = useAuth();
 
   return useMutation({
-    mutationFn: async (url: string) => {
+    mutationFn: async ({ url, headers }: ServerConnection) => {
       const normalized = normalizeUrl(url);
       setBaseUrl(normalized);
+      setCustomHeaders(headers);
       await checkServerLive();
       const health = await getServerHealth();
       // A new contract version means a breaking change pocket has not
@@ -27,13 +34,14 @@ export function useServerConnect() {
           "This server is newer than Aurral Pocket supports. Update the app and try again.",
         );
       }
-      return { url: normalized, health };
+      return { url: normalized, health, headers };
     },
-    onSuccess: ({ url, health }) => {
-      setServer(url, health);
+    onSuccess: ({ url, health, headers }) => {
+      setServer(url, health, headers);
     },
     onError: () => {
       setBaseUrl("");
+      setCustomHeaders({});
     },
   });
 }

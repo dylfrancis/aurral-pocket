@@ -4,7 +4,7 @@ import { Image, type ImageStyle } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCoverArtUrl } from "@/hooks/library/use-cover-art-url";
-import { serverImageSource } from "@/lib/api/client";
+import { imageSource, serverImageSource } from "@/lib/api/client";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import type { AlbumCoverHints } from "@/lib/api/library";
@@ -51,7 +51,7 @@ export function CoverArtImage({
   const source = loadFromServer
     ? serverSource
     : mbidLookup.url
-      ? { uri: mbidLookup.url }
+      ? imageSource(mbidLookup.url)
       : null;
   const isLoading = !loadFromServer && mbidLookup.isLoading;
   const failed = !!source && failedUris.includes(source.uri);
