@@ -3,11 +3,13 @@ import { Alert, StyleSheet, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
 import PlayArrow from "@expo/material-symbols/play_arrow.xml";
 import Bookmark from "@expo/material-symbols/bookmark.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
+import DownloadIcon from "@expo/material-symbols/download.xml";
 
 import { EmptyState } from "@/components/library/EmptyState";
 import { CircleButton } from "@/components/ui/CircleButton";
@@ -28,8 +30,10 @@ import { ProgressBar } from "./ProgressBar";
 import {
   useConvertFlowToStaticPlaylist,
   useDeleteFlow,
+  useDownloadSavedFlowTracks,
   useFlowStatusSuspense,
   usePlaylistJobs,
+  useSetFlowAutoDownload,
   useStartFlow,
   useTrackJobMenu,
 } from "@/hooks/flow";
@@ -67,6 +71,10 @@ function nextStaticPlaylistName(flowName: string, playlists: SharedPlaylist[]) {
   let name = base;
   for (let n = 2; taken.has(toKey(name)); n += 1) name = `${base} ${n}`;
   return name;
+}
+
+function trackCountLabel(count: number) {
+  return `${count} Track${count === 1 ? "" : "s"}`;
 }
 
 export function FlowDetailScreen() {
@@ -139,7 +147,14 @@ function FlowPage({
   const startFlow = useStartFlow();
   const deleteFlow = useDeleteFlow();
   const convertFlow = useConvertFlowToStaticPlaylist();
+  const setAutoDownload = useSetFlowAutoDownload();
+  const downloadSaved = useDownloadSavedFlowTracks();
   const addToPlaylist = useAddToPlaylist();
+
+  const savedCount = useMemo(
+    () => jobs.filter((job) => job.status === "saved").length,
+    [jobs],
+  );
 
   const startMutate = startFlow.mutate;
   const handleStartNow = useCallback(() => {
@@ -173,6 +188,52 @@ function FlowPage({
     );
   }, [flow.id, flow.name, queryClient, convertMutate]);
 
+  const downloadSavedMutate = downloadSaved.mutate;
+  const handleDownloadSaved = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    downloadSavedMutate(flow.id);
+  }, [flow.id, downloadSavedMutate]);
+
+  const setAutoDownloadMutate = setAutoDownload.mutate;
+  const handleToggleAutoDownload = useCallback(() => {
+    void Haptics.selectionAsync();
+    const autoDownload = !flow.autoDownload;
+    setAutoDownloadMutate(
+      { flowId: flow.id, autoDownload },
+      {
+        onSuccess: () => {
+          // Picks saved while it was off stay saved, so offer them too.
+          if (autoDownload && savedCount > 0) {
+            Alert.alert(
+              "Download Saved Tracks",
+              `Download the ${savedCount === 1 ? "track" : `${savedCount} tracks`} already in this flow? New tracks will download automatically from now on.`,
+              [
+                { text: "Not Now", style: "cancel" },
+                {
+                  text: "Download",
+                  onPress: () => downloadSavedMutate(flow.id),
+                },
+              ],
+            );
+            return;
+          }
+          Burnt.toast({
+            title: autoDownload
+              ? "New tracks will download automatically"
+              : "New tracks will wait for you to download them",
+            preset: "done",
+          });
+        },
+      },
+    );
+  }, [
+    flow.id,
+    flow.autoDownload,
+    savedCount,
+    setAutoDownloadMutate,
+    downloadSavedMutate,
+  ]);
+
   const deleteMutate = deleteFlow.mutate;
   const handleDelete = useCallback(() => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -200,7 +261,7 @@ function FlowPage({
   // playlist is how it survives the next refresh.
   const openAddToPlaylist = addToPlaylist.open;
   const { actionsFor: jobActionsFor, runAction: runJobAction } =
-    useTrackJobMenu();
+    useTrackJobMenu("flow");
   const trackMenuActions = useCallback(
     (job: FlowJob): TrackMenuAction[] =>
       job.status === "done"
@@ -224,6 +285,7 @@ function FlowPage({
 
   const isStartPending = startFlow.isPending;
   const isConvertPending = convertFlow.isPending;
+  const isDownloadPending = downloadSaved.isPending;
   const hasReadyTracks = (stats?.done ?? 0) > 0;
   const toolbar = useMemo(
     () => (
@@ -239,12 +301,27 @@ function FlowPage({
           >
             Start Now
           </Stack.Toolbar.MenuAction>
+          {savedCount > 0 ? (
+            <Stack.Toolbar.MenuAction
+              icon={IS_IOS ? "arrow.down.circle" : DownloadIcon}
+              disabled={isDownloadPending}
+              onPress={handleDownloadSaved}
+            >
+              {`Download ${trackCountLabel(savedCount)}`}
+            </Stack.Toolbar.MenuAction>
+          ) : null}
           <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "bookmark" : Bookmark}
             disabled={isConvertPending || !hasReadyTracks}
             onPress={handleConvert}
           >
             Convert to Static
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction
+            isOn={flow.autoDownload}
+            onPress={handleToggleAutoDownload}
+          >
+            Download Automatically
           </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "trash" : DeleteIcon}
@@ -259,9 +336,14 @@ function FlowPage({
     [
       isStartPending,
       isConvertPending,
+      isDownloadPending,
       hasReadyTracks,
+      savedCount,
+      flow.autoDownload,
       handleStartNow,
+      handleDownloadSaved,
       handleConvert,
+      handleToggleAutoDownload,
       handleDelete,
     ],
   );

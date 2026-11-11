@@ -13,6 +13,7 @@ import {
 } from "@/lib/player/player";
 import {
   collectionPlayerContext,
+  isPlayableJob,
   jobToPlayerTrack,
   type PlaybackCollection,
   type PlayerTrack,
@@ -124,7 +125,7 @@ export function usePlaylistPlayback(
   );
 
   return {
-    canPlay: jobs.some((job) => job.status === "done"),
+    canPlay: jobs.some(isPlayableJob),
     playFrom,
     playAll,
     shuffle,

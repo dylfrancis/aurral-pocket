@@ -27,6 +27,10 @@ jest.mock("@/lib/api/flow", () => ({
   getFlowArtworkSource: jest.fn(),
 }));
 
+jest.mock("@/lib/api/health", () => ({
+  getServerHealth: jest.fn(),
+}));
+
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: jest.fn(() => ({ serverUrl: "http://test", token: "token" })),
 }));
@@ -82,6 +86,7 @@ import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { createFlow, updateFlow } from "@/lib/api/flow";
+import { getServerHealth } from "@/lib/api/health";
 import { flowKeys } from "@/lib/query-keys";
 import type { Flow, FlowStatusSnapshot } from "@/lib/types/flow";
 import FlowEditScreen from "@/app/(app)/(tabs)/(flow)/flow-edit";
@@ -89,6 +94,7 @@ import FlowEditScreen from "@/app/(app)/(tabs)/(flow)/flow-edit";
 const mockUseLocalSearchParams = useLocalSearchParams as jest.Mock;
 const mockUpdateFlow = updateFlow as jest.Mock;
 const mockCreateFlow = createFlow as jest.Mock;
+const mockGetServerHealth = getServerHealth as jest.Mock;
 
 const flow: Flow = {
   id: "flow-1",
@@ -103,6 +109,7 @@ const flow: Flow = {
   relatedArtists: [],
   scheduleDays: [1, 3],
   scheduleTime: "09:00",
+  autoDownload: true,
   nextRunAt: null,
 };
 
@@ -140,6 +147,9 @@ async function renderScreen(flowOverrides?: Partial<Flow>) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseLocalSearchParams.mockReturnValue({ id: "flow-1" });
+  mockGetServerHealth.mockResolvedValue({
+    downloadSources: { slskd: { configured: true } },
+  });
 });
 
 describe("FlowEditScreen (editing)", () => {
@@ -237,13 +247,13 @@ describe("FlowEditScreen (editing)", () => {
     mockUpdateFlow.mockResolvedValue({ ...flow, recordHistory: false });
     const { getByText, container } = await renderScreen();
 
-    // Three switches render, in tree order: Deeper Cuts, Record History, then
-    // Recent listening. getByRole only recognises the iOS switch host, so it
-    // misses Android's.
+    // Four switches render, in tree order: Deeper Cuts, Record History,
+    // Download Automatically, then Recent listening. getByRole only recognises
+    // the iOS switch host, so it misses Android's.
     const switches = container.queryAll(
       (node) => node.props.accessibilityRole === "switch",
     );
-    expect(switches).toHaveLength(3);
+    expect(switches).toHaveLength(4);
     await act(() => {
       fireEvent(switches[1], "valueChange", false);
     });
@@ -253,6 +263,25 @@ describe("FlowEditScreen (editing)", () => {
       expect(mockUpdateFlow).toHaveBeenCalledWith(
         "flow-1",
         expect.objectContaining({ recordHistory: false }),
+      ),
+    );
+  });
+
+  it("keeps a flow's downloads turned off through an unrelated edit", async () => {
+    mockUpdateFlow.mockResolvedValue(flow);
+    const { getByTestId, getByText } = await renderScreen({
+      autoDownload: false,
+    });
+
+    await act(() => {
+      getByTestId("hour-picker").props.onValueChange(14);
+    });
+    await fireEvent.press(getByText("Save Changes"));
+
+    await waitFor(() =>
+      expect(mockUpdateFlow).toHaveBeenCalledWith(
+        "flow-1",
+        expect.objectContaining({ scheduleTime: "14:00", autoDownload: false }),
       ),
     );
   });
@@ -472,6 +501,30 @@ describe("FlowEditScreen (creating)", () => {
       excludeTags: ["christmas"],
     });
   });
+
+  it.each([
+    ["on when Aurral has a download source", { ytdlp: true }, true],
+    ["off when it has none", { slskd: false, ytdlp: false }, false],
+  ])(
+    "starts with downloads %s, as Aurral would",
+    async (_case, sources, expected) => {
+      mockGetServerHealth.mockResolvedValue({
+        downloadSources: Object.fromEntries(
+          Object.entries(sources).map(([id, configured]) => [
+            id,
+            { configured },
+          ]),
+        ),
+      });
+      mockCreateFlow.mockResolvedValue(flow);
+      const { findByText } = await renderScreen();
+
+      await fireEvent.press(await findByText("Create Flow"));
+
+      await waitFor(() => expect(mockCreateFlow).toHaveBeenCalled());
+      expect(mockCreateFlow.mock.calls[0][0].autoDownload).toBe(expected);
+    },
+  );
 
   it("moves a tag typed with a leading minus to the excluded tags", async () => {
     mockCreateFlow.mockResolvedValue(flow);

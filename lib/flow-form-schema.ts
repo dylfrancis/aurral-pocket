@@ -38,6 +38,7 @@ export const flowFormSchema = z
     deepDive: z.boolean(),
     recentListening: z.boolean(),
     recordHistory: z.boolean(),
+    autoDownload: z.boolean(),
     yearFrom: yearBound,
     yearTo: yearBound,
     tags: z.array(z.string()),

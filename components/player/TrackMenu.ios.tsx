@@ -18,6 +18,7 @@ const SYMBOLS: Record<TrackMenuActionId, SFSymbol> = {
   playlist: "text.badge.plus",
   album: "square.stack",
   artist: "music.microphone",
+  download: "arrow.down.circle",
   retry: "arrow.clockwise",
   stop: "stop.circle",
   remove: "trash",

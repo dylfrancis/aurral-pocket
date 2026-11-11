@@ -1,5 +1,5 @@
 export type TrackMenuActionId =
-  "playlist" | "album" | "artist" | "retry" | "stop" | "remove";
+  "playlist" | "album" | "artist" | "download" | "retry" | "stop" | "remove";
 
 export type TrackMenuAction = {
   id: TrackMenuActionId;

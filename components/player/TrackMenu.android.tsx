@@ -1,5 +1,6 @@
 import AlbumIcon from "@expo/material-symbols/album.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
+import DownloadIcon from "@expo/material-symbols/download.xml";
 import MoreHorizIcon from "@expo/material-symbols/more_horiz.xml";
 import PersonIcon from "@expo/material-symbols/person.xml";
 import PlaylistAddIcon from "@expo/material-symbols/playlist_add.xml";
@@ -26,6 +27,7 @@ const ICONS: Record<TrackMenuActionId, ImageSourcePropType> = {
   playlist: PlaylistAddIcon,
   album: AlbumIcon,
   artist: PersonIcon,
+  download: DownloadIcon,
   retry: RefreshIcon,
   stop: StopCircleIcon,
   remove: DeleteIcon,

@@ -12,6 +12,7 @@ const CONFIG: Record<
   blocked: { label: "Blocked", variant: "error" },
   done: { label: "Ready", variant: "brand" },
   failed: { label: "Failed", variant: "error" },
+  saved: { label: "Not downloaded", variant: "subtle" },
 };
 
 type Props = { status: FlowJobStatus };

@@ -27,6 +27,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
+import { isPlayableJob } from "@/lib/player/track-item";
 import type { FlowJob, PlaylistStats } from "@/lib/types/flow";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -105,7 +106,7 @@ export function CollectionPage({
       <PlaylistTrackRow
         job={job}
         position={position}
-        onPress={job.status === "done" ? () => onPlayTrack(job.id) : undefined}
+        onPress={isPlayableJob(job) ? () => onPlayTrack(job.id) : undefined}
         menuActions={trackMenuActions(job)}
         onMenuAction={onTrackMenuAction}
       />

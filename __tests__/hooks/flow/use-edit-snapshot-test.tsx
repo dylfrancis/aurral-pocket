@@ -37,6 +37,7 @@ const flow: Flow = {
   relatedArtists: [],
   scheduleDays: [1, 3],
   scheduleTime: "09:00",
+  autoDownload: true,
   nextRunAt: null,
 };
 

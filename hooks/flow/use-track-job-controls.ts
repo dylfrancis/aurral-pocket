@@ -14,6 +14,8 @@ import type {
 import { ApiError } from "@/lib/api/client";
 import {
   cancelTrackJob,
+  researchFlowTrack,
+  researchSharedPlaylistTrack,
   retryTrackJob,
   type TrackJobControlResult,
 } from "@/lib/api/flow";
@@ -118,6 +120,34 @@ export function useRetryTrackDownload() {
   );
 }
 
+/**
+ * The server answers before the job moves, so refetching the jobs on success
+ * would bring back the saved row for a moment. A static playlist gets saved
+ * tracks from a shared playlist imported without its files.
+ */
+export function useDownloadSavedTrack(kind: "flow" | "shared") {
+  const queryClient = useQueryClient();
+  const researchTrack =
+    kind === "flow" ? researchFlowTrack : researchSharedPlaylistTrack;
+
+  return useMutation({
+    mutationFn: (job: FlowJob) => researchTrack(job.playlistType, job.id),
+    onMutate: async (job) => {
+      await queryClient.cancelQueries({ queryKey: flowKeys.jobsAll() });
+      setCachedJobStatus(queryClient, job.id, "pending");
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: flowKeys.status() });
+      void queryClient.invalidateQueries({ queryKey: activityKeys.list() });
+    },
+    onError: (err, job) => {
+      setCachedJobStatus(queryClient, job.id, "saved");
+      void queryClient.invalidateQueries({ queryKey: flowKeys.jobsAll() });
+      toastControlError("Couldn't download the track", err);
+    },
+  });
+}
+
 export function confirmStopDownload(trackName: string, onStop: () => void) {
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   Alert.alert("Stop Download", `Stop downloading "${trackName}"?`, [
@@ -126,11 +156,13 @@ export function confirmStopDownload(trackName: string, onStop: () => void) {
   ]);
 }
 
-export function useTrackJobMenu() {
+export function useTrackJobMenu(kind: "flow" | "shared") {
   const stopMutate = useStopTrackDownload().mutate;
   const retryMutate = useRetryTrackDownload().mutate;
+  const downloadMutate = useDownloadSavedTrack(kind).mutate;
 
   const actionsFor = useCallback((job: FlowJob): TrackMenuAction[] => {
+    if (job.status === "saved") return [{ id: "download", title: "Download" }];
     const controls = flowJobControls(job.status);
     if (!controls) return [];
     const actions: TrackMenuAction[] = [
@@ -157,9 +189,14 @@ export function useTrackJobMenu() {
         confirmStopDownload(job.trackName, () => stopMutate(job.id));
         return true;
       }
+      if (id === "download") {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        downloadMutate(job);
+        return true;
+      }
       return false;
     },
-    [retryMutate, stopMutate],
+    [retryMutate, stopMutate, downloadMutate],
   );
 
   return { actionsFor, runAction };

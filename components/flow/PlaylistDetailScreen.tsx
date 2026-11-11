@@ -129,7 +129,7 @@ function PlaylistPage({
   }, [playlist.id, playlist.name, router, deleteMutate]);
 
   const { actionsFor: jobActionsFor, runAction: runJobAction } =
-    useTrackJobMenu();
+    useTrackJobMenu("shared");
   const trackMenuActions = useCallback(
     (job: FlowJob): TrackMenuAction[] => [
       ...jobActionsFor(job),
