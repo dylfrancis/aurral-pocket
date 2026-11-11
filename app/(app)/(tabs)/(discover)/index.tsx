@@ -10,6 +10,7 @@ import {
   ShowsNearYouSection,
 } from "@/components/discover";
 import { DiscoverTabPanel } from "@/components/discover/DiscoverTabPanel";
+import { RecommendedTab } from "@/components/discover/RecommendedTab";
 import { DiscoverTabs } from "@/components/discover/DiscoverTabs";
 import type { DiscoverTab } from "@/components/discover/discover-tabs";
 import { EditorialShelf } from "@/components/discover/EditorialShelf";
@@ -30,6 +31,10 @@ import {
   useRecentReleases,
 } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import {
+  recommendedFilterParams,
+  type RecommendedFilter,
+} from "@/lib/discover/recommended";
 import { discoverKeys } from "@/lib/query-keys";
 import type { DiscoverSection } from "@/lib/types/me";
 import type {
@@ -121,6 +126,8 @@ export default function DiscoverScreen() {
     try {
       if (tab === "forYou") {
         await refreshForYou();
+      } else if (tab === "recommended") {
+        await refetchDiscovery();
       } else {
         await queryClient.invalidateQueries({
           queryKey:
@@ -132,7 +139,7 @@ export default function DiscoverScreen() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [queryClient, refreshForYou, tab]);
+  }, [queryClient, refetchDiscovery, refreshForYou, tab]);
 
   const pushArtist = useCallback(
     (mbid: string, name?: string) => {
@@ -214,9 +221,7 @@ export default function DiscoverScreen() {
   }, []);
 
   const pushDiscoverList = useCallback(
-    (
-      kind: "recommended" | "trending" | "recently-added" | "recent-releases",
-    ) => {
+    (kind: "trending" | "recently-added" | "recent-releases") => {
       router.push({
         pathname: "/(app)/(tabs)/(discover)/list/[kind]",
         params: { kind },
@@ -225,10 +230,6 @@ export default function DiscoverScreen() {
     [router],
   );
 
-  const handleViewAllRecommended = useCallback(
-    () => pushDiscoverList("recommended"),
-    [pushDiscoverList],
-  );
   const handleViewAllTrending = useCallback(
     () => pushDiscoverList("trending"),
     [pushDiscoverList],
@@ -244,14 +245,31 @@ export default function DiscoverScreen() {
   const handleViewAllNearbyShows = useCallback(() => {
     router.push("/(app)/(tabs)/(discover)/nearby-shows");
   }, [router]);
-  const handleViewAllPlaylists = useCallback(() => {
-    selectTab("playlists");
-    // The tabs share one scroll view, so Playlists would open partway down.
+  // The tabs share one scroll view, so a tab opened from a View All would
+  // open partway down.
+  const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({
       y: IS_IOS ? -expandedHeaderHeight.current : 0,
       animated: false,
     });
-  }, [selectTab]);
+  }, []);
+  const handleViewAllPlaylists = useCallback(() => {
+    selectTab("playlists");
+    scrollToTop();
+  }, [scrollToTop, selectTab]);
+  const handleViewAllRecommended = useCallback(() => {
+    selectTab("recommended");
+    scrollToTop();
+  }, [scrollToTop, selectTab]);
+  const handleShowRecommendedList = useCallback(
+    (filter: RecommendedFilter) => {
+      router.push({
+        pathname: "/(app)/(tabs)/(discover)/list/[kind]",
+        params: { kind: "recommended", ...recommendedFilterParams(filter) },
+      });
+    },
+    [router],
+  );
 
   const notConfigured =
     discovery?.configured === false &&
@@ -411,6 +429,14 @@ export default function DiscoverScreen() {
             </>
           )}
         </DiscoverTabPanel>
+        {openedTabs.has("recommended") ? (
+          <DiscoverTabPanel active={tab === "recommended"}>
+            <RecommendedTab
+              onArtistPress={handleDiscoveryArtistPress}
+              onShowList={handleShowRecommendedList}
+            />
+          </DiscoverTabPanel>
+        ) : null}
         {openedTabs.has("playlists") ? (
           <DiscoverTabPanel active={tab === "playlists"}>
             <EditorialShelf />

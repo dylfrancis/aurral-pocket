@@ -1,9 +1,11 @@
+import { useMemo } from "react";
 import { StyleSheet, View, ScrollView } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import { useDiscovery } from "@/hooks/discover";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { recommendationReason, seedNameSet } from "@/lib/discover/recommended";
 import type { DiscoveryArtist } from "@/lib/types/search";
 import { HorizontalArtistCard } from "./HorizontalArtistCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -25,6 +27,11 @@ export function RecommendedForYouSection({ onArtistPress, onViewAll }: Props) {
   // and the full list share this lookup.
   const { isInLibrary } = useLibraryLookup(
     (data?.recommendations ?? []).map((artist) => artist.id),
+  );
+
+  const seeds = useMemo(
+    () => seedNameSet(data?.basedOn ?? []),
+    [data?.basedOn],
   );
 
   const all = data?.recommendations ?? [];
@@ -60,11 +67,7 @@ export function RecommendedForYouSection({ onArtistPress, onViewAll }: Props) {
             key={artist.id}
             mbid={artist.id}
             name={artist.name}
-            subtitle={
-              artist.sourceArtist
-                ? `Similar to ${artist.sourceArtist}`
-                : undefined
-            }
+            subtitle={recommendationReason(artist, seeds)}
             isInLibrary={isInLibrary(artist.id)}
             onPress={() => onArtistPress(artist)}
           />

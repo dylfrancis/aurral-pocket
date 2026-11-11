@@ -6,6 +6,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import { useDiscovery } from "@/hooks/discover";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { buildGenreSections } from "@/lib/discover/format";
+import { recommendationReason, seedNameSet } from "@/lib/discover/recommended";
 import type { DiscoveryArtist } from "@/lib/types/search";
 import { HorizontalArtistCard } from "./HorizontalArtistCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -24,6 +25,11 @@ export function GenreSectionsPanel({ onArtistPress, onViewAllGenre }: Props) {
   const { data } = useDiscovery();
   const { isInLibrary } = useLibraryLookup(
     (data?.recommendations ?? []).map((artist) => artist.id),
+  );
+
+  const seeds = useMemo(
+    () => seedNameSet(data?.basedOn ?? []),
+    [data?.basedOn],
   );
 
   const sections = useMemo(
@@ -61,6 +67,7 @@ export function GenreSectionsPanel({ onArtistPress, onViewAllGenre }: Props) {
                   key={`${section.genre}-${artist.id}`}
                   mbid={artist.id}
                   name={artist.name}
+                  subtitle={recommendationReason(artist, seeds)}
                   isInLibrary={isInLibrary(artist.id)}
                   onPress={() => onArtistPress(artist, section.genre)}
                 />

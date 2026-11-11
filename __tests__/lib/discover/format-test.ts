@@ -11,6 +11,13 @@ const artist = (id: string, tags: string[] = []): DiscoveryArtist => ({
   id,
   name: `Artist ${id}`,
   tags,
+  matchedTags: [],
+  sourceArtist: null,
+  sourceArtists: [],
+  supportingSeeds: [],
+  discoveryTier: null,
+  discoveryDepth: 1,
+  firstDiscoveredAt: null,
 });
 
 describe("buildGenreSections", () => {

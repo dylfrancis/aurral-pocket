@@ -14,12 +14,13 @@ jest.mock("@/hooks/use-color-scheme", () => ({
 jest.mock("@expo/material-symbols/mic.xml", () => "Mic");
 jest.mock("@expo/material-symbols/settings.xml", () => "Settings");
 
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   Stack: {
     Screen: () => null,
     Toolbar: Object.assign(() => null, { Button: () => null }),
   },
-  useRouter: jest.fn(() => ({ push: jest.fn() })),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 jest.mock("expo-router/react-navigation", () => ({
@@ -55,21 +56,25 @@ jest.mock("@/components/discover", () => {
   const HeaderStub = () =>
     React.createElement(View, { testID: "section-header" });
   HeaderStub.displayName = "DiscoverHeaderStub";
-  const PlaylistsStub = ({ onViewAll }: { onViewAll: () => void }) =>
-    React.createElement(
-      Text,
-      { testID: "section-playlists", onPress: onViewAll },
-      "playlists",
-    );
+  const viewAllStub = (label: string) => {
+    const Stub = ({ onViewAll }: { onViewAll: () => void }) =>
+      React.createElement(
+        Text,
+        { testID: `section-${label}`, onPress: onViewAll },
+        label,
+      );
+    Stub.displayName = `ViewAllStub(${label})`;
+    return Stub;
+  };
   return {
     DiscoverHeaderSection: HeaderStub,
     RecentlyAddedSection: stub("recentlyAdded"),
     ShowsNearYouSection: stub("recommendedShows"),
     RecentReleasesSection: stub("recentReleases"),
-    RecommendedForYouSection: stub("recommended"),
+    RecommendedForYouSection: viewAllStub("recommended"),
     GlobalTrendingSection: stub("globalTop"),
     GenreSectionsPanel: stub("genreSections"),
-    EditorialPlaylistsSection: PlaylistsStub,
+    EditorialPlaylistsSection: viewAllStub("playlists"),
     CustomizeDiscoverSheet: () => null,
   };
 });
@@ -118,6 +123,22 @@ jest.mock("@/components/discover/EditorialShelf", () => {
       React.useState(() => ++mockShelfBuilds);
       return <Text testID="tab-playlists" />;
     },
+  };
+});
+
+jest.mock("@/components/discover/RecommendedTab", () => {
+  const { Text } = require("react-native");
+  return {
+    RecommendedTab: ({
+      onShowList,
+    }: {
+      onShowList: (filter: unknown) => void;
+    }) => (
+      <Text
+        testID="tab-recommended"
+        onPress={() => onShowList({ kind: "seed", value: "Slowdive" })}
+      />
+    ),
   };
 });
 
@@ -261,6 +282,35 @@ describe("DiscoverScreen tabs", () => {
     expect(screen.queryByTestId("section-header")).toBeNull();
   });
 
+  it("opens the Recommended tab from the Recommended row's View All", async () => {
+    mockUseDiscoverLayout.mockReturnValue({
+      sections: [{ id: "recommended", label: "Recommended", enabled: true }],
+      hydrated: true,
+      saveLayout: jest.fn(),
+    });
+    await render(<DiscoverScreen />);
+
+    await fireEvent.press(screen.getByTestId("section-recommended"));
+
+    expect(screen.getByTestId("tab-recommended")).toBeTruthy();
+    expect(
+      screen.getByRole("tab", { name: "Recommended" }).props,
+    ).toMatchObject({ accessibilityState: { selected: true } });
+    expect(screen.queryByTestId("section-header")).toBeNull();
+  });
+
+  it("opens a Recommended rail's full list", async () => {
+    await render(<DiscoverScreen />);
+    await fireEvent.press(screen.getByText("Recommended"));
+
+    await fireEvent.press(screen.getByTestId("tab-recommended"));
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/(app)/(tabs)/(discover)/list/[kind]",
+      params: { kind: "recommended", filter: "seed", value: "Slowdive" },
+    });
+  });
+
   it("reloads only the open tab on pull to refresh", async () => {
     await render(<DiscoverScreen />);
     await fireEvent.press(screen.getByText("Trending"));
@@ -275,5 +325,16 @@ describe("DiscoverScreen tabs", () => {
       queryKey: discoverKeys.trending(),
     });
     expect(mockRefetchDiscovery).not.toHaveBeenCalled();
+  });
+
+  it("reloads recommendations on pull to refresh in Recommended", async () => {
+    await render(<DiscoverScreen />);
+    await fireEvent.press(screen.getByText("Recommended"));
+
+    const { RefreshControl } = require("react-native");
+    await act(() => RefreshControl.latestRef.props.onRefresh());
+
+    expect(mockRefetchDiscovery).toHaveBeenCalledTimes(1);
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
   });
 });

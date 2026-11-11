@@ -3,24 +3,15 @@ import * as Haptics from "expo-haptics";
 import { Host } from "@expo/ui";
 import { FilterChip, Icon, Row, Text } from "@expo/ui/jetpack-compose";
 import { horizontalScroll, padding } from "@expo/ui/jetpack-compose/modifiers";
-import QueueMusic from "@expo/material-symbols/queue_music.xml";
-import Stars from "@expo/material-symbols/stars.xml";
-import TrendingUp from "@expo/material-symbols/trending_up.xml";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import {
-  DISCOVER_TABS,
-  type DiscoverTab,
-  type DiscoverTabsProps,
-} from "./discover-tabs";
+import type { PillRowProps } from "./pill-row";
 
-const ICONS: Record<DiscoverTab, number> = {
-  forYou: Stars,
-  playlists: QueueMusic,
-  trending: TrendingUp,
-};
-
-export function DiscoverTabs({ selected, onSelect }: DiscoverTabsProps) {
+export function PillRow<Id extends string>({
+  items,
+  selected,
+  onSelect,
+}: PillRowProps<Id>) {
   const scheme = useColorScheme();
   const colors = Colors[scheme];
 
@@ -34,19 +25,19 @@ export function DiscoverTabs({ selected, onSelect }: DiscoverTabsProps) {
         horizontalArrangement={{ spacedBy: 8 }}
         modifiers={[horizontalScroll(), padding(16, 4, 16, 4)]}
       >
-        {DISCOVER_TABS.map((tab) => {
-          const isSelected = tab.id === selected;
+        {items.map((item) => {
+          const isSelected = item.id === selected;
           const foreground = isSelected
             ? colors.buttonPrimaryText
             : colors.text;
           return (
             <FilterChip
-              key={tab.id}
+              key={item.id}
               selected={isSelected}
               onClick={() => {
                 if (isSelected) return;
                 void Haptics.selectionAsync();
-                onSelect(tab.id);
+                onSelect(item.id);
               }}
               colors={{
                 labelColor: colors.text,
@@ -57,11 +48,20 @@ export function DiscoverTabs({ selected, onSelect }: DiscoverTabsProps) {
               }}
               border={{ color: colors.separator }}
             >
-              <FilterChip.LeadingIcon>
-                <Icon source={ICONS[tab.id]} size={18} tint={foreground} />
-              </FilterChip.LeadingIcon>
+              {item.androidIcon !== undefined ? (
+                <FilterChip.LeadingIcon>
+                  <Icon source={item.androidIcon} size={18} tint={foreground} />
+                </FilterChip.LeadingIcon>
+              ) : null}
               <FilterChip.Label>
-                <Text color={foreground}>{tab.label}</Text>
+                <Text color={foreground}>
+                  {item.label}
+                  {item.count !== undefined ? (
+                    <Text color={isSelected ? foreground : colors.subtle}>
+                      {` ${item.count}`}
+                    </Text>
+                  ) : null}
+                </Text>
               </FilterChip.Label>
             </FilterChip>
           );
