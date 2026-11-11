@@ -19,10 +19,12 @@ import {
   api,
   authenticatedImageUrl,
   buildAuthenticatedUrl,
+  imageSource,
   notifyReAuthResult,
   serverImageSource,
   setAuthToken,
   setBaseUrl,
+  setCustomHeaders,
   setOnAccountSuspended,
   setOnAuthRefreshed,
   setOnSessionExpired,
@@ -79,6 +81,7 @@ beforeEach(() => {
   setOnAccountSuspended(null);
   setOnAuthRefreshed(null);
   setBaseUrl("https://test.example");
+  setCustomHeaders({});
 });
 
 describe("ApiError", () => {
@@ -138,6 +141,55 @@ describe("auth token on outgoing requests", () => {
     expect(
       (init?.headers as Record<string, string>).Authorization,
     ).toBeUndefined();
+  });
+});
+
+describe("custom headers", () => {
+  const PROXY_HEADERS = {
+    "CF-Access-Client-Id": "id.access",
+    "CF-Access-Client-Secret": "s3cr3t",
+  };
+
+  it("go with every API request, beside the session token", async () => {
+    setAuthToken("test-token-123");
+    setCustomHeaders(PROXY_HEADERS);
+    mockFetch.mockResolvedValueOnce(mockResponse({ body: { ok: true } }));
+
+    await api.get("/ping");
+
+    const init = mockFetch.mock.calls[0][1] as RequestInit | undefined;
+    expect(init?.headers).toEqual({
+      ...PROXY_HEADERS,
+      "Content-Type": "application/json",
+      Authorization: "Bearer test-token-123",
+    });
+  });
+
+  it("go with images the server serves, by path or by its own URL", () => {
+    setAuthToken("test-token-123");
+    setCustomHeaders(PROXY_HEADERS);
+
+    expect(serverImageSource("/api/library/albums/12/cover")).toEqual({
+      uri: "https://test.example/api/library/albums/12/cover",
+      headers: { ...PROXY_HEADERS, Authorization: "Bearer test-token-123" },
+    });
+    expect(
+      imageSource("https://TEST.example/api/image-proxy/ab12.jpg"),
+    ).toEqual({
+      uri: "https://TEST.example/api/image-proxy/ab12.jpg",
+      headers: PROXY_HEADERS,
+    });
+  });
+
+  it("never reach another host", () => {
+    setCustomHeaders(PROXY_HEADERS);
+
+    expect(
+      serverImageSource("https://coverartarchive.org/release-group/1/front"),
+    ).toEqual({ uri: "https://coverartarchive.org/release-group/1/front" });
+    expect(imageSource("https://test.example.evil.com/cover.jpg")).toEqual({
+      uri: "https://test.example.evil.com/cover.jpg",
+    });
   });
 });
 

@@ -4,6 +4,7 @@ import {
   notifyReAuthResult,
   setAuthToken,
   setBaseUrl,
+  setCustomHeaders,
   setOnAccountSuspended,
   setOnAuthRefreshed,
   setOnSessionExpired,
@@ -30,6 +31,7 @@ type ServerHealth = Pick<
 
 type AuthContextValue = {
   serverUrl: string | null;
+  customHeaders: Record<string, string>;
   token: string | null;
   user: User | null;
   isRestoring: boolean;
@@ -57,7 +59,12 @@ type AuthContextValue = {
    * Stays set after sign-out, until the user has read the message.
    */
   accountSuspended: boolean;
-  setServer: (url: string, health: HealthResponse) => Promise<void>;
+  setServer: (
+    url: string,
+    health: HealthResponse,
+    customHeaders: Record<string, string>,
+  ) => Promise<void>;
+  saveCustomHeaders: (headers: Record<string, string>) => Promise<void>;
   setAuth: (token: string, user: User, expiresAt?: number) => Promise<void>;
   markOidcSession: (logoutUrl: string | null) => Promise<void>;
   requestOidcLogout: (logoutUrl: string) => void;
@@ -78,6 +85,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [serverUrl, setServerUrl] = useState<string | null>(null);
+  const [customHeaders, setCustomHeadersState] = useState<
+    Record<string, string>
+  >({});
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [serverHealth, setServerHealth] = useState<ServerHealth | null>(null);
@@ -109,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           storedExpiry,
           lastActive,
           oidcSession,
+          storedHeaders,
         ] = await Promise.all([
           AppStorage.getServerUrl(),
           SecureStorage.getToken(),
@@ -119,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           SecureStorage.getExpiresAt(),
           SecureStorage.getLastActiveAt(),
           AppStorage.getOidcSession(),
+          SecureStorage.getCustomHeaders(),
         ]);
 
         // Render the first frame with the server's format instead of the
@@ -137,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             SecureStorage.deleteUseBiometrics(),
             SecureStorage.deleteExpiresAt(),
             SecureStorage.deleteLastActiveAt(),
+            SecureStorage.deleteCustomHeaders(),
             AppStorage.deleteOidcSession(),
             AppStorage.deletePlaybackQueue(),
             AppStorage.deletePlayEventOutbox(),
@@ -148,6 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedUrl) {
           setServerUrl(storedUrl);
           setBaseUrl(storedUrl);
+          setCustomHeaders(storedHeaders);
+          setCustomHeadersState(storedHeaders);
         }
 
         if (storedToken) {
@@ -261,17 +276,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [expiresAt, token]);
 
-  const setServer = useCallback(async (url: string, health: HealthResponse) => {
-    setServerUrl(url);
-    setBaseUrl(url);
-    setServerHealth({
-      authRequired: health.authRequired,
-      onboardingRequired: health.onboardingRequired,
-      oidcEnabled: health.oidcEnabled,
-      oidcLogoutUrl: health.oidcLogoutUrl,
-    });
-    await AppStorage.setServerUrl(url);
-  }, []);
+  const setServer = useCallback(
+    async (
+      url: string,
+      health: HealthResponse,
+      headers: Record<string, string>,
+    ) => {
+      setServerUrl(url);
+      setBaseUrl(url);
+      setCustomHeaders(headers);
+      setCustomHeadersState(headers);
+      setServerHealth({
+        authRequired: health.authRequired,
+        onboardingRequired: health.onboardingRequired,
+        oidcEnabled: health.oidcEnabled,
+        oidcLogoutUrl: health.oidcLogoutUrl,
+      });
+      await Promise.all([
+        AppStorage.setServerUrl(url),
+        SecureStorage.setCustomHeaders(headers),
+      ]);
+    },
+    [],
+  );
+
+  const saveCustomHeaders = useCallback(
+    async (headers: Record<string, string>) => {
+      setCustomHeaders(headers);
+      setCustomHeadersState(headers);
+      await SecureStorage.setCustomHeaders(headers);
+    },
+    [],
+  );
 
   const setAuth = useCallback(
     async (newToken: string, newUser: User, newExpiresAt?: number) => {
@@ -328,6 +364,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setServerHealth(null);
     setBaseUrl("");
+    setCustomHeaders({});
+    setCustomHeadersState({});
     setAuthToken(null);
     setRememberCreds(false);
     setBiometrics(false);
@@ -346,6 +384,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       SecureStorage.deleteUseBiometrics(),
       SecureStorage.deleteExpiresAt(),
       SecureStorage.deleteLastActiveAt(),
+      SecureStorage.deleteCustomHeaders(),
     ]);
   }, []);
 
@@ -418,6 +457,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       serverUrl,
+      customHeaders,
       token,
       user,
       isRestoring,
@@ -432,6 +472,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionExpired,
       accountSuspended,
       setServer,
+      saveCustomHeaders,
       setAuth,
       markOidcSession,
       requestOidcLogout,
@@ -449,6 +490,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       serverUrl,
+      customHeaders,
       token,
       user,
       isRestoring,
@@ -462,6 +504,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionExpired,
       accountSuspended,
       setServer,
+      saveCustomHeaders,
       setAuth,
       markOidcSession,
       requestOidcLogout,

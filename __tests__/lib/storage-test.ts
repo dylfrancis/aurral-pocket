@@ -67,6 +67,34 @@ describe("SecureStorage.user", () => {
   });
 });
 
+describe("SecureStorage.customHeaders", () => {
+  it("keeps them in the keychain, as JSON", async () => {
+    await SecureStorage.setCustomHeaders({ "CF-Access-Client-Id": "id" });
+    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+      "custom_headers",
+      '{"CF-Access-Client-Id":"id"}',
+    );
+  });
+
+  it.each([
+    ["nothing stored", null],
+    ["corrupt JSON", "{not json"],
+    ["a list", '["CF-Access-Client-Id"]'],
+  ])("reads %s as no headers", async (_, raw) => {
+    mockSecureStore.getItemAsync.mockResolvedValue(raw);
+    expect(await SecureStorage.getCustomHeaders()).toEqual({});
+  });
+
+  it("drops a value that isn't text", async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(
+      '{"X-Token":"abc","X-Port":443}',
+    );
+    expect(await SecureStorage.getCustomHeaders()).toEqual({
+      "X-Token": "abc",
+    });
+  });
+});
+
 describe("AppStorage", () => {
   it("gets server URL", async () => {
     mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");

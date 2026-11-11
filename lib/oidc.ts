@@ -1,4 +1,5 @@
 import type { OidcSession, User } from "@/lib/types/auth";
+import { originOf } from "@/lib/url";
 
 /**
  * OpenID Connect sign-in against an Aurral server.
@@ -33,16 +34,7 @@ export type OidcMessage =
   | { type: "session"; session: OidcSession }
   | { type: "error"; message: string };
 
-/**
- * React Native's `URL` does not parse, so every helper here works on strings.
- * Switching to `URL` would pass under Jest, which has Node's real one, then
- * silently misread URLs on device.
- */
-function originOf(url: string): string {
-  const match = /^(https?:\/\/[^/?#]+)/i.exec(url.trim());
-  return match ? match[1].toLowerCase() : "";
-}
-
+// React Native's `URL` does not parse, so every helper here works on strings.
 function pathOf(url: string): string {
   const trimmed = url.trim();
   const rest = trimmed.slice(originOf(trimmed).length);
@@ -112,7 +104,11 @@ export function readOidcCompletion(url: string): OidcCompletion | null {
 }
 
 /** Runs the exchange inside the WebView, where the transaction cookie lives. */
-export function buildOidcExchangeScript(code: string): string {
+export function buildOidcExchangeScript(
+  code: string,
+  headers: Record<string, string> = {},
+): string {
+  const requestHeaders = { ...headers, "Content-Type": "application/json" };
   return `(function () {
   var send = function (message) {
     try {
@@ -123,7 +119,7 @@ export function buildOidcExchangeScript(code: string): string {
     fetch(${JSON.stringify(EXCHANGE_PATH)}, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: ${JSON.stringify(requestHeaders)},
       body: JSON.stringify({ code: ${JSON.stringify(code)} })
     })
       .then(function (response) {

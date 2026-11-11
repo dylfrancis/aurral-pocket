@@ -11,7 +11,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 import { act, renderHook } from "@testing-library/react-native";
-import { setAuthToken, setBaseUrl } from "@/lib/api/client";
+import { setAuthToken, setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import {
   addToQueue,
   forgetQueue,
@@ -23,6 +23,7 @@ import {
   playNextInQueue,
   previous,
   playAlbumFromTrack,
+  refreshQueueHeaders,
   refreshQueueUrls,
   playItem,
   playQueueFrom,
@@ -182,6 +183,47 @@ describe("playAlbumFromTrack", () => {
 
     expect(queue.createPlaylist).not.toHaveBeenCalled();
     expect(player.play).not.toHaveBeenCalled();
+  });
+});
+
+describe("custom headers", () => {
+  const PROXY = { "CF-Access-Client-Id": "id.access" };
+  const serverAlbum = { ...album, coverPath: "/api/library/albums/12/cover" };
+
+  afterEach(() => setCustomHeaders({}));
+
+  it("go with a server track's stream and cover, and never with a Deezer clip", async () => {
+    setCustomHeaders(PROXY);
+
+    await playAlbumFromTrack([track()], track(), serverAlbum);
+    expect(queue.addTracksToPlaylist).toHaveBeenLastCalledWith("playlist-1", [
+      expect.objectContaining({
+        extraPayload: { headers: PROXY, artworkHeaders: PROXY },
+      }),
+    ]);
+
+    await playItem(clip);
+    const [clipTrack] = queue.addTracksToPlaylist.mock.lastCall![1];
+    expect(clipTrack).not.toHaveProperty("extraPayload");
+  });
+
+  it("reach tracks already queued when they change", async () => {
+    setCustomHeaders(PROXY);
+    const albumTracks = [
+      track({ id: "71", streamPath: "/stream/12/71" }),
+      track({ id: "72", streamPath: "/stream/12/72" }),
+    ];
+    await playAlbumFromTrack(albumTracks, albumTracks[0], serverAlbum);
+
+    const rotated = { "CF-Access-Client-Id": "rotated.access" };
+    setCustomHeaders(rotated);
+    await refreshQueueHeaders();
+
+    const payload = { headers: rotated, artworkHeaders: rotated };
+    expect(player.updateTracks).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "71", extraPayload: payload }),
+      expect.objectContaining({ id: "72", extraPayload: payload }),
+    ]);
   });
 });
 

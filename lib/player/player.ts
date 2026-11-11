@@ -16,7 +16,11 @@ import {
   type PlayerClip,
   type PlayerTrack,
 } from "@/lib/player/track-item";
-import { authenticatedImageUrl, buildAuthenticatedUrl } from "@/lib/api/client";
+import {
+  authenticatedImageUrl,
+  buildAuthenticatedUrl,
+  customHeadersFor,
+} from "@/lib/api/client";
 import type { Track } from "@/lib/types/library";
 import { useSyncExternalStore } from "react";
 import {
@@ -188,6 +192,15 @@ async function replaceAndPlay(
 }
 
 function toEngineTrack(item: PlayerTrack): TrackItem {
+  // The engine fetches the lock screen's image with no session header, so the
+  // cover needs a token in its URL. It is added here, on the way out, so the
+  // queue and its saved copy never hold a token for artwork.
+  const artwork = authenticatedImageUrl(item.coverPath) ?? item.artwork;
+  // Worked out per URL, so a Deezer clip or cover gets no custom headers.
+  const headers = customHeadersFor(item.url);
+  const artworkHeaders = artwork ? customHeadersFor(artwork) : {};
+  const hasHeaders =
+    Object.keys(headers).length > 0 || Object.keys(artworkHeaders).length > 0;
   return {
     id: item.id,
     title: item.title,
@@ -195,10 +208,8 @@ function toEngineTrack(item: PlayerTrack): TrackItem {
     album: item.album,
     duration: item.duration,
     url: item.url,
-    // The engine fetches the lock screen's image with no headers, so the cover
-    // needs a token in its URL. It is added here, on the way out, so the queue
-    // and its saved copy never hold a token for artwork.
-    artwork: authenticatedImageUrl(item.coverPath) ?? item.artwork,
+    artwork,
+    ...(hasHeaders ? { extraPayload: { headers, artworkHeaders } } : {}),
   };
 }
 
@@ -729,6 +740,20 @@ export function refreshQueueUrls(): Promise<void> {
       restoringQueue = false;
     }
     persistQueue(position);
+  });
+  lastPlay = run.catch(() => {});
+  return run;
+}
+
+/**
+ * The URLs are unchanged, so the engine treats this as a metadata edit: the
+ * playing track carries on, and every track after it loads with the new
+ * headers.
+ */
+export function refreshQueueHeaders(): Promise<void> {
+  const run = lastPlay.then(async () => {
+    if (!currentPlaylistId || queueOrder.length === 0) return;
+    await TrackPlayer.updateTracks(queueOrder.map(toEngineTrack));
   });
   lastPlay = run.catch(() => {});
   return run;

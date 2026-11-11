@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, customHeadersFor } from "./client";
 import type {
   Flow,
   FlowFormValues,
@@ -213,9 +213,9 @@ export type FlowAuthedSource = {
 };
 
 function authedSource(uri: string, token: string | null): FlowAuthedSource {
-  return token
-    ? { uri, headers: { Authorization: `Bearer ${token}` } }
-    : { uri };
+  const headers = customHeadersFor(uri);
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return Object.keys(headers).length > 0 ? { uri, headers } : { uri };
 }
 
 /** The player adds the session token. */
