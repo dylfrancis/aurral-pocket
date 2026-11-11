@@ -114,6 +114,32 @@ jest.mock("@/components/activity/ActivityActionsSheet", () => {
   };
 });
 
+// The real pills are SwiftUI and Compose views.
+jest.mock("@/components/ui/PillRow", () => {
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  return {
+    PillRow: ({ items, selected, onSelect }: any) =>
+      React.createElement(
+        View,
+        null,
+        items.map((item: any) =>
+          React.createElement(
+            Pressable,
+            {
+              key: item.id,
+              accessibilityRole: "tab",
+              accessibilityLabel: `${item.label} ${item.count}`,
+              accessibilityState: { selected: item.id === selected },
+              onPress: () => onSelect(item.id),
+            },
+            React.createElement(Text, null, `${item.label} ${item.count}`),
+          ),
+        ),
+      ),
+  };
+});
+
 jest.mock("@/components/library/CoverArtImage", () => {
   const React = require("react");
   const { View } = require("react-native");
@@ -224,6 +250,7 @@ function makeHistoryItem(
     canonicalAlbumId: null,
     requestedBy: null,
     sourceFilename: null,
+    upgrade: null,
     inQueue: false,
     canReSearch: false,
     ...overrides,
@@ -609,6 +636,138 @@ describe("ActivityList playlist rows", () => {
 
     expect(mockGetFlowStatus).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("ActivityList status filters", () => {
+  function track(
+    id: string,
+    overrides: Partial<ActivityHistoryItem> = {},
+  ): ActivityHistoryItem {
+    return makeHistoryItem({
+      id,
+      kind: "track_download",
+      source: "slskd",
+      title: `Track ${id}`,
+      href: null,
+      ...overrides,
+    });
+  }
+
+  const pillLabels = (getAllByRole: (role: "tab") => any[]) =>
+    getAllByRole("tab").map((pill) => pill.props.accessibilityLabel);
+
+  it("narrows History to the chosen status", async () => {
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [
+        track("downloaded", { statusLabel: "Downloaded" }),
+        track("upgraded", {
+          statusLabel: "Downloaded",
+          upgrade: { fromQuality: "MP3 320" },
+        }),
+        track("failed", { status: "failed", statusLabel: "Failed" }),
+        makeHistoryItem({ id: "artist" }),
+      ],
+    });
+    const { getAllByRole, getByText, queryByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+    expect(pillLabels(getAllByRole)).toEqual([
+      "All 4",
+      "Downloaded 1",
+      "Upgraded 1",
+      "Failed 1",
+      "Cancelled 0",
+    ]);
+
+    await fireEvent.press(getByText("Upgraded 1"));
+
+    expect(getByText("Track upgraded")).toBeTruthy();
+    expect(queryByText("Track downloaded")).toBeNull();
+    expect(queryByText("Added Artist artist to library")).toBeNull();
+  });
+
+  it("counts only the rows the type filter keeps", async () => {
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [
+        track("failed-track", { status: "failed", statusLabel: "Failed" }),
+        makeRequest({ id: "failed-request", status: "failed" }),
+      ],
+    });
+    const { getAllByRole, getByLabelText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent.press(getByLabelText("option-Downloads"));
+
+    expect(pillLabels(getAllByRole)).toEqual([
+      "All 1",
+      "Downloaded 0",
+      "Upgraded 0",
+      "Failed 1",
+      "Cancelled 0",
+    ]);
+  });
+
+  it("leaves empty statuses out of Queue", async () => {
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [
+        track("searching", { status: "processing", statusLabel: "Searching" }),
+        makeRequest({
+          id: "lidarr",
+          statusLabel: "Downloading",
+          inQueue: true,
+        }),
+      ],
+    });
+    const { getAllByRole } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+    expect(pillLabels(getAllByRole)).toEqual([
+      "All 2",
+      "Searching 1",
+      "Downloading 1",
+    ]);
+  });
+
+  it("says nothing matches a status with no rows, without the discover CTA", async () => {
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [track("downloaded", { statusLabel: "Downloaded" })],
+    });
+    const { getByText, queryByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent.press(getByText("Cancelled 0"));
+
+    expect(getByText("No matches")).toBeTruthy();
+    expect(queryByText("Start Discovering")).toBeNull();
+  });
+
+  it("marks an upgrade with the quality it replaced, and where tracks came from", async () => {
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [
+        track("tidarr", {
+          source: "tidarr",
+          upgrade: { fromQuality: "MP3 320" },
+        }),
+        track("share", { source: "share" }),
+        track("unknown", { source: "unknown", upgrade: { fromQuality: null } }),
+      ],
+    });
+    const { getByText, getAllByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+    expect(getByText("Upgrade from MP3 320")).toBeTruthy();
+    expect(getByText("Quality upgrade")).toBeTruthy();
+    expect(getByText(/ · Tidarr$/)).toBeTruthy();
+    expect(getByText(/ · Aurral share$/)).toBeTruthy();
+    expect(getAllByText(/ · /)).toHaveLength(2);
   });
 });
 

@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Card } from "@/components/ui/Card";
+import { Chip } from "@/components/ui/Chip";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { ActivityStatusBadge } from "./ActivityStatusBadge";
@@ -10,6 +11,10 @@ import { ReviewActions } from "./ReviewActions";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { formatDate } from "@/lib/date-time";
+import {
+  activitySourceLabel,
+  activityUpgradeLabel,
+} from "@/lib/activity-views";
 import { Colors, Fonts } from "@/constants/theme";
 import type { DownloadStatusEntry } from "@/lib/types/library";
 import {
@@ -83,6 +88,8 @@ export const ActivityRow = React.memo(function ActivityRow({
   });
   const subtitle = secondaryText(item);
   const jobId = reviewJobId(item);
+  const upgradeLabel = activityUpgradeLabel(item);
+  const sourceLabel = activitySourceLabel(item);
 
   const handleLongPress = () => {
     if (!hasActions) return;
@@ -141,9 +148,12 @@ export const ActivityRow = React.memo(function ActivityRow({
         ) : null}
         <View style={styles.statusRow}>
           <ActivityStatusBadge item={item} downloadEntry={downloadEntry} />
+          {upgradeLabel ? (
+            <Chip label={upgradeLabel} icon="trending-up-outline" />
+          ) : null}
         </View>
         <Text variant="caption" numberOfLines={1} style={styles.date}>
-          {requestedLabel}
+          {sourceLabel ? `${requestedLabel} · ${sourceLabel}` : requestedLabel}
         </Text>
         {jobId ? <ReviewActions jobId={jobId} /> : null}
       </View>
@@ -178,7 +188,9 @@ const styles = StyleSheet.create({
   },
   statusRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
+    gap: 6,
   },
   date: {
     opacity: 0.7,

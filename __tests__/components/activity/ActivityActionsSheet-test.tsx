@@ -96,6 +96,7 @@ const aurralRequest: ActivityHistoryItem = {
   canonicalAlbumId: "12",
   requestedBy: null,
   sourceFilename: null,
+  upgrade: null,
   inQueue: false,
   canReSearch: false,
 };

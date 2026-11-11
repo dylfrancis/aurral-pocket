@@ -66,6 +66,7 @@ function historyItem(
     canonicalAlbumId: null,
     requestedBy: null,
     sourceFilename: null,
+    upgrade: null,
     inQueue: false,
     canReSearch: false,
     ...overrides,

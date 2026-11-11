@@ -1,6 +1,7 @@
 import {
   canReSearch,
   compareActivityItems,
+  getActivityStatus,
   isQueueItem,
   matchesActivityType,
   matchesActivityView,
@@ -54,6 +55,7 @@ function history(
     canonicalAlbumId: null,
     requestedBy: null,
     sourceFilename: null,
+    upgrade: null,
     inQueue: false,
     canReSearch: false,
     ...overrides,
@@ -175,5 +177,52 @@ describe("matchesActivityType", () => {
     expect(
       matchesActivityType(history({ kind: "artist_added" }), "library"),
     ).toBe(true);
+  });
+});
+
+describe("getActivityStatus", () => {
+  // Expected buckets come from the web's activityNavConfig.ts.
+  it.each([
+    ["a pending job", history({ status: "pending" }), "queued"],
+    [
+      "a Lidarr download",
+      album({ status: "processing", statusLabel: "Downloading" }),
+      "downloading",
+    ],
+    [
+      "a waiting job",
+      history({ status: "processing", statusLabel: "Waiting" }),
+      "downloading",
+    ],
+    [
+      "a request being searched",
+      history({ status: "processing", statusLabel: "Requested" }),
+      "searching",
+    ],
+    [
+      "a job being cancelled",
+      history({ status: "processing", statusLabel: "Cancelling" }),
+      null,
+    ],
+    [
+      "a reused track",
+      history({ status: "completed", statusLabel: "Reused" }),
+      "downloaded",
+    ],
+    [
+      "an upgrade",
+      history({ upgrade: { fromQuality: "MP3 320" } }),
+      "upgraded",
+    ],
+    [
+      "an added artist",
+      history({ kind: "artist_added", statusLabel: "Added" }),
+      null,
+    ],
+    ["a failed Lidarr request", album({ status: "failed" }), "failed"],
+    ["a cancelled job", history({ status: "cancelled" }), "cancelled"],
+    ["a blocked job", history({ status: "blocked" }), null],
+  ])("files %s", (_name, item, expected) => {
+    expect(getActivityStatus(item)).toBe(expected);
   });
 });

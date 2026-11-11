@@ -8,6 +8,7 @@ import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ActivityRow } from "@/components/activity/ActivityRow";
 import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet";
 import { EmptyState } from "@/components/library/EmptyState";
+import { PillRow } from "@/components/ui/PillRow";
 import {
   useActivitySuspense,
   useRefreshActivity,
@@ -60,7 +61,15 @@ export function ActivityList({ view }: ActivityListProps) {
   const { data: items, refetch } = useActivitySuspense();
   const refreshActivity = useRefreshActivity();
   const { data: downloadStatuses } = useActivityDownloadStatuses(items);
-  const { typeFilter, setTypeFilter, visible } = useActivityFilter(items, view);
+  const {
+    typeFilter,
+    setTypeFilter,
+    statusFilter,
+    setStatusFilter,
+    statusOptions,
+    allCount,
+    visible,
+  } = useActivityFilter(items, view);
   const counts = getActivityCounts(items);
   const downloadEntryFor = useCallback(
     (item: ActivityItem) => {
@@ -158,6 +167,22 @@ export function ActivityList({ view }: ActivityListProps) {
     ? downloadEntryFor(sheetItem)?.status
     : undefined;
 
+  // A lone All pill, or a row of zeros over the empty state, filters nothing.
+  const statusPills =
+    statusOptions.length > 0 && (allCount > 0 || statusFilter) ? (
+      <View style={styles.statusPills}>
+        <PillRow
+          items={[
+            { id: "all", label: "All", count: allCount },
+            ...statusOptions,
+          ]}
+          selected={statusFilter ?? "all"}
+          onSelect={(id) => setStatusFilter(id === "all" ? null : id)}
+        />
+      </View>
+    ) : null;
+  const showDiscoverAction = view === "history" && !statusFilter;
+
   return (
     <>
       <Stack.Toolbar placement="right">
@@ -197,13 +222,16 @@ export function ActivityList({ view }: ActivityListProps) {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         ItemSeparatorComponent={ItemSeparator}
+        ListHeaderComponent={statusPills}
         ListEmptyComponent={
           <EmptyState
             icon="musical-notes-outline"
-            message={ACTIVITY_EMPTY_STATES[view].message}
-            actionLabel={view === "history" ? "Start Discovering" : undefined}
+            message={
+              statusFilter ? "No matches" : ACTIVITY_EMPTY_STATES[view].message
+            }
+            actionLabel={showDiscoverAction ? "Start Discovering" : undefined}
             onAction={
-              view === "history"
+              showDiscoverAction
                 ? () => router.push("/(app)/(tabs)/(discover)")
                 : undefined
             }
@@ -239,5 +267,10 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: LIST_PADDING_HORIZONTAL,
     paddingVertical: LIST_PADDING_VERTICAL,
+  },
+  // The pills scroll edge to edge, past the list's padding.
+  statusPills: {
+    marginHorizontal: -LIST_PADDING_HORIZONTAL,
+    paddingBottom: 8,
   },
 });
