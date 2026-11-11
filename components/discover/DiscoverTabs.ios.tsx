@@ -27,6 +27,7 @@ const SYMBOLS: Record<
   NonNullable<ComponentProps<typeof Button>["systemImage"]>
 > = {
   forYou: "sparkles",
+  recommended: "hand.thumbsup",
   playlists: "music.note.list",
   trending: "chart.line.uptrend.xyaxis",
 };

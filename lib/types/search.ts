@@ -127,8 +127,17 @@ export type DiscoveryArtist = {
   image?: string | null;
   imageUrl?: string | null;
   tags?: string[];
-  sourceArtist?: string;
+  /** The artist's tags that match the listener's top genres. */
+  matchedTags: string[];
+  sourceArtist: string | null;
+  sourceArtists: string[];
   sourceType?: string;
+  /** The seed artists that led to this one. */
+  supportingSeeds: { artistName?: string }[];
+  discoveryTier: string | null;
+  /** 1 for a seed's direct neighbour, 2 or more for a neighbour's neighbour. */
+  discoveryDepth: number;
+  firstDiscoveredAt: string | null;
   score?: number;
 };
 

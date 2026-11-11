@@ -90,13 +90,28 @@ describe("RecommendedForYouSection", () => {
     expect(toJSON()).toBeNull();
   });
 
-  it("renders recommendations and fires onArtistPress", async () => {
+  it("renders recommendations, says why each is there and fires onArtistPress", async () => {
+    const recommendation = {
+      matchedTags: [],
+      sourceArtists: [],
+      supportingSeeds: [],
+      discoveryDepth: 1,
+    };
     const artists = [
-      { id: "1", name: "Alpha" },
-      { id: "2", name: "Beta", sourceArtist: "Source" },
+      { ...recommendation, id: "1", name: "Alpha" },
+      {
+        ...recommendation,
+        id: "2",
+        name: "Beta",
+        supportingSeeds: [{ artistName: "Slowdive" }],
+      },
     ];
     mockHook.mockReturnValue({
-      data: { ...emptyDiscovery, recommendations: artists },
+      data: {
+        ...emptyDiscovery,
+        basedOn: [{ name: "Slowdive" }],
+        recommendations: artists,
+      },
       isLoading: false,
     });
     const onPress = jest.fn();
@@ -106,7 +121,7 @@ describe("RecommendedForYouSection", () => {
     );
 
     expect(getByText("Recommended For You")).toBeTruthy();
-    expect(queryByText("Similar to Source")).toBeTruthy();
+    expect(queryByText("like Slowdive")).toBeTruthy();
 
     await fireEvent.press(getByText("Alpha"));
     expect(onPress).toHaveBeenCalledWith(artists[0]);

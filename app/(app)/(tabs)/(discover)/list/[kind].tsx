@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import {
   Stack,
@@ -17,19 +17,30 @@ import {
   useRecentlyAdded,
   useRecentReleases,
 } from "@/hooks/discover";
+import { useRecommendations } from "@/hooks/discover/use-recommendations";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { useGridColumns } from "@/hooks/use-grid-columns";
 import { useViewMode } from "@/hooks/use-view-mode";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
 import { DiscoverReleaseCard } from "@/components/discover/DiscoverReleaseCard";
+import { RECOMMENDED_SORT_OPTIONS } from "@/components/discover/recommended-sort";
 import { EmptyState } from "@/components/library/EmptyState";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
 import { Chip } from "@/components/ui/Chip";
+import { PillRow } from "@/components/ui/PillRow";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
 import { formatDate } from "@/lib/date-time";
 import { formatReleaseStatus, recentlyAddedMbid } from "@/lib/discover/format";
+import {
+  filterKey,
+  parseRecommendedFilter,
+  recommendationReason,
+  recommendedFilterOptions,
+  recommendedRows,
+  type RecommendedSort,
+} from "@/lib/discover/recommended";
 import type {
   DiscoveryArtist,
   RecentlyAddedArtist,
@@ -41,7 +52,7 @@ type Kind = "recommended" | "trending" | "recently-added" | "recent-releases";
 const EDGE_PADDING = 16;
 
 const TITLES: Record<Kind, string> = {
-  recommended: "Recommended For You",
+  recommended: "Recommended",
   trending: "Global Trending",
   "recently-added": "Recently Added",
   "recent-releases": "Recent & Upcoming Releases",
@@ -81,7 +92,11 @@ function SpacerCell() {
 }
 
 export default function DiscoverListScreen() {
-  const { kind: kindParam } = useLocalSearchParams<{ kind: string }>();
+  const {
+    kind: kindParam,
+    filter: filterParam,
+    value: valueParam,
+  } = useLocalSearchParams<{ kind: string; filter?: string; value?: string }>();
   const router = useRouter();
   const navigation = useNavigation();
   const colors = Colors[useColorScheme()];
@@ -100,6 +115,41 @@ export default function DiscoverListScreen() {
   const discovery = useDiscovery();
   const recentlyAdded = useRecentlyAdded();
   const recentReleases = useRecentReleases();
+
+  const {
+    recommendations,
+    topGenres,
+    context: recommendedContext,
+  } = useRecommendations();
+  const [recommendedFilter, setRecommendedFilter] = useState(() =>
+    parseRecommendedFilter(filterParam, valueParam),
+  );
+  const [sort, setSort] = useState<RecommendedSort>("rank");
+  const filterOptions = useMemo(
+    () =>
+      kind === "recommended"
+        ? recommendedFilterOptions(
+            recommendations,
+            topGenres,
+            recommendedContext,
+            recommendedFilter,
+          )
+        : [],
+    [kind, recommendations, topGenres, recommendedContext, recommendedFilter],
+  );
+  const recommendedArtists = useMemo(
+    () =>
+      kind === "recommended"
+        ? recommendedRows(
+            recommendations,
+            recommendedFilter,
+            sort,
+            recommendedContext,
+          ).map((row) => row.artist)
+        : [],
+    [kind, recommendations, recommendedFilter, sort, recommendedContext],
+  );
+
   const discoveryArtists =
     (kind === "recommended"
       ? discovery.data?.recommendations
@@ -154,6 +204,20 @@ export default function DiscoverListScreen() {
       <Stack.Toolbar.Menu
         icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
       >
+        {kind === "recommended" ? (
+          <Stack.Toolbar.Menu inline title="Sort by">
+            {RECOMMENDED_SORT_OPTIONS.map((option) => (
+              <Stack.Toolbar.MenuAction
+                key={option.key}
+                icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
+                isOn={sort === option.key}
+                onPress={() => setSort(option.key)}
+              >
+                {option.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        ) : null}
         {viewModeMenuSection(viewMode, setViewMode)}
       </Stack.Toolbar.Menu>
     </Stack.Toolbar>
@@ -290,7 +354,25 @@ export default function DiscoverListScreen() {
     );
   }
 
-  const artists = discoveryArtists;
+  const artists =
+    kind === "recommended" ? recommendedArtists : discoveryArtists;
+  const filterPills =
+    kind === "recommended" ? (
+      <View style={isGrid ? styles.gridPills : styles.listPills}>
+        <PillRow
+          items={filterOptions.map((option) => ({
+            id: option.key,
+            label: option.label,
+            count: option.count,
+          }))}
+          selected={filterKey(recommendedFilter)}
+          onSelect={(key) => {
+            const option = filterOptions.find((entry) => entry.key === key);
+            if (option) setRecommendedFilter(option.filter);
+          }}
+        />
+      </View>
+    ) : undefined;
 
   return (
     <>
@@ -308,11 +390,15 @@ export default function DiscoverListScreen() {
           { backgroundColor: colors.background },
         ]}
         contentInsetAdjustmentBehavior="automatic"
+        ListHeaderComponent={filterPills}
         renderItem={({ item }: { item: WithSpacer<DiscoveryArtist> }) => {
           if (item === SPACER) return <SpacerCell />;
-          const subtitle = item.sourceArtist
-            ? `Similar to ${item.sourceArtist}`
-            : undefined;
+          const subtitle =
+            kind === "recommended"
+              ? recommendationReason(item, recommendedContext.seeds)
+              : item.sourceArtist
+                ? `Similar to ${item.sourceArtist}`
+                : undefined;
           if (!isGrid) {
             return (
               <MediaRow
@@ -364,6 +450,13 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flex: 1,
+  },
+  // The pills scroll edge to edge, past the grid's padding.
+  gridPills: {
+    marginHorizontal: -EDGE_PADDING,
+  },
+  listPills: {
+    paddingBottom: 8,
   },
   loading: {
     flex: 1,

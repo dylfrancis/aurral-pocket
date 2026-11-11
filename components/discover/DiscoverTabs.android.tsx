@@ -5,6 +5,7 @@ import { FilterChip, Icon, Row, Text } from "@expo/ui/jetpack-compose";
 import { horizontalScroll, padding } from "@expo/ui/jetpack-compose/modifiers";
 import QueueMusic from "@expo/material-symbols/queue_music.xml";
 import Stars from "@expo/material-symbols/stars.xml";
+import ThumbUp from "@expo/material-symbols/thumb_up.xml";
 import TrendingUp from "@expo/material-symbols/trending_up.xml";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -16,6 +17,7 @@ import {
 
 const ICONS: Record<DiscoverTab, number> = {
   forYou: Stars,
+  recommended: ThumbUp,
   playlists: QueueMusic,
   trending: TrendingUp,
 };
