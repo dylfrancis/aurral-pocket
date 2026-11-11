@@ -1,3 +1,115 @@
+diff --git a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerQueueBuild.kt b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerQueueBuild.kt
+index b1513f4..956a4ee 100644
+--- a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerQueueBuild.kt
++++ b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerQueueBuild.kt
+@@ -272,6 +272,35 @@ internal fun TrackPlayerCore.updatePlayerQueue(tracks: List<TrackItem>) {
+ 
+ // ── MediaItem construction (member extension to access downloadManager) ────
+ 
++/**
++ * extraPayload.artworkHeaders are kept apart from the stream's headers because the artwork
++ * can live on another host. An empty map replaces earlier headers, so ones the app removed
++ * stop being sent.
++ */
++internal fun registerTrackHeaders(
++    track: TrackItem,
++    effectiveUrl: String,
++) {
++    val payload =
++        try {
++            track.extraPayload?.toHashMap()
++        } catch (_: Exception) {
++            null
++        }
++    fun stringHeaders(raw: Any?): Map<String, String> =
++        if (raw is Map<*, *>) {
++            raw.mapNotNull { (k, v) -> if (k is String && v is String) k to v else null }.toMap()
++        } else {
++            emptyMap()
++        }
++    com.margelo.nitro.nitroplayer.media.AuthAwareHttpDataSourceFactory
++        .setHeadersForUrl(effectiveUrl, stringHeaders(payload?.get("headers")))
++    track.artwork?.asSecondOrNull()?.let { artworkUrl ->
++        com.margelo.nitro.nitroplayer.media.AuthAwareHttpDataSourceFactory
++            .setHeadersForUrl(artworkUrl, stringHeaders(payload?.get("artworkHeaders")))
++    }
++}
++
+ internal fun TrackPlayerCore.makeMediaItem(
+     track: TrackItem,
+     customMediaId: String? = null,
+@@ -294,24 +323,7 @@ internal fun TrackPlayerCore.makeMediaItem(
+     // The receiver fetches media itself, so local download paths are unplayable there — cast uses the remote URL.
+     val effectiveUrl = if (isCastingField) track.url else downloadManager.getEffectiveUrl(track)
+ 
+-    // Register custom HTTP headers (e.g. Authorization) from extraPayload.headers so they are
+-    // injected into the request for this URL. Applies to remote streams only — see ExoPlayerBuilder.
+-    track.extraPayload?.let { payload ->
+-        try {
+-            val headersRaw = payload.toHashMap()["headers"]
+-            if (headersRaw is Map<*, *>) {
+-                val headers =
+-                    headersRaw
+-                        .mapNotNull { (k, v) -> if (k is String && v is String) k to v else null }
+-                        .toMap()
+-                if (headers.isNotEmpty()) {
+-                    com.margelo.nitro.nitroplayer.media.AuthAwareHttpDataSourceFactory
+-                        .setHeadersForUrl(effectiveUrl, headers)
+-                }
+-            }
+-        } catch (_: Exception) {
+-        }
+-    }
++    registerTrackHeaders(track, effectiveUrl)
+ 
+     return MediaItem
+         .Builder()
+diff --git a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerUrlLoader.kt b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerUrlLoader.kt
+index c9b7df3..f689269 100644
+--- a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerUrlLoader.kt
++++ b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerUrlLoader.kt
+@@ -47,6 +47,9 @@ internal fun TrackPlayerCore.updateTracksOnQueue(tracks: List<TrackItem>) {
+         if (safeTracks.isEmpty()) return@run
+         val currentTrackUpdate = currentTrackId?.let { id -> safeTracks.find { it.id == id } }
+         safeTracks.forEach { urlRequestedAt.remove(it.id) }
++        // Upcoming MediaItems whose URL is unchanged are kept as built, so refresh the headers
++        // registered for their URLs here rather than in makeMediaItem.
++        safeTracks.forEach { registerTrackHeaders(it, if (isCastingField) it.url else downloadManager.getEffectiveUrl(it)) }
+ 
+         val affectedPlaylists: Map<String, Int> = playlistManager.updateTracks(safeTracks)
+ 
+diff --git a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt
+index 6202379..c00cf83 100644
+--- a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt
++++ b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt
+@@ -13,7 +13,10 @@ import androidx.media3.common.ForwardingPlayer
+ import androidx.media3.common.MediaItem
+ import androidx.media3.common.Player
+ import androidx.media3.common.util.UnstableApi
++import androidx.media3.datasource.DataSourceBitmapLoader
++import androidx.media3.datasource.DefaultDataSource
+ import androidx.media3.exoplayer.ExoPlayer
++import androidx.media3.session.CacheBitmapLoader
+ import androidx.media3.session.DefaultMediaNotificationProvider
+ import androidx.media3.session.MediaSession
+ import androidx.media3.session.MediaSessionService
+@@ -166,6 +169,16 @@ class NitroPlayerPlaybackService : MediaSessionService() {
+         mediaSession = MediaSession
+             .Builder(this, sessionPlayer)
+             .setCallback(MediaSessionCallbackFactory.create(this, playlistManager))
++            // Artwork loads through the same header-aware HTTP stack as the stream, so a
++            // track's extraPayload.artworkHeaders reach the notification and lock screen.
++            .setBitmapLoader(
++                CacheBitmapLoader(
++                    DataSourceBitmapLoader
++                        .Builder(this)
++                        .setDataSourceFactory(DefaultDataSource.Factory(this, AuthAwareHttpDataSourceFactory()))
++                        .build(),
++                ),
++            )
+             .apply { buildSessionActivity()?.let { setSessionActivity(it) } }
+             .build()
+ 
 diff --git a/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift b/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
 index 3b99437..a865d41 100644
 --- a/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
@@ -14,3 +126,53 @@ index 3b99437..a865d41 100644
      if !isLocal, let headers = httpHeaders(for: track) {
        // AVURLAssetHTTPHeaderFieldsKey is the de-facto mechanism for per-asset request
        // headers (also used by react-native-track-player). Applies to non-DRM HTTP(S).
+diff --git a/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift b/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift
+index 75b001d..6dd5b47 100644
+--- a/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift
++++ b/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift
+@@ -300,7 +300,7 @@ class MediaSessionManager {
+       } else {
+         // Write info first without artwork, then patch it in when loaded
+         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+-        loadArtwork(url: artworkUrl) { [weak self] image in
++        loadArtwork(url: artworkUrl, headers: artworkHeaders(for: track)) { [weak self] image in
+           guard let self = self, let image = image else { return }
+           guard self.lastArtworkUrl == artworkUrl else { return }
+           var updated = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+@@ -577,7 +577,24 @@ class MediaSessionManager {
+     lastArtworkUrl = nil
+   }
+ 
+-  private func loadArtwork(url: String, completion: @escaping (UIImage?) -> Void) {
++  /// `extraPayload.artworkHeaders`, kept apart from the stream's `headers` because the artwork
++  /// can live on another host.
++  private func artworkHeaders(for track: TrackItem) -> [String: String] {
++    guard let payload = track.extraPayload?.toDictionary(),
++      let raw = payload["artworkHeaders"] as? [String: Any?]
++    else { return [:] }
++    var headers: [String: String] = [:]
++    for (key, value) in raw {
++      if let stringValue = value as? String {
++        headers[key] = stringValue
++      }
++    }
++    return headers
++  }
++
++  private func loadArtwork(
++    url: String, headers: [String: String], completion: @escaping (UIImage?) -> Void
++  ) {
+     if let cached = artworkCache.object(forKey: url as NSString) {
+       completion(cached)
+       return
+@@ -588,7 +605,9 @@ class MediaSessionManager {
+       return
+     }
+ 
+-    URLSession.shared.dataTask(with: imageUrl) { [weak self] data, _, _ in
++    var request = URLRequest(url: imageUrl)
++    headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
++    URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+       guard let data = data, let image = UIImage(data: data) else {
+         DispatchQueue.main.async { completion(nil) }
+         return
