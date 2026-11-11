@@ -25,6 +25,9 @@ const mockRecord = recordPlayEvent as jest.Mock;
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 const OUTBOX_KEY = "play_event_outbox";
 
+const ACCOUNT_A = 1;
+const ACCOUNT_B = 2;
+
 /** The outbox as storage holds it, so a test can seed it and read it back. */
 let stored: string | null = null;
 
@@ -50,14 +53,18 @@ function track(overrides: Partial<PlayerTrack> = {}): PlayerTrack {
 /** Torn down between tests, so no run's progress reaches the next. */
 let stopCurrent: (() => void) | null = null;
 
-/** Start reporting and play the part of the player that drives it. */
-function start() {
-  const stop = startPlayHistory();
-  stopCurrent = stop;
-  const progress = (onProgress as jest.Mock).mock.calls[0][0] as (
+/**
+ * Start reporting for an account and play the part of the player that drives
+ * it. Starting again stops the previous account's reporting, as the app does
+ * when the account changes.
+ */
+function start(userId = ACCOUNT_A) {
+  stopCurrent?.();
+  stopCurrent = startPlayHistory(userId);
+  const progress = (onProgress as jest.Mock).mock.lastCall[0] as (
     value: PlaybackProgress,
   ) => void;
-  const started = (onTrackStarted as jest.Mock).mock.calls[0][0] as (
+  const started = (onTrackStarted as jest.Mock).mock.lastCall[0] as (
     value: PlayerTrack,
   ) => void;
 
@@ -83,8 +90,12 @@ function start() {
 /** Let the module's write-and-send chain run to its end. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function outbox(): unknown[] {
+function outbox(): { trackId: string; userId?: number }[] {
   return stored === null ? [] : JSON.parse(stored);
+}
+
+function sentTrackIds(): string[] {
+  return mockRecord.mock.calls.map(([event]) => event.trackId);
 }
 
 beforeEach(() => {
@@ -291,7 +302,9 @@ describe("startPlayHistory", () => {
     listen(0, 100);
     await settle();
 
-    expect(outbox()).toEqual([expect.objectContaining({ trackId: "77" })]);
+    expect(outbox()).toEqual([
+      expect.objectContaining({ trackId: "77", userId: ACCOUNT_A }),
+    ]);
   });
 
   // A payload the server refuses on its merits never becomes acceptable, and
@@ -319,22 +332,19 @@ describe("startPlayHistory", () => {
 
   it("sends what the last run held over, oldest first", async () => {
     stored = JSON.stringify([
-      { ...held("1"), playedAt: 1 },
-      { ...held("2"), playedAt: 2 },
+      { ...held("1", ACCOUNT_A), playedAt: 1 },
+      { ...held("2", ACCOUNT_A), playedAt: 2 },
     ]);
 
     start();
     await settle();
 
-    expect(mockRecord.mock.calls.map(([event]) => event.trackId)).toEqual([
-      "1",
-      "2",
-    ]);
+    expect(sentTrackIds()).toEqual(["1", "2"]);
     expect(outbox()).toEqual([]);
   });
 
   it("stops at the first play the server would not take", async () => {
-    stored = JSON.stringify([held("1"), held("2")]);
+    stored = JSON.stringify([held("1", ACCOUNT_A), held("2", ACCOUNT_A)]);
     mockRecord
       .mockResolvedValueOnce(null)
       .mockRejectedValue(new ApiError(0, "Network request failed"));
@@ -343,6 +353,83 @@ describe("startPlayHistory", () => {
     await settle();
 
     expect(outbox()).toEqual([expect.objectContaining({ trackId: "2" })]);
+  });
+
+  it("keeps a play for its account until that account signs back in", async () => {
+    stored = JSON.stringify([
+      held("1", ACCOUNT_B),
+      held("2", ACCOUNT_A),
+      held("3", ACCOUNT_B),
+    ]);
+
+    start(ACCOUNT_B);
+    await settle();
+
+    expect(sentTrackIds()).toEqual(["1", "3"]);
+    expect(outbox()).toEqual([held("2", ACCOUNT_A)]);
+
+    start(ACCOUNT_A);
+    await settle();
+
+    expect(sentTrackIds()).toEqual(["1", "3", "2"]);
+    expect(outbox()).toEqual([]);
+  });
+
+  it("stops sending an account's plays once another account signs in", async () => {
+    stored = JSON.stringify([held("1", ACCOUNT_A), held("2", ACCOUNT_A)]);
+    let finishFirstSend: () => void = () => {};
+    mockRecord.mockImplementationOnce(
+      () => new Promise((resolve) => (finishFirstSend = () => resolve(null))),
+    );
+
+    start(ACCOUNT_A);
+    await settle();
+    start(ACCOUNT_B);
+    finishFirstSend();
+    await settle();
+
+    expect(sentTrackIds()).toEqual(["1"]);
+    expect(outbox()).toEqual([held("2", ACCOUNT_A)]);
+  });
+
+  it("sends a play saved without an account with whoever signs in", async () => {
+    stored = JSON.stringify([held("1")]);
+
+    start(ACCOUNT_B);
+    await settle();
+
+    expect(sentTrackIds()).toEqual(["1"]);
+    expect(outbox()).toEqual([]);
+  });
+
+  it("keeps each account's newest 100 plays", async () => {
+    const backlog = (userId: number, prefix: string) =>
+      Array.from({ length: 100 }, (_, index) =>
+        held(`${prefix}${index}`, userId),
+      );
+    stored = JSON.stringify([
+      ...backlog(ACCOUNT_A, "a"),
+      ...backlog(ACCOUNT_B, "b"),
+    ]);
+    mockRecord.mockRejectedValue(new ApiError(0, "Network request failed"));
+    const { listen } = start(ACCOUNT_B);
+
+    listen(0, 100);
+    await settle();
+
+    const kept = (userId: number) =>
+      outbox()
+        .filter((play) => play.userId === userId)
+        .map((play) => play.trackId);
+    expect(kept(ACCOUNT_A)).toEqual(
+      backlog(ACCOUNT_A, "a").map((play) => play.trackId),
+    );
+    expect(kept(ACCOUNT_B)).toEqual([
+      ...backlog(ACCOUNT_B, "b")
+        .slice(1)
+        .map((play) => play.trackId),
+      "77",
+    ]);
   });
 
   it("discards a stored outbox that is not readable", async () => {
@@ -360,7 +447,7 @@ describe("startPlayHistory", () => {
     (onProgress as jest.Mock).mockReturnValueOnce(stopProgress);
     (onTrackStarted as jest.Mock).mockReturnValueOnce(stopStarted);
 
-    startPlayHistory()();
+    startPlayHistory(ACCOUNT_A)();
 
     expect(stopProgress).toHaveBeenCalled();
     expect(stopStarted).toHaveBeenCalled();
@@ -368,8 +455,8 @@ describe("startPlayHistory", () => {
 });
 
 describe("forgetPlayHistory", () => {
-  it("drops plays the signed-out account had not reported", async () => {
-    stored = JSON.stringify([held("1")]);
+  it("drops every account's unsent plays", async () => {
+    stored = JSON.stringify([held("1", ACCOUNT_A), held("2", ACCOUNT_B)]);
 
     await forgetPlayHistory();
 
@@ -377,8 +464,10 @@ describe("forgetPlayHistory", () => {
   });
 });
 
-function held(trackId: string) {
+/** A waiting play. Leave out the account for one an older version saved. */
+function held(trackId: string, userId?: number) {
   return {
+    ...(userId === undefined ? {} : { userId }),
     trackId,
     title: "Held",
     artist: "Radiohead",

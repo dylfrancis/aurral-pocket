@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { useReducedMotion } from "react-native-reanimated";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
+import { useAuth } from "@/contexts/auth-context";
 import { useQueueFollowsSession } from "@/hooks/player/use-queue-follows-session";
 import { startPlayHistory } from "@/lib/player/play-history";
 import { restoreSavedQueue } from "@/lib/player/player";
@@ -13,9 +14,14 @@ export default function AppLayout() {
     void restoreSavedQueue();
   }, []);
 
-  // Reporting starts with the session too: plays held over from a run that
-  // ended offline are sent as soon as there is a token to send them with.
-  useEffect(() => startPlayHistory(), []);
+  // Reporting starts with the session and sends what a run that ended offline
+  // held over. Each play is saved with its account, so it waits for the user,
+  // which can take an /auth/me round trip after launch.
+  const userId = useAuth().user?.id;
+  useEffect(
+    () => (userId === undefined ? undefined : startPlayHistory(userId)),
+    [userId],
+  );
 
   useQueueFollowsSession();
   const reduceMotion = useReducedMotion();

@@ -39,21 +39,30 @@ const MAX_LISTEN_SECONDS = 240;
 const MAX_REPORT_GAP_SECONDS = 10;
 
 /**
- * Plays that have not reached the server yet, oldest first. A phone loses its
- * connection mid-track often enough that dropping the play would be wrong,
- * and the server is the only place this history lives.
+ * Plays that have not reached the server yet, oldest first, kept per account.
+ * A phone loses its connection mid-track often enough that dropping the play
+ * would be wrong, and the server is the only place this history lives.
  */
 const MAX_PENDING = 100;
+
+/**
+ * The server credits a play to whoever's token sends it, so a waiting play
+ * keeps the account that played it. Plays saved by older versions have none.
+ */
+type PendingPlay = PlayEventInput & { userId?: number };
 
 /** Writes and sends run one at a time, so a burst cannot land out of order. */
 let work: Promise<void> = Promise.resolve();
 
+let reportingUserId: number | null = null;
+
 /**
- * Start reporting plays. Call once, after the session token is in place —
- * anything held over from a previous run is sent first. Returns a function
- * that stops reporting.
+ * Start reporting an account's plays, sending what it held over first. Call
+ * once the session token and user are in place, and again when the account
+ * changes. Returns a function that stops reporting.
  */
-export function startPlayHistory(): () => void {
+export function startPlayHistory(userId: number): () => void {
+  reportingUserId = userId;
   let reachesPlay = createPlayTracker();
   const stopStarted = onTrackStarted(() => {
     reachesPlay = createPlayTracker();
@@ -61,11 +70,12 @@ export function startPlayHistory(): () => void {
   const stopProgress = onProgress((progress) => {
     if (!reachesPlay(progress)) return;
     const event = toPlayEvent(progress);
-    if (event) enqueue(event);
+    if (event) enqueue(event, userId);
   });
-  flushSoon();
+  flushSoon(userId);
 
   return function stop(): void {
+    reportingUserId = null;
     stopStarted();
     stopProgress();
   };
@@ -98,8 +108,9 @@ function createPlayTracker(): (progress: PlaybackProgress) => boolean {
 }
 
 /**
- * Drop every unsent play. Sign-out calls this: a play belongs to the account
- * that played it, and must not reach the next one to sign in.
+ * Drop every account's unsent plays. Change Server calls this: the plays
+ * belong to the server they were played against. Sign-out keeps them for the
+ * account to send when it signs back in.
  */
 export function forgetPlayHistory(): Promise<void> {
   work = work.then(() => AppStorage.deletePlayEventOutbox()).catch(() => {});
@@ -129,36 +140,46 @@ function toPlayEvent({
   };
 }
 
-function enqueue(event: PlayEventInput): void {
+function enqueue(event: PlayEventInput, userId: number): void {
   work = work
     .then(async () => {
       const pending = await readPending();
-      await writePending([...pending, event]);
+      await writePending([...pending, { ...event, userId }]);
     })
     .catch(() => {});
-  flushSoon();
+  flushSoon(userId);
 }
 
-function flushSoon(): void {
-  work = work.then(flush).catch(() => {});
+function flushSoon(userId: number): void {
+  work = work.then(() => flush(userId)).catch(() => {});
 }
 
 /**
- * Send what is waiting, oldest first, and stop at the first play the server
- * did not take. Stopping keeps the order: a later play must not overtake one
- * the server is still refusing.
+ * Send the account's waiting plays, oldest first, and stop at the first one
+ * the server did not take. Stopping keeps the order: a later play must not
+ * overtake one the server is still refusing.
  */
-async function flush(): Promise<void> {
+async function flush(userId: number): Promise<void> {
   const pending = await readPending();
-  if (pending.length === 0) return;
-
-  let sent = 0;
-  for (const event of pending) {
-    if (!(await send(event))) break;
-    sent += 1;
+  const sent = new Set<PendingPlay>();
+  for (const play of pending) {
+    // The client sends whichever token is current, so a flush that outlives
+    // its account's session must not send another play.
+    if (reportingUserId !== userId) break;
+    if (!belongsTo(play, userId)) continue;
+    if (!(await send(play))) break;
+    sent.add(play);
   }
-  if (sent === 0) return;
-  await writePending(pending.slice(sent));
+  if (sent.size === 0) return;
+  await writePending(pending.filter((play) => !sent.has(play)));
+}
+
+/**
+ * A play from an older version has no account and goes with whoever signs
+ * in: one batch at most, and almost always the same person's.
+ */
+function belongsTo(play: PendingPlay, userId: number): boolean {
+  return play.userId === undefined || play.userId === userId;
 }
 
 /**
@@ -167,7 +188,7 @@ async function flush(): Promise<void> {
  * block every play behind it forever. Network trouble and a server fault are
  * the retryable cases.
  */
-async function send(event: PlayEventInput): Promise<boolean> {
+async function send({ userId: _, ...event }: PendingPlay): Promise<boolean> {
   try {
     await recordPlayEvent(event);
     return true;
@@ -179,35 +200,51 @@ async function send(event: PlayEventInput): Promise<boolean> {
   }
 }
 
-async function readPending(): Promise<PlayEventInput[]> {
+async function readPending(): Promise<PendingPlay[]> {
   const raw = await AppStorage.getPlayEventOutbox();
   if (!raw) return [];
   try {
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(isPlayEvent) : [];
+    return Array.isArray(parsed) ? parsed.filter(isPendingPlay) : [];
   } catch {
     return [];
   }
 }
 
-async function writePending(events: PlayEventInput[]): Promise<void> {
-  if (events.length === 0) {
+async function writePending(plays: PendingPlay[]): Promise<void> {
+  if (plays.length === 0) {
     await AppStorage.deletePlayEventOutbox();
     return;
   }
-  // Over the cap the oldest plays go: the newest listening is the history
-  // worth keeping, and an outbox that only grows would never be sent.
-  const kept = events.slice(-MAX_PENDING);
-  await AppStorage.setPlayEventOutbox(JSON.stringify(kept));
+  await AppStorage.setPlayEventOutbox(JSON.stringify(capPerAccount(plays)));
 }
 
-function isPlayEvent(value: unknown): value is PlayEventInput {
+/**
+ * Over the cap an account's oldest plays go: the newest listening is the
+ * history worth keeping, and an outbox that only grows would never be sent.
+ * Counting per account keeps one account's backlog from pushing out another's.
+ */
+function capPerAccount(plays: PendingPlay[]): PendingPlay[] {
+  const counts = new Map<number | undefined, number>();
+  const kept: PendingPlay[] = [];
+  for (let index = plays.length - 1; index >= 0; index -= 1) {
+    const play = plays[index];
+    const count = counts.get(play.userId) ?? 0;
+    if (count === MAX_PENDING) continue;
+    counts.set(play.userId, count + 1);
+    kept.push(play);
+  }
+  return kept.reverse();
+}
+
+function isPendingPlay(value: unknown): value is PendingPlay {
   if (typeof value !== "object" || value === null) return false;
-  const event = value as Record<string, unknown>;
+  const play = value as Record<string, unknown>;
   return (
-    typeof event.trackId === "string" &&
-    typeof event.title === "string" &&
-    typeof event.artist === "string" &&
-    typeof event.playedAt === "number"
+    typeof play.trackId === "string" &&
+    typeof play.title === "string" &&
+    typeof play.artist === "string" &&
+    typeof play.playedAt === "number" &&
+    (play.userId === undefined || typeof play.userId === "number")
   );
 }
