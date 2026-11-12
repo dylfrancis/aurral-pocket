@@ -1,5 +1,4 @@
 import {
-  CustomizeDiscoverSheet,
   DiscoverHeaderSection,
   EditorialPlaylistsSection,
   GenreSectionsPanel,
@@ -15,15 +14,15 @@ import { DiscoverTabs } from "@/components/discover/DiscoverTabs";
 import type { DiscoverTab } from "@/components/discover/discover-tabs";
 import { EditorialShelf } from "@/components/discover/EditorialShelf";
 import { TrendingCharts } from "@/components/discover/TrendingCharts";
-import { SettingsSheet } from "@/components/settings/SettingsSheet";
 import { ShazamSheet } from "@/components/shazam";
 import { isShazamAvailable } from "@/modules/shazam";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
-import Settings from "@expo/material-symbols/settings.xml";
 import { Colors, Fonts } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
+import { OverflowMenu } from "@/components/navigation/OverflowMenu";
+import { useOpenOverflowScreen } from "@/hooks/use-open-overflow-screen";
 import {
   useDiscovery,
   useDiscoverLayout,
@@ -36,7 +35,6 @@ import {
   type RecommendedFilter,
 } from "@/lib/discover/recommended";
 import { discoverKeys } from "@/lib/query-keys";
-import type { DiscoverSection } from "@/lib/types/me";
 import type {
   ConcertEvent,
   DiscoveryArtist,
@@ -51,7 +49,6 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Linking,
   Pressable,
   RefreshControl,
@@ -68,11 +65,7 @@ export default function DiscoverScreen() {
   const { data: discovery, refetch: refetchDiscovery } = useDiscovery();
   const { refetch: refetchRecentlyAdded } = useRecentlyAdded();
   const { refetch: refetchRecentReleases } = useRecentReleases();
-  const {
-    sections,
-    hydrated: layoutHydrated,
-    saveLayout,
-  } = useDiscoverLayout();
+  const { sections, hydrated: layoutHydrated } = useDiscoverLayout();
 
   const [tab, setTab] = useState<DiscoverTab>("forYou");
   const [openedTabs, setOpenedTabs] = useState<ReadonlySet<DiscoverTab>>(
@@ -86,8 +79,6 @@ export default function DiscoverScreen() {
   }, []);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
-  const settingsSheetRef = useRef<BottomSheetModal>(null);
-  const customizeSheetRef = useRef<BottomSheetModal>(null);
 
   // The header shrinks as the large title collapses; the page's top is where
   // the expanded title ends.
@@ -197,28 +188,13 @@ export default function DiscoverScreen() {
     if (show.url) Linking.openURL(show.url).catch(() => {});
   }, []);
 
-  const handleOpenSettings = useCallback(() => {
-    settingsSheetRef.current?.present();
-  }, []);
-
-  const shazamSheetRef = useRef<BottomSheetModal>(null);
-
-  const handleOpenCustomize = useCallback(() => {
-    customizeSheetRef.current?.present();
-  }, []);
-
-  const handleSaveLayout = useCallback(
-    async (next: DiscoverSection[]) => {
-      await saveLayout(next);
-    },
-    [saveLayout],
+  const openOverflowScreen = useOpenOverflowScreen();
+  const handleOpenSettings = useCallback(
+    () => openOverflowScreen("settings"),
+    [openOverflowScreen],
   );
 
-  const handleSaveLayoutError = useCallback((err: unknown) => {
-    const message =
-      err instanceof Error && err.message ? err.message : "Please try again.";
-    Alert.alert("Could not save layout", message);
-  }, []);
+  const shazamSheetRef = useRef<BottomSheetModal>(null);
 
   const pushDiscoverList = useCallback(
     (kind: "trending" | "recently-added" | "recent-releases") => {
@@ -289,13 +265,7 @@ export default function DiscoverScreen() {
             Identify song
           </Stack.Toolbar.Button>
         )}
-        <Stack.Toolbar.Button
-          icon={IS_IOS ? "gearshape" : Settings}
-          accessibilityLabel="Settings"
-          onPress={handleOpenSettings}
-        >
-          Settings
-        </Stack.Toolbar.Button>
+        {IS_ANDROID && <OverflowMenu />}
       </Stack.Toolbar>
       <ScrollView
         ref={scrollRef}
@@ -356,10 +326,7 @@ export default function DiscoverScreen() {
             </Card>
           ) : (
             <>
-              <DiscoverHeaderSection
-                onTagPress={handleTagPress}
-                onCustomize={handleOpenCustomize}
-              />
+              <DiscoverHeaderSection onTagPress={handleTagPress} />
               {layoutHydrated
                 ? sections
                     .filter((section) => section.enabled)
@@ -448,13 +415,6 @@ export default function DiscoverScreen() {
           </DiscoverTabPanel>
         ) : null}
       </ScrollView>
-      <SettingsSheet sheetRef={settingsSheetRef} />
-      <CustomizeDiscoverSheet
-        sheetRef={customizeSheetRef}
-        sections={sections}
-        onSave={handleSaveLayout}
-        onSaveError={handleSaveLayoutError}
-      />
       <ShazamSheet
         sheetRef={shazamSheetRef}
         onViewArtist={(mbid, name) => pushArtist(mbid, name)}

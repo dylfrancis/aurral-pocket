@@ -1,22 +1,19 @@
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TagPill } from "@/components/ui/TagPill";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
 import { useDiscovery } from "@/hooks/discover";
 import { formatBasedOn, formatUpdatedAt } from "@/lib/discover/format";
 
 type Props = {
   onTagPress: (tag: string) => void;
-  onCustomize?: () => void;
 };
 
-export function DiscoverHeaderSection({ onTagPress, onCustomize }: Props) {
+export function DiscoverHeaderSection({ onTagPress }: Props) {
   const colors = Colors[useColorScheme()];
   // Repaint the "updated" date when the server format changes.
   useDateTimeFormat();
@@ -37,7 +34,6 @@ export function DiscoverHeaderSection({ onTagPress, onCustomize }: Props) {
               Your daily mix, curated from your library.
             </Text>
           </View>
-          {onCustomize ? <CustomizeButton onPress={onCustomize} /> : null}
         </View>
         <View style={styles.tagsBlock}>
           <SectionHeader title="Top Tags" />
@@ -81,7 +77,6 @@ export function DiscoverHeaderSection({ onTagPress, onCustomize }: Props) {
             </Text>
           ) : null}
         </View>
-        {onCustomize ? <CustomizeButton onPress={onCustomize} /> : null}
       </View>
 
       {tags.length > 0 ? (
@@ -111,36 +106,6 @@ export function DiscoverHeaderSection({ onTagPress, onCustomize }: Props) {
   );
 }
 
-function CustomizeButton({ onPress }: { onPress: () => void }) {
-  const colors = Colors[useColorScheme()];
-  const handlePress = () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onPress();
-  };
-  return (
-    <Pressable
-      onPress={handlePress}
-      accessibilityLabel="Customize discover sections"
-      hitSlop={6}
-      style={({ pressed }) => [
-        styles.customizeButton,
-        { borderColor: colors.separator, opacity: pressed ? 0.6 : 1 },
-      ]}
-    >
-      <Ionicons name="options-outline" size={14} color={colors.subtle} />
-      <Text
-        variant="caption"
-        style={[
-          styles.customizeLabel,
-          { color: colors.subtle, ...Fonts.medium },
-        ]}
-      >
-        Customize
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     gap: 12,
@@ -154,18 +119,6 @@ const styles = StyleSheet.create({
   introText: {
     flex: 1,
     gap: 2,
-  },
-  customizeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  customizeLabel: {
-    fontSize: 12,
   },
   subtitle: {
     fontSize: 15,

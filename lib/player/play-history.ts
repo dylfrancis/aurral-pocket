@@ -9,8 +9,8 @@ import { AppStorage } from "@/lib/storage";
  * Play history: what pocket tells Aurral it played.
  *
  * The server keeps the history and forwards each play to whichever scrobble
- * providers the account linked. Pocket links nothing and reads no provider
- * status — linking happens on the web app. Reporting is all pocket does.
+ * providers the account linked. Settings > Listening shows and changes those
+ * links; this module only reports the plays.
  *
  * A play counts once the listener has heard half the track or four minutes,
  * whichever comes first, the same rule as the Aurral web player. Seeking adds no

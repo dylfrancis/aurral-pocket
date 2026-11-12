@@ -97,4 +97,5 @@ export const flowKeys = {
 
 export const meKeys = {
   listeningHistory: () => ["me", "listeningHistory"] as const,
+  scrobbleStatus: () => ["me", "scrobbleStatus"] as const,
 };

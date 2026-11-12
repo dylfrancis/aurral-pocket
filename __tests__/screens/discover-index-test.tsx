@@ -12,7 +12,6 @@ jest.mock("@/hooks/use-color-scheme", () => ({
 }));
 
 jest.mock("@expo/material-symbols/mic.xml", () => "Mic");
-jest.mock("@expo/material-symbols/settings.xml", () => "Settings");
 
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
@@ -75,7 +74,6 @@ jest.mock("@/components/discover", () => {
     GlobalTrendingSection: stub("globalTop"),
     GenreSectionsPanel: stub("genreSections"),
     EditorialPlaylistsSection: viewAllStub("playlists"),
-    CustomizeDiscoverSheet: () => null,
   };
 });
 
@@ -147,8 +145,12 @@ jest.mock("@/components/discover/TrendingCharts", () => {
   return { TrendingCharts: () => <Text testID="tab-trending" /> };
 });
 
-jest.mock("@/components/settings/SettingsSheet", () => ({
-  SettingsSheet: () => null,
+jest.mock("@/hooks/use-open-overflow-screen", () => ({
+  useOpenOverflowScreen: () => jest.fn(),
+}));
+
+jest.mock("@/components/navigation/OverflowMenu", () => ({
+  OverflowMenu: () => null,
 }));
 
 jest.mock("@/components/shazam", () => ({

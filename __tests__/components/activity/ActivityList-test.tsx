@@ -62,6 +62,7 @@ jest.mock("expo-router", () => {
   return {
     useFocusEffect: jest.fn(),
     useNavigation: () => ({ isFocused: mockIsFocused }),
+    useSegments: () => ["(app)", "(tabs)", "(activity)", "history"],
     useRouter: jest.fn(() => ({
       push: mockPush,
       replace: mockReplace,
@@ -326,7 +327,7 @@ describe("ActivityList", () => {
       <ActivityList view="history" />,
     );
     await fireEvent.press(getByText("Start Discovering"));
-    expect(mockPush).toHaveBeenCalledWith("/(app)/(tabs)/(discover)");
+    expect(mockNavigate).toHaveBeenCalledWith("/(app)/(tabs)/(discover)");
   });
 
   it("renders album requests when data is loaded", async () => {

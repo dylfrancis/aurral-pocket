@@ -130,6 +130,19 @@ async function writeStoredLayout(
   } catch {}
 }
 
+type LayoutListener = (
+  userId: number | null,
+  layout: DiscoverLayoutEntry[],
+) => void;
+
+// Discover and Settings each hold the layout, so a save made on one reaches
+// the other through here.
+const layoutListeners = new Set<LayoutListener>();
+
+function shareLayout(userId: number | null, layout: DiscoverLayoutEntry[]) {
+  layoutListeners.forEach((listener) => listener(userId, layout));
+}
+
 export type UseDiscoverLayoutResult = {
   sections: DiscoverSection[];
   hydrated: boolean;
@@ -154,6 +167,16 @@ export function useDiscoverLayout(): UseDiscoverLayoutResult {
   useEffect(() => {
     layoutRef.current = layout;
   }, [layout]);
+
+  useEffect(() => {
+    const listener: LayoutListener = (changedUserId, next) => {
+      if (changedUserId === userId) setLayout(next);
+    };
+    layoutListeners.add(listener);
+    return () => {
+      layoutListeners.delete(listener);
+    };
+  }, [userId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -188,7 +211,7 @@ export function useDiscoverLayout(): UseDiscoverLayoutResult {
         previousStorage = await AsyncStorage.getItem(storageKey(userId));
       } catch {}
       const optimistic = withSections(previousLayout, next);
-      setLayout(optimistic);
+      shareLayout(userId, optimistic);
       await writeStoredLayout(optimistic, userId);
       try {
         // Build on the server's current layout, so a News or style change
@@ -200,10 +223,10 @@ export function useDiscoverLayout(): UseDiscoverLayoutResult {
         );
         const response = await updateMyDiscoverLayout(merged);
         const saved = normalizeDiscoverLayout(response?.layout) ?? merged;
-        setLayout(saved);
+        shareLayout(userId, saved);
         await writeStoredLayout(saved, userId);
       } catch (err) {
-        setLayout(previousLayout);
+        shareLayout(userId, previousLayout);
         try {
           if (previousStorage === null) {
             await AsyncStorage.removeItem(storageKey(userId));

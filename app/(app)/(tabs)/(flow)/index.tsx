@@ -19,7 +19,8 @@ import {
 } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
+import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import type { Flow } from "@/lib/types/flow";
 
 /**
@@ -131,6 +132,7 @@ function FlowScreenContent() {
             </Stack.Toolbar.Menu>
           ) : null}
         </Stack.Toolbar.Menu>
+        {IS_ANDROID && <OverflowMenu />}
       </Stack.Toolbar>
       <FlashList
         data={data.flows}

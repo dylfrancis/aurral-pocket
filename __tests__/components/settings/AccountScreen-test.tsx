@@ -16,13 +16,7 @@ jest.mock("expo-haptics", () => ({
   NotificationFeedbackType: { Success: "success", Error: "error" },
 }));
 
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { TextInput } = require("react-native");
-  return {
-    BottomSheetTextInput: (props: any) => React.createElement(TextInput, props),
-  };
-});
+jest.mock("@expo/ui", () => require("@/test-support/expo-ui"));
 
 import React from "react";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
@@ -32,7 +26,7 @@ import * as Burnt from "burnt";
 import * as SecureStore from "expo-secure-store";
 import { fetch } from "expo/fetch";
 import { Text } from "react-native";
-import { PasswordSection } from "@/components/settings/sections/PasswordSection";
+import { AccountScreen } from "@/components/settings/AccountScreen";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { setAuthToken } from "@/lib/api/client";
 
@@ -149,7 +143,7 @@ async function renderSignedIn(stored: Record<string, string> = {}) {
     <QueryClientProvider client={client}>
       <AuthProvider>
         <Session />
-        <PasswordSection />
+        <AccountScreen />
       </AuthProvider>
     </QueryClientProvider>,
   );
@@ -163,7 +157,6 @@ async function submitForm(
   utils: Awaited<ReturnType<typeof renderSignedIn>>,
   currentPassword = CURRENT,
 ) {
-  await fireEvent.press(utils.getByText("Change password"));
   await fireEvent.changeText(
     utils.getByPlaceholderText("Current password"),
     currentPassword,
@@ -173,7 +166,7 @@ async function submitForm(
     utils.getByPlaceholderText("Confirm new password"),
     NEXT,
   );
-  await fireEvent.press(utils.getByText("Update password"));
+  await fireEvent.press(utils.getByText("Update Password"));
 }
 
 const SAVED_CREDENTIALS = {
@@ -188,7 +181,7 @@ beforeEach(() => {
   setAuthToken(null);
 });
 
-describe("PasswordSection", () => {
+describe("AccountScreen password change", () => {
   it.each([
     ["without saved credentials", {}],
     ["with saved credentials", SAVED_CREDENTIALS],
@@ -263,5 +256,29 @@ describe("PasswordSection", () => {
         expect.objectContaining({ title: "Password updated" }),
       ),
     );
+  });
+
+  it("keeps Update Password off until the new password is confirmed", async () => {
+    const calls = serveAurral({ recent: true, hasPassword: true });
+    const utils = await renderSignedIn();
+
+    await fireEvent.changeText(
+      utils.getByPlaceholderText("Current password"),
+      CURRENT,
+    );
+    await fireEvent.changeText(
+      utils.getByPlaceholderText("New password"),
+      NEXT,
+    );
+    await fireEvent.changeText(
+      utils.getByPlaceholderText("Confirm new password"),
+      "Something-Else-3!",
+    );
+    await fireEvent.press(utils.getByText("Update Password"));
+
+    expect(
+      utils.getByText("New password and confirmation must match."),
+    ).toBeTruthy();
+    expect(calls).toEqual([]);
   });
 });

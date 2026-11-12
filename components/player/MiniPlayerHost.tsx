@@ -14,30 +14,38 @@ const DOCK_MARGIN = 8;
 /** Fixed, so the host can reserve exactly this much layout space. */
 const DOCK_HEIGHT = 56;
 
+type HostProps = {
+  children: ReactNode;
+  /** The stack opens above the tabs, with no tab bar beneath it. */
+  aboveTabs?: boolean;
+};
+
 /**
  * Wraps one tab's stack so the mini player floats over every screen of that
  * tab. On iOS 26+ the tab bar's native bottom accessory hosts the bar
  * instead, and this wrapper passes children through untouched.
  */
-export function MiniPlayerHost({ children }: { children: ReactNode }) {
+export function MiniPlayerHost({ children, aboveTabs }: HostProps) {
   if (HAS_LIQUID_GLASS) {
     return <>{children}</>;
   }
 
-  return <DockedHost>{children}</DockedHost>;
+  return <DockedHost aboveTabs={aboveTabs}>{children}</DockedHost>;
 }
 
-function DockedHost({ children }: { children: ReactNode }) {
+function DockedHost({ children, aboveTabs }: HostProps) {
   const insets = useSafeAreaInsets();
   const hasQueue = useHasQueue();
 
   // Android's tab content area ends at the top of the tab bar, so the dock
-  // sits at the content's bottom edge. On iOS 18 and earlier the content
-  // extends under the translucent bar, so the dock clears the bar and the
-  // home indicator.
+  // sits at the content's bottom edge. Above the tabs, the content runs down
+  // under the navigation bar, so it clears that. On iOS 18 and earlier the
+  // content extends under the translucent bar, so the dock clears the bar and
+  // the home indicator.
+  const navigationBarInset = aboveTabs && !IS_IOS ? insets.bottom : 0;
   const dockBottom = IS_IOS
     ? insets.bottom + LEGACY_TAB_BAR_HEIGHT + DOCK_MARGIN
-    : DOCK_MARGIN;
+    : navigationBarInset + DOCK_MARGIN;
 
   return (
     <View
@@ -45,8 +53,10 @@ function DockedHost({ children }: { children: ReactNode }) {
         styles.host,
         // The dock is absolutely positioned, so the host reserves its zone
         // while it shows — screens must not render beneath it.
-        hasQueue && {
-          paddingBottom: dockBottom + DOCK_HEIGHT + DOCK_MARGIN,
+        {
+          paddingBottom: hasQueue
+            ? dockBottom + DOCK_HEIGHT + DOCK_MARGIN
+            : navigationBarInset,
         },
       ]}
     >

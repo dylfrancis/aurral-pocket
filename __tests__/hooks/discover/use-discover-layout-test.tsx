@@ -268,6 +268,27 @@ describe("useDiscoverLayout", () => {
     ]);
   });
 
+  it("shows a save on every screen that holds the layout", async () => {
+    // Settings edits the layout while Discover, a tab that stays mounted,
+    // keeps showing it.
+    mockGetLayout.mockResolvedValue({ layout: null });
+    mockUpdateLayout.mockResolvedValue({
+      layout: [{ id: "globalTop", enabled: true }],
+    });
+    const discover = await renderHook(() => useDiscoverLayout());
+    const settings = await renderHook(() => useDiscoverLayout());
+    await waitFor(() => expect(discover.result.current.hydrated).toBe(true));
+    await waitFor(() => expect(settings.result.current.hydrated).toBe(true));
+
+    await act(async () => {
+      await settings.result.current.saveLayout(
+        DEFAULT_DISCOVER_SECTIONS.map((s) => ({ ...s })),
+      );
+    });
+
+    expect(discover.result.current.sections[0].id).toBe("globalTop");
+  });
+
   it("saveLayout reverts AsyncStorage and state when the server PATCH fails", async () => {
     const initial = [{ id: "globalTop", enabled: false }];
     mockStorage.getItem.mockResolvedValue(JSON.stringify(initial));
