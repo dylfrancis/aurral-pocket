@@ -315,6 +315,24 @@
       "retryPausedPlaylistIds": []
     },
     "GET /requests": [],
+    "GET /scrobbling/status": {
+      "koito": {
+        "connected": "boolean",
+        "connectedAt": "null",
+        "displayName": "null"
+      },
+      "lastfm": {
+        "configured": "boolean",
+        "connected": "boolean",
+        "connectedAt": "null",
+        "displayName": "null"
+      },
+      "listenbrainz": {
+        "connected": "boolean",
+        "connectedAt": "null",
+        "displayName": "null"
+      }
+    },
     "GET /users/me/discover-layout": {
       "layout": "null"
     },

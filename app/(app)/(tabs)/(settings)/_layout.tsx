@@ -1,5 +1,9 @@
 import { Stack } from "expo-router";
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
+import {
+  isListeningService,
+  SERVICE_LABELS,
+} from "@/components/settings/listening";
 import { TRANSPARENT_HEADER } from "@/constants/navigation";
 import { IS_ANDROID } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
@@ -27,6 +31,19 @@ export default function SettingsLayout() {
           options={{ title: "Settings", headerLargeTitleEnabled: true }}
         />
         <Stack.Screen name="settings/account" options={{ title: "Account" }} />
+        <Stack.Screen
+          name="settings/listening/index"
+          options={{ title: "Listening" }}
+        />
+        <Stack.Screen
+          name="settings/listening/[service]"
+          options={({ route }) => {
+            const { service } = (route.params ?? {}) as { service?: string };
+            return {
+              title: isListeningService(service) ? SERVICE_LABELS[service] : "",
+            };
+          }}
+        />
         <Stack.Screen
           name="settings/appearance"
           options={{ title: "Appearance" }}

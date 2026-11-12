@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import AccountCircle from "@expo/material-symbols/account_circle.xml";
 import Contrast from "@expo/material-symbols/contrast.xml";
 import Dns from "@expo/material-symbols/dns.xml";
+import Headphones from "@expo/material-symbols/headphones.xml";
 import Info from "@expo/material-symbols/info.xml";
 import Logout from "@expo/material-symbols/logout.xml";
 import { useSettingsRow } from "@/components/settings/SettingsRows";
@@ -16,6 +17,7 @@ import { APPEARANCE_LABELS } from "@/components/settings/appearance";
 
 const ICONS = {
   account: Icon.select({ ios: "person.crop.circle", android: AccountCircle }),
+  listening: Icon.select({ ios: "headphones", android: Headphones }),
   appearance: Icon.select({ ios: "circle.lefthalf.filled", android: Contrast }),
   server: Icon.select({ ios: "server.rack", android: Dns }),
   about: Icon.select({ ios: "info.circle", android: Info }),
@@ -44,6 +46,12 @@ export function SettingsScreen() {
             value: user?.username,
             opensPage: true,
             onPress: () => router.push("/settings/account"),
+          })}
+          {row({
+            icon: ICONS.listening,
+            label: "Listening",
+            opensPage: true,
+            onPress: () => router.push("/settings/listening"),
           })}
           {row({
             icon: ICONS.appearance,
