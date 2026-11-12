@@ -109,6 +109,10 @@ jest.mock("@/components/library/CoverArtImage", () => ({
   CoverArtImage: jest.fn(() => null),
 }));
 
+jest.mock("@/components/player/CoverTintBackdrop", () => ({
+  CoverTintBackdrop: () => null,
+}));
+
 jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   AddToPlaylistSheet: () => null,
   useAddToPlaylist: () => ({

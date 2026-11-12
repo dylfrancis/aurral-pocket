@@ -1,6 +1,5 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, type Href } from "expo-router";
 import { useCallback, useRef, useState, type ComponentProps } from "react";
 import {
@@ -33,8 +32,10 @@ import {
   AddToPlaylistSheet,
   useAddToPlaylist,
 } from "@/components/flow/AddToPlaylistSheet";
+import { CoverTintBackdrop } from "@/components/player/CoverTintBackdrop";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import {
+  ARTWORK_SHADOW,
   PlayerColors,
   usePlayerColors,
 } from "@/components/player/player-colors";
@@ -52,7 +53,7 @@ import {
   useIsFavoriteTrack,
   useToggleFavorite,
 } from "@/hooks/library/use-library-favorites";
-import { useCoverColor } from "@/hooks/player/use-cover-color";
+import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useDragToClose } from "@/hooks/player/use-drag-to-close";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { TrackFavorite } from "@/lib/api/library";
@@ -69,7 +70,6 @@ import {
   useQueue,
   type RepeatMode,
 } from "@/lib/player/player";
-import { tintForScheme } from "@/lib/player/artwork-tint";
 import type { PlayerTrack } from "@/lib/player/track-item";
 
 /** Each repeat tap steps to the next mode: queue, then track, then off. */
@@ -112,12 +112,8 @@ export function NowPlayingScreen() {
   const state = usePlaybackState();
   const modes = usePlayerModes();
   const { items, currentId, album } = useQueue();
-  const scheme = useColorScheme();
-  const colors = PlayerColors[scheme];
-  const coverColor = useCoverColor(track);
-  const tint = coverColor
-    ? tintForScheme(coverColor, scheme)
-    : colors.background;
+  const colors = PlayerColors[useColorScheme()];
+  const tint = useCoverTint(track);
   const [showQueue, setShowQueue] = useState(false);
   const art = useArtFrame();
 
@@ -232,22 +228,7 @@ export function NowPlayingScreen() {
           style={[styles.sheet, drag.sheetStyle]}
           onAccessibilityEscape={close}
         >
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                backgroundColor: tint,
-                transitionProperty: "backgroundColor",
-                transitionDuration: 400,
-                transitionTimingFunction: "ease-in-out",
-              },
-            ]}
-          />
-          <LinearGradient
-            colors={[`${colors.background}00`, colors.background]}
-            locations={TINT_FADE_STOPS}
-            style={[StyleSheet.absoluteFill, styles.passThrough]}
-          />
+          <CoverTintBackdrop tint={tint} fadeStops={TINT_FADE_STOPS} />
           <LayoutAnimationConfig skipEntering>
             <GestureDetector gesture={topPan}>
               <View
@@ -928,17 +909,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  passThrough: {
-    pointerEvents: "none",
-  },
-  // A box shadow isn't cut by the view's own clip, so one view can both round
-  // the art and shade it.
   art: {
     position: "absolute",
     top: 0,
     left: 0,
     overflow: "hidden",
     pointerEvents: "none",
-    boxShadow: "0px 10px 18px rgba(0, 0, 0, 0.3)",
+    boxShadow: ARTWORK_SHADOW,
   },
 });

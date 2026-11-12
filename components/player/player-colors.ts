@@ -26,6 +26,12 @@ export const PlayerColors = {
   },
 };
 
+/**
+ * Lifts artwork off the tint behind it. A box shadow isn't cut by the view's
+ * own clip, so one view can both round the art and shade it.
+ */
+export const ARTWORK_SHADOW = "0px 10px 18px rgba(0, 0, 0, 0.3)";
+
 export function usePlayerColors() {
   return PlayerColors[useColorScheme()];
 }
