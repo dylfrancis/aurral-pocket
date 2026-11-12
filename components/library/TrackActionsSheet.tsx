@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { BottomSheetView, type BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -13,7 +13,7 @@ import { Text } from "@/components/ui/Text";
 import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { Colors, Fonts } from "@/constants/theme";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
@@ -76,6 +76,7 @@ function TrackActionsContent({
   onClose: () => void;
 }) {
   const { track, album } = target;
+  const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const sheetRef = useRef<BottomSheetModal>(null);
   const { playNext, addToQueue } = useQueueActions();
@@ -104,9 +105,26 @@ function TrackActionsContent({
       <BottomSheetView
         style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}
       >
-        <Text variant="subtitle" numberOfLines={1} style={styles.sheetTitle}>
-          {track.trackName}
-        </Text>
+        <View style={styles.sheetTitleRow}>
+          <Text variant="subtitle" numberOfLines={1} style={styles.sheetTitle}>
+            {track.trackName}
+          </Text>
+          {track.hasFile && !!track.quality && (
+            <View
+              style={[
+                styles.qualityBadge,
+                { backgroundColor: `${colors.brand}20` },
+              ]}
+            >
+              <Text
+                variant="caption"
+                style={[styles.qualityText, { color: colors.brand }]}
+              >
+                {track.quality}
+              </Text>
+            </View>
+          )}
+        </View>
         <SheetAction
           icon="play-forward-outline"
           label="Play Next"
@@ -178,8 +196,24 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     gap: 4,
   },
-  sheetTitle: {
+  sheetTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     paddingBottom: 8,
+  },
+  sheetTitle: {
+    // Shrinks before the badge does, so a long name still shows the quality.
+    flexShrink: 1,
+  },
+  qualityBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  qualityText: {
+    fontSize: 10,
+    ...Fonts.medium,
   },
   sheetRow: {
     flexDirection: "row",

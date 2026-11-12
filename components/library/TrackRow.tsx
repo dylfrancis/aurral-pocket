@@ -87,21 +87,6 @@ export const TrackRow = React.memo(function TrackRow({
       >
         {track.trackName}
       </Text>
-      {track.hasFile && track.quality && (
-        <View
-          style={[
-            styles.qualityBadge,
-            { backgroundColor: `${colors.brand}20` },
-          ]}
-        >
-          <Text
-            variant="caption"
-            style={[styles.qualityText, { color: colors.brand }]}
-          >
-            {track.quality}
-          </Text>
-        </View>
-      )}
       <Ionicons
         name={track.hasFile ? "checkmark-circle" : "remove-circle-outline"}
         size={16}
@@ -212,14 +197,5 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-  },
-  qualityBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  qualityText: {
-    fontSize: 10,
-    ...Fonts.medium,
   },
 });
