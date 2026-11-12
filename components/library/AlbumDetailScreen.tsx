@@ -25,6 +25,11 @@ import OpenInNew from "@expo/material-symbols/open_in_new.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
+import { CoverTintBackdrop } from "@/components/player/CoverTintBackdrop";
+import {
+  ARTWORK_SHADOW,
+  PlayerColors,
+} from "@/components/player/player-colors";
 import { CircleButton } from "@/components/ui/CircleButton";
 import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
 import { Text } from "@/components/ui/Text";
@@ -40,6 +45,7 @@ import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
+import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { canResearchAurralAlbum, isUnreleased } from "@/lib/album-status";
 import {
@@ -57,7 +63,7 @@ import {
 import { libraryKeys } from "@/lib/query-keys";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import { Colors, Fonts } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import type {
   DownloadStatusMap,
   DownloadStatusValue,
@@ -65,6 +71,11 @@ import type {
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
+const COVER_RADIUS = 12;
+/** Covers the iOS header above the hero, and the room a pull-down opens. */
+const TINT_BLEED = Dimensions.get("window").height;
+/** The play row sits below the fade, on the plain background the brand green is made for. */
+const HERO_FADE_STOPS = [0.35, 1] as const;
 
 type AlbumRouteParams = {
   ref: string;
@@ -94,13 +105,17 @@ type AlbumRouteParams = {
  * null and the page still works from the params alone.
  */
 export function AlbumDetailScreen() {
-  const colors = Colors[useColorScheme()];
+  const scheme = useColorScheme();
+  const colors = Colors[scheme];
+  const heroColors = PlayerColors[scheme];
   const insets = useSafeAreaInsets();
-  // iOS keeps a translucent header, so contentOffset 0 sits *under* the nav
-  // bar and the cover would start behind it. Android's header is opaque and
-  // the scroll view already starts below it, so it only needs breathing room.
+  // iOS insets the scroll view below its translucent header. Content that
+  // starts under the bar gets the header's edge dimming even at rest, which
+  // darkened the tint there. The offset then starts at minus the header's
+  // height, so the title fade adds it back. Android's header is opaque and
+  // the scroll view starts below it.
   const headerHeight = useHeaderHeight();
-  const heroPaddingTop = (IS_IOS ? headerHeight : 0) + 24;
+  const restingOffset = IS_IOS ? headerHeight : 0;
   const router = useRouter();
   const queryClient = useQueryClient();
   const hasPermission = useHasPermission();
@@ -141,6 +156,8 @@ export function AlbumDetailScreen() {
     type: "album",
     mbid: albumMbid || undefined,
   });
+  // The same two sources the hero cover loads from, in its order.
+  const tint = useCoverTint({ coverPath: coverUrl, artwork: artworkUrl });
 
   const playContext: PlayerAlbumContext = {
     albumTitle: title,
@@ -319,7 +336,7 @@ export function AlbumDetailScreen() {
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+      scrollY.value = event.contentOffset.y + restingOffset;
     },
   });
 
@@ -332,6 +349,9 @@ export function AlbumDetailScreen() {
           headerTitle: () => (
             <ScrollHeaderTitle name={title} scrollY={scrollY} />
           ),
+          // The opaque header carries the tint, so it meets the hero's
+          // without a seam. iOS draws the hero's own tint under its header.
+          ...(IS_ANDROID && { headerStyle: { backgroundColor: tint } }),
         }}
       />
       <Stack.Toolbar placement="right">
@@ -388,18 +408,31 @@ export function AlbumDetailScreen() {
       </Stack.Toolbar>
 
       <Animated.ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{
+          // The automatic inset already clears the iOS tab bar.
+          paddingBottom: (IS_IOS ? 0 : insets.bottom) + 16,
+        }}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-        <View style={[styles.hero, { paddingTop: heroPaddingTop }]}>
-          <CoverArtImage
-            type="album"
-            mbid={albumMbid}
-            coverUrl={coverUrl}
-            size={COVER_SIZE}
-            borderRadius={12}
+        <View style={styles.hero}>
+          <CoverTintBackdrop
+            tint={tint}
+            fadeStops={HERO_FADE_STOPS}
+            bleed={TINT_BLEED}
+            // Android's header can't ease, so the hero switches with it.
+            animated={IS_IOS}
           />
+          <View style={styles.cover}>
+            <CoverArtImage
+              type="album"
+              mbid={albumMbid}
+              coverUrl={coverUrl}
+              size={COVER_SIZE}
+              borderRadius={0}
+            />
+          </View>
           <Text variant="title" style={styles.albumName}>
             {title}
           </Text>
@@ -410,15 +443,12 @@ export function AlbumDetailScreen() {
           >
             <Text
               variant="body"
-              style={[
-                styles.artistName,
-                { color: params.artistMbid ? colors.brand : colors.subtle },
-              ]}
+              style={[styles.artistName, { color: heroColors.subtle }]}
             >
               {artistName}
             </Text>
           </Pressable>
-          <Text variant="caption" style={{ color: colors.subtle }}>
+          <Text variant="caption" style={{ color: heroColors.subtle }}>
             {[
               year,
               trackCount
@@ -488,7 +518,15 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: "center",
     paddingHorizontal: 24,
+    paddingTop: 24,
     gap: 8,
+  },
+  cover: {
+    width: COVER_SIZE,
+    height: COVER_SIZE,
+    borderRadius: COVER_RADIUS,
+    overflow: "hidden",
+    boxShadow: ARTWORK_SHADOW,
   },
   albumName: {
     textAlign: "center",
