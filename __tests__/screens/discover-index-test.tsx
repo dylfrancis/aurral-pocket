@@ -74,7 +74,6 @@ jest.mock("@/components/discover", () => {
     GlobalTrendingSection: stub("globalTop"),
     GenreSectionsPanel: stub("genreSections"),
     EditorialPlaylistsSection: viewAllStub("playlists"),
-    CustomizeDiscoverSheet: () => null,
   };
 });
 

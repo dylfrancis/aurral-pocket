@@ -1,15 +1,20 @@
 import { Button } from "@/components/ui/Button";
-import { CloseButton } from "@/components/ui/CloseButton";
+import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
+import { IS_IOS } from "@/constants/platform";
 import { Colors, Fonts } from "@/constants/theme";
-import { DEFAULT_DISCOVER_SECTIONS } from "@/hooks/discover/use-discover-layout";
+import {
+  DEFAULT_DISCOVER_SECTIONS,
+  useDiscoverLayout,
+} from "@/hooks/discover/use-discover-layout";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { DiscoverSection } from "@/lib/types/me";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
-import { AppSheet } from "@/components/ui/AppSheet";
+import { useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import React, { memo, useCallback, useState } from "react";
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Switch,
@@ -23,58 +28,73 @@ import ReorderableList, {
 } from "react-native-reorderable-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type Props = {
-  sheetRef: React.RefObject<BottomSheetModal | null>;
+export function DiscoverLayoutScreen() {
+  const { sections, hydrated, saveLayout } = useDiscoverLayout();
+
+  if (!hydrated) return <ScreenCenter loading />;
+  return <LayoutEditor sections={sections} onSave={saveLayout} />;
+}
+
+type EditorProps = {
   sections: DiscoverSection[];
-  onSave: (next: DiscoverSection[]) => Promise<void> | void;
-  onSaveError?: (error: unknown) => void;
+  onSave: (next: DiscoverSection[]) => Promise<void>;
 };
 
-export function CustomizeDiscoverSheet({
-  sheetRef,
-  sections,
-  onSave,
-  onSaveError,
-}: Props) {
+function LayoutEditor({ sections, onSave }: EditorProps) {
   const colors = Colors[useColorScheme()];
+  const router = useRouter();
+  // The list starts under iOS's transparent header and runs under the tab
+  // bar. They're padding, not automatic insets: a drag turns scrolling off,
+  // which puts the offset back at 0 and would shift the rows up under the
+  // header.
+  const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
-  const [draft, setDraft] = useState<DiscoverSection[]>(sections);
+  const overlap = IS_IOS
+    ? { top: headerHeight, bottom: insets.bottom }
+    : { top: 0, bottom: 0 };
+  // Null until the first change, so a layout the server sends after the saved
+  // one loaded still shows.
+  const [draft, setDraft] = useState<DiscoverSection[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-
-  const handleClose = useCallback(() => {
-    sheetRef.current?.dismiss();
-  }, [sheetRef]);
+  const shown = draft ?? sections;
 
   const handleReset = useCallback(() => {
     setDraft(DEFAULT_DISCOVER_SECTIONS.map((section) => ({ ...section })));
   }, []);
 
-  const handleToggle = useCallback((id: DiscoverSection["id"]) => {
-    setDraft((prev) =>
-      prev.map((section) =>
-        section.id === id ? { ...section, enabled: !section.enabled } : section,
-      ),
-    );
-  }, []);
+  const handleToggle = useCallback(
+    (id: DiscoverSection["id"]) => {
+      setDraft((prev) =>
+        (prev ?? sections).map((section) =>
+          section.id === id
+            ? { ...section, enabled: !section.enabled }
+            : section,
+        ),
+      );
+    },
+    [sections],
+  );
 
   const handleReorder = useCallback(
     ({ from, to }: ReorderableListReorderEvent) => {
-      setDraft((prev) => reorderItems(prev, from, to));
+      setDraft((prev) => reorderItems(prev ?? sections, from, to));
     },
-    [],
+    [sections],
   );
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await onSave(draft);
-      sheetRef.current?.dismiss();
+      await onSave(shown);
+      router.back();
     } catch (err) {
-      onSaveError?.(err);
+      const message =
+        err instanceof Error && err.message ? err.message : "Please try again.";
+      Alert.alert("Could not save layout", message);
     } finally {
       setIsSaving(false);
     }
-  }, [draft, onSave, onSaveError, sheetRef]);
+  }, [onSave, router, shown]);
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<DiscoverSection>) => (
@@ -100,58 +120,28 @@ export function CustomizeDiscoverSheet({
   );
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      snapPoints={["85%"]}
-      backdropPressBehavior="none"
-      enableDynamicSizing={false}
-      enablePanDownToClose={false}
-      enableHandlePanningGesture={false}
-      enableContentPanningGesture={false}
-      onChange={(index) => {
-        if (index >= 0) {
-          setDraft(sections.map((section) => ({ ...section })));
-          setIsSaving(false);
-        }
-      }}
-    >
-      <BottomSheetView style={styles.container}>
-        <View style={[styles.header, { borderColor: colors.separator }]}>
-          <View style={styles.headerText}>
-            <Text
-              variant="title"
-              style={[styles.title, { color: colors.text, ...Fonts.bold }]}
-            >
-              Customize Discover
-            </Text>
-            <Text variant="caption" style={{ color: colors.subtle }}>
-              Toggle sections on or off. Hold and drag a row to reorder.
-            </Text>
-          </View>
-          <CloseButton
-            onPress={handleClose}
-            fallbackBackground={colors.inputBackground}
-          />
-        </View>
-
-        <ReorderableList
-          data={draft}
-          onReorder={handleReorder}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={styles.listContent}
-          scrollEnabled={false}
-        />
-
-        <View
-          style={[
-            styles.footer,
-            {
-              borderColor: colors.separator,
-              paddingBottom: insets.bottom + 12,
-            },
-          ]}
+    <ReorderableList
+      data={shown}
+      onReorder={handleReorder}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      contentInsetAdjustmentBehavior="never"
+      autoscrollThresholdOffset={overlap}
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={[
+        styles.listContent,
+        { paddingTop: overlap.top, paddingBottom: overlap.bottom + 24 },
+      ]}
+      ListHeaderComponent={
+        <Text
+          variant="caption"
+          style={[styles.intro, { color: colors.subtle }]}
         >
+          Toggle sections on or off. Hold and drag a row to reorder.
+        </Text>
+      }
+      ListFooterComponent={
+        <View style={styles.footer}>
           <Button title="Save" onPress={handleSave} loading={isSaving} />
           <Button
             title="Reset to Default"
@@ -159,8 +149,8 @@ export function CustomizeDiscoverSheet({
             onPress={handleReset}
           />
         </View>
-      </BottomSheetView>
-    </AppSheet>
+      }
+    />
   );
 }
 
@@ -203,9 +193,8 @@ const Row = memo(function Row({
       >
         {section.label}
       </Text>
-      {/* Keying on `enabled` remounts the Switch on toggle, working around
-          facebook/react-native#53856 where it can lose its visual state on
-          re-render. */}
+      {/* Keying on `enabled` remounts the Switch on toggle: React Native's
+          Switch can lose its visual state on a re-render. */}
       <Switch
         key={`section-${section.id}-${section.enabled}`}
         value={section.enabled}
@@ -219,28 +208,12 @@ const Row = memo(function Row({
 });
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 12,
-  },
-  headerText: {
-    flex: 1,
-    gap: 4,
-  },
-  title: {
-    fontSize: 20,
-    lineHeight: 26,
-  },
   listContent: {
-    paddingVertical: 4,
     paddingHorizontal: 20,
+  },
+  intro: {
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   row: {
     flexDirection: "row",
@@ -256,8 +229,6 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 20,
   },
 });

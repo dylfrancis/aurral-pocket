@@ -1,5 +1,4 @@
 import {
-  CustomizeDiscoverSheet,
   DiscoverHeaderSection,
   EditorialPlaylistsSection,
   GenreSectionsPanel,
@@ -36,7 +35,6 @@ import {
   type RecommendedFilter,
 } from "@/lib/discover/recommended";
 import { discoverKeys } from "@/lib/query-keys";
-import type { DiscoverSection } from "@/lib/types/me";
 import type {
   ConcertEvent,
   DiscoveryArtist,
@@ -51,7 +49,6 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Linking,
   Pressable,
   RefreshControl,
@@ -68,11 +65,7 @@ export default function DiscoverScreen() {
   const { data: discovery, refetch: refetchDiscovery } = useDiscovery();
   const { refetch: refetchRecentlyAdded } = useRecentlyAdded();
   const { refetch: refetchRecentReleases } = useRecentReleases();
-  const {
-    sections,
-    hydrated: layoutHydrated,
-    saveLayout,
-  } = useDiscoverLayout();
+  const { sections, hydrated: layoutHydrated } = useDiscoverLayout();
 
   const [tab, setTab] = useState<DiscoverTab>("forYou");
   const [openedTabs, setOpenedTabs] = useState<ReadonlySet<DiscoverTab>>(
@@ -86,7 +79,6 @@ export default function DiscoverScreen() {
   }, []);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
-  const customizeSheetRef = useRef<BottomSheetModal>(null);
 
   // The header shrinks as the large title collapses; the page's top is where
   // the expanded title ends.
@@ -203,23 +195,6 @@ export default function DiscoverScreen() {
   );
 
   const shazamSheetRef = useRef<BottomSheetModal>(null);
-
-  const handleOpenCustomize = useCallback(() => {
-    customizeSheetRef.current?.present();
-  }, []);
-
-  const handleSaveLayout = useCallback(
-    async (next: DiscoverSection[]) => {
-      await saveLayout(next);
-    },
-    [saveLayout],
-  );
-
-  const handleSaveLayoutError = useCallback((err: unknown) => {
-    const message =
-      err instanceof Error && err.message ? err.message : "Please try again.";
-    Alert.alert("Could not save layout", message);
-  }, []);
 
   const pushDiscoverList = useCallback(
     (kind: "trending" | "recently-added" | "recent-releases") => {
@@ -351,10 +326,7 @@ export default function DiscoverScreen() {
             </Card>
           ) : (
             <>
-              <DiscoverHeaderSection
-                onTagPress={handleTagPress}
-                onCustomize={handleOpenCustomize}
-              />
+              <DiscoverHeaderSection onTagPress={handleTagPress} />
               {layoutHydrated
                 ? sections
                     .filter((section) => section.enabled)
@@ -443,12 +415,6 @@ export default function DiscoverScreen() {
           </DiscoverTabPanel>
         ) : null}
       </ScrollView>
-      <CustomizeDiscoverSheet
-        sheetRef={customizeSheetRef}
-        sections={sections}
-        onSave={handleSaveLayout}
-        onSaveError={handleSaveLayoutError}
-      />
       <ShazamSheet
         sheetRef={shazamSheetRef}
         onViewArtist={(mbid, name) => pushArtist(mbid, name)}
