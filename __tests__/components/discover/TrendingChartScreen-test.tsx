@@ -30,6 +30,7 @@ let mockParams: Record<string, string>;
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   useNavigation: () => ({ isFocused: () => true }),
+  useSegments: () => ["(app)", "(tabs)", "(discover)"],
   useRouter: () => ({ push: jest.fn(), navigate: jest.fn() }),
   Stack: { Screen: () => null },
 }));

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigation, useRouter } from "expo-router";
+import { useNavigation } from "expo-router";
+import { useNavigateToTab } from "@/hooks/use-navigate-to-tab";
 import { flowKeys } from "@/lib/query-keys";
 import type { FlowStatusSnapshot } from "@/lib/types/flow";
 import { flowStatusQueryOptions } from "./use-flow-status";
@@ -19,7 +20,7 @@ const isStaticPlaylist = (status: FlowStatusSnapshot | undefined, id: string) =>
  * Callers must gate on `accessFlow`: the lookup answers 403 without it.
  */
 export function useOpenPlaylist() {
-  const router = useRouter();
+  const navigateToTab = useNavigateToTab();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
 
@@ -44,12 +45,12 @@ export function useOpenPlaylist() {
 
       // navigate, not push: while the lookup runs, a second tap must not stack
       // the screen twice.
-      router.navigate(
+      navigateToTab(
         isFlow(status, id)
           ? "/(app)/(tabs)/(flow)"
           : "/(app)/(tabs)/(library)/playlists",
       );
     },
-    [router, navigation, queryClient],
+    [navigateToTab, navigation, queryClient],
   );
 }

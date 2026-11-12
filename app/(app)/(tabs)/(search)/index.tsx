@@ -30,7 +30,8 @@ import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
+import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import { releaseRouteParams } from "@/lib/library-read";
 import type { SearchAlbum, SearchArtist } from "@/lib/types/search";
@@ -339,6 +340,7 @@ export default function SearchScreen() {
             Identify song
           </Stack.Toolbar.Button>
         )}
+        {IS_ANDROID && <OverflowMenu />}
       </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"

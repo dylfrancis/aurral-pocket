@@ -18,6 +18,7 @@ import { useActivityFilter } from "@/hooks/activity/use-activity-view";
 import { useActivityJobControls } from "@/hooks/activity/use-activity-job-controls";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
+import { useNavigateToTab } from "@/hooks/use-navigate-to-tab";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
@@ -55,6 +56,7 @@ export function ActivityList({ view }: ActivityListProps) {
   const colors = Colors[useColorScheme()];
   const hasPermission = useHasPermission();
   const openPlaylist = useOpenPlaylist();
+  const navigateToTab = useNavigateToTab();
   const sheetRef = useRef<BottomSheetModal>(null);
   const [selected, setSelected] = useState<ActivityItem | null>(null);
 
@@ -232,7 +234,7 @@ export function ActivityList({ view }: ActivityListProps) {
             actionLabel={showDiscoverAction ? "Start Discovering" : undefined}
             onAction={
               showDiscoverAction
-                ? () => router.push("/(app)/(tabs)/(discover)")
+                ? () => navigateToTab("/(app)/(tabs)/(discover)")
                 : undefined
             }
           />

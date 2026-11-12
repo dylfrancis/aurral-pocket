@@ -70,9 +70,28 @@ jest.mock("react-native-safe-area-context", () => ({
 
 const mockNavigate = jest.fn();
 const mockBack = jest.fn();
+const mockDismissTo = jest.fn();
 jest.mock("expo-router", () => ({
-  useRouter: jest.fn(() => ({ navigate: mockNavigate, back: mockBack })),
+  useRouter: jest.fn(() => ({
+    navigate: mockNavigate,
+    back: mockBack,
+    dismissTo: mockDismissTo,
+  })),
 }));
+
+/**
+ * iOS closes the player and navigates. On Android, Activity or Settings can
+ * sit between the player and the tabs, so it pops down to the tabs instead.
+ */
+function expectLeftFor(href: unknown) {
+  if (IS_ANDROID) {
+    expect(mockDismissTo).toHaveBeenCalledWith(href);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  } else {
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith(href);
+  }
+}
 
 jest.mock("@/lib/api/library", () => ({
   ...jest.requireActual("@/lib/api/library"),
@@ -94,6 +113,7 @@ import React from "react";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NowPlayingScreen } from "@/components/player/NowPlayingScreen";
+import { IS_ANDROID } from "@/constants/platform";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { getLibraryFavorites, updateLibraryFavorites } from "@/lib/api/library";
 import {
@@ -383,8 +403,7 @@ describe("NowPlayingScreen", () => {
 
     await fireEvent.press(getByLabelText("View artist Radiohead"));
 
-    expect(mockBack).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith({
+    expectLeftFor({
       pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
       params: { mbid: "artist-mb-1" },
     });
@@ -395,8 +414,7 @@ describe("NowPlayingScreen", () => {
 
     await fireEvent.press(getByLabelText("Go to Album"));
 
-    expect(mockBack).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith({
+    expectLeftFor({
       pathname: "/(app)/(tabs)/(library)/album/[ref]",
       params: expect.objectContaining({
         ref: "canonical-album-1",
@@ -458,7 +476,7 @@ describe("NowPlayingScreen", () => {
     expect(queryByLabelText("Go to Album")).toBeNull();
     await fireEvent.press(getByLabelText("View artist Slowdive"));
 
-    expect(mockNavigate).toHaveBeenCalledWith({
+    expectLeftFor({
       pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
       params: { mbid: "slowdive-mb" },
     });

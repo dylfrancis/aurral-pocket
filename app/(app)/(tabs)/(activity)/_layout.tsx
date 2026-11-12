@@ -3,6 +3,7 @@ import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { TRANSPARENT_HEADER } from "@/constants/navigation";
+import { IS_ANDROID } from "@/constants/platform";
 
 // Queue is the tab's landing route.
 export const unstable_settings = {
@@ -26,7 +27,7 @@ export default function ActivityLayout() {
   };
 
   return (
-    <MiniPlayerHost>
+    <MiniPlayerHost aboveTabs={IS_ANDROID}>
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.background },

@@ -46,6 +46,7 @@ import type {
 } from "@/components/player/track-menu-types";
 import { MarqueeText } from "@/components/ui/MarqueeText";
 import { Text } from "@/components/ui/Text";
+import { IS_ANDROID } from "@/constants/platform";
 import { Fonts } from "@/constants/theme";
 import {
   useIsFavoriteTrack,
@@ -137,9 +138,14 @@ export function NowPlayingScreen() {
   // The player sits over the tabs, so it must go before a page can show. The
   // paths name the library group — a bare /artist/[mbid] resolves into
   // (activity), the first group with the route. navigate, not push: repeated
-  // taps must not stack duplicate pages.
+  // taps must not stack duplicate pages. On Android, Activity or Settings can
+  // sit between the player and the tabs, so it pops back down to the tabs.
   const leaveFor = useCallback(
     (href: Href) => {
+      if (IS_ANDROID) {
+        router.dismissTo(href);
+        return;
+      }
       router.back();
       router.navigate(href);
     },

@@ -15,15 +15,15 @@ import { DiscoverTabs } from "@/components/discover/DiscoverTabs";
 import type { DiscoverTab } from "@/components/discover/discover-tabs";
 import { EditorialShelf } from "@/components/discover/EditorialShelf";
 import { TrendingCharts } from "@/components/discover/TrendingCharts";
-import { SettingsSheet } from "@/components/settings/SettingsSheet";
 import { ShazamSheet } from "@/components/shazam";
 import { isShazamAvailable } from "@/modules/shazam";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
-import Settings from "@expo/material-symbols/settings.xml";
 import { Colors, Fonts } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
+import { OverflowMenu } from "@/components/navigation/OverflowMenu";
+import { useOpenOverflowScreen } from "@/hooks/use-open-overflow-screen";
 import {
   useDiscovery,
   useDiscoverLayout,
@@ -86,7 +86,6 @@ export default function DiscoverScreen() {
   }, []);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
-  const settingsSheetRef = useRef<BottomSheetModal>(null);
   const customizeSheetRef = useRef<BottomSheetModal>(null);
 
   // The header shrinks as the large title collapses; the page's top is where
@@ -197,9 +196,11 @@ export default function DiscoverScreen() {
     if (show.url) Linking.openURL(show.url).catch(() => {});
   }, []);
 
-  const handleOpenSettings = useCallback(() => {
-    settingsSheetRef.current?.present();
-  }, []);
+  const openOverflowScreen = useOpenOverflowScreen();
+  const handleOpenSettings = useCallback(
+    () => openOverflowScreen("settings"),
+    [openOverflowScreen],
+  );
 
   const shazamSheetRef = useRef<BottomSheetModal>(null);
 
@@ -289,13 +290,7 @@ export default function DiscoverScreen() {
             Identify song
           </Stack.Toolbar.Button>
         )}
-        <Stack.Toolbar.Button
-          icon={IS_IOS ? "gearshape" : Settings}
-          accessibilityLabel="Settings"
-          onPress={handleOpenSettings}
-        >
-          Settings
-        </Stack.Toolbar.Button>
+        {IS_ANDROID && <OverflowMenu />}
       </Stack.Toolbar>
       <ScrollView
         ref={scrollRef}
@@ -448,7 +443,6 @@ export default function DiscoverScreen() {
           </DiscoverTabPanel>
         ) : null}
       </ScrollView>
-      <SettingsSheet sheetRef={settingsSheetRef} />
       <CustomizeDiscoverSheet
         sheetRef={customizeSheetRef}
         sections={sections}

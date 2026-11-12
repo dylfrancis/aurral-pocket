@@ -45,6 +45,7 @@ const mockNavigate = jest.fn();
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   useNavigation: () => ({ isFocused: () => mockFocused }),
+  useSegments: () => ["(app)", "(tabs)", "(discover)"],
   useRouter: () => ({ push: mockPush, navigate: mockNavigate }),
   Stack: { Screen: () => null, SearchBar: () => null },
 }));

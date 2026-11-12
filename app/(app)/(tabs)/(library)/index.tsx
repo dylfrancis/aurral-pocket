@@ -1,9 +1,11 @@
 import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, type Href } from "expo-router";
+import { Stack, useRouter, type Href } from "expo-router";
+import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import { Text } from "@/components/ui/Text";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { IS_ANDROID } from "@/constants/platform";
 import { Colors, Fonts } from "@/constants/theme";
 
 type Category = {
@@ -41,21 +43,28 @@ export default function LibraryScreen() {
   );
 
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
-    >
-      {categories.map((category, index) => (
-        <CategoryRow
-          key={category.label}
-          category={category}
-          // The last row drops its separator, so the list does not end on a
-          // hairline hanging under nothing.
-          separator={index < categories.length - 1}
-          onPress={() => router.push(category.route)}
-        />
-      ))}
-    </ScrollView>
+    <>
+      {IS_ANDROID && (
+        <Stack.Toolbar placement="right">
+          <OverflowMenu />
+        </Stack.Toolbar>
+      )}
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+      >
+        {categories.map((category, index) => (
+          <CategoryRow
+            key={category.label}
+            category={category}
+            // The last row drops its separator, so the list does not end on a
+            // hairline hanging under nothing.
+            separator={index < categories.length - 1}
+            onPress={() => router.push(category.route)}
+          />
+        ))}
+      </ScrollView>
+    </>
   );
 }
 

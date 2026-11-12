@@ -8,6 +8,11 @@ jest.mock("@expo/material-symbols/tune.xml", () => "Tune");
 jest.mock("@expo/material-symbols/graphic_eq.xml", () => "GraphicEq");
 
 const mockPush = jest.fn();
+// Android's overflow menu is covered by the overflow screens suite.
+jest.mock("@/components/navigation/OverflowMenu", () => ({
+  OverflowMenu: () => null,
+}));
+
 jest.mock("expo-router", () => {
   const React = require("react");
   const { Pressable, Text } = require("react-native");

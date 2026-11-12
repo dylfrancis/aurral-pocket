@@ -1,6 +1,7 @@
 import { MiniPlayerAccessory } from "@/components/player/MiniPlayerAccessory";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { HAS_LIQUID_GLASS, TAB_BAR_BACKGROUND } from "@/constants/navigation";
+import { IS_IOS } from "@/constants/platform";
 import { Colors, Fonts } from "@/constants/theme";
 import { useAuth } from "@/contexts/auth-context";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -62,15 +63,17 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Label>Flows</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(activity)">
-        <NativeTabs.Trigger.Icon
-          sf={{
-            default: "clock.arrow.circlepath",
-            selected: "clock.arrow.circlepath",
-          }}
-          md="update"
-        />
+      {/* On iPhone, UIKit folds a fifth tab and beyond into its More list.
+          Android's bar stops at five and has no More, so these two open
+          above the tabs from each tab's overflow menu instead. */}
+      <NativeTabs.Trigger name="(activity)" hidden={!IS_IOS}>
+        <NativeTabs.Trigger.Icon sf="clock.arrow.circlepath" md="update" />
         <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="(settings)" hidden={!IS_IOS}>
+        <NativeTabs.Trigger.Icon sf="gearshape" md="settings" />
+        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
