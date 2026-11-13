@@ -20,7 +20,7 @@ import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
 import { useGridColumns } from "@/hooks/use-grid-columns";
 import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { searchBarColors } from "@/constants/navigation";
+import { headerSearchBar } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
 
@@ -154,10 +154,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   return (
     <>
       <Stack.SearchBar
-        placeholder={searchPlaceholder}
-        hideWhenScrolling={false}
-        autoCapitalize="none"
-        {...searchBarColors(colors)}
+        {...headerSearchBar(searchPlaceholder, colors)}
         onChangeText={handleSearchChange}
         onCancelButtonPress={handleSearchCancel}
       />

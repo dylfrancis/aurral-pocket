@@ -120,16 +120,10 @@ export function CollectionPage({
       scrollY.value = event.contentOffset.y;
     },
   });
-  const screenOptions = useMemo(
-    () => ({
-      headerTitle: () => <ScrollHeaderTitle name={title} scrollY={scrollY} />,
-    }),
-    [title, scrollY],
-  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen options={screenOptions} />
+      <ScrollHeaderTitle name={title} scrollY={scrollY} />
       <Stack.SearchBar
         placeholder={searchPlaceholder}
         hideWhenScrolling={false}

@@ -1,5 +1,9 @@
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
-import { TRANSPARENT_HEADER } from "@/constants/navigation";
+import {
+  SEARCH_PLACEHOLDERS,
+  TRANSPARENT_HEADER,
+  layoutSearchBar,
+} from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Stack } from "expo-router";
@@ -29,6 +33,7 @@ export default function LibraryLayout() {
             title: "Artists",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artists, colors),
           }}
         />
         <Stack.Screen
@@ -37,6 +42,7 @@ export default function LibraryLayout() {
             title: "Albums",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.albums, colors),
           }}
         />
         <Stack.Screen
@@ -45,6 +51,7 @@ export default function LibraryLayout() {
             title: "Genres",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.genres, colors),
           }}
         />
         <Stack.Screen
@@ -53,6 +60,7 @@ export default function LibraryLayout() {
             title: route.params?.genre ?? "Genre",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.albums, colors),
           })}
         />
         <Stack.Screen
@@ -61,6 +69,7 @@ export default function LibraryLayout() {
             title: "Favorites",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.favorites, colors),
           }}
         />
         <Stack.Screen
@@ -101,6 +110,7 @@ export default function LibraryLayout() {
             title: route.params?.title ?? "Albums",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistAlbums, colors),
           })}
         />
         <Stack.Screen
@@ -109,6 +119,7 @@ export default function LibraryLayout() {
             title: route.params?.title ?? "Releases",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistReleases, colors),
           })}
         />
         <Stack.Screen
@@ -117,6 +128,7 @@ export default function LibraryLayout() {
             title: "Blocklist",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.blocklist, colors),
           }}
         />
       </Stack>

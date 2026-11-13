@@ -44,6 +44,49 @@ export function searchBarColors(colors: { text: string; subtle: string }) {
   } as const;
 }
 
+/** Placeholders for the search bars a layout declares ahead of its screen. */
+export const SEARCH_PLACEHOLDERS = {
+  artists: "Search artists...",
+  albums: "Search albums and artists",
+  genres: "Search genres",
+  favorites: "Search favorites",
+  blocklist: "Search for an artist",
+  artistAlbums: "Search albums",
+  artistReleases: "Search releases",
+} as const;
+
+/** The search bar a list screen keeps under its header. */
+export function headerSearchBar(
+  placeholder: string,
+  colors: { text: string; subtle: string },
+) {
+  return {
+    placeholder,
+    hideWhenScrolling: false,
+    autoCapitalize: "none",
+    ...searchBarColors(colors),
+  } as const;
+}
+
+/**
+ * iOS sizes a pushed screen's header as the screen appears. A search bar that
+ * joins after that, as one does on a screen still loading its data, collapses
+ * the large title and can leave the list placed for the taller header, with
+ * empty space above the first row. Declared in the layout, the bar is in the
+ * header from the first frame, and the screen's own `Stack.SearchBar`, built
+ * from the same `headerSearchBar`, replaces it in place with its handlers.
+ * Android keeps search in the toolbar, so nothing moves, and swapping its
+ * options can drop the search icon: there the screen's bar stands alone.
+ */
+export function layoutSearchBar(
+  placeholder: string,
+  colors: { text: string; subtle: string },
+) {
+  return IS_IOS
+    ? { headerSearchBarOptions: headerSearchBar(placeholder, colors) }
+    : {};
+}
+
 /**
  * iOS 26+ Liquid Glass tab bars stay translucent at the scroll edge by design.
  * On iOS 18 and earlier that leaves the bar with no backing, so scrolled

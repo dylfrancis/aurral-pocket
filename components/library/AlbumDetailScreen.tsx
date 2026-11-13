@@ -344,16 +344,12 @@ export function AlbumDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen
-        options={{
-          headerTitle: () => (
-            <ScrollHeaderTitle name={title} scrollY={scrollY} />
-          ),
-          // The opaque header carries the tint, so it meets the hero's
-          // without a seam. iOS draws the hero's own tint under its header.
-          ...(IS_ANDROID && { headerStyle: { backgroundColor: tint } }),
-        }}
-      />
+      <ScrollHeaderTitle name={title} scrollY={scrollY} />
+      {IS_ANDROID && (
+        // The opaque header carries the tint, so it meets the hero's without
+        // a seam. iOS draws the hero's own tint under its header.
+        <Stack.Screen options={{ headerStyle: { backgroundColor: tint } }} />
+      )}
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
           icon={IS_IOS ? "ellipsis" : MoreVert}

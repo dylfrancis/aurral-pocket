@@ -4,7 +4,7 @@ import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
 } from "react-native-reanimated";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -111,12 +111,6 @@ export function EditorialPlaylistScreen() {
       scrollY.value = event.contentOffset.y;
     },
   });
-  const screenOptions = useMemo(
-    () => ({
-      headerTitle: () => <ScrollHeaderTitle name={name} scrollY={scrollY} />,
-    }),
-    [name, scrollY],
-  );
 
   if (!playlist && !isPending) {
     const notFound = error instanceof ApiError && error.status === 404;
@@ -147,7 +141,7 @@ export function EditorialPlaylistScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen options={screenOptions} />
+      <ScrollHeaderTitle name={name} scrollY={scrollY} />
       <Animated.FlatList
         data={trackItems}
         renderItem={renderItem}

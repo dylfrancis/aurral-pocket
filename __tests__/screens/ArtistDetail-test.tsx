@@ -54,6 +54,7 @@ jest.mock("react-native-reanimated", () => {
   return {
     __esModule: true,
     default: { View: MockAnimatedView, ScrollView: MockAnimatedScrollView },
+    useAnimatedReaction: jest.fn(),
     useAnimatedStyle: (fn: () => any) => fn(),
     useSharedValue: (val: number) => ({ value: val }),
     useAnimatedScrollHandler: () => () => {},
@@ -62,6 +63,12 @@ jest.mock("react-native-reanimated", () => {
     interpolate: () => 0,
   };
 });
+
+jest.mock("react-native-worklets", () => ({ scheduleOnRN: jest.fn() }));
+
+jest.mock("expo-router/react-navigation", () => ({
+  useHeaderHeight: () => 0,
+}));
 
 jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),

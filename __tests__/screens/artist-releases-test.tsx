@@ -30,6 +30,7 @@ import LibraryLayout from "@/app/(app)/(tabs)/(library)/_layout";
 import ReleasesRoute from "@/app/(app)/(tabs)/(library)/artist/releases";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
+import { IS_IOS } from "@/constants/platform";
 import type { ReleaseGroup, SecondaryReleaseType } from "@/lib/types/library";
 
 const mockUseArtistDetailsStream = useArtistDetailsStream as jest.Mock;
@@ -65,14 +66,14 @@ const shownTitles = () =>
 
 const OtherRoute = () => null;
 
-async function openRow(albumType: string) {
+async function openRow(albumType: string, { loading = false } = {}) {
   mockUseArtistDetailsStream.mockReturnValue({
-    data: { releaseGroups: RELEASES, isComplete: true },
-    isLoading: false,
+    data: loading ? undefined : { releaseGroups: RELEASES, isComplete: true },
+    isLoading: loading,
   });
   mockUseLibraryAlbums.mockReturnValue({
-    data: [{ mbid: "Owned", foreignAlbumId: "Owned" }],
-    isLoading: false,
+    data: loading ? undefined : [{ mbid: "Owned", foreignAlbumId: "Owned" }],
+    isLoading: loading,
     refetch: jest.fn(),
   });
   const client = new QueryClient({
@@ -119,5 +120,19 @@ describe("a release row's full list", () => {
 
     await screen.findByText("Hits");
     expect(shownTitles()).toEqual(["Hits"]);
+  });
+});
+
+describe("a release row's list while it loads", () => {
+  // iOS sizes the header as the screen appears. A search bar that joins once
+  // the list has loaded collapses the large title and can leave empty space
+  // above the first row. Android keeps search in the toolbar, so nothing moves.
+  it("already has the search bar in the header on iOS", async () => {
+    await openRow("Album", { loading: true });
+
+    const placeholders = screen.container
+      .queryAll((node) => node.type === "RNSSearchBar")
+      .map((bar) => bar.props.placeholder);
+    expect(placeholders).toEqual(IS_IOS ? ["Search releases"] : []);
   });
 });

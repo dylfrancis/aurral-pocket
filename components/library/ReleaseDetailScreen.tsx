@@ -10,7 +10,7 @@ import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
 } from "react-native-reanimated";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -332,13 +332,7 @@ export function ReleaseDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen
-        options={{
-          headerTitle: () => (
-            <ScrollHeaderTitle name={title} scrollY={scrollY} />
-          ),
-        }}
-      />
+      <ScrollHeaderTitle name={title} scrollY={scrollY} />
       <Animated.ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         onScroll={scrollHandler}
