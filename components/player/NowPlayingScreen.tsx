@@ -53,10 +53,13 @@ import {
   useIsFavoriteTrack,
   useToggleFavorite,
 } from "@/hooks/library/use-library-favorites";
+import { toastNotSaved } from "@/hooks/offline/toast-not-saved";
+import { useSongSave } from "@/hooks/offline/use-song-save";
 import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useDragToClose } from "@/hooks/player/use-drag-to-close";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { TrackFavorite } from "@/lib/api/library";
+import { useCanPlayNow } from "@/lib/offline/saved-library";
 import {
   next,
   playQueueItem,
@@ -169,9 +172,13 @@ export function NowPlayingScreen() {
   if (artistMbid) {
     menuActions.push({ id: "artist", title: "Go to Artist" });
   }
+  const songSave = useSongSave();
+  const saveAction = songSave.actionFor(track);
+  if (saveAction) menuActions.push(saveAction);
 
   const onMenuAction = (id: TrackMenuActionId) => {
     if (!track) return;
+    if (songSave.run(id, track)) return;
     if (id === "playlist") {
       addToPlaylist.open({
         artistName: track.artist,
@@ -711,14 +718,23 @@ function FavoriteButton({
 
 function UpNextRow({ item }: { item: PlayerTrack }) {
   const colors = usePlayerColors();
+  // Offline, a track the phone hasn't saved is passed over, so it shows as
+  // unavailable rather than as next.
+  const unavailable = !useCanPlayNow(item.id);
   return (
     <Pressable
-      onPress={() => playQueueItem(item.id)}
+      onPress={() =>
+        unavailable ? toastNotSaved() : void playQueueItem(item.id)
+      }
       accessibilityRole="button"
       accessibilityLabel={`Play ${item.title} by ${item.artist}`}
+      accessibilityState={{ disabled: unavailable }}
       style={({ pressed }) => [
         styles.upNextRow,
-        { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
+        {
+          borderBottomColor: colors.separator,
+          opacity: unavailable ? 0.4 : pressed ? 0.7 : 1,
+        },
       ]}
     >
       <PlayerArtwork

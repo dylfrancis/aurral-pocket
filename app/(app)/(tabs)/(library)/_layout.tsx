@@ -81,6 +81,14 @@ export default function LibraryLayout() {
           }}
         />
         <Stack.Screen
+          name="offline"
+          options={{
+            title: "Offline",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
           name="playlist/[id]"
           options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
         />

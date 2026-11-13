@@ -20,6 +20,8 @@ type MediaRowProps = {
   coverUrl?: string;
   /** Off for a row that acts in place instead of opening a screen. */
   showChevron?: boolean;
+  /** Drawn in place of the cover, for art that comes from elsewhere. */
+  image?: React.ReactNode;
 };
 
 const ARTIST_THUMB_SIZE = 48;
@@ -37,6 +39,7 @@ export const MediaRow = React.memo(function MediaRow({
   onLongPress,
   coverUrl,
   showChevron = true,
+  image,
 }: MediaRowProps) {
   const colors = Colors[useColorScheme()];
   const thumbSize =
@@ -53,25 +56,26 @@ export const MediaRow = React.memo(function MediaRow({
         { borderBottomColor: colors.separator, opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      {imageType &&
-        (mbid || coverUrl ? (
-          <CoverArtImage
-            type={imageType}
-            mbid={mbid ?? ""}
-            coverUrl={coverUrl}
-            size={thumbSize}
-            borderRadius={borderRadius}
-          />
-        ) : (
-          <View
-            style={{
-              width: thumbSize,
-              height: thumbSize,
-              borderRadius,
-              backgroundColor: colors.card,
-            }}
-          />
-        ))}
+      {image ??
+        (imageType &&
+          (mbid || coverUrl ? (
+            <CoverArtImage
+              type={imageType}
+              mbid={mbid ?? ""}
+              coverUrl={coverUrl}
+              size={thumbSize}
+              borderRadius={borderRadius}
+            />
+          ) : (
+            <View
+              style={{
+                width: thumbSize,
+                height: thumbSize,
+                borderRadius,
+                backgroundColor: colors.card,
+              }}
+            />
+          )))}
 
       <View style={styles.meta}>
         <Text

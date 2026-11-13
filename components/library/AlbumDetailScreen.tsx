@@ -43,11 +43,15 @@ import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
 import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
+import { useSaveOffline } from "@/hooks/offline/use-save-offline";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { canResearchAurralAlbum, isUnreleased } from "@/lib/album-status";
+import { formatBytes, saveStatusLine } from "@/lib/offline/format";
+import { useIsOffline } from "@/lib/offline/network";
+import { canPlayNow, saveAlbum } from "@/lib/offline/saved-library";
 import {
   deleteAlbum,
   deleteAurralAlbum,
@@ -340,7 +344,43 @@ export function AlbumDetailScreen() {
     },
   });
 
-  const albumTracks = tracks ?? [];
+  // Re-renders the rows' unavailable state as the connection comes and goes.
+  useIsOffline();
+  const saveOffline = useSaveOffline({
+    kind: "album",
+    id: params.ref,
+    title,
+    save:
+      tracks && tracks.some((track) => track.streamPath)
+        ? () =>
+            saveAlbum({
+              ref: params.ref,
+              route: {
+                title,
+                artistName,
+                artistMbid,
+                albumMbid,
+                coverUrl: coverUrl ?? "",
+                lidarrAlbumId: params.lidarrAlbumId ?? "",
+                canonicalAlbumId: params.canonicalAlbumId ?? "",
+                artistId: params.artistId || album?.artistId || "",
+              },
+              tracks,
+              album: album ?? undefined,
+            })
+        : null,
+  });
+  // A saved album still lists and plays its tracks with no connection.
+  const savedItem = saveOffline.status?.item;
+  const savedTracks = savedItem?.kind === "album" ? savedItem.tracks : null;
+  const albumTracks = tracks ?? savedTracks ?? [];
+  const showTracksLoading = tracksLoading && !savedTracks;
+  // Before saving, the files' size on the server.
+  const albumBytes = albumTracks
+    .filter((track) => track.streamPath)
+    .reduce((sum, track) => sum + (track.size > 0 ? track.size : 0), 0);
+  const saveLine = saveStatusLine(saveOffline.status);
+  const shownTrackCount = trackCount || albumTracks.length;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -351,6 +391,14 @@ export function AlbumDetailScreen() {
         <Stack.Screen options={{ headerStyle: { backgroundColor: tint } }} />
       )}
       <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={saveOffline.icon}
+          accessibilityLabel={saveOffline.label}
+          disabled={saveOffline.disabled}
+          onPress={saveOffline.onPress}
+        >
+          {saveOffline.label}
+        </Stack.Toolbar.Button>
         <Stack.Toolbar.Menu
           icon={IS_IOS ? "ellipsis" : MoreVert}
           accessibilityLabel="More actions"
@@ -447,13 +495,19 @@ export function AlbumDetailScreen() {
           <Text variant="caption" style={{ color: heroColors.subtle }}>
             {[
               year,
-              trackCount
-                ? `${trackCount} track${trackCount === 1 ? "" : "s"}`
+              shownTrackCount
+                ? `${shownTrackCount} track${shownTrackCount === 1 ? "" : "s"}`
                 : null,
+              albumBytes > 0 ? formatBytes(albumBytes) : null,
             ]
               .filter(Boolean)
               .join(" · ")}
           </Text>
+          {saveLine ? (
+            <Text variant="caption" style={{ color: heroColors.subtle }}>
+              {saveLine}
+            </Text>
+          ) : null}
           {album && (
             <AlbumStatusBadge album={album} downloadStatus={downloadStatus} />
           )}
@@ -483,13 +537,17 @@ export function AlbumDetailScreen() {
           )}
         </PlayRow>
 
-        {tracksLoading ? (
+        {showTracksLoading ? (
           <ActivityIndicator style={styles.loader} color={colors.brand} />
         ) : albumTracks.length > 0 ? (
           albumTracks.map((track) => (
             <TrackRow
               key={track.id}
               track={track}
+              unavailable={!canPlayNow(track.id)}
+              // A saved album's toolbar already says its tracks are on the
+              // phone.
+              markSaved={saveOffline.status?.state !== "saved"}
               onPress={() => void play(albumTracks, track, playContext)}
               onLongPress={() => trackActions.open(track, playContext)}
               onMenuPress={() => trackActions.open(track, playContext)}

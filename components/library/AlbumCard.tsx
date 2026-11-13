@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { SavedMark, albumSavedId } from "@/components/offline/SavedMark";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -29,6 +30,8 @@ type AlbumCardProps = {
   downloadStatus?: DownloadStatusValue;
   /** Adds the artist under the album name, for grids that mix artists. */
   showArtist?: boolean;
+  /** The save this card stands for, when a list draws saves. */
+  savedId?: string;
 };
 
 export const AlbumCard = React.memo(function AlbumCard({
@@ -37,6 +40,7 @@ export const AlbumCard = React.memo(function AlbumCard({
   fill,
   downloadStatus,
   showArtist = false,
+  savedId,
 }: AlbumCardProps) {
   const colors = Colors[useColorScheme()];
   // This card is memoized, so subscribe here: a changed server format has to
@@ -82,6 +86,12 @@ export const AlbumCard = React.memo(function AlbumCard({
           </Text>
         ) : (
           <Text variant="caption" numberOfLines={1}>
+            <SavedMark
+              kind="album"
+              id={savedId ?? albumSavedId(album)}
+              size={12}
+              inline
+            />
             {year && `${year} · `}
             {trackCount} {trackCount === 1 ? "track" : "tracks"}
             {" · "}

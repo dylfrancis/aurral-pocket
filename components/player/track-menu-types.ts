@@ -1,10 +1,21 @@
 export type TrackMenuActionId =
-  "playlist" | "album" | "artist" | "download" | "retry" | "stop" | "remove";
+  | "playlist"
+  | "album"
+  | "artist"
+  | "download"
+  | "retry"
+  | "stop"
+  | "remove"
+  | "save-offline"
+  | "remove-offline"
+  | "saved-with";
 
 export type TrackMenuAction = {
   id: TrackMenuActionId;
   title: string;
   destructive?: boolean;
+  /** Shown, but can't be picked. */
+  disabled?: boolean;
 };
 
 export type TrackMenuProps = {

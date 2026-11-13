@@ -91,6 +91,7 @@ async function openRow(albumType: string, { loading = false } = {}) {
       genres: OtherRoute,
       "genre/[genre]": OtherRoute,
       blocklist: OtherRoute,
+      offline: OtherRoute,
       playlists: OtherRoute,
       "playlist-edit": OtherRoute,
       "artist/[mbid]": OtherRoute,

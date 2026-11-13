@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 import * as Burnt from "burnt";
+import { toastNotSaved } from "@/hooks/offline/toast-not-saved";
+import { isOffline } from "@/lib/offline/network";
 import { playAlbumFromTrack } from "@/lib/player/player";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import type { Track } from "@/lib/types/library";
@@ -16,6 +18,10 @@ export function usePlayTrack() {
       try {
         const started = await playAlbumFromTrack(tracks, track, album);
         if (started) return;
+        if (isOffline()) {
+          toastNotSaved();
+          return;
+        }
         Burnt.toast({
           title: "Cannot play this track",
           message:

@@ -54,6 +54,11 @@ type ReleaseGridProps<T, SortKey extends string> = {
   onEndReached?: () => void;
   /** Shows a spinner under the last row while the next page loads. */
   isFetchingNextPage?: boolean;
+  /**
+   * The filter menu's Show section, from showMenuSection. Memoize it: a new
+   * element rebuilds the native header.
+   */
+  showSection?: React.ReactElement;
 };
 
 export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
@@ -77,6 +82,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   viewModeKey = "artist-releases",
   onEndReached,
   isFetchingNextPage = false,
+  showSection,
 }: ReleaseGridProps<T, SortKey>) {
   const colors = Colors[useColorScheme()];
   const [storedViewMode, setViewMode] = useViewMode(viewModeKey, "grid");
@@ -96,29 +102,44 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
     () => onSearchChange(""),
     [onSearchChange],
   );
-  const toolbar = useMemo(
-    () => (
+  const toolbar = useMemo(() => {
+    const sortActions = sortOptions.map((option) => (
+      <Stack.Toolbar.MenuAction
+        key={option.key}
+        icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
+        isOn={sortMode === option.key}
+        onPress={() => onSortChange(option.key)}
+      >
+        {option.label}
+      </Stack.Toolbar.MenuAction>
+    ));
+    return (
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
           icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
-          title="Sort By"
+          title={showSection ? "Filters" : "Sort By"}
         >
-          {sortOptions.map((option) => (
-            <Stack.Toolbar.MenuAction
-              key={option.key}
-              icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
-              isOn={sortMode === option.key}
-              onPress={() => onSortChange(option.key)}
-            >
-              {option.label}
-            </Stack.Toolbar.MenuAction>
-          ))}
+          {showSection ? (
+            <Stack.Toolbar.Menu inline title="Sort By">
+              {sortActions}
+            </Stack.Toolbar.Menu>
+          ) : (
+            sortActions
+          )}
+          {showSection}
           {hasGrid && viewModeMenuSection(viewMode, setViewMode)}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
-    ),
-    [sortOptions, sortMode, onSortChange, hasGrid, viewMode, setViewMode],
-  );
+    );
+  }, [
+    sortOptions,
+    sortMode,
+    onSortChange,
+    showSection,
+    hasGrid,
+    viewMode,
+    setViewMode,
+  ]);
 
   if (isLoading) {
     return (

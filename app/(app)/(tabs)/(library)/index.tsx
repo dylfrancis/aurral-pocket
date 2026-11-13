@@ -31,6 +31,8 @@ const CATEGORIES: Category[] = [
     route: "/playlists",
     requiresFlowAccess: true,
   },
+  // Reads only the phone, so it's the way in with no connection.
+  { icon: "arrow-down-circle-outline", label: "Offline", route: "/offline" },
 ];
 
 const ICON_SIZE = 22;

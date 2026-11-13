@@ -21,6 +21,16 @@ import {
   buildAuthenticatedUrl,
   customHeadersFor,
 } from "@/lib/api/client";
+import {
+  isOffline,
+  networkKnown,
+  onNetworkChange,
+} from "@/lib/offline/network";
+import {
+  canPlayNow,
+  savedFilePath,
+  savedLibraryReady,
+} from "@/lib/offline/saved-library";
 import type { Track } from "@/lib/types/library";
 import { useSyncExternalStore } from "react";
 import {
@@ -127,7 +137,7 @@ export function playItem(item: PlayerClip): Promise<void> {
  * album — not just the remainder — so previous can walk back past the tapped
  * track and repeat-all cycles the full album. Returns false — not an error —
  * when the tapped track cannot play: Aurral has no readable file for it, or
- * the session token is gone.
+ * the session token is gone, or the phone is offline and the track isn't saved.
  */
 export async function playAlbumFromTrack(
   tracks: Track[],
@@ -135,11 +145,13 @@ export async function playAlbumFromTrack(
   album: PlayerAlbumContext,
 ): Promise<boolean> {
   const startItem = toPlayerTrack(startTrack, album);
-  if (!startItem) return false;
+  if (!startItem || !canPlayNow(startItem.id)) return false;
 
-  const items = tracks
-    .map((track) => toPlayerTrack(track, album))
-    .filter((item): item is PlayerTrack => item !== null);
+  const items = playableNow(
+    tracks
+      .map((track) => toPlayerTrack(track, album))
+      .filter((item): item is PlayerTrack => item !== null),
+  );
 
   // A stale or still-loading track list may not hold the tapped track, and the
   // engine refuses to start a track that is not in the playlist. Queue the
@@ -196,8 +208,11 @@ function toEngineTrack(item: PlayerTrack): TrackItem {
   // cover needs a token in its URL. It is added here, on the way out, so the
   // queue and its saved copy never hold a token for artwork.
   const artwork = authenticatedImageUrl(item.coverPath) ?? item.artwork;
-  // Worked out per URL, so a Deezer clip or cover gets no custom headers.
-  const headers = customHeadersFor(item.url);
+  // A saved track plays from its file, connection or not.
+  const url = savedFilePath(item.id) ?? item.url;
+  // Worked out per URL, so a Deezer clip, a cover or a file gets no custom
+  // headers.
+  const headers = customHeadersFor(url);
   const artworkHeaders = artwork ? customHeadersFor(artwork) : {};
   const hasHeaders =
     Object.keys(headers).length > 0 || Object.keys(artworkHeaders).length > 0;
@@ -207,20 +222,40 @@ function toEngineTrack(item: PlayerTrack): TrackItem {
     artist: item.artist,
     album: item.album,
     duration: item.duration,
-    url: item.url,
+    url,
     artwork,
     ...(hasHeaders ? { extraPayload: { headers, artworkHeaders } } : {}),
   };
 }
 
+/**
+ * Returns false, without touching the queue, when the start track can't play:
+ * the phone is offline and the track isn't saved.
+ */
 export async function playQueueFrom(
   items: PlayerTrack[],
   startId: string,
   context: PlayerAlbumContext,
-): Promise<void> {
-  const run = lastPlay.then(() => replaceAndPlay(items, startId, context));
+): Promise<boolean> {
+  const playable = playableNow(items);
+  if (!playable.some((item) => item.id === startId)) return false;
+  const run = lastPlay.then(() => replaceAndPlay(playable, startId, context));
   lastPlay = run.catch(() => {});
   await run;
+  return true;
+}
+
+/**
+ * With no connection only saved tracks can play, so the rest stay out of a new
+ * queue rather than fail one at a time.
+ */
+function playableNow(items: PlayerTrack[]): PlayerTrack[] {
+  return isOffline() ? items.filter((item) => canPlayNow(item.id)) : items;
+}
+
+/** A queued track that would only fail now: offline, and not saved. */
+function isUnplayableNow(id: string): boolean {
+  return !canPlayNow(id) && queueOrder.some((item) => item.id === id);
 }
 
 /**
@@ -275,6 +310,12 @@ export async function pauseClip(): Promise<void> {
 }
 
 export async function resume(): Promise<void> {
+  // Offline, a restored or stopped track that isn't saved can't resume; the
+  // next saved one plays instead.
+  if (displayedTrack && isUnplayableNow(displayedTrack.id)) {
+    skipUnplayable(displayedTrack.id, 1, true);
+    return;
+  }
   // The engine loads a restored track after the restore asks it to seek, so
   // the position is asked for once more, now that the track is ready.
   const restored = pendingRestoreSeek;
@@ -341,7 +382,7 @@ export function addToQueue(
   tracks: Track[],
   album: PlayerAlbumContext,
 ): Promise<number> {
-  return editQueue(tracks, album, "end");
+  return editQueue(() => toPlayerTracks(tracks, album), album, "end");
 }
 
 /**
@@ -352,11 +393,40 @@ export function playNextInQueue(
   tracks: Track[],
   album: PlayerAlbumContext,
 ): Promise<number> {
-  return editQueue(tracks, album, "afterCurrent");
+  return editQueue(() => toPlayerTracks(tracks, album), album, "afterCurrent");
 }
 
 /**
- * The one queue-mutation path behind addToQueue and playNextInQueue.
+ * addToQueue for tracks already in the player's shape, such as songs saved
+ * on the phone, which have no library track to start from.
+ */
+export function addItemsToQueue(
+  items: PlayerTrack[],
+  album: PlayerAlbumContext,
+): Promise<number> {
+  return editQueue(() => items, album, "end");
+}
+
+/** playNextInQueue for tracks already in the player's shape. */
+export function playItemsNext(
+  items: PlayerTrack[],
+  album: PlayerAlbumContext,
+): Promise<number> {
+  return editQueue(() => items, album, "afterCurrent");
+}
+
+function toPlayerTracks(
+  tracks: Track[],
+  album: PlayerAlbumContext,
+): PlayerTrack[] {
+  return tracks
+    .map((track) => toPlayerTrack(track, album))
+    .filter((item): item is PlayerTrack => item !== null);
+}
+
+/**
+ * The one queue-mutation path behind addToQueue, playNextInQueue and their
+ * item forms.
  * Chained on the play queue for the same reason plays are: an insert into a
  * playlist that a pending play is about to delete would land on the wrong
  * one.
@@ -369,14 +439,13 @@ export function playNextInQueue(
  * tracks.
  */
 function editQueue(
-  tracks: Track[],
+  // Built when the edit runs, so the URLs carry the token of that moment.
+  toItems: () => PlayerTrack[],
   album: PlayerAlbumContext,
   position: "afterCurrent" | "end",
 ): Promise<number> {
   const run = lastPlay.then(async (): Promise<number> => {
-    const playable = tracks
-      .map((track) => toPlayerTrack(track, album))
-      .filter((item): item is PlayerTrack => item !== null);
+    const playable = playableNow(toItems());
     const items = withoutQueuedIds(playable, queueOrder);
     if (items.length === 0) return 0;
 
@@ -619,7 +688,14 @@ async function restoreNow(): Promise<boolean> {
   const saved = await readSavedQueue();
   if (!saved) return false;
 
-  const items = await restorableTracks(saved);
+  // A saved track plays from its file, so the server isn't asked about it.
+  // Offline, the unsaved ones still come back, passed over until the
+  // connection does.
+  await Promise.all([savedLibraryReady(), networkKnown()]);
+  const items = await restorableTracks(
+    saved,
+    (id) => savedFilePath(id) !== null,
+  );
   if (items.length === 0) {
     await clearSavedQueue();
     return false;
@@ -831,8 +907,28 @@ function wireEngineEvents(): void {
   if (engineEventsWired) return;
   engineEventsWired = true;
 
+  onNetworkChange((offline) => {
+    if (offline) switchToSavedFiles();
+  });
+
   callbackManager.subscribeToTrackChange(
     function handleTrackChange(engineTrack): void {
+      // Offline, a track that would only fail is passed over for the nearest
+      // saved one, the way the player was going: "previous" moves one back.
+      // A restored track is left where it is, paused, for a tap on play.
+      if (
+        pendingRestoreSeek?.trackId !== engineTrack.id &&
+        isUnplayableNow(engineTrack.id)
+      ) {
+        const from = queueOrder.findIndex((i) => i.id === displayedTrack?.id);
+        const to = queueOrder.findIndex((i) => i.id === engineTrack.id);
+        skipUnplayable(
+          engineTrack.id,
+          from >= 0 && to === from - 1 ? -1 : 1,
+          playbackState === "playing" || playbackState === "buffering",
+        );
+        return;
+      }
       const started = asPlayerTrack(engineTrack);
       currentEventTrack = started;
       lastProgress = null;
@@ -904,6 +1000,11 @@ function wireEngineEvents(): void {
       playbackState = state;
       playbackStateListeners.forEach((listener) => listener());
       if (state === "stopped" && reason === "error") {
+        // A streamed track can play out its buffer after the connection goes.
+        if (currentEventTrack && isUnplayableNow(currentEventTrack.id)) {
+          skipUnplayable(currentEventTrack.id, 1, true);
+          return;
+        }
         playbackFailedListeners.forEach((listener) => listener());
       }
       // The last track has no next track to change onto. Android reports its
@@ -1080,6 +1181,66 @@ export async function previous(): Promise<void> {
     return;
   }
   await TrackPlayer.skipToPrevious();
+}
+
+/**
+ * Move from a track that can't play offline to the nearest saved one in the
+ * given direction, around the queue when it repeats. With none, the player
+ * pauses where it is. `play` keeps a paused player paused. Chained on the
+ * play queue, like a jump.
+ */
+function skipUnplayable(
+  fromId: string,
+  direction: 1 | -1,
+  play: boolean,
+): void {
+  const run = lastPlay.then(async () => {
+    const playlistId = currentPlaylistId;
+    if (!playlistId) return;
+    const target = nearestPlayable(fromId, direction);
+    if (!target) {
+      await TrackPlayer.pause();
+      return;
+    }
+    await TrackPlayer.playSong(target.id, playlistId);
+    if (play) await TrackPlayer.play();
+  });
+  lastPlay = run.catch(() => {});
+}
+
+/**
+ * A track saved after its queue was built still streams. When the connection
+ * goes, the queue's saved tracks move to their files. The engine keeps the
+ * one it's playing as it is, and loads the rest from the new URLs.
+ */
+function switchToSavedFiles(): void {
+  const run = lastPlay.then(async () => {
+    if (!currentPlaylistId) return;
+    const saved = queueOrder.filter(
+      (item) =>
+        item.id !== displayedTrack?.id && savedFilePath(item.id) !== null,
+    );
+    if (saved.length === 0) return;
+    await TrackPlayer.updateTracks(saved.map(toEngineTrack));
+  });
+  lastPlay = run.catch(() => {});
+}
+
+function nearestPlayable(
+  fromId: string,
+  direction: 1 | -1,
+): PlayerTrack | null {
+  const count = queueOrder.length;
+  const from = queueOrder.findIndex((item) => item.id === fromId);
+  if (from < 0) return null;
+  for (let step = 1; step < count; step++) {
+    const index = from + step * direction;
+    const wrapped = ((index % count) + count) % count;
+    if (index !== wrapped && repeatMode !== "all") return null;
+    const item = queueOrder[wrapped];
+    if (!isUnplayableNow(item.id)) return item;
+  }
+  return null;
 }
 
 export type PlayerStatus = {

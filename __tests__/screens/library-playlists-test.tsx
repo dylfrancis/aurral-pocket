@@ -98,6 +98,7 @@ async function open(initialUrl: string) {
     "genre/[genre]": OtherRoute,
     favorites: OtherRoute,
     blocklist: OtherRoute,
+    offline: OtherRoute,
     "artist/[mbid]": OtherRoute,
     "album/[ref]": OtherRoute,
     "artist/albums": OtherRoute,

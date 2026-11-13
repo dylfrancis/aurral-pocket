@@ -74,6 +74,26 @@ jest.mock("@/modules/shazam", () => ({
   addLevelListener: jest.fn(() => null),
 }));
 
+// Saved-offline files live in memory. A test drives each download by hand
+// through test-support/expo-file-system.
+jest.mock("expo-file-system", () =>
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("@/test-support/expo-file-system"),
+);
+
+// Online unless a test says otherwise.
+jest.mock("expo-network", () => ({
+  getNetworkStateAsync: jest.fn(() =>
+    Promise.resolve({
+      type: "WIFI",
+      isConnected: true,
+      isInternetReachable: true,
+    }),
+  ),
+  addNetworkStateListener: jest.fn(() => ({ remove: jest.fn() })),
+  NetworkStateType: { NONE: "NONE", WIFI: "WIFI", CELLULAR: "CELLULAR" },
+}));
+
 // The cover-color module isn't linked under Jest.
 jest.mock("react-native-image-colors", () => ({
   getColors: jest.fn(() => Promise.reject(new Error("not linked"))),

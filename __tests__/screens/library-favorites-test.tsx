@@ -167,6 +167,7 @@ async function openFavorites(initialUrl = "/favorites", client = makeClient()) {
       genres: OtherRoute,
       "genre/[genre]": OtherRoute,
       blocklist: OtherRoute,
+      offline: OtherRoute,
       playlists: OtherRoute,
       "playlist-edit": OtherRoute,
       "artist/albums": OtherRoute,

@@ -10,18 +10,49 @@ import {
 } from "@/components/flow/AddToPlaylistSheet";
 import { AppSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
-import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
+import {
+  useIsFavoriteTrack,
+  useToggleFavorite,
+} from "@/hooks/library/use-library-favorites";
+import type { TrackFavorite } from "@/lib/api/library";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
+import { useSongSave } from "@/hooks/offline/use-song-save";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
-import type { PlayerAlbumContext } from "@/lib/player/track-item";
+import {
+  toPlayerTrack,
+  type PlayerAlbumContext,
+  type PlayerTrack,
+} from "@/lib/player/track-item";
+import type {
+  TrackMenuAction,
+  TrackMenuActionId,
+} from "@/components/player/track-menu-types";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
 
-type TrackActionsTarget = {
-  track: Track;
-  album: PlayerAlbumContext;
+/** Actions a page adds below the common ones, such as a playlist's own. */
+export type TrackSheetExtras = {
+  actions: TrackMenuAction[];
+  onAction: (id: TrackMenuActionId) => void;
 };
+
+type ItemOptions = {
+  /** Shown when there's no playable item to take it from. */
+  title?: string;
+  /** False when the stream isn't the track's own file, as for a clip. */
+  canSaveOffline?: boolean;
+  extras?: TrackSheetExtras;
+};
+
+/**
+ * A library track from an album or the favorites, or a track in the player's
+ * shape, such as a playlist's or a song saved on the phone. A playlist track
+ * that can't play yet has no item, and offers only its page's own actions.
+ */
+type TrackActionsTarget =
+  | { track: Track; album: PlayerAlbumContext }
+  | ({ item: PlayerTrack | null; album: PlayerAlbumContext } & ItemOptions);
 
 export function useTrackActions() {
   const [target, setTarget] = useState<TrackActionsTarget | null>(null);
@@ -31,9 +62,21 @@ export function useTrackActions() {
     setTarget({ track, album });
   }, []);
 
+  const openItem = useCallback(
+    (
+      item: PlayerTrack | null,
+      album: PlayerAlbumContext,
+      options: ItemOptions = {},
+    ) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setTarget({ item, album, ...options });
+    },
+    [],
+  );
+
   const close = useCallback(() => setTarget(null), []);
 
-  return { target, open, close };
+  return { target, open, openItem, close };
 }
 
 /** The playlist sheet stays outside the content, because it opens as this closes. */
@@ -75,14 +118,54 @@ function TrackActionsContent({
   onAddToPlaylist: (track: SharedPlaylistTrack) => void;
   onClose: () => void;
 }) {
-  const { track, album } = target;
+  const { album } = target;
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
   const sheetRef = useRef<BottomSheetModal>(null);
-  const { playNext, addToQueue } = useQueueActions();
-  const toggleFavorite = useToggleFavorite();
-  const { identityKey } = track;
-  const isFavorite = track.userFavorite === true;
+  const queue = useQueueActions();
+  const songSave = useSongSave();
+  const options: ItemOptions = "item" in target ? target : {};
+  const item = "item" in target ? target.item : null;
+  const track = "track" in target ? target.track : null;
+  const playerTrack = item ?? (track ? toPlayerTrack(track, album) : null);
+  const canQueue = !!item || !!track;
+  const saveAction =
+    options.canSaveOffline === false ? null : songSave.actionFor(playerTrack);
+  const title = item?.title ?? options.title ?? track?.trackName ?? "";
+  const quality = item
+    ? item.audioFormat
+    : track?.hasFile
+      ? track.quality
+      : null;
+  const playNext = () =>
+    item
+      ? queue.playItemsNext([item], album)
+      : track && queue.playNext([track], album);
+  const addToQueue = () =>
+    item
+      ? queue.addItemsToQueue([item], album)
+      : track && queue.addToQueue([track], album);
+  // A playlist track needs an artist name, so the permission alone is not
+  // enough to offer the action.
+  const playlistTrack: SharedPlaylistTrack | null = item
+    ? item.artist
+      ? {
+          artistName: item.artist,
+          trackName: item.title,
+          albumName: item.album || null,
+          artistMbid: item.artistMbid,
+          albumMbid: item.albumMbid,
+          trackMbid: item.trackMbid,
+        }
+      : null
+    : track && album.artistName
+      ? {
+          artistName: album.artistName,
+          trackName: track.trackName,
+          albumName: album.albumTitle,
+          artistMbid: album.artistMbid,
+        }
+      : null;
 
   // On every open, not just on mount: a row tapped while the sheet is still
   // closing reopens it for that row.
@@ -107,9 +190,9 @@ function TrackActionsContent({
       >
         <View style={styles.sheetTitleRow}>
           <Text variant="subtitle" numberOfLines={1} style={styles.sheetTitle}>
-            {track.trackName}
+            {title}
           </Text>
-          {track.hasFile && !!track.quality && (
+          {!!quality && (
             <View
               style={[
                 styles.qualityBadge,
@@ -120,72 +203,164 @@ function TrackActionsContent({
                 variant="caption"
                 style={[styles.qualityText, { color: colors.brand }]}
               >
-                {track.quality}
+                {quality}
               </Text>
             </View>
           )}
         </View>
-        <SheetAction
-          icon="play-forward-outline"
-          label="Play Next"
-          onPress={closeThen(() => void playNext([track], album))}
-        />
-        <SheetAction
-          icon="list-outline"
-          label="Add to Queue"
-          onPress={closeThen(() => void addToQueue([track], album))}
-        />
-        {/* A playlist track needs an artist name, so the permission alone is
-            not enough to offer the action. */}
-        {canAddToPlaylist && !!album.artistName && (
+        {canQueue ? (
+          <>
+            <SheetAction
+              icon="play-forward-outline"
+              label="Play Next"
+              onPress={closeThen(() => void playNext())}
+            />
+            <SheetAction
+              icon="list-outline"
+              label="Add to Queue"
+              onPress={closeThen(() => void addToQueue())}
+            />
+          </>
+        ) : null}
+        {canAddToPlaylist && playlistTrack && (
           <SheetAction
             icon="add-circle-outline"
             label="Add to Playlist"
-            onPress={closeThen(() =>
-              onAddToPlaylist({
-                artistName: album.artistName,
-                trackName: track.trackName,
-                albumName: album.albumTitle,
-                artistMbid: album.artistMbid,
-              }),
-            )}
+            onPress={closeThen(() => onAddToPlaylist(playlistTrack))}
           />
         )}
-        {!!identityKey && (
+        {track?.identityKey ? (
+          <FavoriteAction
+            favorite={{ kind: "song", key: track.identityKey }}
+            isFavorite={track.userFavorite === true}
+            closeThen={closeThen}
+          />
+        ) : item?.favorite ? (
+          <QueuedFavoriteAction
+            favorite={item.favorite}
+            trackMbid={item.trackMbid}
+            closeThen={closeThen}
+          />
+        ) : null}
+        {saveAction && playerTrack ? (
           <SheetAction
-            icon={isFavorite ? "heart" : "heart-outline"}
-            label={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
-            onPress={closeThen(() =>
-              toggleFavorite.mutate({
-                kind: "song",
-                key: identityKey,
-                starred: !isFavorite,
-              }),
-            )}
+            icon={SAVE_ICONS[saveAction.id] ?? "arrow-down-circle-outline"}
+            label={saveAction.title}
+            disabled={saveAction.disabled}
+            onPress={closeThen(() => songSave.run(saveAction.id, playerTrack))}
           />
-        )}
+        ) : null}
+        {options.extras?.actions.map((action) => (
+          <SheetAction
+            key={action.id}
+            icon={EXTRA_ICONS[action.id] ?? "ellipsis-horizontal"}
+            label={action.title}
+            destructive={action.destructive}
+            disabled={action.disabled}
+            onPress={closeThen(() => options.extras?.onAction(action.id))}
+          />
+        ))}
       </BottomSheetView>
     </AppSheet>
   );
 }
 
+function FavoriteAction({
+  favorite,
+  isFavorite,
+  closeThen,
+}: {
+  favorite: TrackFavorite;
+  isFavorite: boolean;
+  closeThen: (action: () => void) => () => void;
+}) {
+  const toggleFavorite = useToggleFavorite();
+  return (
+    <SheetAction
+      icon={isFavorite ? "heart" : "heart-outline"}
+      label={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+      onPress={closeThen(() =>
+        toggleFavorite.mutate({ ...favorite, starred: !isFavorite }),
+      )}
+    />
+  );
+}
+
+/**
+ * A queued track doesn't know whether it's a favorite, so the server's list
+ * says, as it does for the player's heart. Held back until it has.
+ */
+function QueuedFavoriteAction({
+  favorite,
+  trackMbid,
+  closeThen,
+}: {
+  favorite: TrackFavorite;
+  trackMbid: string | null;
+  closeThen: (action: () => void) => () => void;
+}) {
+  const { data: isFavorite, isPending } = useIsFavoriteTrack(
+    favorite,
+    trackMbid,
+  );
+  if (isPending || isFavorite === undefined) return null;
+  return (
+    <FavoriteAction
+      favorite={favorite}
+      isFavorite={isFavorite}
+      closeThen={closeThen}
+    />
+  );
+}
+
+const EXTRA_ICONS: Partial<
+  Record<TrackMenuActionId, keyof typeof Ionicons.glyphMap>
+> = {
+  download: "cloud-download-outline",
+  retry: "refresh-outline",
+  stop: "stop-circle-outline",
+  remove: "trash-outline",
+};
+
+const SAVE_ICONS: Partial<
+  Record<TrackMenuActionId, keyof typeof Ionicons.glyphMap>
+> = {
+  "save-offline": "arrow-down-circle-outline",
+  "remove-offline": "close-circle-outline",
+  "saved-with": "arrow-down-circle",
+};
+
 function SheetAction({
   icon,
   label,
   onPress,
+  disabled = false,
+  destructive = false,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
 }) {
   const colors = Colors[useColorScheme()];
+  const color = disabled
+    ? colors.subtle
+    : destructive
+      ? colors.error
+      : colors.text;
   return (
     <Pressable
-      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={disabled ? undefined : onPress}
       style={({ pressed }) => [styles.sheetRow, { opacity: pressed ? 0.6 : 1 }]}
     >
-      <Ionicons name={icon} size={20} color={colors.text} />
-      <Text variant="body">{label}</Text>
+      <Ionicons name={icon} size={20} color={color} />
+      <Text variant="body" style={{ color }}>
+        {label}
+      </Text>
     </Pressable>
   );
 }

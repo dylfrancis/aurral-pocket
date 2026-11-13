@@ -1,12 +1,17 @@
 import { useCallback } from "react";
 import * as Burnt from "burnt";
 import {
+  addItemsToQueue,
   addToQueue,
   playAlbumFromTrack,
+  playItemsNext,
   playNextInQueue,
   setShuffle,
 } from "@/lib/player/player";
-import type { PlayerAlbumContext } from "@/lib/player/track-item";
+import { toastNotSaved } from "@/hooks/offline/toast-not-saved";
+import { isOffline } from "@/lib/offline/network";
+import { canPlayNow } from "@/lib/offline/saved-library";
+import type { PlayerAlbumContext, PlayerTrack } from "@/lib/player/track-item";
 import type { Track } from "@/lib/types/library";
 
 /**
@@ -16,34 +21,26 @@ import type { Track } from "@/lib/types/library";
  */
 export function useQueueActions() {
   const playNext = useCallback(
-    async (tracks: Track[], album: PlayerAlbumContext) => {
-      try {
-        const added = await playNextInQueue(tracks, album);
-        if (added > 0) {
-          Burnt.toast({ title: "Playing next", preset: "done" });
-          return;
-        }
-        toastNothingQueued();
-      } catch (error) {
-        toastFailure(error);
-      }
-    },
+    (tracks: Track[], album: PlayerAlbumContext) =>
+      confirmQueued(playNextInQueue(tracks, album), "Playing next"),
     [],
   );
 
   const addLast = useCallback(
-    async (tracks: Track[], album: PlayerAlbumContext) => {
-      try {
-        const added = await addToQueue(tracks, album);
-        if (added > 0) {
-          Burnt.toast({ title: "Added to queue", preset: "done" });
-          return;
-        }
-        toastNothingQueued();
-      } catch (error) {
-        toastFailure(error);
-      }
-    },
+    (tracks: Track[], album: PlayerAlbumContext) =>
+      confirmQueued(addToQueue(tracks, album), "Added to queue"),
+    [],
+  );
+
+  const playNextItems = useCallback(
+    (items: PlayerTrack[], album: PlayerAlbumContext) =>
+      confirmQueued(playItemsNext(items, album), "Playing next"),
+    [],
+  );
+
+  const addItemsLast = useCallback(
+    (items: PlayerTrack[], album: PlayerAlbumContext) =>
+      confirmQueued(addItemsToQueue(items, album), "Added to queue"),
     [],
   );
 
@@ -68,7 +65,7 @@ export function useQueueActions() {
   // shuffled — replaceAndPlay reorders the upcoming tracks itself.
   const shuffleAlbum = useCallback(
     async (tracks: Track[], album: PlayerAlbumContext) => {
-      const playable = tracks.filter((track) => track.streamPath);
+      const playable = tracks.filter(canPlay);
       if (playable.length === 0) {
         toastNothingPlayable();
         return;
@@ -85,14 +82,42 @@ export function useQueueActions() {
     [],
   );
 
-  return { playNext, addToQueue: addLast, playAlbum, shuffleAlbum };
+  return {
+    playNext,
+    addToQueue: addLast,
+    playItemsNext: playNextItems,
+    addItemsToQueue: addItemsLast,
+    playAlbum,
+    shuffleAlbum,
+  };
+}
+
+async function confirmQueued(edit: Promise<number>, done: string) {
+  try {
+    const added = await edit;
+    if (added > 0) {
+      Burnt.toast({ title: done, preset: "done" });
+      return;
+    }
+    toastNothingQueued();
+  } catch (error) {
+    toastFailure(error);
+  }
 }
 
 function firstPlayable(tracks: Track[]): Track | null {
-  return tracks.find((track) => track.streamPath) ?? null;
+  return tracks.find(canPlay) ?? null;
+}
+
+function canPlay(track: Track): boolean {
+  return !!track.streamPath && canPlayNow(track.id);
 }
 
 function toastNothingQueued(): void {
+  if (isOffline()) {
+    toastNotSaved();
+    return;
+  }
   Burnt.toast({
     title: "Nothing to add",
     message:
@@ -102,6 +127,10 @@ function toastNothingQueued(): void {
 }
 
 function toastNothingPlayable(): void {
+  if (isOffline()) {
+    toastNotSaved();
+    return;
+  }
   Burnt.toast({
     title: "Cannot play this album",
     message:

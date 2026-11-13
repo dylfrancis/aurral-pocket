@@ -10,6 +10,25 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
   removeItem: jest.fn(),
 }));
 
+// Which tracks are on the phone, and whether there's a connection. Online with
+// nothing saved unless a test says otherwise.
+const mockSavedFiles = new Map<string, string>();
+let mockOffline = false;
+jest.mock("@/lib/offline/saved-library", () => ({
+  savedFilePath: (id: string) => mockSavedFiles.get(id) ?? null,
+  canPlayNow: (id: string) => !mockOffline || mockSavedFiles.has(id),
+  savedLibraryReady: () => Promise.resolve(),
+}));
+const mockNetworkListeners: ((offline: boolean) => void)[] = [];
+jest.mock("@/lib/offline/network", () => ({
+  isOffline: () => mockOffline,
+  networkKnown: () => Promise.resolve(),
+  onNetworkChange: (listener: (offline: boolean) => void) => {
+    mockNetworkListeners.push(listener);
+    return () => {};
+  },
+}));
+
 import { act, renderHook } from "@testing-library/react-native";
 import { setAuthToken, setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import {
@@ -824,6 +843,112 @@ describe("playback events", () => {
 
     expect(started).toEqual(["42"]);
     unsubscribe();
+  });
+
+  describe("when the connection goes mid-queue", () => {
+    afterEach(() => {
+      mockOffline = false;
+      mockSavedFiles.clear();
+    });
+
+    it("passes over a track that isn't saved for the next one that is", async () => {
+      const albumTracks = ["71", "72", "73"].map((id, index) =>
+        track({ id, trackNumber: index + 1, streamPath: `/stream/12/${id}` }),
+      );
+      await forgetQueue();
+      await playAlbumFromTrack(albumTracks, albumTracks[0], album);
+      engine.trackChange({ ...clip, id: "71" }, "user_action");
+      jest.clearAllMocks();
+
+      mockOffline = true;
+      mockSavedFiles.set("71", "/files/71.flac");
+      mockSavedFiles.set("73", "/files/73.flac");
+      engine.trackChange({ ...clip, id: "72" }, "skip");
+      // The jump is chained on the play queue.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(player.playSong).toHaveBeenCalledWith("73", "playlist-1");
+    });
+
+    it("moves the upcoming tracks saved since the queue began onto their files", async () => {
+      const albumTracks = ["71", "72", "73"].map((id, index) =>
+        track({ id, trackNumber: index + 1, streamPath: `/stream/12/${id}` }),
+      );
+      await forgetQueue();
+      await playAlbumFromTrack(albumTracks, albumTracks[0], album);
+      engine.trackChange({ ...clip, id: "71" }, "user_action");
+      jest.clearAllMocks();
+
+      mockSavedFiles.set("71", "/files/71.flac");
+      mockSavedFiles.set("73", "/files/73.flac");
+      mockOffline = true;
+      mockNetworkListeners.forEach((listener) => listener(true));
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // The playing track stays as the engine holds it.
+      expect(player.updateTracks).toHaveBeenCalledTimes(1);
+      expect(player.updateTracks).toHaveBeenCalledWith([
+        expect.objectContaining({ id: "73", url: "/files/73.flac" }),
+      ]);
+    });
+  });
+});
+
+describe("saved tracks", () => {
+  const albumTracks = ["71", "72", "73"].map((id, index) =>
+    track({ id, trackNumber: index + 1, streamPath: `/stream/12/${id}` }),
+  );
+
+  afterEach(() => {
+    mockOffline = false;
+    mockSavedFiles.clear();
+    setCustomHeaders({});
+  });
+
+  it("hands the engine a saved track's file, with no proxy headers", async () => {
+    setCustomHeaders({ "CF-Access-Client-Id": "proxy-id" });
+    mockSavedFiles.set("72", "/files/72.flac");
+
+    await playAlbumFromTrack(albumTracks, albumTracks[0], album);
+
+    const [, items] = queue.addTracksToPlaylist.mock.calls[0];
+    expect(items[1]).toEqual(
+      expect.objectContaining({ id: "72", url: "/files/72.flac" }),
+    );
+    expect(items[1].extraPayload).toBeUndefined();
+    // A streamed track still carries the proxy's headers.
+    expect(items[0].extraPayload).toEqual(
+      expect.objectContaining({
+        headers: { "CF-Access-Client-Id": "proxy-id" },
+      }),
+    );
+  });
+
+  it("offline, queues only the saved tracks", async () => {
+    mockOffline = true;
+    mockSavedFiles.set("71", "/files/71.flac");
+    mockSavedFiles.set("73", "/files/73.flac");
+
+    await expect(
+      playAlbumFromTrack(albumTracks, albumTracks[2], album),
+    ).resolves.toBe(true);
+
+    expect(queue.addTracksToPlaylist).toHaveBeenCalledWith("playlist-1", [
+      expect.objectContaining({ id: "71" }),
+      expect.objectContaining({ id: "73" }),
+    ]);
+    expect(queue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 1);
+  });
+
+  it("offline, doesn't touch the queue for a tap on a track that isn't saved", async () => {
+    mockOffline = true;
+    mockSavedFiles.set("71", "/files/71.flac");
+
+    await expect(
+      playAlbumFromTrack(albumTracks, albumTracks[1], album),
+    ).resolves.toBe(false);
+
+    expect(queue.createPlaylist).not.toHaveBeenCalled();
   });
 });
 

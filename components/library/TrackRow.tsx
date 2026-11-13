@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { TrackMenuButton } from "@/components/library/TrackMenuButton";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useIsTrackSaved } from "@/lib/offline/saved-library";
 import { usePlaybackState, useCurrentTrack } from "@/lib/player/player";
 import { Colors, Fonts } from "@/constants/theme";
 import type { Track } from "@/lib/types/library";
@@ -28,6 +29,10 @@ type TrackRowProps = {
   onLongPress?: () => void;
   /** Opens the track's action sheet. Omitted, the row shows no menu button. */
   onMenuPress?: () => void;
+  /** Can't play right now: offline, and not saved on the phone. */
+  unavailable?: boolean;
+  /** Shows ↓ once the track is on the phone. */
+  markSaved?: boolean;
 };
 
 export const TrackRow = React.memo(function TrackRow({
@@ -35,8 +40,11 @@ export const TrackRow = React.memo(function TrackRow({
   onPress,
   onLongPress,
   onMenuPress,
+  unavailable = false,
+  markSaved = false,
 }: TrackRowProps) {
   const colors = Colors[useColorScheme()];
+  const onPhone = useIsTrackSaved(String(track.id));
 
   // The engine addresses tracks by string id, so the comparison matches how
   // the queue itself identifies them.
@@ -57,6 +65,7 @@ export const TrackRow = React.memo(function TrackRow({
       style={({ pressed }) => [
         styles.row,
         { borderBottomColor: colors.separator },
+        unavailable ? styles.unavailable : null,
         pressed && interactive ? { opacity: 0.6 } : null,
       ]}
     >
@@ -87,6 +96,14 @@ export const TrackRow = React.memo(function TrackRow({
       >
         {track.trackName}
       </Text>
+      {markSaved && onPhone ? (
+        <Ionicons
+          name="arrow-down-circle"
+          size={16}
+          color={colors.brand}
+          accessibilityLabel="Saved offline"
+        />
+      ) : null}
       <Ionicons
         name={track.hasFile ? "checkmark-circle" : "remove-circle-outline"}
         size={16}
@@ -167,6 +184,9 @@ function Bar({
 }
 
 const styles = StyleSheet.create({
+  unavailable: {
+    opacity: 0.4,
+  },
   indexSlot: {
     // Wide enough for a two-digit number; the bars sit in the same box. No
     // fixed height — the bars bring their own, and a number is taller.

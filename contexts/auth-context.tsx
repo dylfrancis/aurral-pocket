@@ -12,6 +12,7 @@ import {
 import { forgetDateTimeFormat, restoreDateTimeFormat } from "@/lib/date-time";
 import { forgetPlayHistory } from "@/lib/player/play-history";
 import { forgetQueue } from "@/lib/player/player";
+import { forgetSavedLibrary } from "@/lib/offline/saved-library";
 import { AppStorage, SecureStorage } from "@/lib/storage";
 import type { HealthResponse, User } from "@/lib/types/auth";
 import React, {
@@ -153,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             AppStorage.deleteOidcSession(),
             AppStorage.deletePlaybackQueue(),
             AppStorage.deletePlayEventOutbox(),
+            forgetSavedLibrary(),
             forgetDateTimeFormat(),
           ]);
           return;
@@ -168,6 +170,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedToken) {
           setToken(storedToken);
           setAuthToken(storedToken);
+          // Opening the app is activity. Otherwise a session that renews itself
+          // is reset a month after its sign-in.
+          void SecureStorage.setLastActiveAt(Date.now());
         }
 
         if (storedUserJson) {
@@ -376,6 +381,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       AppStorage.deleteOidcSession(),
       forgetQueue(),
       forgetPlayHistory(),
+      forgetSavedLibrary(),
       forgetDateTimeFormat(),
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),

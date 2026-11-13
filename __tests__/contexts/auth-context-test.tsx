@@ -216,9 +216,13 @@ describe("AuthProvider — 30-day inactivity hard expire", () => {
     expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith(
       "date_time_format",
     );
+    // Saved albums go with the server they came from.
+    await waitFor(() =>
+      expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("saved_offline"),
+    );
   });
 
-  it("restores normally when active within 30 days", async () => {
+  it("restores normally when active within 30 days, and counts the launch as activity", async () => {
     const recentTimestamp = String(Date.now() - 5 * 24 * 60 * 60 * 1000);
 
     mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
@@ -238,6 +242,11 @@ describe("AuthProvider — 30-day inactivity hard expire", () => {
     });
 
     expect(mockSecureStore.deleteItemAsync).not.toHaveBeenCalled();
+    // The 30 days start again from this launch.
+    const [, written] = mockSecureStore.setItemAsync.mock.calls.find(
+      ([key]) => key === "last_active_at",
+    )!;
+    expect(Number(written)).toBeGreaterThan(Number(recentTimestamp));
   });
 
   it("restores normally when lastActiveAt is not set (fresh install)", async () => {
@@ -493,6 +502,8 @@ describe("AuthProvider — clearAll", () => {
       "custom_headers",
     );
     expect(setCustomHeaders).toHaveBeenCalledWith({});
+    // Saved albums go with the server they came from.
+    expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("saved_offline");
   });
 });
 
@@ -522,6 +533,10 @@ describe("AuthProvider — clearAuth", () => {
       );
     });
     expect(TrackPlayer.pause).toHaveBeenCalled();
+    // Saved albums wait on the phone for the account to sign back in.
+    expect(mockAsyncStorage.removeItem).not.toHaveBeenCalledWith(
+      "saved_offline",
+    );
     // The server stays chosen, so the next sign-in starts at the login screen.
     expect(getByTestId("token").props.children).toBe("null");
     expect(getByTestId("serverUrl").props.children).toBe(

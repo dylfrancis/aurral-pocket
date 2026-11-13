@@ -1,7 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { PlayingBars } from "@/components/library/TrackRow";
+import { TrackMenuButton } from "@/components/library/TrackMenuButton";
 import { TrackMenu } from "@/components/player/TrackMenu";
 import type {
   TrackMenuAction,
@@ -12,6 +14,7 @@ import { StatusBadge } from "./StatusBadge";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { IS_IOS } from "@/constants/platform";
 import { Colors, Fonts } from "@/constants/theme";
+import { useIsTrackSaved } from "@/lib/offline/saved-library";
 import { useCurrentTrack, usePlaybackState } from "@/lib/player/player";
 import type { FlowJob } from "@/lib/types/flow";
 
@@ -21,8 +24,13 @@ type Props = {
   job: FlowJob;
   position: number;
   onPress?: () => void;
+  /** The native menu's actions. Unused when `onMenuPress` opens a sheet. */
   menuActions: TrackMenuAction[];
   onMenuAction: (job: FlowJob, id: TrackMenuActionId) => void;
+  /** Opens the track's sheet from ⋯ and from a long press. */
+  onMenuPress?: (job: FlowJob) => void;
+  /** Shows ↓ once the track is on the phone. */
+  markSaved?: boolean;
 };
 
 export const PlaylistTrackRow = React.memo(function PlaylistTrackRow({
@@ -31,8 +39,11 @@ export const PlaylistTrackRow = React.memo(function PlaylistTrackRow({
   onPress,
   menuActions,
   onMenuAction,
+  onMenuPress,
+  markSaved = false,
 }: Props) {
   const colors = Colors[useColorScheme()];
+  const onPhone = useIsTrackSaved(job.id);
   const isCurrent = useCurrentTrack()?.id === job.id;
   const playbackState = usePlaybackState();
 
@@ -42,7 +53,8 @@ export const PlaylistTrackRow = React.memo(function PlaylistTrackRow({
           the track. */}
       <Pressable
         onPress={onPress}
-        disabled={!onPress}
+        onLongPress={onMenuPress ? () => onMenuPress(job) : undefined}
+        disabled={!onPress && !onMenuPress}
         style={({ pressed }) => [
           styles.content,
           pressed && onPress ? { opacity: 0.6 } : null,
@@ -88,9 +100,24 @@ export const PlaylistTrackRow = React.memo(function PlaylistTrackRow({
               : job.artistName}
           </Text>
         </View>
+        {markSaved && onPhone ? (
+          <Ionicons
+            name="arrow-down-circle"
+            size={16}
+            color={colors.brand}
+            accessibilityLabel="Saved offline"
+          />
+        ) : null}
         {job.status !== "done" ? <StatusBadge status={job.status} /> : null}
       </Pressable>
-      {menuActions.length > 0 ? (
+      {onMenuPress ? (
+        <View style={[styles.menu, styles.menuSlot, styles.menuButton]}>
+          <TrackMenuButton
+            trackName={job.trackName}
+            onPress={() => onMenuPress(job)}
+          />
+        </View>
+      ) : menuActions.length > 0 ? (
         <View style={styles.menu}>
           <TrackMenu
             compact
@@ -142,5 +169,10 @@ const styles = StyleSheet.create({
   },
   menuSlot: {
     width: IS_IOS ? 44 : 48,
+  },
+  // Centered where the native menu's glyph sits.
+  menuButton: {
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

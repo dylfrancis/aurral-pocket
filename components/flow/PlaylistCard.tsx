@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
 import { CollectionArtwork } from "./CollectionArtwork";
+import { SavedMark } from "@/components/offline/SavedMark";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
@@ -51,6 +52,7 @@ export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
         </Text>
         <View style={styles.chipRow}>
           <Chip label="Playlist" icon="albums-outline" variant="brand" />
+          <SavedMark kind="playlist" id={playlist.id} size={16} />
           {progress ? (
             <View style={styles.progress}>
               <Ionicons

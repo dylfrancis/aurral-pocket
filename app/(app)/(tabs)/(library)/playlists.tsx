@@ -1,15 +1,19 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import { useRouter, type ErrorBoundaryProps } from "expo-router";
+import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
+import FilterList from "@expo/material-symbols/filter_list.xml";
 import * as Burnt from "burnt";
 import { EmptyState } from "@/components/library/EmptyState";
 import { FlowAccessGate } from "@/components/flow/FlowAccessGate";
 import { PlaylistCard } from "@/components/flow/PlaylistCard";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
+import { showMenuSection } from "@/components/ui/ShowMenuSection";
 import { useFlowStatusSuspense } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { IS_IOS } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
+import { useSavedIds } from "@/lib/offline/saved-library";
 import type { SharedPlaylist } from "@/lib/types/flow";
 
 export default function LibraryPlaylistsScreen() {
@@ -20,11 +24,41 @@ export default function LibraryPlaylistsScreen() {
   );
 }
 
+type Show = "all" | "saved";
+
 function LibraryPlaylistsContent() {
   const colors = Colors[useColorScheme()];
   const router = useRouter();
   const { data, refetch } = useFlowStatusSuspense();
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [show, setShow] = useState<Show>("all");
+  const savedIds = useSavedIds("playlist");
+  const showSaved = show === "saved";
+  const playlists = showSaved
+    ? data.sharedPlaylists.filter((playlist) => savedIds.has(playlist.id))
+    : data.sharedPlaylists;
+
+  const toolbar = useMemo(
+    () => (
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
+          title="Filters"
+          accessibilityLabel="Filter playlists"
+        >
+          {showMenuSection<Show>(
+            [
+              { key: "all", label: "All Playlists" },
+              { key: "saved", label: "Saved Offline" },
+            ],
+            show,
+            setShow,
+          )}
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
+    ),
+    [show],
+  );
 
   const handlePullRefresh = useCallback(async () => {
     setIsPullRefreshing(true);
@@ -62,31 +96,41 @@ function LibraryPlaylistsContent() {
   );
 
   return (
-    <FlashList
-      data={data.sharedPlaylists}
-      renderItem={renderItem}
-      keyExtractor={(playlist) => playlist.id}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{
-        ...styles.listContent,
-        backgroundColor: colors.background,
-      }}
-      ListEmptyComponent={
-        <View style={styles.emptyWrap}>
-          <EmptyState
-            icon="list-outline"
-            message="No playlists yet. Add a track from an album or flow to start one."
+    <>
+      {toolbar}
+      <FlashList
+        data={playlists}
+        renderItem={renderItem}
+        keyExtractor={(playlist) => playlist.id}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{
+          ...styles.listContent,
+          backgroundColor: colors.background,
+        }}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            {showSaved ? (
+              <EmptyState
+                icon="arrow-down-circle-outline"
+                message="No playlists saved offline"
+              />
+            ) : (
+              <EmptyState
+                icon="list-outline"
+                message="No playlists yet. Add a track from an album or flow to start one."
+              />
+            )}
+          </View>
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={isPullRefreshing}
+            onRefresh={handlePullRefresh}
+            tintColor={colors.brand}
           />
-        </View>
-      }
-      refreshControl={
-        <RefreshControl
-          refreshing={isPullRefreshing}
-          onRefresh={handlePullRefresh}
-          tintColor={colors.brand}
-        />
-      }
-    />
+        }
+      />
+    </>
   );
 }
 
