@@ -30,7 +30,7 @@ jest.mock("@/lib/player/player", () => ({
   pause: jest.fn(),
   pauseClip: jest.fn(),
   playItem: jest.fn(),
-  playQueueFrom: jest.fn(() => Promise.resolve()),
+  playQueueFrom: jest.fn(() => Promise.resolve(true)),
   resume: jest.fn(),
   setShuffle: jest.fn(() => Promise.resolve()),
   useCurrentTrack: () => null,

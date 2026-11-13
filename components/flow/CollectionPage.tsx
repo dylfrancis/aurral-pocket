@@ -57,9 +57,17 @@ type Props = {
   emptyMessage: string;
   onPlayTrack: (jobId: string) => void;
   /** An empty list leaves the row without a menu. */
-  trackMenuActions: (job: FlowJob) => TrackMenuAction[];
-  onTrackMenuAction: (job: FlowJob, id: TrackMenuActionId) => void;
+  trackMenuActions?: (job: FlowJob) => TrackMenuAction[];
+  onTrackMenuAction?: (job: FlowJob, id: TrackMenuActionId) => void;
+  /** Opens the track's sheet in place of the native menu. */
+  onTrackMenuPress?: (job: FlowJob) => void;
+  /** Rows show ↓ for tracks on the phone. */
+  markSavedTracks?: boolean;
 };
+
+const NO_ACTIONS: TrackMenuAction[] = [];
+const noMenuActions = () => NO_ACTIONS;
+const ignoreMenuAction = () => {};
 
 export function CollectionPage({
   title,
@@ -70,8 +78,10 @@ export function CollectionPage({
   header,
   emptyMessage,
   onPlayTrack,
-  trackMenuActions,
-  onTrackMenuAction,
+  trackMenuActions = noMenuActions,
+  onTrackMenuAction = ignoreMenuAction,
+  onTrackMenuPress,
+  markSavedTracks = false,
 }: Props) {
   const colors = Colors[useColorScheme()];
   const insets = useSafeAreaInsets();
@@ -107,11 +117,19 @@ export function CollectionPage({
         job={job}
         position={position}
         onPress={isPlayableJob(job) ? () => onPlayTrack(job.id) : undefined}
-        menuActions={trackMenuActions(job)}
+        menuActions={onTrackMenuPress ? NO_ACTIONS : trackMenuActions(job)}
         onMenuAction={onTrackMenuAction}
+        onMenuPress={onTrackMenuPress}
+        markSaved={markSavedTracks}
       />
     ),
-    [onPlayTrack, trackMenuActions, onTrackMenuAction],
+    [
+      onPlayTrack,
+      trackMenuActions,
+      onTrackMenuAction,
+      onTrackMenuPress,
+      markSavedTracks,
+    ],
   );
 
   const scrollY = useSharedValue(0);

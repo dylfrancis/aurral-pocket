@@ -17,6 +17,19 @@ jest.mock("@react-native-async-storage/async-storage", () => mockStorage);
 const mockFetch = jest.fn();
 jest.mock("expo/fetch", () => ({ fetch: mockFetch }));
 
+// What's saved on the phone, and whether there's a connection.
+const mockPhone = { saved: new Map<string, string>(), offline: false };
+jest.mock("@/lib/offline/saved-library", () => ({
+  savedFilePath: (id: string) => mockPhone.saved.get(id) ?? null,
+  canPlayNow: (id: string) => !mockPhone.offline || mockPhone.saved.has(id),
+  savedLibraryReady: () => Promise.resolve(),
+}));
+jest.mock("@/lib/offline/network", () => ({
+  isOffline: () => mockPhone.offline,
+  networkKnown: () => Promise.resolve(),
+  onNetworkChange: () => () => {},
+}));
+
 const mockQueue = {
   createPlaylist: jest.fn(() => Promise.resolve("playlist-1")),
   deletePlaylist: jest.fn((_id: string) => Promise.resolve()),
@@ -682,6 +695,42 @@ describe("restoring the queue", () => {
 
     expect(mockQueue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 0);
     expect(mockPlayer.seek).not.toHaveBeenCalled();
+  });
+
+  it("offline, keeps the whole queue, plays saved tracks from their files, and moves on to one from a track that isn't saved", async () => {
+    mockStorage.getItem.mockResolvedValue(savedRecord());
+    mockFetch.mockRejectedValue(new Error("offline"));
+    mockPhone.offline = true;
+    mockPhone.saved.set("71", "/files/71.flac");
+    mockPhone.saved.set("73", "/files/73.flac");
+    const player = await freshFacade();
+
+    try {
+      await expect(player.restoreSavedQueue()).resolves.toBe(true);
+
+      // The rest play again once the connection is back.
+      expect(queuedTracks().map(({ id, url }) => [id, url])).toEqual([
+        ["71", "/files/71.flac"],
+        [
+          "72",
+          `${STREAM_ROOT}/library/canonical-stream/12/72?token=restored-token`,
+        ],
+        ["73", "/files/73.flac"],
+      ]);
+      // A saved track plays from the phone, so the server isn't asked.
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch.mock.calls[0][0]).toContain("/72");
+
+      // The restore left 72 paused. Play goes to the next saved track.
+      expect(mockPlayer.playSong).not.toHaveBeenCalled();
+      await player.resume();
+      await flush();
+      expect(mockPlayer.playSong).toHaveBeenCalledWith("73", "playlist-1");
+      expect(mockPlayer.play).toHaveBeenCalled();
+    } finally {
+      mockPhone.offline = false;
+      mockPhone.saved.clear();
+    }
   });
 
   it("forgets a queue whose tracks have all gone", async () => {

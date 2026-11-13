@@ -68,6 +68,8 @@ export function useAlbumGrid({ genre = "" }: { genre?: string } = {}) {
     setSortMode,
     sortOptions: LIBRARY_ALBUM_SORT_OPTIONS,
     setSearchQuery,
+    /** What's typed, for a list searched on the phone. */
+    typedQuery,
     // The search the albums on screen answer, for the "No results" message.
     // Empty while a newer one is pending, so it never names a search early.
     settledQuery:

@@ -4,6 +4,7 @@ import { Button, Image, Menu } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel as accessibilityLabelModifier,
   contentShape,
+  disabled,
   frame,
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
@@ -22,6 +23,9 @@ const SYMBOLS: Record<TrackMenuActionId, SFSymbol> = {
   retry: "arrow.clockwise",
   stop: "stop.circle",
   remove: "trash",
+  "save-offline": "arrow.down.circle",
+  "remove-offline": "xmark.circle",
+  "saved-with": "arrow.down.circle.fill",
 };
 
 export function TrackMenu({
@@ -56,6 +60,7 @@ export function TrackMenu({
             label={action.title}
             systemImage={SYMBOLS[action.id]}
             role={action.destructive ? "destructive" : undefined}
+            modifiers={action.disabled ? [disabled(true)] : undefined}
             onPress={() => onAction(action.id)}
           />
         ))}

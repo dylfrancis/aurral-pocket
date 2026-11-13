@@ -10,7 +10,7 @@ import { AppStorage } from "@/lib/storage";
  * session token inside them dies with the session, so each track keeps its
  * path and the restore builds the URL again.
  */
-type SavedTrack = {
+export type SavedTrack = {
   id: string;
   title: string;
   artist: string;
@@ -183,20 +183,23 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
  * The saved tracks that still play. A track drops when no URL can be built
  * for it, and when the server says the file is gone. A timeout or an
  * unreachable server keeps it: a cold start offline must not empty the queue.
+ * A track saved on the phone plays from its file, so the server isn't asked.
  */
 export async function restorableTracks(
   saved: SavedQueue,
+  isSavedOnPhone: (id: string) => boolean = () => false,
 ): Promise<PlayerTrack[]> {
   const items = saved.items
     .map((item) => toPlayableTrack(item, saved.album))
     .filter(isPresent);
   const streams = await mapWithLimit(items, PROBE_CONCURRENCY, (item) =>
-    stillStreams(item.url),
+    isSavedOnPhone(item.id) ? Promise.resolve(true) : stillStreams(item.url),
   );
   return items.filter((_, index) => streams[index]);
 }
 
-function toPlayableTrack(
+/** A saved track as the player queues it, with a URL for the current session. */
+export function toPlayableTrack(
   saved: SavedTrack,
   album: PlayerAlbumContext,
 ): PlayerTrack | null {

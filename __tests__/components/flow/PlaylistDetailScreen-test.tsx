@@ -1,5 +1,14 @@
 jest.mock("burnt", () => ({ toast: jest.fn() }));
 
+// Online unless a test takes the connection away.
+let mockOffline = false;
+jest.mock("@/lib/offline/network", () => ({
+  isOffline: () => mockOffline,
+  useIsOffline: () => mockOffline,
+  onNetworkChange: () => () => {},
+  networkKnown: () => Promise.resolve(),
+}));
+
 let mockUser: { role: string; permissions: { accessFlow: boolean } };
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => ({
@@ -31,7 +40,9 @@ jest.mock("@/lib/player/player", () => ({
   pause: jest.fn(),
   pauseClip: jest.fn(),
   playItem: jest.fn(),
-  playQueueFrom: jest.fn(() => Promise.resolve()),
+  playQueueFrom: jest.fn(() => Promise.resolve(true)),
+  playItemsNext: jest.fn(() => Promise.resolve(1)),
+  addItemsToQueue: jest.fn(() => Promise.resolve(1)),
   resume: jest.fn(),
   setQueuedAlbumCovers: jest.fn(() => Promise.resolve()),
   setShuffle: jest.fn(() => Promise.resolve()),
@@ -79,7 +90,19 @@ jest.mock("expo-router", () => {
     );
   const Passthrough = ({ children }: any) =>
     React.createElement(React.Fragment, null, children);
-  const Toolbar = Object.assign(Passthrough, { Menu: Passthrough, MenuAction });
+  // A toolbar button renders as a pressable named by its label.
+  const Button = ({ accessibilityLabel, disabled, onPress }: any) =>
+    React.createElement(Pressable, {
+      accessibilityRole: "button",
+      accessibilityLabel,
+      accessibilityState: { disabled: !!disabled },
+      onPress: disabled ? undefined : onPress,
+    });
+  const Toolbar = Object.assign(Passthrough, {
+    Button,
+    Menu: Passthrough,
+    MenuAction,
+  });
   return {
     useFocusEffect: jest.fn(),
     useLocalSearchParams: () => ({ id: "pl-1" }),
@@ -114,6 +137,37 @@ jest.mock("react-native-reanimated", () => {
   };
 });
 
+// The track sheet's native parts stand in as plain views.
+jest.mock("@/components/ui/AppSheet", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return {
+    AppSheet: React.forwardRef(function MockAppSheet(
+      { children }: { children: React.ReactNode },
+      _ref: unknown,
+    ) {
+      return React.createElement(View, null, children);
+    }),
+  };
+});
+jest.mock("@gorhom/bottom-sheet", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return {
+    BottomSheetView: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(View, null, children),
+  };
+});
+jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
+  AddToPlaylistSheet: () => null,
+  useAddToPlaylist: () => ({
+    canAddToPlaylist: false,
+    track: null,
+    open: jest.fn(),
+    close: jest.fn(),
+  }),
+}));
+
 jest.mock("@/components/artist/ArtistDetailLayout", () => ({
   ScrollHeaderTitle: () => null,
 }));
@@ -145,11 +199,18 @@ import {
 import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { getAlbumCover } from "@/lib/api/library";
 import {
+  playItemsNext,
   playQueueFrom,
   setQueuedAlbumCovers,
   setShuffle,
 } from "@/lib/player/player";
 import type { FlowJob, FlowStatusSnapshot } from "@/lib/types/flow";
+import {
+  forgetSavedLibrary,
+  setSavedLibraryUser,
+} from "@/lib/offline/saved-library";
+import { downloads, resetFileSystem } from "@/test-support/expo-file-system";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const mockPlayQueueFrom = playQueueFrom as jest.Mock;
 const mockGetAlbumCover = getAlbumCover as jest.Mock;
@@ -217,12 +278,16 @@ async function open() {
   await screen.findByText("Track a");
 }
 
-function pressTrackMenu(trackName: string, action: string) {
+/** Opens a track's sheet from its ⋯. */
+function openTrackSheet(trackName: string) {
   return fireEvent.press(
-    within(screen.getByLabelText(`More actions for ${trackName}`)).getByText(
-      action,
-    ),
+    screen.getByLabelText(`More actions for ${trackName}`),
   );
+}
+
+async function pressTrackMenu(trackName: string, action: string) {
+  await openTrackSheet(trackName);
+  return fireEvent.press(screen.getByText(action));
 }
 
 function confirmAlert(buttonText: string) {
@@ -762,5 +827,158 @@ describe("PlaylistDetailScreen", () => {
         }),
       );
     });
+  });
+});
+
+describe("a track's sheet", () => {
+  it("has an album song's actions, then the playlist's own", async () => {
+    await open();
+
+    await openTrackSheet("Track a");
+    await fireEvent.press(screen.getByText("Play Next"));
+
+    expect(playItemsNext).toHaveBeenCalledWith(
+      [expect.objectContaining({ id: "a" })],
+      expect.objectContaining({ albumTitle: "Road Trip" }),
+    );
+    expect(screen.getByText("Remove Track")).toBeTruthy();
+  });
+
+  it("offers only the playlist's own actions for a track that can't play yet", async () => {
+    await open();
+
+    await openTrackSheet("Track b");
+
+    expect(screen.queryByText("Play Next")).toBeNull();
+    expect(screen.getByText("Stop Download")).toBeTruthy();
+    expect(screen.getByText("Remove Track")).toBeTruthy();
+  });
+});
+
+describe("saving a playlist offline", () => {
+  /** Lets the saved library's reads, writes and downloads land. */
+  async function settle() {
+    for (let i = 0; i < 5; i++) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+  }
+
+  beforeEach(async () => {
+    setSavedLibraryUser(1);
+    await settle();
+  });
+
+  afterEach(async () => {
+    mockOffline = false;
+    await forgetSavedLibrary();
+    setSavedLibraryUser(null);
+    resetFileSystem();
+  });
+
+  async function saveFromToolbar() {
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save offline"));
+      await settle();
+    });
+    const asked: string[] = [];
+    await act(async () => {
+      while (downloads.length > 0) {
+        const download = downloads.shift()!;
+        asked.push(download.url);
+        download.finish(1_000);
+        await settle();
+      }
+    });
+    return asked;
+  }
+
+  it("saves one finished track from its menu, and says a saved playlist's tracks go with it", async () => {
+    await open();
+    // Still downloading to the server, so there's no file to save yet.
+    await openTrackSheet("Track b");
+    expect(screen.queryByText("Save Offline")).toBeNull();
+
+    await pressTrackMenu("Track a", "Save Offline");
+    await act(settle);
+    expect(downloads.map((download) => download.url)).toEqual([
+      expect.stringContaining("/stream/a?token=token"),
+    ]);
+    await act(async () => {
+      downloads.shift()!.finish(1_000);
+      await settle();
+    });
+    await openTrackSheet("Track a");
+    expect(screen.getByText("Remove from Phone")).toBeTruthy();
+
+    await saveFromToolbar();
+    await openTrackSheet("Track c");
+    expect(screen.getByText("Saved with “Road Trip”")).toBeTruthy();
+  });
+
+  it("keeps the cover the page found on a song saved from its row, for offline", async () => {
+    const cover = "https://img.example/album-a.jpg";
+    (getAlbumCover as jest.Mock).mockResolvedValue({
+      images: [{ image: cover, front: true }],
+    });
+    try {
+      serve({ jobs: [job("a", { albumMbid: "album-a" })] });
+      await open();
+      await screen.findByTestId(`image:${cover}`);
+
+      await pressTrackMenu("Track a", "Save Offline");
+      await act(settle);
+
+      const record = JSON.parse(
+        (await AsyncStorage.getItem("saved_offline")) ?? "{}",
+      );
+      expect(record.items).toEqual([
+        expect.objectContaining({
+          kind: "song",
+          id: "a",
+          track: expect.objectContaining({ artwork: cover }),
+        }),
+      ]);
+    } finally {
+      (getAlbumCover as jest.Mock).mockReset();
+      (getAlbumCover as jest.Mock).mockResolvedValue({ images: [] });
+    }
+  });
+
+  it("saves only the finished tracks", async () => {
+    await open();
+
+    const asked = await saveFromToolbar();
+
+    expect(asked).toEqual([
+      expect.stringContaining("/stream/a?token=token"),
+      expect.stringContaining("/stream/c?token=token"),
+    ]);
+    expect(screen.getByLabelText("Saved offline")).toBeTruthy();
+  });
+
+  it("opens from the phone with no connection, without asking the server", async () => {
+    await open();
+    await saveFromToolbar();
+    cleanup();
+    jest.clearAllMocks();
+
+    // A track added since the save, ahead of the saved ones.
+    serve({ jobs: [job("new"), job("a"), job("c")] });
+    mockOffline = true;
+    await renderPage();
+
+    expect(await screen.findByText("Track a")).toBeTruthy();
+    expect(screen.getByText("Track c")).toBeTruthy();
+    expect(getFlowStatus).not.toHaveBeenCalled();
+
+    // Play starts at the first track the phone has.
+    await act(async () => {
+      fireEvent.press(screen.getByText("Play"));
+    });
+    expect(mockPlayQueueFrom).toHaveBeenCalledWith(
+      expect.any(Array),
+      "a",
+      expect.anything(),
+    );
   });
 });

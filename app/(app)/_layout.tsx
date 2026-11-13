@@ -4,6 +4,7 @@ import { useReducedMotion } from "react-native-reanimated";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { IS_ANDROID } from "@/constants/platform";
 import { useAuth } from "@/contexts/auth-context";
+import { useSavedLibraryFollowsSession } from "@/hooks/offline/use-saved-library-follows-session";
 import { useQueueFollowsSession } from "@/hooks/player/use-queue-follows-session";
 import { startPlayHistory } from "@/lib/player/play-history";
 import { restoreSavedQueue } from "@/lib/player/player";
@@ -25,6 +26,7 @@ export default function AppLayout() {
   );
 
   useQueueFollowsSession();
+  useSavedLibraryFollowsSession();
   const reduceMotion = useReducedMotion();
 
   return (

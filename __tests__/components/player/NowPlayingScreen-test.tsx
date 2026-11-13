@@ -1,3 +1,12 @@
+// Online unless a test takes the connection away.
+let mockOffline = false;
+jest.mock("@/lib/offline/network", () => ({
+  isOffline: () => mockOffline,
+  useIsOffline: () => mockOffline,
+  networkKnown: () => Promise.resolve(),
+  onNetworkChange: () => () => {},
+}));
+
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn(),
@@ -123,6 +132,12 @@ import {
 } from "@/lib/player/player";
 import type { PlayerTrack } from "@/lib/player/track-item";
 import type { Track } from "@/lib/types/library";
+import * as Burnt from "burnt";
+import {
+  forgetSavedLibrary,
+  setSavedLibraryUser,
+} from "@/lib/offline/saved-library";
+import { downloads } from "@/test-support/expo-file-system";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
 
@@ -593,6 +608,47 @@ describe("NowPlayingScreen", () => {
 
     expect(player.playSong).toHaveBeenCalledWith("3", "playlist-1");
     expect(queue.createPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("saves the playing track from its menu", async () => {
+    setSavedLibraryUser(1);
+    try {
+      const { getByLabelText } = await renderPlaying();
+
+      await act(async () => {
+        fireEvent.press(getByLabelText("Save Offline"));
+        for (let i = 0; i < 5; i++) {
+          await new Promise((resolve) => setImmediate(resolve));
+        }
+      });
+
+      expect(downloads.map((download) => download.url)).toEqual([
+        "https://test.example/api/stream/12/1?token=test-token-123",
+      ]);
+    } finally {
+      await forgetSavedLibrary();
+      setSavedLibraryUser(null);
+    }
+  });
+
+  it("offline, shows an unsaved up-next track as unavailable and stays put on a tap", async () => {
+    const { getByLabelText } = await renderPlaying();
+    mockOffline = true;
+    try {
+      await fireEvent.press(getByLabelText("Queue"));
+      player.playSong.mockClear();
+
+      const row = getByLabelText("Play The National Anthem by Radiohead");
+      expect(row.props.accessibilityState).toEqual({ disabled: true });
+      await fireEvent.press(row);
+
+      expect(player.playSong).not.toHaveBeenCalled();
+      expect(Burnt.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Not saved on this phone" }),
+      );
+    } finally {
+      mockOffline = false;
+    }
   });
 
   it("cycles repeat from off through the queue to one track", async () => {

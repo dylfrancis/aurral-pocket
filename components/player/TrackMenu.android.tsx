@@ -1,6 +1,9 @@
 import AlbumIcon from "@expo/material-symbols/album.xml";
+import ArrowCircleDownIcon from "@expo/material-symbols/arrow_circle_down.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
 import DownloadIcon from "@expo/material-symbols/download.xml";
+import DownloadForOfflineIcon from "@expo/material-symbols/download_for_offline.xml";
+import FileDownloadOffIcon from "@expo/material-symbols/file_download_off.xml";
 import MoreHorizIcon from "@expo/material-symbols/more_horiz.xml";
 import PersonIcon from "@expo/material-symbols/person.xml";
 import PlaylistAddIcon from "@expo/material-symbols/playlist_add.xml";
@@ -31,6 +34,9 @@ const ICONS: Record<TrackMenuActionId, ImageSourcePropType> = {
   retry: RefreshIcon,
   stop: StopCircleIcon,
   remove: DeleteIcon,
+  "save-offline": ArrowCircleDownIcon,
+  "remove-offline": FileDownloadOffIcon,
+  "saved-with": DownloadForOfflineIcon,
 };
 
 // A clipped popup loses the status bar offset, so near the bottom of an
@@ -68,6 +74,7 @@ export function TrackMenu({
           {actions.map((action) => (
             <DropdownMenuItem
               key={action.id}
+              enabled={!action.disabled}
               elementColors={
                 action.destructive
                   ? { textColor: errorColor, leadingIconColor: errorColor }

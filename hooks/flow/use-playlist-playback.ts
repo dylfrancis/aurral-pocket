@@ -1,16 +1,11 @@
 import { useCallback } from "react";
-import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Burnt from "burnt";
-import {
-  albumCoverQuery,
-  coverArtUrlFrom,
-} from "@/hooks/library/use-cover-art-url";
-import type { AlbumCoverHints } from "@/lib/api/library";
-import {
-  playQueueFrom,
-  setQueuedAlbumCovers,
-  setShuffle,
-} from "@/lib/player/player";
+import { toastNotSaved } from "@/hooks/offline/toast-not-saved";
+import { isOffline } from "@/lib/offline/network";
+import { canPlayNow } from "@/lib/offline/saved-library";
+import { cachedAlbumCover, fillQueueCovers } from "@/hooks/player/queue-covers";
+import { playQueueFrom, setShuffle } from "@/lib/player/player";
 import {
   collectionPlayerContext,
   isPlayableJob,
@@ -18,51 +13,7 @@ import {
   type PlaybackCollection,
   type PlayerTrack,
 } from "@/lib/player/track-item";
-import { libraryKeys } from "@/lib/query-keys";
 import type { FlowJob } from "@/lib/types/flow";
-import type { CoverArtResponse } from "@/lib/types/library";
-
-/** Every track in a big flow can be from a different album. */
-const COVER_LOOKUPS_AT_ONCE = 6;
-
-function loadedAlbumCover(queryClient: QueryClient, job: FlowJob) {
-  if (!job.albumMbid) return null;
-  return coverArtUrlFrom(
-    queryClient.getQueryData<CoverArtResponse>(
-      libraryKeys.albumCover(job.albumMbid),
-    ),
-  );
-}
-
-async function fillQueueCovers(queryClient: QueryClient, items: PlayerTrack[]) {
-  const albums = new Map<string, AlbumCoverHints>();
-  for (const item of items) {
-    if (item.albumMbid && !item.artwork && !item.coverPath) {
-      albums.set(item.albumMbid, {
-        artistName: item.artist,
-        albumTitle: item.album || undefined,
-      });
-    }
-  }
-
-  const pending = [...albums];
-  for (let i = 0; i < pending.length; i += COVER_LOOKUPS_AT_ONCE) {
-    const found = await Promise.all(
-      pending
-        .slice(i, i + COVER_LOOKUPS_AT_ONCE)
-        .map(async ([mbid, hints]): Promise<[string, string | null]> => {
-          const cover = await queryClient
-            .fetchQuery(albumCoverQuery(mbid, hints))
-            .catch(() => undefined);
-          return [mbid, coverArtUrlFrom(cover)];
-        }),
-    );
-    const covers = new Map(
-      found.filter((entry): entry is [string, string] => entry[1] !== null),
-    );
-    if (covers.size > 0) await setQueuedAlbumCovers(covers).catch(() => {});
-  }
-}
 
 /** The queue's context is what keeps it playing when its page closes. */
 export function usePlaylistPlayback(
@@ -80,24 +31,34 @@ export function usePlaylistPlayback(
     ) => {
       const items = jobs
         .map((job) =>
-          jobToPlayerTrack(job, collection, loadedAlbumCover(queryClient, job)),
+          jobToPlayerTrack(
+            job,
+            collection,
+            cachedAlbumCover(queryClient, job.albumMbid),
+          ),
         )
         .filter((item): item is PlayerTrack => item !== null);
       // Starting a track the queue doesn't hold would drop the old queue and
-      // then fail.
-      const first = pickFirst(items);
+      // then fail. Offline, the queue holds only saved tracks, so the pick
+      // comes from those.
+      const first = pickFirst(items.filter((item) => canPlayNow(item.id)));
       if (!first) {
-        Burnt.toast({ title: "Cannot play this track", preset: "error" });
+        if (isOffline()) toastNotSaved();
+        else Burnt.toast({ title: "Cannot play this track", preset: "error" });
         return;
       }
       try {
         // Before the play, so the rebuilt queue comes out shuffled.
         if (shuffled) await setShuffle(true);
-        await playQueueFrom(
+        const started = await playQueueFrom(
           items,
           first.id,
           collectionPlayerContext(collection),
         );
+        if (!started) {
+          toastNotSaved();
+          return;
+        }
         // The track that's starting goes first: its cover is the one on screen.
         void fillQueueCovers(queryClient, [first, ...items]);
       } catch (error) {

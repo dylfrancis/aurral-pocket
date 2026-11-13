@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Alert } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
 import PauseIcon from "@expo/material-symbols/pause.xml";
@@ -30,10 +31,20 @@ import {
   useTrackJobMenu,
 } from "@/hooks/flow";
 import { usePlaylistPlayback } from "@/hooks/flow/use-playlist-playback";
-import type {
-  TrackMenuAction,
-  TrackMenuActionId,
-} from "@/components/player/track-menu-types";
+import { useSaveOffline } from "@/hooks/offline/use-save-offline";
+import { cachedAlbumCover } from "@/hooks/player/queue-covers";
+import {
+  collectionPlayerContext,
+  jobToPlayerTrack,
+} from "@/lib/player/track-item";
+import { saveStatusLine } from "@/lib/offline/format";
+import { useIsOffline } from "@/lib/offline/network";
+import { savePlaylist, useSavedStatus } from "@/lib/offline/saved-library";
+import {
+  TrackActionsSheet,
+  useTrackActions,
+} from "@/components/library/TrackActionsSheet";
+import type { TrackMenuActionId } from "@/components/player/track-menu-types";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
@@ -43,10 +54,18 @@ const NO_JOBS: FlowJob[] = [];
 
 export function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const isOffline = useIsOffline();
+  const saved = useSavedStatus("playlist", id)?.item;
 
   return (
     <FlowAccessGate message="You don't have access to Playlists">
-      <PlaylistLookup id={id} />
+      {/* The lookup suspends on the server, which can't answer offline. A
+          saved playlist opens from what the phone kept. */}
+      {isOffline && saved?.kind === "playlist" ? (
+        <PlaylistPage playlist={saved.playlist} retryPaused={false} />
+      ) : (
+        <PlaylistLookup id={id} />
+      )}
     </FlowAccessGate>
   );
 }
@@ -89,9 +108,23 @@ function PlaylistPage({
 
   // Failed tracks stay listed, as an album's missing tracks do. The count above
   // them includes them, and the list would otherwise come up short with no reason.
-  const { data: jobs = NO_JOBS, isLoading: jobsLoading } = usePlaylistJobs(
+  const { data: liveJobs, isLoading: liveJobsLoading } = usePlaylistJobs(
     playlist.id,
   );
+  const saveOffline = useSaveOffline({
+    kind: "playlist",
+    id: playlist.id,
+    title: playlist.name,
+    save: liveJobs?.some((job) => job.status === "done")
+      ? () => savePlaylist({ playlist, jobs: liveJobs })
+      : null,
+  });
+  const savedItem = saveOffline.status?.item;
+  const savedJobs = savedItem?.kind === "playlist" ? savedItem.jobs : null;
+  // A saved playlist still lists and plays its tracks with no connection.
+  const jobs = liveJobs ?? savedJobs ?? NO_JOBS;
+  const jobsLoading = liveJobsLoading && !savedJobs;
+  const saveLine = saveStatusLine(saveOffline.status);
   const collection = useMemo(
     () => ({ ...playlist, kind: "shared" as const }),
     [playlist],
@@ -130,15 +163,8 @@ function PlaylistPage({
 
   const { actionsFor: jobActionsFor, runAction: runJobAction } =
     useTrackJobMenu("shared");
-  const trackMenuActions = useCallback(
-    (job: FlowJob): TrackMenuAction[] => [
-      ...jobActionsFor(job),
-      { id: "remove", title: "Remove Track", destructive: true },
-    ],
-    [jobActionsFor],
-  );
   const deleteTrackMutate = deleteTrack.mutate;
-  const handleTrackMenuAction = useCallback(
+  const handleTrackAction = useCallback(
     (job: FlowJob, id: TrackMenuActionId) => {
       if (runJobAction(job, id) || id !== "remove") return;
       Alert.alert(
@@ -158,11 +184,60 @@ function PlaylistPage({
     [runJobAction, deleteTrackMutate, playlist.id, playlist.name],
   );
 
+  const trackActions = useTrackActions();
+  const { openItem: openTrackItem } = trackActions;
+  const queryClient = useQueryClient();
+  const playContext = useMemo(
+    () => collectionPlayerContext(collection),
+    [collection],
+  );
+  const openTrackSheet = useCallback(
+    (job: FlowJob) =>
+      openTrackItem(
+        jobToPlayerTrack(
+          job,
+          collection,
+          // The cover the page already found, so a save has it offline.
+          cachedAlbumCover(queryClient, job.albumMbid),
+        ),
+        playContext,
+        {
+          title: job.trackName,
+          // Only a finished track has a file of its own. A saved-for-later
+          // one streams a clip from elsewhere.
+          canSaveOffline: job.status === "done",
+          extras: {
+            actions: [
+              ...jobActionsFor(job),
+              { id: "remove", title: "Remove Track", destructive: true },
+            ],
+            onAction: (id) => handleTrackAction(job, id),
+          },
+        },
+      ),
+    [
+      openTrackItem,
+      collection,
+      queryClient,
+      playContext,
+      jobActionsFor,
+      handleTrackAction,
+    ],
+  );
+
   const isRetryPending = setRetryPaused.isPending;
   const setRetryMutate = setRetryPaused.mutate;
   const toolbar = useMemo(
     () => (
       <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={saveOffline.icon}
+          accessibilityLabel={saveOffline.label}
+          disabled={saveOffline.disabled}
+          onPress={saveOffline.onPress}
+        >
+          {saveOffline.label}
+        </Stack.Toolbar.Button>
         <Stack.Toolbar.Menu
           icon={IS_IOS ? "ellipsis" : MoreVert}
           accessibilityLabel="More actions"
@@ -197,70 +272,92 @@ function PlaylistPage({
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
     ),
-    [retryPaused, isRetryPending, setRetryMutate, playlist.id, handleDelete],
+    [
+      retryPaused,
+      isRetryPending,
+      setRetryMutate,
+      playlist.id,
+      handleDelete,
+      saveOffline.icon,
+      saveOffline.label,
+      saveOffline.disabled,
+      saveOffline.onPress,
+    ],
   );
 
   const summary = summaryLine(playlist.trackCount, stats);
 
   return (
-    <CollectionPage
-      title={playlist.name}
-      jobs={jobs}
-      jobsLoading={jobsLoading}
-      searchPlaceholder="Search this playlist"
-      toolbar={toolbar}
-      emptyMessage="No tracks yet"
-      onPlayTrack={playFrom}
-      trackMenuActions={trackMenuActions}
-      onTrackMenuAction={handleTrackMenuAction}
-      header={
-        <>
-          <CollectionHero
-            name={playlist.name}
-            artwork={
-              <CollectionArtwork
-                collection={playlist}
-                kind="playlist"
-                stats={stats}
-                size={COVER_SIZE}
-                radius={12}
-              />
-            }
-          >
-            {playlist.sourceName ? (
-              <Text variant="body" style={{ color: colors.subtle }}>
-                from {playlist.sourceName}
-              </Text>
-            ) : null}
-            {summary ? (
-              <Text variant="caption" style={{ color: colors.subtle }}>
-                {summary}
-              </Text>
-            ) : null}
-            {retryPaused ? (
-              <Chip label="Retry paused" icon="pause" variant="subtle" />
-            ) : null}
-          </CollectionHero>
-          <PlayRow
-            title={playlist.name}
-            disabled={!canPlay}
-            onPlay={() => void playAll()}
-            onShuffle={() => void shuffle()}
-          >
-            <CircleButton
-              icon="pencil"
-              size={PLAY_ROW_HEIGHT}
-              accessibilityLabel={`Edit ${playlist.name}`}
-              onPress={() =>
-                router.push({
-                  pathname: "/(app)/(tabs)/(library)/playlist-edit",
-                  params: { id: playlist.id },
-                })
+    <>
+      <CollectionPage
+        title={playlist.name}
+        jobs={jobs}
+        jobsLoading={jobsLoading}
+        searchPlaceholder="Search this playlist"
+        toolbar={toolbar}
+        emptyMessage="No tracks yet"
+        onPlayTrack={playFrom}
+        onTrackMenuPress={openTrackSheet}
+        // A saved playlist's toolbar already says its tracks are on the phone.
+        markSavedTracks={saveOffline.status?.state !== "saved"}
+        header={
+          <>
+            <CollectionHero
+              name={playlist.name}
+              artwork={
+                <CollectionArtwork
+                  collection={playlist}
+                  kind="playlist"
+                  stats={stats}
+                  size={COVER_SIZE}
+                  radius={12}
+                />
               }
-            />
-          </PlayRow>
-        </>
-      }
-    />
+            >
+              {playlist.sourceName ? (
+                <Text variant="body" style={{ color: colors.subtle }}>
+                  from {playlist.sourceName}
+                </Text>
+              ) : null}
+              {summary ? (
+                <Text variant="caption" style={{ color: colors.subtle }}>
+                  {summary}
+                </Text>
+              ) : null}
+              {saveLine ? (
+                <Text variant="caption" style={{ color: colors.subtle }}>
+                  {saveLine}
+                </Text>
+              ) : null}
+              {retryPaused ? (
+                <Chip label="Retry paused" icon="pause" variant="subtle" />
+              ) : null}
+            </CollectionHero>
+            <PlayRow
+              title={playlist.name}
+              disabled={!canPlay}
+              onPlay={() => void playAll()}
+              onShuffle={() => void shuffle()}
+            >
+              <CircleButton
+                icon="pencil"
+                size={PLAY_ROW_HEIGHT}
+                accessibilityLabel={`Edit ${playlist.name}`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(app)/(tabs)/(library)/playlist-edit",
+                    params: { id: playlist.id },
+                  })
+                }
+              />
+            </PlayRow>
+          </>
+        }
+      />
+      <TrackActionsSheet
+        target={trackActions.target}
+        onClose={trackActions.close}
+      />
+    </>
   );
 }

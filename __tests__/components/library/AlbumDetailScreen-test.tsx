@@ -22,6 +22,7 @@ jest.mock("@/hooks/library/use-library-tracks", () => ({
 }));
 
 jest.mock("@/hooks/library/use-cover-art-url", () => ({
+  ...jest.requireActual("@/hooks/library/use-cover-art-url"),
   useCoverArtUrl: jest.fn(() => ({ url: null, isLoading: false })),
 }));
 
@@ -67,7 +68,19 @@ jest.mock("expo-router", () => {
         );
   const Passthrough = ({ children }: any) =>
     React.createElement(React.Fragment, null, children);
-  const Toolbar = Object.assign(Passthrough, { Menu: Passthrough, MenuAction });
+  // A toolbar button renders as a pressable named by its label.
+  const Button = ({ accessibilityLabel, disabled, onPress }: any) =>
+    React.createElement(Pressable, {
+      accessibilityRole: "button",
+      accessibilityLabel,
+      accessibilityState: { disabled: !!disabled },
+      onPress: disabled ? undefined : onPress,
+    });
+  const Toolbar = Object.assign(Passthrough, {
+    Button,
+    Menu: Passthrough,
+    MenuAction,
+  });
   return {
     useLocalSearchParams: () => mockParams,
     useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
@@ -162,6 +175,12 @@ import {
   updateLibraryFavorites,
 } from "@/lib/api/library";
 import { albumRouteParams } from "@/lib/library-read";
+import { setAuthToken, setBaseUrl } from "@/lib/api/client";
+import {
+  forgetSavedLibrary,
+  setSavedLibraryUser,
+} from "@/lib/offline/saved-library";
+import { downloads, fakeFileExists } from "@/test-support/expo-file-system";
 import { libraryKeys } from "@/lib/query-keys";
 import type { Album, Track } from "@/lib/types/library";
 
@@ -590,5 +609,169 @@ describe("AlbumDetailScreen", () => {
     expect(screen.queryByText("Re-search")).toBeNull();
     expect(screen.queryByText("Delete Album")).toBeNull();
     expect(mockGetDownloadStatuses).not.toHaveBeenCalled();
+  });
+
+  describe("saving offline", () => {
+    const savedTracks = [
+      {
+        id: "1",
+        trackName: "15 Step",
+        trackNumber: 1,
+        hasFile: true,
+        size: 30_000_000,
+        streamPath: "/library/canonical-stream/14/1",
+        streamFormat: "flac",
+      },
+      {
+        id: "2",
+        trackName: "Bodysnatchers",
+        trackNumber: 2,
+        hasFile: true,
+        size: 32_000_000,
+        streamPath: "/library/canonical-stream/14/2",
+        streamFormat: "flac",
+      },
+    ] as Track[];
+
+    /** Lets the saved library's reads, writes and downloads land. */
+    async function settle() {
+      for (let i = 0; i < 5; i++) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    }
+
+    async function saveFromToolbar() {
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText("Save offline"));
+        await settle();
+      });
+      await act(async () => {
+        while (downloads.length > 0) {
+          downloads.shift()!.finish(1_000);
+          await settle();
+        }
+      });
+    }
+
+    beforeEach(async () => {
+      setBaseUrl("https://music.example");
+      setAuthToken("session-token");
+      setSavedLibraryUser(1);
+      await settle();
+      mockUseLibraryTracks.mockReturnValue({
+        data: savedTracks,
+        isLoading: false,
+      });
+    });
+
+    afterEach(async () => {
+      await forgetSavedLibrary();
+      setSavedLibraryUser(null);
+    });
+
+    it("shows the size before saving, the progress while saving, and a filled button once it's all saved", async () => {
+      await openAlbumPage(lidarrAlbum);
+      expect(screen.getByText("2007 · 10 tracks · 62 MB")).toBeTruthy();
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText("Save offline"));
+        await settle();
+      });
+      expect(screen.getByText("Saving 0 of 2")).toBeTruthy();
+      expect(screen.getByLabelText("Saving offline")).toBeTruthy();
+
+      await act(async () => {
+        downloads.shift()!.finish(30_000_000);
+        await settle();
+      });
+      expect(screen.getByText("Saving 1 of 2")).toBeTruthy();
+
+      await act(async () => {
+        downloads.shift()!.finish(32_000_000);
+        await settle();
+      });
+      expect(screen.getByLabelText("Saved offline")).toBeTruthy();
+      expect(screen.queryByText(/Saving/)).toBeNull();
+    });
+
+    it("saves one song from its menu, and offers to take it off the phone again", async () => {
+      await openAlbumPage(lidarrAlbum);
+
+      await fireEvent.press(screen.getByLabelText("More actions for 15 Step"));
+      await act(async () => {
+        fireEvent.press(screen.getByText("Save Offline"));
+        await settle();
+      });
+      expect(downloads.map((download) => download.destination)).toEqual([
+        "file:///documents/saved-offline/1.flac",
+      ]);
+      await act(async () => {
+        downloads.shift()!.finish(30_000_000);
+        await settle();
+      });
+
+      await fireEvent.press(screen.getByLabelText("More actions for 15 Step"));
+      expect(screen.getByText("Remove from Phone")).toBeTruthy();
+      // The album itself isn't saved.
+      expect(screen.getByLabelText("Save offline")).toBeTruthy();
+    });
+
+    it("says a song of a saved album goes with it, and won't remove it alone", async () => {
+      await openAlbumPage(lidarrAlbum);
+      await saveFromToolbar();
+
+      await fireEvent.press(screen.getByLabelText("More actions for 15 Step"));
+      const savedWith = screen.getByRole("button", {
+        name: "Saved with “In Rainbows”",
+      });
+      expect(savedWith.props.accessibilityState).toEqual({ disabled: true });
+      await fireEvent.press(savedWith);
+
+      expect(fakeFileExists("file:///documents/saved-offline/1.flac")).toBe(
+        true,
+      );
+    });
+
+    it("removes a saved album from the phone once the listener agrees", async () => {
+      await openAlbumPage(lidarrAlbum);
+      await saveFromToolbar();
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText("Saved offline"));
+        await settle();
+      });
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Remove from Phone?",
+        expect.any(String),
+        expect.any(Array),
+      );
+      expect(screen.getByLabelText("Save offline")).toBeTruthy();
+      expect(fakeFileExists("file:///documents/saved-offline/1.flac")).toBe(
+        false,
+      );
+    });
+
+    it("lists and plays a saved album's tracks when the server can't send them", async () => {
+      await openAlbumPage(lidarrAlbum);
+      await saveFromToolbar();
+      await screen.unmount();
+      mockUseLibraryTracks.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+      });
+
+      await openAlbumPage(lidarrAlbum);
+      expect(screen.getByText("Bodysnatchers")).toBeTruthy();
+      await fireEvent.press(screen.getByText("Play"));
+
+      expect(mockPlayAlbum).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ id: "1" }),
+          expect.objectContaining({ id: "2" }),
+        ],
+        expect.anything(),
+      );
+    });
   });
 });

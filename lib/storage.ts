@@ -26,6 +26,7 @@ const KEYS = {
   OIDC_LOGOUT_URL: "oidc_logout_url",
   PLAYBACK_QUEUE: "playback_queue",
   PLAY_EVENT_OUTBOX: "play_event_outbox",
+  SAVED_OFFLINE: "saved_offline",
   DATE_TIME_FORMAT: "date_time_format",
   CUSTOM_HEADERS: "custom_headers",
 } as const;
@@ -353,6 +354,30 @@ export const AppStorage = {
   async deletePlayEventOutbox(): Promise<void> {
     try {
       await AsyncStorage.removeItem(KEYS.PLAY_EVENT_OUTBOX);
+    } catch {}
+  },
+
+  /**
+   * What's saved for offline play. Its shape lives in
+   * lib/offline/saved-library.ts; the audio files sit beside it on disk.
+   */
+  async getSavedOffline(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(KEYS.SAVED_OFFLINE);
+    } catch {
+      return null;
+    }
+  },
+
+  async setSavedOffline(json: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.SAVED_OFFLINE, json);
+    } catch {}
+  },
+
+  async deleteSavedOffline(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.SAVED_OFFLINE);
     } catch {}
   },
 
