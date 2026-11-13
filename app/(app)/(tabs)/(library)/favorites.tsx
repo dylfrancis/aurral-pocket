@@ -21,7 +21,7 @@ import {
 import { coverArtUrlFrom } from "@/hooks/library/use-cover-art-url";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { searchBarColors } from "@/constants/navigation";
+import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { albumRouteParams, artistRouteId } from "@/lib/library-read";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
@@ -275,10 +275,7 @@ export default function LibraryFavoritesScreen() {
   return (
     <>
       <Stack.SearchBar
-        placeholder="Search favorites"
-        hideWhenScrolling={false}
-        autoCapitalize="none"
-        {...searchBarColors(colors)}
+        {...headerSearchBar(SEARCH_PLACEHOLDERS.favorites, colors)}
         onChangeText={handleSearchChange}
         onCancelButtonPress={handleSearchCancel}
       />

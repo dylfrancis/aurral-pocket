@@ -6,6 +6,7 @@ import {
   type GenreSortMode,
 } from "@/components/library/AlbumSortPicker";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
+import { SEARCH_PLACEHOLDERS } from "@/constants/navigation";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { useLibraryGenres } from "@/hooks/library/use-library-genres";
@@ -72,7 +73,7 @@ export default function LibraryGenresScreen() {
       sortOptions={GENRE_SORT_OPTIONS}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
-      searchPlaceholder="Search genres"
+      searchPlaceholder={SEARCH_PLACEHOLDERS.genres}
       hasUnderlyingItems={genres.length > 0}
       emptyMessage="No genres to show"
       emptyIcon="pricetags-outline"

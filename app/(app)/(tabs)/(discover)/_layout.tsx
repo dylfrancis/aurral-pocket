@@ -2,7 +2,11 @@ import { Stack } from "expo-router";
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
-import { TRANSPARENT_HEADER } from "@/constants/navigation";
+import {
+  SEARCH_PLACEHOLDERS,
+  TRANSPARENT_HEADER,
+  layoutSearchBar,
+} from "@/constants/navigation";
 
 export default function DiscoverLayout() {
   const colors = Colors[useColorScheme()];
@@ -82,6 +86,7 @@ export default function DiscoverLayout() {
             title: (route.params as { title?: string })?.title ?? "Albums",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistAlbums, colors),
           })}
         />
         <Stack.Screen
@@ -89,6 +94,7 @@ export default function DiscoverLayout() {
           options={({ route }) => ({
             title: (route.params as { title?: string })?.title ?? "Releases",
             headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistReleases, colors),
           })}
         />
       </Stack>

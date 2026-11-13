@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
+import { SEARCH_PLACEHOLDERS } from "@/constants/navigation";
 import { useAlbumGrid } from "@/hooks/library/use-album-grid";
 import { albumRouteParams } from "@/lib/library-read";
 import type { Album } from "@/lib/types/library";
@@ -37,7 +38,7 @@ export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
       sortOptions={grid.sortOptions}
       searchQuery={grid.settledQuery}
       onSearchChange={grid.setSearchQuery}
-      searchPlaceholder="Search albums and artists"
+      searchPlaceholder={SEARCH_PLACEHOLDERS.albums}
       hasUnderlyingItems={grid.hasUnderlyingItems}
       emptyMessage="No albums to show"
       viewModeKey="library-albums"

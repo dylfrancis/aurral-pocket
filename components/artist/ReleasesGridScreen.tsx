@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { ReleaseGroupCard } from "@/components/library/ReleaseGroupCard";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
+import { SEARCH_PLACEHOLDERS } from "@/constants/navigation";
 import { useReleaseGrid } from "@/hooks/library/use-release-grid";
 import { releaseRouteParams } from "@/lib/library-read";
 import { comparePopularReleases } from "@/lib/release-groups";
@@ -56,7 +57,7 @@ export function ReleasesGridScreen() {
       sortOptions={grid.sortOptions}
       searchQuery={grid.searchQuery}
       onSearchChange={grid.setSearchQuery}
-      searchPlaceholder="Search releases"
+      searchPlaceholder={SEARCH_PLACEHOLDERS.artistReleases}
       hasUnderlyingItems={grid.hasUnderlyingItems}
       emptyMessage="No releases to show"
       renderItem={(item) => (

@@ -23,7 +23,7 @@ import {
 } from "@/hooks/discover/use-blocklist";
 import { isArtistBlocked } from "@/lib/blocklist";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { searchBarColors } from "@/constants/navigation";
+import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
 import { Colors, Fonts, Radius } from "@/constants/theme";
 import type { BlockedArtist } from "@/lib/types/discovery-feedback";
 import type { SearchArtist } from "@/lib/types/search";
@@ -96,10 +96,7 @@ export default function BlocklistScreen() {
     <>
       <Stack.SearchBar
         ref={searchBarRef}
-        placeholder="Search for an artist"
-        hideWhenScrolling={false}
-        autoCapitalize="none"
-        {...searchBarColors(colors)}
+        {...headerSearchBar(SEARCH_PLACEHOLDERS.blocklist, colors)}
         onChangeText={(e) => setArtistQuery(e.nativeEvent.text)}
         onSearchButtonPress={handleSubmitTypedArtist}
         onCancelButtonPress={() => setArtistQuery("")}

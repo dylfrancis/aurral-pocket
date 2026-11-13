@@ -21,7 +21,7 @@ import { useLibraryArtistsSuspense } from "@/hooks/library/use-library-artists";
 import { useGridColumns } from "@/hooks/use-grid-columns";
 import { useViewMode } from "@/hooks/use-view-mode";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { searchBarColors } from "@/constants/navigation";
+import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
@@ -200,10 +200,7 @@ export default function LibraryArtistsScreen() {
   return (
     <>
       <Stack.SearchBar
-        placeholder="Search artists..."
-        hideWhenScrolling={false}
-        autoCapitalize="none"
-        {...searchBarColors(colors)}
+        {...headerSearchBar(SEARCH_PLACEHOLDERS.artists, colors)}
         onChangeText={(e) => setSearchQuery(e.nativeEvent.text)}
       />
       <Stack.Toolbar placement="right">
