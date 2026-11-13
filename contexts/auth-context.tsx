@@ -170,6 +170,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedToken) {
           setToken(storedToken);
           setAuthToken(storedToken);
+          // Opening the app is activity. Otherwise a session that renews itself
+          // is reset a month after its sign-in.
+          void SecureStorage.setLastActiveAt(Date.now());
         }
 
         if (storedUserJson) {

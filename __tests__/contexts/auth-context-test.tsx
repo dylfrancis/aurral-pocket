@@ -222,7 +222,7 @@ describe("AuthProvider — 30-day inactivity hard expire", () => {
     );
   });
 
-  it("restores normally when active within 30 days", async () => {
+  it("restores normally when active within 30 days, and counts the launch as activity", async () => {
     const recentTimestamp = String(Date.now() - 5 * 24 * 60 * 60 * 1000);
 
     mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
@@ -242,6 +242,11 @@ describe("AuthProvider — 30-day inactivity hard expire", () => {
     });
 
     expect(mockSecureStore.deleteItemAsync).not.toHaveBeenCalled();
+    // The 30 days start again from this launch.
+    const [, written] = mockSecureStore.setItemAsync.mock.calls.find(
+      ([key]) => key === "last_active_at",
+    )!;
+    expect(Number(written)).toBeGreaterThan(Number(recentTimestamp));
   });
 
   it("restores normally when lastActiveAt is not set (fresh install)", async () => {
