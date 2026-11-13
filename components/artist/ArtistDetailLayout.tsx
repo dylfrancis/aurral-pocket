@@ -11,6 +11,7 @@ import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { Colors, Fonts } from "@/constants/theme";
+import { HAS_LIQUID_GLASS } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
@@ -55,6 +56,7 @@ import type { SimilarArtist } from "@/lib/types/search";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
@@ -74,10 +76,12 @@ import Animated, {
   Extrapolation,
   interpolate,
   type SharedValue,
+  useAnimatedReaction,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function sortByDate(albums: Album[]): Album[] {
@@ -392,22 +396,22 @@ export function ArtistDetailLayout({
     [stopPreview, onSimilarArtistPress],
   );
 
+  // With Liquid Glass the scroll view insets below the header, as the album
+  // page does, and the hero bleeds back up under it. iOS then sees the page at
+  // its top edge and leaves the photo unblurred until it scrolls. The offset
+  // starts at minus the header's height, so the scroll position adds it back.
+  const headerHeight = useHeaderHeight();
+  const heroBleed = HAS_LIQUID_GLASS ? headerHeight : 0;
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+      scrollY.value = event.contentOffset.y + heroBleed;
     },
   });
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen
-        options={{
-          headerTitle: () => (
-            <ScrollHeaderTitle name={artistName} scrollY={scrollY} />
-          ),
-        }}
-      />
+      <ScrollHeaderTitle name={artistName} scrollY={scrollY} />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
           icon={IS_IOS ? "ellipsis" : MoreVert}
@@ -456,7 +460,13 @@ export function ArtistDetailLayout({
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <Animated.ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        contentInsetAdjustmentBehavior={
+          HAS_LIQUID_GLASS ? "automatic" : undefined
+        }
+        contentContainerStyle={{
+          // The automatic inset already clears the tab bar.
+          paddingBottom: (HAS_LIQUID_GLASS ? 0 : insets.bottom) + 16,
+        }}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         refreshControl={
@@ -469,30 +479,32 @@ export function ArtistDetailLayout({
           ) : undefined
         }
       >
-        <ArtistHero
-          // The live record wins over the row that opened the page, which may
-          // carry a cover version from before the artwork changed.
-          artist={{
-            mbid,
-            artistName,
-            coverUrl: canonicalArtist?.coverUrl || coverUrl,
-          }}
-          scrollY={scrollY}
-          refreshing={refreshing}
-          inLibrary={libraryStatusLoading ? undefined : inLibrary}
-          onBadgePress={handleBadgePress}
-          // Shows while the artist loads, so the heart doesn't pop in and shift
-          // the badge.
-          favorite={
-            canonicalArtistLoading || canonicalArtist?.identityKey
-              ? { active: isFavorite, onToggle: handleToggleFavorite }
-              : undefined
-          }
-          onAddPress={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            addArtistSheetRef.current?.present();
-          }}
-        />
+        <View style={{ marginTop: -heroBleed }}>
+          <ArtistHero
+            // The live record wins over the row that opened the page, which may
+            // carry a cover version from before the artwork changed.
+            artist={{
+              mbid,
+              artistName,
+              coverUrl: canonicalArtist?.coverUrl || coverUrl,
+            }}
+            scrollY={scrollY}
+            refreshing={refreshing}
+            inLibrary={libraryStatusLoading ? undefined : inLibrary}
+            onBadgePress={handleBadgePress}
+            // Shows while the artist loads, so the heart doesn't pop in and shift
+            // the badge.
+            favorite={
+              canonicalArtistLoading || canonicalArtist?.identityKey
+                ? { active: isFavorite, onToggle: handleToggleFavorite }
+                : undefined
+            }
+            onAddPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              addArtistSheetRef.current?.present();
+            }}
+          />
+        </View>
 
         <ArtistTags mbid={mbid} />
 
@@ -569,24 +581,72 @@ const styles = StyleSheet.create({
   },
 });
 
-/**
- * The nav-bar title that fades in as the hero name scrolls under it. Shared
- * with the album page, which uses the same hero-then-title layout.
- */
-export function ScrollHeaderTitle({
-  name,
-  scrollY,
-}: {
+type ScrollHeaderTitleProps = {
   name: string;
   scrollY: SharedValue<number>;
-}) {
-  const colors = Colors[useColorScheme()];
+};
+
+/**
+ * Puts the page name in the nav bar once the hero name has scrolled under
+ * it. Shared with the album, release and playlist pages, which use the same
+ * hero-then-title layout. It sets the screen's header title and draws
+ * nothing in the page itself.
+ */
+export function ScrollHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
+  if (HAS_LIQUID_GLASS) {
+    return <NativeScrollHeaderTitle name={name} scrollY={scrollY} />;
+  }
+  return (
+    <Stack.Screen
+      options={{
+        headerTitle: () => <FadingHeaderTitle name={name} scrollY={scrollY} />,
+      }}
+    />
+  );
+}
+
+/** The scroll offsets over which the header title comes in. */
+function headerTitleRange() {
   const screenWidth = Dimensions.get("window").width;
   // Hero artist name sits at roughly screenWidth - 92px from top of scrollview.
   // Account for nav bar (~94px) so we trigger when it scrolls under the bar,
   // with extra vertical buffer so the hero title is clearly gone first.
-  const start = screenWidth - 140;
-  const end = screenWidth - 60;
+  return { start: screenWidth - 140, end: screenWidth - 60 };
+}
+
+/**
+ * Liquid Glass blurs the content under the bar only while the title is the
+ * bar's own text. A custom title view leaves the rows sharp, and an empty
+ * title drops the blur altogether. So the title is always the name, kept
+ * transparent until the hero name has gone. It shows in one step: a fade
+ * would update the native header on every frame.
+ */
+function NativeScrollHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
+  const colors = Colors[useColorScheme()];
+  const { end } = headerTitleRange();
+  const [shown, setShown] = useState(false);
+
+  useAnimatedReaction(
+    () => scrollY.value >= end,
+    (past, previous) => {
+      if (past !== previous) scheduleOnRN(setShown, past);
+    },
+  );
+
+  return (
+    <Stack.Screen
+      options={{
+        headerTitle: name,
+        headerTitleStyle: { color: shown ? colors.text : "transparent" },
+      }}
+    />
+  );
+}
+
+/** The nav-bar title that fades in as the hero name scrolls under it. */
+function FadingHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
+  const colors = Colors[useColorScheme()];
+  const { start, end } = headerTitleRange();
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
