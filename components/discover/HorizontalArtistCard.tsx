@@ -16,7 +16,7 @@ export type HorizontalArtistCardProps = {
   imageUrl?: string | null;
 };
 
-const CARD_WIDTH = 130;
+export const ARTIST_CARD_WIDTH = 130;
 
 function HorizontalArtistCardComponent({
   mbid,
@@ -43,7 +43,7 @@ function HorizontalArtistCardComponent({
           type="artist"
           mbid={mbid}
           coverUrl={imageUrl}
-          size={fill ? "fill" : CARD_WIDTH}
+          size={fill ? "fill" : ARTIST_CARD_WIDTH}
           borderRadius={10}
         />
         {isInLibrary && (
@@ -78,7 +78,7 @@ export const HorizontalArtistCard = React.memo(HorizontalArtistCardComponent);
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
+    width: ARTIST_CARD_WIDTH,
   },
   cardFill: {
     flex: 1,

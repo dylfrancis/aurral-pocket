@@ -14,7 +14,7 @@ export type DiscoverReleaseCardProps = {
   fill?: boolean;
 };
 
-const CARD_WIDTH = 140;
+export const RELEASE_CARD_WIDTH = 140;
 
 function DiscoverReleaseCardComponent({
   album,
@@ -41,7 +41,7 @@ function DiscoverReleaseCardComponent({
         <CoverArtImage
           type="album"
           mbid={coverMbid}
-          size={fill ? "fill" : CARD_WIDTH}
+          size={fill ? "fill" : RELEASE_CARD_WIDTH}
           borderRadius={10}
         />
       ) : (
@@ -55,8 +55,8 @@ function DiscoverReleaseCardComponent({
                   backgroundColor: colors.card,
                 }
               : {
-                  width: CARD_WIDTH,
-                  height: CARD_WIDTH,
+                  width: RELEASE_CARD_WIDTH,
+                  height: RELEASE_CARD_WIDTH,
                   borderRadius: 10,
                   backgroundColor: colors.card,
                 }
@@ -96,7 +96,7 @@ export const DiscoverReleaseCard = React.memo(DiscoverReleaseCardComponent);
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
+    width: RELEASE_CARD_WIDTH,
   },
   cardFill: {
     flex: 1,

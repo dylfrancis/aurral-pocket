@@ -17,7 +17,7 @@ import {
   type RecommendedFilter,
 } from "@/lib/discover/recommended";
 import type { DiscoveryArtist } from "@/lib/types/search";
-import { RecommendedRail } from "./RecommendedRail";
+import { ArtistRail } from "./ArtistRail";
 import { RecommendedTopPick } from "./RecommendedTopPick";
 
 const RAILS_ON_SCREEN = 2;
@@ -153,7 +153,7 @@ export function RecommendedTab({ onArtistPress, onShowList }: Props) {
         />
       ) : null}
       {rails.slice(0, builtCount).map((rail) => (
-        <RecommendedRail
+        <ArtistRail
           key={railKey(rail)}
           title={recommendedRailTitle(rail.filter)}
           artists={rail.artists}
