@@ -111,9 +111,8 @@ function headerMenuItems(): HeaderMenuItem[] {
     return androidMenuNodes().map((item) => ({
       title: item.queryAll((node) => typeof node.props.text === "string")[0]
         .props.text,
-      isOn:
-        item.queryAll((node) => node.props.slotName === "trailingIcon").length >
-        0,
+      // Compose highlights the chosen item and shows its checkmark from this.
+      isOn: item.props.selected === true,
       press: () => item.props.onItemPressed({ nativeEvent: {} }),
     }));
   }
