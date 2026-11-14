@@ -8,12 +8,7 @@ import { useReleaseGrid } from "@/hooks/library/use-release-grid";
 import { releaseRouteParams } from "@/lib/library-read";
 import { comparePopularReleases } from "@/lib/release-groups";
 import type { ReleaseGroup } from "@/lib/types/library";
-
-function releaseYear(date?: string | null) {
-  if (!date) return undefined;
-  const year = new Date(date).getFullYear();
-  return Number.isFinite(year) ? String(year) : undefined;
-}
+import { releaseYear } from "@/lib/date-time";
 
 const releaseConfig = {
   variant: "releases" as const,
@@ -72,7 +67,7 @@ export function ReleasesGridScreen() {
           imageType="album"
           mbid={item.id}
           title={item.title}
-          subtitle={releaseYear(item["first-release-date"])}
+          subtitle={releaseYear(item["first-release-date"])?.toString()}
           onPress={() => openReleaseGroup(item)}
         />
       )}

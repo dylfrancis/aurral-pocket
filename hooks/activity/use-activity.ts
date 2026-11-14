@@ -1,12 +1,10 @@
 import { useCallback } from "react";
 import {
   queryOptions,
-  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router/react-navigation";
-import { useAuth } from "@/contexts/auth-context";
 import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
 import { getActivity } from "@/lib/api/activity";
 import { activityKeys } from "@/lib/query-keys";
@@ -22,29 +20,6 @@ export function activityQueryOptions() {
     refetchOnWindowFocus: "always",
     throwOnError: (_error, query) => query.state.data === undefined,
   });
-}
-
-export function useActivity() {
-  const { serverUrl, token } = useAuth();
-  const isFocused = useIsFocused();
-  const enabled = !!serverUrl && !!token;
-
-  const query = useQuery({
-    ...activityQueryOptions(),
-    enabled,
-    refetchInterval: isFocused ? ACTIVE_POLL_MS : false,
-    refetchIntervalInBackground: false,
-  });
-
-  const { refetch } = query;
-  useRefreshOnFocus(
-    useCallback(() => {
-      // refetch() bypasses `enabled`, so guard it ourselves
-      if (enabled) refetch();
-    }, [enabled, refetch]),
-  );
-
-  return query;
 }
 
 /**

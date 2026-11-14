@@ -27,6 +27,7 @@ import { ApiError, notifyReAuthResult } from "@/lib/api/client";
 import { SecureStorage } from "@/lib/storage";
 import { authKeys } from "@/lib/query-keys";
 import { useQueryClient } from "@tanstack/react-query";
+import { useColors } from "@/hooks/use-colors";
 
 const reAuthSchema = z.object({
   password: z.string().min(1, "Password is required"),
@@ -47,7 +48,7 @@ function getErrorMessage(error: unknown): string | null {
 }
 
 function AccountSuspendedCard({ onDismiss }: { onDismiss: () => void }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <Card style={styles.card}>
       <Ionicons

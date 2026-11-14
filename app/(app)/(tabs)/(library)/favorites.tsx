@@ -3,7 +3,6 @@ import { RefreshControl, StyleSheet } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import * as Burnt from "burnt";
 import { EmptyState } from "@/components/library/EmptyState";
 import {
   TrackActionsSheet,
@@ -20,9 +19,7 @@ import {
 } from "@/hooks/library/use-library-favorites";
 import { coverArtUrlFrom } from "@/hooks/library/use-cover-art-url";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
-import { Colors } from "@/constants/theme";
 import { albumRouteParams, artistRouteId } from "@/lib/library-read";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import { libraryKeys } from "@/lib/query-keys";
@@ -33,6 +30,9 @@ import type {
   FavoriteTrack,
   LibraryFavorites,
 } from "@/lib/types/library";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const ROW_HEART_SIZE = 40;
 
@@ -133,8 +133,9 @@ function playerContext(
 
 export default function LibraryFavoritesScreen() {
   const router = useRouter();
+  const openArtist = useOpenArtist();
   const queryClient = useQueryClient();
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { data: favorites, refetch } = useLibraryFavorites();
   const toggleFavorite = useToggleFavorite();
   const trackActions = useTrackActions();
@@ -154,17 +155,10 @@ export default function LibraryFavoritesScreen() {
   );
   const handleSearchCancel = useCallback(() => setSearchQuery(""), []);
 
-  // Its own flag, not isRefetching, so a refetch nobody pulled for shows no
-  // spinner.
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    const result = await refetch();
-    setRefreshing(false);
-    if (result.isError) {
-      Burnt.toast({ title: "Couldn't refresh favorites", preset: "error" });
-    }
-  }, [refetch]);
+  const { refreshing, onRefresh } = usePullToRefresh(
+    refetch,
+    "Couldn't refresh favorites",
+  );
 
   const renderRemoveButton = (
     kind: "artist" | "album",
@@ -207,12 +201,9 @@ export default function LibraryFavoritesScreen() {
               row.artist.identityKey,
             )}
             onPress={() =>
-              router.push({
-                pathname: "/artist/[mbid]",
-                params: {
-                  mbid: artistRouteId(row.artist),
-                  name: row.artist.artistName,
-                },
+              openArtist({
+                mbid: artistRouteId(row.artist),
+                name: row.artist.artistName,
               })
             }
           />
@@ -303,7 +294,7 @@ export default function LibraryFavoritesScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={handleRefresh}
+            onRefresh={onRefresh}
             tintColor={colors.brand}
           />
         }

@@ -1,9 +1,9 @@
 import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { MIX_PRESETS, MIX_SOURCES } from "@/lib/types/flow";
 import type { MixPercent } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   value: MixPercent;
@@ -15,7 +15,7 @@ function isSamePreset(a: MixPercent, b: MixPercent): boolean {
 }
 
 export function MixPresetPicker({ value, onPick }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <ScrollView

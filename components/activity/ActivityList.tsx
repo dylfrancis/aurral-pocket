@@ -2,8 +2,6 @@ import { useCallback, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import FilterList from "@expo/material-symbols/filter_list.xml";
-import * as Burnt from "burnt";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ActivityRow } from "@/components/activity/ActivityRow";
 import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet";
@@ -19,9 +17,6 @@ import { useActivityJobControls } from "@/hooks/activity/use-activity-job-contro
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { useNavigateToTab } from "@/hooks/use-navigate-to-tab";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
 import { isActiveAurralStatus } from "@/lib/album-status";
 import {
   activityArtistMbid,
@@ -38,6 +33,13 @@ import {
   getActivityCounts,
   type ActivityView,
 } from "@/lib/activity-views";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import {
+  FILTER_MENU_ICON,
+  menuOptionSection,
+} from "@/components/ui/MenuOptions";
+import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const LIST_PADDING_HORIZONTAL = 16;
 const LIST_PADDING_VERTICAL = 12;
@@ -53,7 +55,8 @@ type ActivityListProps = {
  */
 export function ActivityList({ view }: ActivityListProps) {
   const router = useRouter();
-  const colors = Colors[useColorScheme()];
+  const openArtist = useOpenArtist();
+  const colors = useColors();
   const hasPermission = useHasPermission();
   const openPlaylist = useOpenPlaylist();
   const navigateToTab = useNavigateToTab();
@@ -81,28 +84,16 @@ export function ActivityList({ view }: ActivityListProps) {
     [downloadStatuses],
   );
 
-  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
-
   useFocusEffect(
     useCallback(() => {
       refetch();
     }, [refetch]),
   );
 
-  const handlePullRefresh = useCallback(async () => {
-    setIsPullRefreshing(true);
-    try {
-      const ok = await refreshActivity();
-      if (!ok) {
-        Burnt.toast({
-          title: "Couldn't refresh activity",
-          preset: "error",
-        });
-      }
-    } finally {
-      setIsPullRefreshing(false);
-    }
-  }, [refreshActivity]);
+  const { refreshing, onRefresh } = usePullToRefresh(
+    refreshActivity,
+    "Couldn't refresh activity",
+  );
 
   // Other history entries stay read-only: artist_added rows look actionable,
   // but DELETE /requests/:mbid removes the artist from Lidarr entirely.
@@ -130,19 +121,15 @@ export function ActivityList({ view }: ActivityListProps) {
   const rowPressHandler = useCallback(
     (item: ActivityItem) => {
       const mbid = activityArtistMbid(item);
-      if (mbid) {
-        // An artist no longer in the library opens the Browse page, which
-        // takes its title from the route.
-        const name = item.artistName ?? "";
-        return () =>
-          router.push({ pathname: "/artist/[mbid]", params: { mbid, name } });
-      }
+      // An artist no longer in the library opens the Browse page, which
+      // takes its title from the route.
+      if (mbid) return () => openArtist({ mbid, name: item.artistName ?? "" });
       if (!canOpenPlaylists || isAlbumRequest(item)) return undefined;
       if (item.status === "blocked") return undefined;
       const playlistId = historyPlaylistId(item);
       return playlistId ? () => void openPlaylist(playlistId) : undefined;
     },
-    [router, canOpenPlaylists, openPlaylist],
+    [openArtist, canOpenPlaylists, openPlaylist],
   );
 
   const handleLongPress = useCallback((item: ActivityItem) => {
@@ -192,34 +179,27 @@ export function ActivityList({ view }: ActivityListProps) {
     <>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
+          icon={FILTER_MENU_ICON}
           title="Filters"
           accessibilityLabel="Filter activity"
         >
-          <Stack.Toolbar.Menu inline title="View">
-            {ACTIVITY_VIEWS.map((entry) => (
-              <Stack.Toolbar.MenuAction
-                key={entry.id}
-                isOn={view === entry.id}
-                onPress={() => router.replace(`/${entry.id}`)}
-              >
-                {counts[entry.id]
-                  ? `${entry.label} (${counts[entry.id]})`
-                  : entry.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Show">
-            {ACTIVITY_TYPES.map((entry) => (
-              <Stack.Toolbar.MenuAction
-                key={entry.id}
-                isOn={typeFilter === entry.id}
-                onPress={() => setTypeFilter(entry.id)}
-              >
-                {entry.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
+          {menuOptionSection(
+            "View",
+            ACTIVITY_VIEWS.map((entry) => ({
+              key: entry.id,
+              label: counts[entry.id]
+                ? `${entry.label} (${counts[entry.id]})`
+                : entry.label,
+            })),
+            view,
+            (id) => router.replace(`/${id}`),
+          )}
+          {menuOptionSection(
+            "Show",
+            ACTIVITY_TYPES.map(({ id, label }) => ({ key: id, label })),
+            typeFilter,
+            setTypeFilter,
+          )}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <FlashList
@@ -249,8 +229,8 @@ export function ActivityList({ view }: ActivityListProps) {
         }}
         refreshControl={
           <RefreshControl
-            refreshing={isPullRefreshing}
-            onRefresh={handlePullRefresh}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={colors.brand}
           />
         }

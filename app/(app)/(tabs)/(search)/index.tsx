@@ -27,14 +27,15 @@ import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import { releaseRouteParams } from "@/lib/library-read";
 import type { SearchAlbum, SearchArtist } from "@/lib/types/search";
+import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const ARTIST_PREVIEW_LIMIT = 3;
 const ALBUM_PREVIEW_LIMIT = 3;
@@ -42,7 +43,8 @@ const TAG_PREVIEW_LIMIT = 5;
 
 export default function SearchScreen() {
   const router = useRouter();
-  const colors = Colors[useColorScheme()];
+  const openArtist = useOpenArtist();
+  const colors = useColors();
 
   const [query, setQuery] = useState("");
   const recentSearches = useRecentSearches();
@@ -125,12 +127,9 @@ export default function SearchScreen() {
         text: artist.name,
         mbid: artist.id,
       });
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: { mbid: artist.id, name: artist.name },
-      });
+      openArtist({ mbid: artist.id, name: artist.name });
     },
-    [router, addRecentSearch],
+    [openArtist, addRecentSearch],
   );
 
   const previewTags = hasQuery
@@ -189,10 +188,8 @@ export default function SearchScreen() {
 
   const shazamSheetRef = useRef<BottomSheetModal | null>(null);
   const handleShazamArtist = useCallback(
-    (mbid: string, name: string) => {
-      router.push({ pathname: "/artist/[mbid]", params: { mbid, name } });
-    },
-    [router],
+    (mbid: string, name: string) => openArtist({ mbid, name }),
+    [openArtist],
   );
 
   let content;
@@ -296,10 +293,7 @@ export default function SearchScreen() {
         searches={recentSearches.searches}
         onSelect={(entry: RecentSearch) => {
           if (entry.type === "artist") {
-            router.push({
-              pathname: "/artist/[mbid]",
-              params: { mbid: entry.mbid, name: entry.text },
-            });
+            openArtist({ mbid: entry.mbid, name: entry.text });
           } else if (entry.type === "tag") {
             pushResults(`#${entry.text}`);
           } else {

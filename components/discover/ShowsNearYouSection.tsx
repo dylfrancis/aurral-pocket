@@ -3,9 +3,8 @@ import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { formatShowArtists } from "@/lib/discover/nearby-shows";
 import { formatShowDateLabel } from "@/lib/discover/show-dates";
 import type { ConcertEvent } from "@/lib/types/search";
@@ -14,6 +13,7 @@ import * as Haptics from "expo-haptics";
 import { useCallback } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { ViewAllCard } from "./ViewAllCard";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   onShowPress: (show: ConcertEvent) => void;
@@ -35,7 +35,7 @@ export function ShowsNearYouSection({
   onOpenSettings,
   onViewAll,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { mode, appliedZip } = useNearbyLocationPref();
 
   const zipModeActive = mode === "zip";

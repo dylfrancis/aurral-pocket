@@ -1,8 +1,7 @@
 import { useCallback, useMemo, type ReactNode } from "react";
 import { Icon, ListItem, Row, Text, type IconName } from "@expo/ui";
 import ChevronRight from "@expo/material-symbols/chevron_right.xml";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useColors } from "@/hooks/use-colors";
 
 const CHEVRON = Icon.select({ ios: "chevron.right", android: ChevronRight });
 
@@ -27,7 +26,7 @@ export type SettingsRowProps = {
  * second row, so this hands back the `ListItem` itself, not a component.
  */
 export function useSettingsRow() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return useCallback(
     ({
@@ -94,7 +93,7 @@ export function SettingsNote({
   children: string;
   tone?: "warning";
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <Text
       textStyle={{
@@ -109,7 +108,7 @@ export function SettingsNote({
 
 /** Colors for a Settings text field, which Android doesn't take from the app. */
 export function useFieldColors() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return useMemo(
     () => ({
       textStyle: { color: colors.text },

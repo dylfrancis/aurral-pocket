@@ -3,18 +3,17 @@ import { Text } from "@/components/ui/Text";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TagPill } from "@/components/ui/TagPill";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
-import { Colors } from "@/constants/theme";
 import { useDiscovery } from "@/hooks/discover";
 import { formatBasedOn, formatUpdatedAt } from "@/lib/discover/format";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   onTagPress: (tag: string) => void;
 };
 
 export function DiscoverHeaderSection({ onTagPress }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   // Repaint the "updated" date when the server format changes.
   useDateTimeFormat();
   const { data, isLoading } = useDiscovery();

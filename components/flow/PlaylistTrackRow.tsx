@@ -1,8 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
-import { PlayingBars } from "@/components/library/TrackRow";
+import { TrackIndexSlot } from "@/components/library/TrackIndexSlot";
 import { TrackMenuButton } from "@/components/library/TrackMenuButton";
 import { TrackMenu } from "@/components/player/TrackMenu";
 import type {
@@ -11,12 +10,11 @@ import type {
 } from "@/components/player/track-menu-types";
 import { Text } from "@/components/ui/Text";
 import { StatusBadge } from "./StatusBadge";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTrackPlayback } from "@/hooks/player/use-track-playback";
+import { SavedTrackMark } from "@/components/offline/SavedMark";
 import { IS_IOS } from "@/constants/platform";
-import { Colors, Fonts } from "@/constants/theme";
-import { useIsTrackSaved } from "@/lib/offline/saved-library";
-import { useCurrentTrack, usePlaybackState } from "@/lib/player/player";
 import type { FlowJob } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 const COVER_SIZE = 44;
 
@@ -42,10 +40,8 @@ export const PlaylistTrackRow = React.memo(function PlaylistTrackRow({
   onMenuPress,
   markSaved = false,
 }: Props) {
-  const colors = Colors[useColorScheme()];
-  const onPhone = useIsTrackSaved(job.id);
-  const isCurrent = useCurrentTrack()?.id === job.id;
-  const playbackState = usePlaybackState();
+  const colors = useColors();
+  const { isCurrent, isPlaying } = useTrackPlayback(job.id);
 
   return (
     <View style={[styles.row, { borderBottomColor: colors.separator }]}>
@@ -60,21 +56,11 @@ export const PlaylistTrackRow = React.memo(function PlaylistTrackRow({
           pressed && onPress ? { opacity: 0.6 } : null,
         ]}
       >
-        <View style={styles.indexSlot}>
-          {isCurrent ? (
-            <PlayingBars
-              animating={playbackState === "playing"}
-              color={colors.brand}
-            />
-          ) : (
-            <Text
-              variant="caption"
-              style={[styles.number, { color: colors.subtle }]}
-            >
-              {position}
-            </Text>
-          )}
-        </View>
+        <TrackIndexSlot
+          number={position}
+          isCurrent={isCurrent}
+          isPlaying={isPlaying}
+        />
         <CoverArtImage
           type="album"
           mbid={job.albumMbid ?? ""}
@@ -100,14 +86,7 @@ export const PlaylistTrackRow = React.memo(function PlaylistTrackRow({
               : job.artistName}
           </Text>
         </View>
-        {markSaved && onPhone ? (
-          <Ionicons
-            name="arrow-down-circle"
-            size={16}
-            color={colors.brand}
-            accessibilityLabel="Saved offline"
-          />
-        ) : null}
+        {markSaved ? <SavedTrackMark trackId={job.id} /> : null}
         {job.status !== "done" ? <StatusBadge status={job.status} /> : null}
       </Pressable>
       {onMenuPress ? (
@@ -149,14 +128,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     gap: 8,
-  },
-  indexSlot: {
-    width: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  number: {
-    ...Fonts.medium,
   },
   body: {
     flex: 1,

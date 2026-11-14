@@ -1,10 +1,8 @@
 import { FlatList, StyleSheet, View } from "react-native";
 import { SimilarArtistCard } from "@/components/search/SimilarArtistCard";
-import { Text } from "@/components/ui/Text";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
 import type { SimilarArtist } from "@/lib/types/search";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 
 type SimilarArtistsSectionProps = {
   artists: SimilarArtist[];
@@ -15,16 +13,13 @@ export function SimilarArtistsSection({
   artists,
   onPress,
 }: SimilarArtistsSectionProps) {
-  const colors = Colors[useColorScheme()];
   const { isInLibrary } = useLibraryLookup(artists.map((artist) => artist.id));
 
   if (artists.length === 0) return null;
 
   return (
     <View style={styles.container}>
-      <Text variant="caption" style={[styles.label, { color: colors.subtle }]}>
-        Similar Artists
-      </Text>
+      <SectionLabel style={styles.label}>Similar Artists</SectionLabel>
       <FlatList
         horizontal
         data={artists}
@@ -48,11 +43,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   label: {
-    ...Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 14,
-    paddingVertical: 8,
     paddingHorizontal: 16,
   },
   list: {

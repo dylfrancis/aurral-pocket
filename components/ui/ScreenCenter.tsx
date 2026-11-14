@@ -1,7 +1,6 @@
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import React from "react";
+import { useColors } from "@/hooks/use-colors";
 
 type ScreenCenterProps = {
   children?: React.ReactNode;
@@ -9,7 +8,7 @@ type ScreenCenterProps = {
 };
 
 export function ScreenCenter({ children, loading }: ScreenCenterProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <View

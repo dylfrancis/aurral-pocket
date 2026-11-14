@@ -33,7 +33,9 @@ jest.mock("@/lib/player/player", () => ({
   usePlayerStatus: () => mockStatus,
 }));
 
-jest.mock("@/components/library/TrackRow", () => ({ PlayingBars: () => null }));
+jest.mock("@/components/library/PlayingBars", () => ({
+  PlayingBars: () => null,
+}));
 
 // The test's Reanimated stub has none of what the skeleton animates with.
 jest.mock("@/components/ui/Skeleton", () => ({ Skeleton: () => null }));

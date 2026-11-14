@@ -3,8 +3,8 @@ import { StyleSheet, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 export type HorizontalArtistCardProps = {
   mbid: string;
@@ -16,7 +16,7 @@ export type HorizontalArtistCardProps = {
   imageUrl?: string | null;
 };
 
-const CARD_WIDTH = 130;
+export const ARTIST_CARD_WIDTH = 130;
 
 function HorizontalArtistCardComponent({
   mbid,
@@ -27,7 +27,7 @@ function HorizontalArtistCardComponent({
   fill,
   imageUrl,
 }: HorizontalArtistCardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Pressable
@@ -43,7 +43,7 @@ function HorizontalArtistCardComponent({
           type="artist"
           mbid={mbid}
           coverUrl={imageUrl}
-          size={fill ? "fill" : CARD_WIDTH}
+          size={fill ? "fill" : ARTIST_CARD_WIDTH}
           borderRadius={10}
         />
         {isInLibrary && (
@@ -78,7 +78,7 @@ export const HorizontalArtistCard = React.memo(HorizontalArtistCardComponent);
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
+    width: ARTIST_CARD_WIDTH,
   },
   cardFill: {
     flex: 1,

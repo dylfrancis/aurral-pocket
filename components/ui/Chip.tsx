@@ -1,8 +1,8 @@
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts, Radius } from "@/constants/theme";
+import { Fonts, Radius } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type ChipVariant = "brand" | "subtle" | "error" | "neutral";
 type ChipSize = "sm" | "md";
@@ -34,7 +34,7 @@ export function Chip({
   disabled,
   accessibilityLabel,
 }: ChipProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   const variantStyles: Record<ChipVariant, { bg: string; fg: string }> = {
     brand: { bg: colors.brandMuted, fg: colors.brandStrong },

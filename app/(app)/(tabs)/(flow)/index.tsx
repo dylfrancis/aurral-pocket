@@ -1,8 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { Alert, RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
-import * as Burnt from "burnt";
 import Settings from "@expo/material-symbols/settings.xml";
 import Add from "@expo/material-symbols/add.xml";
 import Tune from "@expo/material-symbols/tune.xml";
@@ -17,11 +16,11 @@ import {
   useFlowTemplates,
   useSetFlowEnabled,
 } from "@/hooks/flow";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import type { Flow } from "@/lib/types/flow";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useColors } from "@/hooks/use-colors";
 
 /**
  * NativeTabs mounts every tab's screen at launch — `hidden` on a Trigger only
@@ -38,26 +37,15 @@ export default function FlowScreen() {
 }
 
 function FlowScreenContent() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   const { data, refetch } = useFlowStatusSuspense();
-  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const setEnabled = useSetFlowEnabled();
 
-  const handlePullRefresh = useCallback(async () => {
-    setIsPullRefreshing(true);
-    try {
-      const result = await refetch();
-      if (result.isError) {
-        Burnt.toast({
-          title: "Couldn't refresh flows",
-          preset: "error",
-        });
-      }
-    } finally {
-      setIsPullRefreshing(false);
-    }
-  }, [refetch]);
+  const { refreshing, onRefresh } = usePullToRefresh(
+    refetch,
+    "Couldn't refresh flows",
+  );
 
   const flowStats = data.flowStats;
   const renderItem = useCallback(
@@ -155,8 +143,8 @@ function FlowScreenContent() {
         }
         refreshControl={
           <RefreshControl
-            refreshing={isPullRefreshing}
-            onRefresh={handlePullRefresh}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={colors.brand}
           />
         }

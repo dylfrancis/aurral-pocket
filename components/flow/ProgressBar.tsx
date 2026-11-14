@@ -1,6 +1,5 @@
 import { StyleSheet, View } from "react-native";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   done: number;
@@ -9,7 +8,7 @@ type Props = {
 };
 
 export function ProgressBar({ done, total, height = 6 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const cappedDone = Math.max(0, Math.min(done, total));
   const ratio = total > 0 ? cappedDone / total : 0;
   const isComplete = total > 0 && cappedDone >= total;

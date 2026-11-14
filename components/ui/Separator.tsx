@@ -1,6 +1,5 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type SeparatorProps = {
   style?: StyleProp<ViewStyle>;
@@ -8,7 +7,7 @@ type SeparatorProps = {
 
 /** Hairline divider. The single home for divider treatment app-wide. */
 export function Separator({ style }: SeparatorProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <View style={[styles.line, { backgroundColor: colors.separator }, style]} />
   );

@@ -54,7 +54,7 @@ jest.mock("@/lib/player/player", () => ({
   usePlayerStatus: () => ({}),
 }));
 
-jest.mock("@/components/library/TrackRow", () => ({
+jest.mock("@/components/library/PlayingBars", () => ({
   PlayingBars: () => {
     const { Text } = require("react-native");
     return <Text>Now playing</Text>;

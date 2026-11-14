@@ -11,7 +11,6 @@ import { Stack, type ErrorBoundaryProps } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -29,17 +28,21 @@ import {
   type NearbyShowsSource,
 } from "@/components/discover/NearbyShowsFilterSheet";
 import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
-import { Colors, Fonts } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
+import { Fonts } from "@/constants/theme";
 import { filterNearbyShows } from "@/lib/discover/nearby-shows";
 import type { ConcertEvent } from "@/lib/types/search";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import {
+  FILTER_MENU_ICON,
+  menuOptionSection,
+} from "@/components/ui/MenuOptions";
+import { useColors } from "@/hooks/use-colors";
 
 const PAGE_LIMIT = 60;
 
 export default function NearbyShowsScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { mode, appliedZip, setMode, setAppliedZip } = useNearbyLocationPref();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,7 +50,6 @@ export default function NearbyShowsScreen() {
   const [sort, setSort] = useState<NearbyShowsSort>("date");
   const [dateRange, setDateRange] = useState<NearbyShowsDateRange>("all");
   const [zipEditorVisible, setZipEditorVisible] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const zipModeActive = mode === "zip";
   const zipQueryValue =
@@ -86,14 +88,7 @@ export default function NearbyShowsScreen() {
     setMode("zip");
   }, [setMode]);
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      await refetch();
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [refetch]);
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
   const handleShowPress = useCallback((show: ConcertEvent) => {
     if (show.url) {
@@ -273,43 +268,20 @@ export default function NearbyShowsScreen() {
         onCancelButtonPress={() => setSearchQuery("")}
       />
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
-          title="Filters"
-        >
-          <Stack.Toolbar.Menu inline title="Sort by">
-            {SORT_OPTIONS.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.value}
-                isOn={sort === option.value}
-                onPress={() => setSort(option.value)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Date range">
-            {DATE_RANGE_OPTIONS.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.value}
-                isOn={dateRange === option.value}
-                onPress={() => setDateRange(option.value)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Show">
-            {SOURCE_OPTIONS.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.value}
-                isOn={sourceFilter === option.value}
-                onPress={() => setSourceFilter(option.value)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
+        <Stack.Toolbar.Menu icon={FILTER_MENU_ICON} title="Filters">
+          {menuOptionSection("Sort by", SORT_OPTIONS, sort, setSort)}
+          {menuOptionSection(
+            "Date range",
+            DATE_RANGE_OPTIONS,
+            dateRange,
+            setDateRange,
+          )}
+          {menuOptionSection(
+            "Show",
+            SOURCE_OPTIONS,
+            sourceFilter,
+            setSourceFilter,
+          )}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <FlatList
@@ -327,8 +299,8 @@ export default function NearbyShowsScreen() {
         style={{ backgroundColor: colors.background }}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={colors.subtle}
           />
         }

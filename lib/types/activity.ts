@@ -150,11 +150,3 @@ export function historyPlaylistId(item: ActivityHistoryItem): string | null {
   const id = item.playlistId;
   return id && id !== "library" ? id : null;
 }
-
-/**
- * Both variants expose an ISO requestedAt, so the merged feed sorts on one key.
- */
-export function activityTimestamp(item: ActivityItem): number {
-  const parsed = new Date(item.requestedAt).getTime();
-  return Number.isFinite(parsed) ? parsed : 0;
-}

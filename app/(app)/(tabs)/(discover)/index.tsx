@@ -19,7 +19,7 @@ import { isShazamAvailable } from "@/modules/shazam";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import { useOpenOverflowScreen } from "@/hooks/use-open-overflow-screen";
@@ -29,7 +29,6 @@ import {
   useRecentlyAdded,
   useRecentReleases,
 } from "@/hooks/discover";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   recommendedFilterParams,
   type RecommendedFilter,
@@ -56,9 +55,12 @@ import {
   type ScrollViewInstance,
   StyleSheet,
 } from "react-native";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 export default function DiscoverScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -77,7 +79,6 @@ export default function DiscoverScreen() {
     );
     setTab(next);
   }, []);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
 
   // The header shrinks as the large title collapses; the page's top is where
@@ -112,57 +113,44 @@ export default function DiscoverScreen() {
     ],
   );
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      if (tab === "forYou") {
-        await refreshForYou();
-      } else if (tab === "recommended") {
-        await refetchDiscovery();
-      } else {
-        await queryClient.invalidateQueries({
-          queryKey:
-            tab === "playlists"
-              ? discoverKeys.editorialShelf()
-              : discoverKeys.trending(),
-        });
-      }
-    } finally {
-      setIsRefreshing(false);
+  const refreshTab = useCallback(async () => {
+    if (tab === "forYou") {
+      await refreshForYou();
+    } else if (tab === "recommended") {
+      await refetchDiscovery();
+    } else {
+      await queryClient.invalidateQueries({
+        queryKey:
+          tab === "playlists"
+            ? discoverKeys.editorialShelf()
+            : discoverKeys.trending(),
+      });
     }
   }, [queryClient, refetchDiscovery, refreshForYou, tab]);
+  const { refreshing, onRefresh } = usePullToRefresh(refreshTab);
 
-  const pushArtist = useCallback(
-    (mbid: string, name?: string) => {
-      if (!mbid) return;
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: { mbid, name: name ?? "" },
-      });
-    },
-    [router],
-  );
+  const openArtist = useOpenArtist();
 
   const handleRecentlyAddedPress = useCallback(
     (artist: RecentlyAddedArtist) => {
       const mbid = artist.mbid || artist.foreignArtistId || artist.id;
-      pushArtist(mbid, artist.artistName);
+      openArtist({ mbid, name: artist.artistName });
     },
-    [pushArtist],
+    [openArtist],
   );
 
   const handleDiscoveryArtistPress = useCallback(
     (artist: DiscoveryArtist) => {
-      pushArtist(artist.id, artist.name);
+      openArtist({ mbid: artist.id, name: artist.name });
     },
-    [pushArtist],
+    [openArtist],
   );
 
   const handleGenreArtistPress = useCallback(
     (artist: DiscoveryArtist) => {
-      pushArtist(artist.id, artist.name);
+      openArtist({ mbid: artist.id, name: artist.name });
     },
-    [pushArtist],
+    [openArtist],
   );
 
   const handleTagPress = useCallback(
@@ -179,9 +167,9 @@ export default function DiscoverScreen() {
     (album: RecentReleaseAlbum) => {
       const mbid =
         album.artistMbid || album.foreignArtistId || album.artistId || "";
-      pushArtist(mbid, album.artistName);
+      openArtist({ mbid, name: album.artistName });
     },
-    [pushArtist],
+    [openArtist],
   );
 
   const handleShowPress = useCallback((show: ConcertEvent) => {
@@ -278,8 +266,8 @@ export default function DiscoverScreen() {
         contentContainerStyle={styles.contentContainer}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={colors.subtle}
           />
         }
@@ -417,7 +405,7 @@ export default function DiscoverScreen() {
       </ScrollView>
       <ShazamSheet
         sheetRef={shazamSheetRef}
-        onViewArtist={(mbid, name) => pushArtist(mbid, name)}
+        onViewArtist={(mbid, name) => openArtist({ mbid, name })}
         onSearchManually={(q) =>
           router.push({ pathname: "/results", params: { q, scope: "artist" } })
         }

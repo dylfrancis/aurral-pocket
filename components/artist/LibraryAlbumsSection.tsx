@@ -3,16 +3,14 @@ import { AlbumCard } from "@/components/library/AlbumCard";
 import { AlbumCategoryList } from "@/components/artist/AlbumCategoryList";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
 import { EmptyState } from "@/components/library/EmptyState";
-import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { albumDownloadStatus } from "@/lib/library-read";
 import { RELEASE_SECTIONS } from "@/lib/release-groups";
-import { Colors, Fonts } from "@/constants/theme";
 import type {
   Album,
   DownloadStatusMap,
   PrimaryReleaseType,
 } from "@/lib/types/library";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 
 type LibraryAlbumsSectionProps = {
   grouped: Map<PrimaryReleaseType, Album[]> | null;
@@ -33,18 +31,11 @@ export function LibraryAlbumsSection({
   onNavigate,
   onRetry,
 }: LibraryAlbumsSectionProps) {
-  const colors = Colors[useColorScheme()];
-
   return (
     <View style={styles.container}>
       {isLoading ? (
         <>
-          <Text
-            variant="caption"
-            style={[styles.label, { color: colors.subtle }]}
-          >
-            In Your Library
-          </Text>
+          <SectionLabel style={styles.label}>In Your Library</SectionLabel>
           <AlbumCategorySkeleton />
         </>
       ) : error ? (
@@ -56,12 +47,7 @@ export function LibraryAlbumsSection({
         />
       ) : grouped && grouped.size > 0 ? (
         <>
-          <Text
-            variant="caption"
-            style={[styles.label, { color: colors.subtle }]}
-          >
-            In Your Library
-          </Text>
+          <SectionLabel style={styles.label}>In Your Library</SectionLabel>
           {RELEASE_SECTIONS.map(({ type, label }) => {
             const list = grouped.get(type);
             if (!list || list.length === 0) return null;
@@ -99,11 +85,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   label: {
-    ...Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 14,
-    paddingVertical: 8,
     paddingHorizontal: 16,
     marginBottom: 4,
   },

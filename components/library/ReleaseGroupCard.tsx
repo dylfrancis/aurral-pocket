@@ -2,9 +2,10 @@ import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { ReleaseGroup } from "@/lib/types/library";
+import { releaseYear } from "@/lib/date-time";
+import { useColors } from "@/hooks/use-colors";
 
 const CARD_WIDTH = 150;
 
@@ -19,11 +20,9 @@ export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
   onPress,
   fill,
 }: ReleaseGroupCardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
-  const year = releaseGroup["first-release-date"]
-    ? new Date(releaseGroup["first-release-date"]).getFullYear()
-    : null;
+  const year = releaseYear(releaseGroup["first-release-date"]);
 
   const type = releaseGroup["primary-type"] ?? "Album";
   const secondary = releaseGroup["secondary-types"];

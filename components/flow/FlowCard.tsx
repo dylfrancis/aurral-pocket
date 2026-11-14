@@ -1,4 +1,5 @@
-import { StyleSheet, Switch, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Switch } from "@/components/ui/Switch";
 import { Card } from "@/components/ui/Card";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
@@ -6,10 +7,10 @@ import { Chip } from "@/components/ui/Chip";
 import { CollectionArtwork } from "./CollectionArtwork";
 import { MixPills } from "./MixPills";
 import { ProgressBar } from "./ProgressBar";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { scheduleLabel } from "@/lib/flow-schedule";
 import type { Flow, PlaylistStats } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   flow: Flow;
@@ -28,7 +29,7 @@ function progressLabel(
 }
 
 export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const progress = progressLabel(stats, flow.size);
 
   return (
@@ -53,13 +54,7 @@ export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
             {flow.size} tracks · {scheduleLabel(flow)}
           </Text>
         </View>
-        <Switch
-          value={flow.enabled}
-          onValueChange={onToggleEnabled}
-          trackColor={{ false: colors.separator, true: colors.brand }}
-          thumbColor={colors.switchThumb}
-          ios_backgroundColor={colors.separator}
-        />
+        <Switch value={flow.enabled} onValueChange={onToggleEnabled} />
       </View>
 
       <ProgressBar done={stats?.done ?? 0} total={flow.size} />

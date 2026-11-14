@@ -22,17 +22,17 @@ import {
   useBlocklistSuspense,
 } from "@/hooks/discover/use-blocklist";
 import { isArtistBlocked } from "@/lib/blocklist";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
-import { Colors, Fonts, Radius } from "@/constants/theme";
+import { Fonts, Radius } from "@/constants/theme";
 import type { BlockedArtist } from "@/lib/types/discovery-feedback";
 import type { SearchArtist } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 const MAX_SUGGESTIONS = 6;
 const MIN_QUERY_LENGTH = 2;
 
 export default function BlocklistScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { data: blocked } = useBlocklistSuspense();
   const { blockArtist, unblockArtist } = useBlocklistMutations();
 

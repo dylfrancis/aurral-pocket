@@ -1,25 +1,18 @@
 import { Stack } from "expo-router";
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import {
-  SEARCH_PLACEHOLDERS,
-  TRANSPARENT_HEADER,
-  layoutSearchBar,
+  DETAIL_SCREEN_OPTIONS,
+  artistListScreenOptions,
+  stackScreenOptions,
 } from "@/constants/navigation";
+import { useColors } from "@/hooks/use-colors";
 
 export default function SearchLayout() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <MiniPlayerHost>
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          ...TRANSPARENT_HEADER,
-        }}
-      >
+      <Stack screenOptions={stackScreenOptions(colors)}>
         <Stack.Screen
           name="index"
           options={{
@@ -34,25 +27,12 @@ export default function SearchLayout() {
             headerBackButtonDisplayMode: "minimal",
           })}
         />
-        <Stack.Screen
-          name="artist/[mbid]"
-          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
-        />
-        <Stack.Screen
-          name="album/[ref]"
-          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
-        />
-        <Stack.Screen
-          name="release/[mbid]"
-          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
-        />
+        <Stack.Screen name="artist/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen name="album/[ref]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen name="release/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen
           name="artist/releases"
-          options={({ route }) => ({
-            title: (route.params as { title?: string })?.title ?? "Releases",
-            headerBackButtonDisplayMode: "minimal",
-            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistReleases, colors),
-          })}
+          options={artistListScreenOptions("releases", colors)}
         />
       </Stack>
     </MiniPlayerHost>

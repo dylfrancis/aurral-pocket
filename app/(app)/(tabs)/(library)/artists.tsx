@@ -4,8 +4,6 @@ import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import * as Burnt from "burnt";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import Block from "@expo/material-symbols/block.xml";
 import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
 import Schedule from "@expo/material-symbols/schedule.xml";
@@ -13,30 +11,30 @@ import LibraryMusic from "@expo/material-symbols/library_music.xml";
 import { AlphabetIndex } from "@/components/library/AlphabetIndex";
 import { ArtistCard } from "@/components/library/ArtistCard";
 import { MediaRow } from "@/components/ui/MediaRow";
+import {
+  FILTER_MENU_ICON,
+  menuOptionActions,
+  type MenuOption,
+} from "@/components/ui/MenuOptions";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
-import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
+import {
+  GRID_EDGE_PADDING,
+  GridCell,
+  gridListStyles,
+} from "@/components/ui/GridCell";
 import { type SortMode } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { useLibraryArtistsSuspense } from "@/hooks/library/use-library-artists";
-import { useGridColumns } from "@/hooks/use-grid-columns";
-import { useViewMode } from "@/hooks/use-view-mode";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useGridListView } from "@/hooks/use-grid-list-view";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
-import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
 import { artistRouteId } from "@/lib/library-read";
 import { stripArticle } from "@/lib/strings";
 import type { Artist } from "@/lib/types/library";
-
-const SORT_ICONS = {
-  alpha: SortByAlpha,
-  recent: Schedule,
-  albums: LibraryMusic,
-} satisfies Record<SortMode, unknown>;
-
-const EDGE_PADDING = 12;
-const CARD_GAP = 12;
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const byName = (a: Artist, b: Artist) =>
   stripArticle(a.artistName).localeCompare(stripArticle(b.artistName));
@@ -48,26 +46,38 @@ function addedTime(artist: Artist): number | null {
   return Number.isNaN(time) ? null : time;
 }
 
-const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
-  { key: "alpha", label: "Alphabetical", icon: "textformat.abc" },
-  { key: "recent", label: "Recently Added", icon: "clock" },
-  { key: "albums", label: "Album Count", icon: "square.stack" },
+const SORT_OPTIONS: MenuOption<SortMode>[] = [
+  {
+    key: "alpha",
+    label: "Alphabetical",
+    iosIcon: "textformat.abc",
+    androidIcon: SortByAlpha,
+  },
+  {
+    key: "recent",
+    label: "Recently Added",
+    iosIcon: "clock",
+    androidIcon: Schedule,
+  },
+  {
+    key: "albums",
+    label: "Album Count",
+    iosIcon: "square.stack",
+    androidIcon: LibraryMusic,
+  },
 ];
 
 export default function LibraryArtistsScreen() {
   const router = useRouter();
-  const colors = Colors[useColorScheme()];
-  const {
-    data: artists,
-    refetch,
-    isRefetching,
-    isFetchingNextPage,
-  } = useLibraryArtistsSuspense();
+  const colors = useColors();
+  const { data: artists, refetch } = useLibraryArtistsSuspense();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("alpha");
-  const [viewMode, setViewMode] = useViewMode("library-artists", "grid");
-  const gridColumns = useGridColumns(EDGE_PADDING * 2);
+  const { isGrid, numColumns, viewMenuSection } = useGridListView(
+    "library-artists",
+    "grid",
+  );
   const listRef = useRef<FlashListRef<Artist>>(null);
 
   const filtered = useMemo(() => {
@@ -142,7 +152,10 @@ export default function LibraryArtistsScreen() {
             list.getWindowSize().height,
         );
         list.scrollToOffset({
-          offset: Math.min(layout.y + EDGE_PADDING - headerHeight, maxOffset),
+          offset: Math.min(
+            layout.y + GRID_EDGE_PADDING - headerHeight,
+            maxOffset,
+          ),
           animated: false,
         });
       });
@@ -150,33 +163,25 @@ export default function LibraryArtistsScreen() {
     [headerHeight],
   );
 
-  const handleRefresh = useCallback(async () => {
-    const result = await refetch();
-    if (result.isError) {
-      Burnt.toast({
-        title: "Couldn't refresh library",
-        preset: "error",
-      });
-    }
-  }, [refetch]);
+  const { refreshing, onRefresh } = usePullToRefresh(
+    refetch,
+    "Couldn't refresh library",
+  );
 
+  const openArtistPage = useOpenArtist();
   const openArtist = useCallback(
-    (artist: Artist) => {
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: {
-          mbid: artistRouteId(artist),
-          name: artist.artistName,
-          coverUrl: artist.coverUrl ?? "",
-        },
-      });
-    },
-    [router],
+    (artist: Artist) =>
+      openArtistPage({
+        mbid: artistRouteId(artist),
+        name: artist.artistName,
+        coverUrl: artist.coverUrl,
+      }),
+    [openArtistPage],
   );
 
   const renderItem = useCallback(
     ({ item }: { item: Artist }) => {
-      if (viewMode === "list") {
+      if (!isGrid) {
         const { albumCount } = item.statistics;
         return (
           <MediaRow
@@ -190,12 +195,12 @@ export default function LibraryArtistsScreen() {
         );
       }
       return (
-        <View style={styles.gridItem}>
+        <GridCell>
           <ArtistCard artist={item} onPress={() => openArtist(item)} />
-        </View>
+        </GridCell>
       );
     },
-    [openArtist, viewMode],
+    [openArtist, isGrid],
   );
 
   return (
@@ -212,31 +217,19 @@ export default function LibraryArtistsScreen() {
         >
           Blocklist
         </Stack.Toolbar.Button>
-        <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
-          title="Sort By"
-        >
-          {SORT_OPTIONS.map((option) => (
-            <Stack.Toolbar.MenuAction
-              key={option.key}
-              icon={IS_IOS ? (option.icon as any) : SORT_ICONS[option.key]}
-              isOn={sortMode === option.key}
-              onPress={() => setSortMode(option.key)}
-            >
-              {option.label}
-            </Stack.Toolbar.MenuAction>
-          ))}
-          {viewModeMenuSection(viewMode, setViewMode)}
+        <Stack.Toolbar.Menu icon={FILTER_MENU_ICON} title="Sort By">
+          {menuOptionActions(SORT_OPTIONS, sortMode, setSortMode)}
+          {viewMenuSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <View style={styles.listWrapper}>
         <FlashList
-          key={`${sortMode}-${viewMode}`}
+          key={`${sortMode}-${isGrid}`}
           ref={listRef}
           data={sorted}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          numColumns={viewMode === "grid" ? gridColumns : 1}
+          numColumns={numColumns}
           // The native scrollTo command clamps negative offsets to the raw
           // contentInset (0), which blocks jumps into the adjusted header
           // inset; this prop disables that clamp.
@@ -246,14 +239,14 @@ export default function LibraryArtistsScreen() {
           contentContainerStyle={{
             // Rows carry their own horizontal padding; only the grid needs
             // it on the container. paddingTop stays in both modes because
-            // the letter-jump offset math adds EDGE_PADDING.
-            ...(viewMode === "grid" ? styles.listContent : styles.rowsContent),
+            // the letter-jump offset math adds GRID_EDGE_PADDING.
+            ...(isGrid ? gridListStyles.grid : gridListStyles.rows),
             backgroundColor: colors.background,
           }}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching && !isFetchingNextPage}
-              onRefresh={handleRefresh}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               tintColor={colors.brand}
             />
           }
@@ -286,17 +279,5 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 const styles = StyleSheet.create({
   listWrapper: {
     flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: EDGE_PADDING,
-    paddingTop: EDGE_PADDING,
-  },
-  rowsContent: {
-    paddingTop: EDGE_PADDING,
-  },
-  gridItem: {
-    flex: 1,
-    paddingHorizontal: CARD_GAP / 2,
-    paddingBottom: CARD_GAP,
   },
 });

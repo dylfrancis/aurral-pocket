@@ -18,7 +18,7 @@ export const HAS_LIQUID_GLASS = IS_IOS && isLiquidGlassAvailable();
  * native blur effect so large titles and search bars stay legible. On Android,
  * the header is opaque by default.
  */
-export const TRANSPARENT_HEADER = IS_IOS
+const TRANSPARENT_HEADER = IS_IOS
   ? {
       headerTransparent: true,
       headerStyle: { backgroundColor: "transparent" },
@@ -85,6 +85,46 @@ export function layoutSearchBar(
   return IS_IOS
     ? { headerSearchBarOptions: headerSearchBar(placeholder, colors) }
     : {};
+}
+
+type ThemeColors = { background: string; text: string; subtle: string };
+
+/** The screen options every tab's stack starts from. */
+export function stackScreenOptions(colors: ThemeColors) {
+  return {
+    headerStyle: { backgroundColor: colors.background },
+    headerTintColor: colors.text,
+    ...TRANSPARENT_HEADER,
+  };
+}
+
+/** A detail page that draws its own title in its content. */
+export const DETAIL_SCREEN_OPTIONS = {
+  headerTitle: "",
+  headerBackButtonDisplayMode: "minimal",
+} as const;
+
+/**
+ * An artist's Albums or Releases list, titled by the category it was opened
+ * from.
+ */
+export function artistListScreenOptions(
+  list: "albums" | "releases",
+  colors: ThemeColors,
+) {
+  return ({ route }: { route: { params?: object } }) => ({
+    title:
+      (route.params as { title?: string } | undefined)?.title ??
+      (list === "albums" ? "Albums" : "Releases"),
+    headerLargeTitleEnabled: true,
+    headerBackButtonDisplayMode: "minimal" as const,
+    ...layoutSearchBar(
+      list === "albums"
+        ? SEARCH_PLACEHOLDERS.artistAlbums
+        : SEARCH_PLACEHOLDERS.artistReleases,
+      colors,
+    ),
+  });
 }
 
 /**

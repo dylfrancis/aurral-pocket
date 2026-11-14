@@ -113,3 +113,12 @@ export function formatDateTime(
     ? `${timePart} ${datePart}`
     : `${datePart} ${timePart}`;
 }
+
+/**
+ * The year a release date names, read from the text: `new Date` reads "2001"
+ * or "2001-05" as midnight UTC, which is still the previous year west of UTC.
+ */
+export function releaseYear(date?: string | null): number | null {
+  const match = date?.match(/^(\d{4})/);
+  return match ? Number(match[1]) : null;
+}

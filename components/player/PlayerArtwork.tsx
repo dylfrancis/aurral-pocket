@@ -2,9 +2,8 @@ import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { imageSource, serverImageSource } from "@/lib/api/client";
+import { useColors } from "@/hooks/use-colors";
 
 type PlayerArtworkProps = {
   url: string | null;
@@ -32,7 +31,7 @@ export function PlayerArtwork({
       : url
         ? imageSource(url)
         : null;
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const sizeStyle =
     size === "fill"
       ? { width: "100%" as const, aspectRatio: 1 }

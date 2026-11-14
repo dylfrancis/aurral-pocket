@@ -9,8 +9,8 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts, Radius } from "@/constants/theme";
+import { Fonts, Radius } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 interface ButtonProps extends Omit<PressableProps, "style" | "children"> {
   title: string;
@@ -28,7 +28,7 @@ export function Button({
   onPress,
   ...rest
 }: ButtonProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const isDisabled = disabled || loading;
 
   const handlePress = (event: GestureResponderEvent) => {

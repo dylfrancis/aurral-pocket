@@ -2,11 +2,11 @@ import React from "react";
 import { StyleSheet, Pressable, View } from "react-native";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { formatReleaseStatus } from "@/lib/discover/format";
 import type { RecentReleaseAlbum } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 export type DiscoverReleaseCardProps = {
   album: RecentReleaseAlbum;
@@ -14,14 +14,14 @@ export type DiscoverReleaseCardProps = {
   fill?: boolean;
 };
 
-const CARD_WIDTH = 140;
+export const RELEASE_CARD_WIDTH = 140;
 
 function DiscoverReleaseCardComponent({
   album,
   onPress,
   fill,
 }: DiscoverReleaseCardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   // This card is memoized, so subscribe here: a changed server format has to
   // repaint the release date even when the album prop stays the same.
   useDateTimeFormat();
@@ -41,7 +41,7 @@ function DiscoverReleaseCardComponent({
         <CoverArtImage
           type="album"
           mbid={coverMbid}
-          size={fill ? "fill" : CARD_WIDTH}
+          size={fill ? "fill" : RELEASE_CARD_WIDTH}
           borderRadius={10}
         />
       ) : (
@@ -55,8 +55,8 @@ function DiscoverReleaseCardComponent({
                   backgroundColor: colors.card,
                 }
               : {
-                  width: CARD_WIDTH,
-                  height: CARD_WIDTH,
+                  width: RELEASE_CARD_WIDTH,
+                  height: RELEASE_CARD_WIDTH,
                   borderRadius: 10,
                   backgroundColor: colors.card,
                 }
@@ -96,7 +96,7 @@ export const DiscoverReleaseCard = React.memo(DiscoverReleaseCardComponent);
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
+    width: RELEASE_CARD_WIDTH,
   },
   cardFill: {
     flex: 1,

@@ -14,8 +14,7 @@ import {
 } from "@expo/ui/jetpack-compose/modifiers";
 import { useState } from "react";
 import type { SettingsPickerProps } from "@/components/settings/settings-controls";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useColors } from "@/hooks/use-colors";
 
 // A clipped popup loses the status bar offset, so near the bottom of an
 // edge-to-edge screen it detaches from its anchor.
@@ -31,7 +30,7 @@ export function SettingsPicker({
   options,
   onChange,
 }: SettingsPickerProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const [expanded, setExpanded] = useState(false);
   const selected = options.find((option) => option.value === value);
 

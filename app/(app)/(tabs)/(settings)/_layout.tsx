@@ -4,26 +4,23 @@ import {
   isListeningService,
   SERVICE_LABELS,
 } from "@/components/settings/listening";
-import { TRANSPARENT_HEADER } from "@/constants/navigation";
+import { stackScreenOptions } from "@/constants/navigation";
 import { IS_ANDROID } from "@/constants/platform";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useColors } from "@/hooks/use-colors";
 
 export const unstable_settings = {
   anchor: "settings/index",
 };
 
 export default function SettingsLayout() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <MiniPlayerHost aboveTabs={IS_ANDROID}>
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
+          ...stackScreenOptions(colors),
           headerBackButtonDisplayMode: "minimal",
-          ...TRANSPARENT_HEADER,
         }}
       >
         <Stack.Screen

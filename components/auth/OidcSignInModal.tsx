@@ -19,8 +19,6 @@ import type {
 
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { customHeadersFor, isAccountSuspendedMessage } from "@/lib/api/client";
 import {
   buildOidcExchangePageUrl,
@@ -32,6 +30,7 @@ import {
   readOidcCompletion,
 } from "@/lib/oidc";
 import type { OidcSession } from "@/lib/types/auth";
+import { useColors } from "@/hooks/use-colors";
 
 type Phase = "authorizing" | "exchanging";
 
@@ -91,7 +90,7 @@ function OidcSignInFlow({
   onSession,
   onAccountSuspended,
 }: Omit<Props, "visible">) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   // WebView 14 defaults its props generic to `undefined`, which turns every
   // prop into `never` once a ref pins it. `object` leaves the props intact.
   const webViewRef = useRef<WebView<object>>(null);

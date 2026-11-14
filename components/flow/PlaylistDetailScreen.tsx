@@ -45,10 +45,9 @@ import {
   useTrackActions,
 } from "@/components/library/TrackActionsSheet";
 import type { TrackMenuActionId } from "@/components/player/track-menu-types";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import type { FlowJob, PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 const NO_JOBS: FlowJob[] = [];
 
@@ -103,7 +102,7 @@ function PlaylistPage({
   stats?: PlaylistStats;
   retryPaused: boolean;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
 
   // Failed tracks stay listed, as an album's missing tracks do. The count above

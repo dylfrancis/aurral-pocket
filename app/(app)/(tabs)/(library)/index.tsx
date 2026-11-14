@@ -4,9 +4,9 @@ import { Stack, useRouter, type Href } from "expo-router";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import { Text } from "@/components/ui/Text";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { IS_ANDROID } from "@/constants/platform";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type Category = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -79,7 +79,7 @@ function CategoryRow({
   separator: boolean;
   onPress: () => void;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Pressable

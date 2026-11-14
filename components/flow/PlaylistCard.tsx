@@ -5,9 +5,9 @@ import { Text } from "@/components/ui/Text";
 import { Chip } from "@/components/ui/Chip";
 import { CollectionArtwork } from "./CollectionArtwork";
 import { SavedMark } from "@/components/offline/SavedMark";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   playlist: SharedPlaylist;
@@ -26,7 +26,7 @@ function progressLabel(
 }
 
 export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const progress = progressLabel(stats, playlist.trackCount);
 
   return (

@@ -2,9 +2,9 @@ import { StyleSheet, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Text } from "@/components/ui/Text";
 import { useSourceMixColors } from "./MixPills";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { MIX_SOURCES, type MixPercent, type MixSource } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 const MIN_VALUE = 0;
 const MAX_VALUE = 100;
@@ -78,7 +78,7 @@ function SingleSlider({
   value: number;
   onChange: (next: number) => void;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const palette = useSourceMixColors();
   const accent = palette[source];
 

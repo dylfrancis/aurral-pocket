@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   StyleSheet,
-  Switch,
   View,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -23,8 +22,7 @@ import { FocusEditor } from "@/components/flow/FocusEditor";
 import { YearBoundInput } from "@/components/flow/YearBoundInput";
 import { useCreateFlow, useEditSnapshot, useUpdateFlow } from "@/hooks/flow";
 import { useSignedInHealth } from "@/hooks/auth/use-signed-in-health";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import {
   createDefaultFlowForm,
@@ -32,6 +30,8 @@ import {
   type FlowFormValues,
 } from "@/lib/types/flow";
 import { flowFormSchema, type FlowFormSchema } from "@/lib/flow-form-schema";
+import { Switch } from "@/components/ui/Switch";
+import { useColors } from "@/hooks/use-colors";
 
 function toFormValues(flow: Flow): FlowFormValues {
   return {
@@ -70,7 +70,7 @@ function describeYearRange(
 }
 
 export default function FlowEditScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const params = useLocalSearchParams<{ id?: string }>();
   const editingId = typeof params.id === "string" ? params.id : null;
 
@@ -130,7 +130,7 @@ function FlowEditForm({
   existingFlow: Flow | undefined;
   newFlowAutoDownload: boolean;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
 
   const createFlow = useCreateFlow();
@@ -294,15 +294,7 @@ function FlowEditForm({
             <Section
               title="Deeper Cuts"
               subtitle="Use tracks ranked 10 to 25 instead of each artist's top 10."
-              trailing={
-                <Switch
-                  value={value}
-                  onValueChange={onChange}
-                  trackColor={{ false: colors.separator, true: colors.brand }}
-                  thumbColor={colors.switchThumb}
-                  ios_backgroundColor={colors.separator}
-                />
-              }
+              trailing={<Switch value={value} onValueChange={onChange} />}
             />
           )}
         />
@@ -314,15 +306,7 @@ function FlowEditForm({
             <Section
               title="Record History"
               subtitle="Count plays from this flow in your listening history."
-              trailing={
-                <Switch
-                  value={value}
-                  onValueChange={onChange}
-                  trackColor={{ false: colors.separator, true: colors.brand }}
-                  thumbColor={colors.switchThumb}
-                  ios_backgroundColor={colors.separator}
-                />
-              }
+              trailing={<Switch value={value} onValueChange={onChange} />}
             />
           )}
         />
@@ -339,9 +323,6 @@ function FlowEditForm({
                   value={value}
                   onValueChange={onChange}
                   accessibilityLabel="Download automatically"
-                  trackColor={{ false: colors.separator, true: colors.brand }}
-                  thumbColor={colors.switchThumb}
-                  ios_backgroundColor={colors.separator}
                 />
               }
             />
@@ -456,9 +437,6 @@ function FlowEditForm({
                   value={value}
                   onValueChange={onChange}
                   accessibilityLabel="Recent listening"
-                  trackColor={{ false: colors.separator, true: colors.brand }}
-                  thumbColor={colors.switchThumb}
-                  ios_backgroundColor={colors.separator}
                 />
               </View>
             )}
@@ -520,7 +498,7 @@ function Section({
   trailing?: React.ReactNode;
   children?: React.ReactNode;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Card bordered style={styles.section}>

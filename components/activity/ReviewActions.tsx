@@ -6,8 +6,8 @@ import {
   useApproveBlockedJob,
   useDenyBlockedJob,
 } from "@/hooks/activity/use-review-job";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts, Radius } from "@/constants/theme";
+import { Fonts, Radius } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type ReviewActionsProps = {
   jobId: string;
@@ -18,7 +18,7 @@ type ReviewActionsProps = {
  * Review, so the buttons disable together while either is in flight.
  */
 export function ReviewActions({ jobId }: ReviewActionsProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const approve = useApproveBlockedJob();
   const deny = useDenyBlockedJob();
 

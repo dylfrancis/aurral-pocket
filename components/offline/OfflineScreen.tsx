@@ -10,8 +10,7 @@ import { TrackMenuButton } from "@/components/library/TrackMenuButton";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts } from "@/constants/theme";
 import { getFlowArtworkPath } from "@/lib/api/flow";
 import { formatBytes, saveStatusLine } from "@/lib/offline/format";
 import { savedAlbumRoute } from "@/lib/offline/saved-routes";
@@ -26,6 +25,7 @@ import {
   useSavedItems,
   type SaveStatus,
 } from "@/lib/offline/saved-library";
+import { useColors } from "@/hooks/use-colors";
 
 /**
  * Library › Offline: what's saved on the phone. It reads only the phone's own
@@ -33,7 +33,7 @@ import {
  * plays from the saved files.
  */
 export function OfflineScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   const saves = useSavedItems();
   const albums = saves.filter((save) => save.item.kind === "album");
@@ -187,7 +187,7 @@ function Section({
   title: string;
   children: React.ReactNode;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <View style={styles.section}>
       <Text

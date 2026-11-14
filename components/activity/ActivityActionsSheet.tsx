@@ -22,8 +22,7 @@ import {
   useRetryTrackDownload,
   useStopTrackDownload,
 } from "@/hooks/flow/use-track-job-controls";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { isActiveAurralStatus } from "@/lib/album-status";
 import type { DownloadStatusValue } from "@/lib/types/library";
 import {
@@ -31,6 +30,7 @@ import {
   isAlbumRequest,
   type ActivityItem,
 } from "@/lib/types/activity";
+import { useColors } from "@/hooks/use-colors";
 
 type RequestActionsSheetProps = {
   sheetRef: React.RefObject<BottomSheetModal | null>;
@@ -43,7 +43,7 @@ export function ActivityActionsSheet({
   request,
   downloadStatus,
 }: RequestActionsSheetProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const hasPermission = useHasPermission();
   const deleteMutation = useDeleteAlbumRequest();

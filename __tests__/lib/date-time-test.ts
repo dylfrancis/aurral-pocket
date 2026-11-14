@@ -14,6 +14,7 @@ import {
   formatTime,
   getDateTimeFormat,
   normalizeDateTimeFormat,
+  releaseYear,
   restoreDateTimeFormat,
   setDateTimeFormat,
   subscribeToDateTimeFormat,
@@ -163,5 +164,30 @@ describe("formatDateTime", () => {
 
     setDateTimeFormat("year-first");
     expect(formatDateTime(sample)).toBe("2026/04/09 07:05");
+  });
+});
+
+describe("releaseYear", () => {
+  // Midnight UTC on these dates is still the previous year here.
+  const originalTz = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = "America/Los_Angeles";
+  });
+  afterAll(() => {
+    process.env.TZ = originalTz;
+  });
+
+  it("reads the year from the text, not the local clock", () => {
+    expect(releaseYear("2001")).toBe(2001);
+    expect(releaseYear("2001-01-01")).toBe(2001);
+    expect(releaseYear("2001-01-01T00:00:00Z")).toBe(2001);
+    expect(releaseYear("1999-05")).toBe(1999);
+  });
+
+  it("is null without a date", () => {
+    expect(releaseYear(undefined)).toBeNull();
+    expect(releaseYear(null)).toBeNull();
+    expect(releaseYear("")).toBeNull();
+    expect(releaseYear("unknown")).toBeNull();
   });
 });

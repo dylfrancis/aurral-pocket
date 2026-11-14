@@ -17,6 +17,7 @@ import type {
   EditorialTrack,
   TrendingChartsResponse,
 } from "@/lib/types/search";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 export type TrackLinkTarget = Pick<
   EditorialTrack,
@@ -120,6 +121,7 @@ export function useAddEditorialPlaylist(playlistId: string) {
  */
 export function useEditorialTrackLinks(onLeave: () => void, active = true) {
   const router = useRouter();
+  const openArtistPage = useOpenArtist();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [lookupRowId, setLookupRowId] = useState<string | null>(null);
@@ -186,10 +188,7 @@ export function useEditorialTrackLinks(onLeave: () => void, active = true) {
           return;
         }
 
-        router.push({
-          pathname: "/artist/[mbid]",
-          params: { mbid: artistMbid, name: artistName },
-        });
+        openArtistPage({ mbid: artistMbid, name: artistName });
         if (albumName) {
           Burnt.toast({
             title: `Couldn't find ${albumName}. Opened ${artistName} instead.`,
@@ -207,7 +206,7 @@ export function useEditorialTrackLinks(onLeave: () => void, active = true) {
         setLookupRowId(null);
       }
     },
-    [navigation, onLeave, queryClient, router],
+    [navigation, onLeave, queryClient, router, openArtistPage],
   );
 
   const openArtist = useCallback(

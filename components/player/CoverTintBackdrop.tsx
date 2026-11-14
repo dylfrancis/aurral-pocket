@@ -1,8 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useColors } from "@/hooks/use-colors";
 
 const TINT_TRANSITION = {
   transitionProperty: "backgroundColor",
@@ -31,7 +30,7 @@ export function CoverTintBackdrop({
   bleed = 0,
   animated = true,
 }: CoverTintBackdropProps) {
-  const background = Colors[useColorScheme()].background;
+  const background = useColors().background;
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.passThrough]}>

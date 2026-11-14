@@ -10,7 +10,7 @@ import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
 } from "react-native-reanimated";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,7 +30,6 @@ import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { useAudioPreview } from "@/hooks/library/use-audio-preview";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   addLibraryAlbum,
   getLibraryArtistId,
@@ -44,9 +43,12 @@ import { formatReleaseWait } from "@/lib/album-status";
 import { ApiError } from "@/lib/api/client";
 import { libraryAlbumsRef } from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import type { AlbumStatus } from "@/lib/types/search";
+import { releaseYear } from "@/lib/date-time";
+import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
@@ -109,11 +111,10 @@ function describeError(error: unknown) {
  * and nothing that implies real playback.
  */
 export function ReleaseDetailScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const heroPaddingTop = (IS_IOS ? headerHeight : 0) + 24;
-  const router = useRouter();
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<ReleaseRouteParams>();
 
@@ -288,13 +289,11 @@ export function ReleaseDetailScreen() {
     }
   };
 
-  const openArtist = useCallback(() => {
-    if (!params.artistMbid) return;
-    router.push({
-      pathname: "/artist/[mbid]",
-      params: { mbid: params.artistMbid, name: artistName },
-    });
-  }, [router, params.artistMbid, artistName]);
+  const openArtistPage = useOpenArtist();
+  const openArtist = useCallback(
+    () => openArtistPage({ mbid: params.artistMbid, name: artistName }),
+    [openArtistPage, params.artistMbid, artistName],
+  );
 
   const trackActionsRef = useRef<BottomSheetModal>(null);
   const [actionTrack, setActionTrack] = useState<ReleaseGroupTrack | null>(
@@ -306,9 +305,7 @@ export function ReleaseDetailScreen() {
     trackActionsRef.current?.present();
   }, []);
 
-  const year = params.releaseDate
-    ? new Date(params.releaseDate).getFullYear()
-    : null;
+  const year = releaseYear(params.releaseDate);
   const secondaryTypes = (params.secondaryTypes || "")
     .split(",")
     .filter(Boolean);
@@ -601,7 +598,7 @@ const PreviewTrackRow = React.memo(function PreviewTrackRow({
   onToggle: () => void;
   onMenuPress?: () => void;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const duration = formatDuration(track.length);
 
   return (

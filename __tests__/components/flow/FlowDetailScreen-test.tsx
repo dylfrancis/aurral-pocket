@@ -38,7 +38,7 @@ jest.mock("@/lib/player/player", () => ({
   usePlayerStatus: () => ({}),
 }));
 
-jest.mock("@/components/library/TrackRow", () => ({
+jest.mock("@/components/library/PlayingBars", () => ({
   PlayingBars: () => null,
 }));
 

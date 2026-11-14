@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
-import { showMenuSection } from "@/components/ui/ShowMenuSection";
+import { menuOptionSection } from "@/components/ui/MenuOptions";
 import { SavedMark, albumSavedId } from "@/components/offline/SavedMark";
 import { SEARCH_PLACEHOLDERS } from "@/constants/navigation";
 import { useAlbumGrid } from "@/hooks/library/use-album-grid";
@@ -53,7 +53,8 @@ export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
   const showSection = useMemo(
     () =>
       canShowSaved
-        ? showMenuSection<Show>(
+        ? menuOptionSection<Show>(
+            "Show",
             [
               // Offline, the server's list can't load.
               { key: "all", label: "All Albums", disabled: isOffline },

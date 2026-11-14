@@ -1,8 +1,8 @@
 import { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type SuggestionRowProps = {
   primary: string;
@@ -17,7 +17,7 @@ export function SuggestionRow({
   trailing,
   disabled,
 }: SuggestionRowProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <View style={styles.row}>
       <View style={styles.rowLabels}>

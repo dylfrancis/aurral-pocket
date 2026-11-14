@@ -11,9 +11,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts, Radius } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts, Radius } from "@/constants/theme";
 import type { TrendingChartSong, TrendingSpotlight } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 const COVER_SIZE = 112;
 const LINE_HEIGHT = 56;
@@ -40,7 +40,7 @@ export function TrendingSpotlightCard({
   onOpenArtist,
   onOpenAlbum,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   // As on the web: a single's album is named after it, so it says nothing new.
   const showAlbum = !!song.albumName && song.albumName !== song.trackName;
 
@@ -145,7 +145,7 @@ export function TrendingSpotlightCard({
 }
 
 function RankLine({ ranks }: { ranks: (number | null)[] }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const [width, setWidth] = useState(0);
 
   const chartedDays = ranks.filter((rank) => rank !== null).length;

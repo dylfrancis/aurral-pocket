@@ -72,6 +72,8 @@ import type {
   DownloadStatusMap,
   DownloadStatusValue,
 } from "@/lib/types/library";
+import { releaseYear } from "@/lib/date-time";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
@@ -191,9 +193,7 @@ export function AlbumDetailScreen() {
     });
   };
 
-  const year = album?.releaseDate
-    ? new Date(album.releaseDate).getFullYear()
-    : null;
+  const year = releaseYear(album?.releaseDate);
   const trackCount = album?.statistics.trackCount ?? tracks?.length ?? 0;
   // Unknown reads as complete, so a page with no canonical record does not
   // offer to re-search an album it knows nothing about.
@@ -329,13 +329,11 @@ export function AlbumDetailScreen() {
     ]);
   }, [title, manager?.name, deleteMutation]);
 
-  const openArtist = useCallback(() => {
-    if (!params.artistMbid) return;
-    router.push({
-      pathname: "/artist/[mbid]",
-      params: { mbid: params.artistMbid, name: artistName },
-    });
-  }, [router, params.artistMbid, artistName]);
+  const openArtistPage = useOpenArtist();
+  const openArtist = useCallback(
+    () => openArtistPage({ mbid: params.artistMbid, name: artistName }),
+    [openArtistPage, params.artistMbid, artistName],
+  );
 
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({

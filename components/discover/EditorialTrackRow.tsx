@@ -3,10 +3,9 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Text } from "@/components/ui/Text";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { EditorialTrack, TrendingMovement } from "@/lib/types/search";
 import { ChartRank } from "./ChartRank";
+import { useColors } from "@/hooks/use-colors";
 
 const COVER_SIZE = 44;
 const PLAY_BUTTON_SIZE = 32;
@@ -40,7 +39,7 @@ export const EditorialTrackRow = React.memo(function EditorialTrackRow({
   rank,
   movement,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { track } = item;
 
   return (

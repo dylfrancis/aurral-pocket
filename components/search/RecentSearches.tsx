@@ -3,9 +3,9 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
+import { useColors } from "@/hooks/use-colors";
 
 const ICONS: Record<RecentSearch["type"], keyof typeof Ionicons.glyphMap> = {
   query: "time-outline",
@@ -26,7 +26,7 @@ export function RecentSearches({
   onRemove,
   onClear,
 }: RecentSearchesProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   if (searches.length === 0) return null;
 

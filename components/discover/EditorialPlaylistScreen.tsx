@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/Button";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
 import { IS_IOS } from "@/constants/platform";
-import { Colors } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
   useAddEditorialPlaylist,
@@ -23,7 +22,6 @@ import {
 } from "@/hooks/discover/use-editorial-playlists";
 import { usePreviewRows } from "@/hooks/discover/use-preview-rows";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ApiError } from "@/lib/api/client";
 import { formatTrackCount } from "@/lib/discover/format";
 import { EditorialArtwork } from "./EditorialArtwork";
@@ -31,6 +29,7 @@ import {
   EditorialTrackRow,
   type EditorialTrackItem,
 } from "./EditorialTrackRow";
+import { useColors } from "@/hooks/use-colors";
 
 type RouteParams = {
   id: string;
@@ -41,7 +40,7 @@ type RouteParams = {
 
 /** Its tracks are preview clips, not library files, so there's no queue to play. */
 export function EditorialPlaylistScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   // Only iOS scrolls under its translucent header.
   const headerHeight = useHeaderHeight();

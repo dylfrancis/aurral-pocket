@@ -2,8 +2,8 @@ import { StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type ViewAllCardProps = {
   size: number;
@@ -11,7 +11,7 @@ type ViewAllCardProps = {
 };
 
 export function ViewAllCard({ size, onPress }: ViewAllCardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Card

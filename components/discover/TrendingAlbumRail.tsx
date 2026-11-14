@@ -8,9 +8,9 @@ import {
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts } from "@/constants/theme";
 import type { TrendingAlbum } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 const CARD_SIZE = 140;
 
@@ -25,7 +25,7 @@ export function TrendingAlbumRail({
   lookingUpKey,
   onOpenAlbum,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <View style={styles.container}>

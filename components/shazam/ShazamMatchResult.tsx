@@ -2,13 +2,12 @@ import { EmptyState } from "@/components/library/EmptyState";
 import { Chip } from "@/components/ui/Chip";
 import { Separator } from "@/components/ui/Separator";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useAddArtist } from "@/hooks/search/use-add-artist";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useIsrcArtist } from "@/hooks/shazam/use-isrc-artist";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { rankCandidates } from "@/lib/shazam/rank-candidates";
 import type { SearchArtist } from "@/lib/types/search";
 import type { ShazamMatch } from "@/modules/shazam";
@@ -18,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { useColors } from "@/hooks/use-colors";
 
 const CANDIDATE_LIMIT = 5;
 
@@ -34,7 +34,7 @@ export function ShazamMatchResult({
   onSearchManually,
   onResolved,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const hasPermission = useHasPermission();
   const canAddArtist = hasPermission("addArtist");
 
@@ -201,7 +201,7 @@ function ArtistCandidateRow({
   onAdd: () => void;
   onView: () => void;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const added = inLibrary || wasAdded;
 
   return (

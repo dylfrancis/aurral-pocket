@@ -3,10 +3,10 @@ import { Image } from "expo-image";
 import { FlowArtwork } from "@/components/flow/FlowArtwork";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts } from "@/constants/theme";
 import type { TrendingGenre } from "@/lib/types/search";
 import { EditorialArtwork } from "./EditorialArtwork";
+import { useColors } from "@/hooks/use-colors";
 
 const CARD_SIZE = 150;
 const RADIUS = 10;
@@ -56,7 +56,7 @@ export function TrendingGenreRail({ genres, onOpenGenre }: Props) {
 
 /** The art under the covers keeps one that fails to load from leaving a hole. */
 function CoverMosaic({ name, covers }: { name: string; covers: string[] }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   if (covers.length < 4) {
     return (

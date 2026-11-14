@@ -4,9 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MiniPlayer } from "@/components/player/MiniPlayer";
 import { HAS_LIQUID_GLASS } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useHasQueue } from "@/lib/player/player";
+import { useColors } from "@/hooks/use-colors";
 
 /** Classic UITabBar height on iOS 18 and earlier, in points. */
 const LEGACY_TAB_BAR_HEIGHT = 49;
@@ -71,7 +70,7 @@ function DockedHost({ children, aboveTabs }: HostProps) {
  * docked above the tab bar, the way Material streaming apps draw it.
  */
 function MiniPlayerDock({ bottom }: { bottom: number }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <View

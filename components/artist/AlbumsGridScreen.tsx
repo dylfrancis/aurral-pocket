@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
-import { showMenuSection } from "@/components/ui/ShowMenuSection";
+import { menuOptionSection } from "@/components/ui/MenuOptions";
 import { SavedMark, albumSavedId } from "@/components/offline/SavedMark";
 import { SEARCH_PLACEHOLDERS } from "@/constants/navigation";
 import { useReleaseGrid } from "@/hooks/library/use-release-grid";
@@ -11,12 +11,7 @@ import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { albumDownloadStatus, albumRouteParams } from "@/lib/library-read";
 import { useSavedIds } from "@/lib/offline/saved-library";
 import type { Album } from "@/lib/types/library";
-
-function releaseYear(date?: string | null) {
-  if (!date) return undefined;
-  const year = new Date(date).getFullYear();
-  return Number.isFinite(year) ? String(year) : undefined;
-}
+import { releaseYear } from "@/lib/date-time";
 
 const albumConfig = {
   variant: "albums" as const,
@@ -43,7 +38,8 @@ export function AlbumsGridScreen() {
   const items = showSaved ? grid.items.filter(isSaved) : grid.items;
   const showSection = useMemo(
     () =>
-      showMenuSection<Show>(
+      menuOptionSection<Show>(
+        "Show",
         [
           { key: "all", label: "All Albums" },
           { key: "saved", label: "Saved Offline" },
@@ -106,7 +102,7 @@ export function AlbumsGridScreen() {
           mbid={item.mbid}
           coverUrl={item.coverUrl}
           title={item.albumName}
-          subtitle={releaseYear(item.releaseDate)}
+          subtitle={releaseYear(item.releaseDate)?.toString()}
           trailing={<SavedMark kind="album" id={albumSavedId(item)} />}
           onPress={() => openAlbum(item)}
         />

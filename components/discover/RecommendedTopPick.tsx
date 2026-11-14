@@ -1,10 +1,10 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts } from "@/constants/theme";
 import { topPickReason } from "@/lib/discover/recommended";
 import type { DiscoveryArtist } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 const COVER_SIZE = 112;
 const TAG_LIMIT = 3;
@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function RecommendedTopPick({ artist, seeds, onPress }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const reason = topPickReason(artist, seeds);
   const tagLine = artist.matchedTags.slice(0, TAG_LIMIT).join(" · ");
 

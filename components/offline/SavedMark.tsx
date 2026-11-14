@@ -1,8 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { libraryTracksRef } from "@/lib/library-read";
-import { useIsSaved, type SavedKind } from "@/lib/offline/saved-library";
+import {
+  useIsSaved,
+  useIsTrackSaved,
+  type SavedKind,
+} from "@/lib/offline/saved-library";
+import { useColors } from "@/hooks/use-colors";
 
 /**
  * The ↓ beside an album or playlist once it's all on the phone. `inline` is
@@ -19,10 +22,21 @@ export function SavedMark({
   size?: number;
   inline?: boolean;
 }) {
-  const colors = Colors[useColorScheme()];
   const saved = useIsSaved(kind, id);
   if (!saved) return null;
-  const mark = (
+  const mark = <SavedIcon size={size} />;
+  return inline ? <>{mark} </> : mark;
+}
+
+/** The ↓ on a track row once the track is on the phone, by whatever save. */
+export function SavedTrackMark({ trackId }: { trackId: string }) {
+  const saved = useIsTrackSaved(trackId);
+  return saved ? <SavedIcon size={16} /> : null;
+}
+
+function SavedIcon({ size }: { size: number }) {
+  const colors = useColors();
+  return (
     <Ionicons
       name="arrow-down-circle"
       size={size}
@@ -30,7 +44,6 @@ export function SavedMark({
       accessibilityLabel="Saved offline"
     />
   );
-  return inline ? <>{mark} </> : mark;
 }
 
 /** An album is saved under its page's `ref`, which a list row can rebuild. */

@@ -18,8 +18,6 @@ export const ACTIVITY_VIEWS = [
 
 export type ActivityView = (typeof ACTIVITY_VIEWS)[number]["id"];
 
-export const DEFAULT_ACTIVITY_VIEW: ActivityView = "queue";
-
 export function isQueueItem(item: ActivityItem): boolean {
   if (item.status === "blocked") return false;
   return (

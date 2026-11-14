@@ -11,6 +11,7 @@ import {
 import { librarySection, matchesReleaseSection } from "@/lib/release-groups";
 import { stripArticle } from "@/lib/strings";
 import type { PrimaryReleaseType } from "@/lib/types/library";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 type ReleaseGridConfig<T> = {
   getDate: (item: T) => string | null;
@@ -99,12 +100,7 @@ export function useReleaseGrid<T>(config: ReleaseGridConfig<T>) {
     isLoadingTypes,
   } = useAlbumsWithTypes(artistMbid, rawAlbums);
 
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
-  }, [refetch]);
+  const { refreshing, onRefresh: handleRefresh } = usePullToRefresh(refetch);
 
   const [sortMode, setRawSortMode] = useState<AlbumSortMode>("date-desc");
   const setSortMode = useCallback((mode: AlbumSortMode) => {

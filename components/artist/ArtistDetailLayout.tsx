@@ -10,7 +10,7 @@ import { TopTracksSection } from "@/components/artist/TopTracksSection";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { HAS_LIQUID_GLASS } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
@@ -42,7 +42,6 @@ import {
   useLibraryLookup,
 } from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
@@ -83,6 +82,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useColors } from "@/hooks/use-colors";
 
 function sortByDate(albums: Album[]): Album[] {
   return albums.slice().sort((a, b) => {
@@ -112,7 +113,7 @@ export function ArtistDetailLayout({
   onNavigateToAlbums,
   onSimilarArtistPress,
 }: ArtistDetailLayoutProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -381,12 +382,11 @@ export function ArtistDetailLayout({
     );
   }, [blockedEntry, unblockArtist, blockArtist, mbid, artistName]);
 
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([refetchAlbums(), refetchCanonicalArtist()]);
-    setRefreshing(false);
-  }, [refetchAlbums, refetchCanonicalArtist]);
+  const refreshArtist = useCallback(
+    () => Promise.all([refetchAlbums(), refetchCanonicalArtist()]),
+    [refetchAlbums, refetchCanonicalArtist],
+  );
+  const { refreshing, onRefresh } = usePullToRefresh(refreshArtist);
 
   const handleSimilarPress = useCallback(
     (artist: SimilarArtist) => {
@@ -473,7 +473,7 @@ export function ArtistDetailLayout({
           inLibrary ? (
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={handleRefresh}
+              onRefresh={onRefresh}
               tintColor="transparent"
             />
           ) : undefined
@@ -622,7 +622,7 @@ function headerTitleRange() {
  * would update the native header on every frame.
  */
 function NativeScrollHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { end } = headerTitleRange();
   const [shown, setShown] = useState(false);
 
@@ -645,7 +645,7 @@ function NativeScrollHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
 
 /** The nav-bar title that fades in as the hero name scrolls under it. */
 function FadingHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { start, end } = headerTitleRange();
 
   const animatedStyle = useAnimatedStyle(() => ({

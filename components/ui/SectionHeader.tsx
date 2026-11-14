@@ -2,8 +2,8 @@ import { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type SectionHeaderProps = {
   title: string;
@@ -20,7 +20,7 @@ export function SectionHeader({
   trailing,
   onNavigate,
 }: SectionHeaderProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   const titleContent = (
     <Text variant="subtitle" style={[styles.title, { color: colors.text }]}>

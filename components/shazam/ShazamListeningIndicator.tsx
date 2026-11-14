@@ -1,5 +1,3 @@
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { addLevelListener } from "@/modules/shazam";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect } from "react";
@@ -12,6 +10,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { useColors } from "@/hooks/use-colors";
 
 const SIZE = 96;
 
@@ -21,7 +20,7 @@ const SIZE = 96;
  * animation keeps it alive when it's quiet.
  */
 export function ShazamListeningIndicator() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const level = useSharedValue(0);
   const idle = useSharedValue(0);
 

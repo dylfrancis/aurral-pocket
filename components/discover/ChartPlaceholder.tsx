@@ -3,11 +3,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useColors } from "@/hooks/use-colors";
 
 export function ChartPlaceholder({ title }: { title: string }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <View style={styles.container}>

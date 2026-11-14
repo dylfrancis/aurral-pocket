@@ -13,7 +13,6 @@ import Public from "@expo/material-symbols/public.xml";
 import Star from "@expo/material-symbols/star.xml";
 import Group from "@expo/material-symbols/group.xml";
 import Album from "@expo/material-symbols/album.xml";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumCard } from "@/components/search/SearchAlbumCard";
@@ -22,34 +21,32 @@ import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { Text } from "@/components/ui/Text";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
-import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
+import { GridCell, gridListStyles } from "@/components/ui/GridCell";
+import {
+  FILTER_MENU_ICON,
+  menuOptionActions,
+  type MenuOption,
+} from "@/components/ui/MenuOptions";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
-import { useGridColumns } from "@/hooks/use-grid-columns";
-import { useViewMode } from "@/hooks/use-view-mode";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useGridListView } from "@/hooks/use-grid-list-view";
 import { releaseRouteParams } from "@/lib/library-read";
-import { Colors, Fonts } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
+import { Fonts } from "@/constants/theme";
 import type {
   SearchAlbum,
   SearchArtist,
   TagArtist,
   TagSearchScope,
 } from "@/lib/types/search";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 type ResultScope = "artist" | "album";
 
-type ScopeOption<T> = {
-  key: T;
-  label: string;
-  iosIcon: string;
-  androidIcon: number;
-};
-
-const SCOPE_OPTIONS: ScopeOption<ResultScope>[] = [
+const SCOPE_OPTIONS: MenuOption<ResultScope>[] = [
   { key: "artist", label: "Artists", iosIcon: "person.2", androidIcon: Group },
   {
     key: "album",
@@ -59,10 +56,7 @@ const SCOPE_OPTIONS: ScopeOption<ResultScope>[] = [
   },
 ];
 
-const EDGE_PADDING = 12;
-const CARD_GAP = 12;
-
-const TAG_SCOPE_OPTIONS: ScopeOption<TagSearchScope>[] = [
+const TAG_SCOPE_OPTIONS: MenuOption<TagSearchScope>[] = [
   { key: "all", label: "All Artists", iosIcon: "globe", androidIcon: Public },
   {
     key: "recommended",
@@ -78,7 +72,8 @@ export default function SearchResultsScreen() {
     scope?: ResultScope;
   }>();
   const router = useRouter();
-  const colors = Colors[useColorScheme()];
+  const openArtist = useOpenArtist();
+  const colors = useColors();
 
   const query = q ?? "";
   const isTagSearch = query.startsWith("#");
@@ -88,8 +83,10 @@ export default function SearchResultsScreen() {
   const [resultScope, setResultScope] = useState<ResultScope>(
     scopeParam === "album" ? "album" : "artist",
   );
-  const [viewMode, setViewMode] = useViewMode("search-results", "list");
-  const gridColumns = useGridColumns(EDGE_PADDING * 2);
+  const { isGrid, numColumns, viewMenuSection } = useGridListView(
+    "search-results",
+    "list",
+  );
 
   const {
     data: artistData,
@@ -112,18 +109,16 @@ export default function SearchResultsScreen() {
     tagScope,
   );
 
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    if (isTagSearch) {
-      await refetchTags();
-    } else if (resultScope === "album") {
-      await refetchAlbums();
-    } else {
-      await refetchArtists();
-    }
-    setRefreshing(false);
-  }, [isTagSearch, resultScope, refetchTags, refetchAlbums, refetchArtists]);
+  const refreshResults = useCallback(
+    () =>
+      isTagSearch
+        ? refetchTags()
+        : resultScope === "album"
+          ? refetchAlbums()
+          : refetchArtists(),
+    [isTagSearch, resultScope, refetchTags, refetchAlbums, refetchArtists],
+  );
+  const { refreshing, onRefresh } = usePullToRefresh(refreshResults);
 
   const isLoading = isTagSearch
     ? tagLoading
@@ -156,13 +151,9 @@ export default function SearchResultsScreen() {
   }, [navigation, isTagSearch, query]);
 
   const handleArtistPress = useCallback(
-    (artist: SearchArtist | TagArtist) => {
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: { mbid: artist.id, name: artist.name },
-      });
-    },
-    [router],
+    (artist: SearchArtist | TagArtist) =>
+      openArtist({ mbid: artist.id, name: artist.name }),
+    [openArtist],
   );
 
   // A bare path, so expo-router resolves it inside the search group.
@@ -218,7 +209,7 @@ export default function SearchResultsScreen() {
 
   const renderArtistGridItem = useCallback(
     ({ item }: { item: SearchArtist | TagArtist }) => (
-      <View style={styles.gridItem}>
+      <GridCell>
         <HorizontalArtistCard
           mbid={item.id}
           name={item.name}
@@ -226,16 +217,16 @@ export default function SearchResultsScreen() {
           fill
           onPress={() => handleArtistPress(item)}
         />
-      </View>
+      </GridCell>
     ),
     [isInLibrary, handleArtistPress],
   );
 
   const renderAlbumGridItem = useCallback(
     ({ item }: { item: SearchAlbum }) => (
-      <View style={styles.gridItem}>
+      <GridCell>
         <SearchAlbumCard album={item} onPress={() => handleAlbumPress(item)} />
-      </View>
+      </GridCell>
     ),
     [handleAlbumPress],
   );
@@ -276,88 +267,55 @@ export default function SearchResultsScreen() {
   return (
     <>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
-          title="Scope"
-        >
-          {(isTagSearch ? TAG_SCOPE_OPTIONS : SCOPE_OPTIONS).map((option) => {
-            const active = isTagSearch
-              ? tagScope === option.key
-              : resultScope === option.key;
-            return (
-              <Stack.Toolbar.MenuAction
-                key={option.key}
-                icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
-                isOn={active}
-                onPress={() => {
-                  if (isTagSearch) {
-                    setTagScope(option.key as TagSearchScope);
-                  } else {
-                    setResultScope(option.key as ResultScope);
-                  }
-                }}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            );
-          })}
-          {viewModeMenuSection(viewMode, setViewMode)}
+        <Stack.Toolbar.Menu icon={FILTER_MENU_ICON} title="Scope">
+          {isTagSearch
+            ? menuOptionActions(TAG_SCOPE_OPTIONS, tagScope, setTagScope)
+            : menuOptionActions(SCOPE_OPTIONS, resultScope, setResultScope)}
+          {viewMenuSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
 
       {isTagSearch ? (
         <FlashList
-          key={`tag-${viewMode}`}
+          key={`tag-${isGrid}`}
           data={showResults ? (tagArtists as TagArtist[]) : []}
-          renderItem={
-            viewMode === "grid" ? renderArtistGridItem : renderTagArtistItem
-          }
+          renderItem={isGrid ? renderArtistGridItem : renderTagArtistItem}
           keyExtractor={artistKeyExtractor}
-          numColumns={viewMode === "grid" ? gridColumns : 1}
+          numColumns={numColumns}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={
-            viewMode === "grid" ? styles.gridContent : undefined
-          }
+          contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
           ListHeaderComponent={tagListHeader}
           ListEmptyComponent={emptyComponent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         />
       ) : resultScope === "album" ? (
         <FlashList
-          key={`album-${viewMode}`}
+          key={`album-${isGrid}`}
           data={showResults ? (albums as SearchAlbum[]) : []}
-          renderItem={
-            viewMode === "grid" ? renderAlbumGridItem : renderAlbumItem
-          }
+          renderItem={isGrid ? renderAlbumGridItem : renderAlbumItem}
           keyExtractor={albumKeyExtractor}
-          numColumns={viewMode === "grid" ? gridColumns : 1}
+          numColumns={numColumns}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={
-            viewMode === "grid" ? styles.gridContent : undefined
-          }
+          contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
           ListEmptyComponent={emptyComponent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         />
       ) : (
         <FlashList
-          key={`artist-${viewMode}`}
+          key={`artist-${isGrid}`}
           data={showResults ? (artists as SearchArtist[]) : []}
-          renderItem={
-            viewMode === "grid" ? renderArtistGridItem : renderArtistItem
-          }
+          renderItem={isGrid ? renderArtistGridItem : renderArtistItem}
           keyExtractor={artistKeyExtractor}
-          numColumns={viewMode === "grid" ? gridColumns : 1}
+          numColumns={numColumns}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={
-            viewMode === "grid" ? styles.gridContent : undefined
-          }
+          contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
           ListEmptyComponent={emptyComponent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         />
       )}
@@ -371,15 +329,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
     ...Fonts.medium,
-  },
-  gridContent: {
-    paddingHorizontal: EDGE_PADDING,
-    paddingTop: EDGE_PADDING,
-  },
-  gridItem: {
-    flex: 1,
-    paddingHorizontal: CARD_GAP / 2,
-    paddingBottom: CARD_GAP,
   },
 });
 

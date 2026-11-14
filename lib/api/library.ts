@@ -8,8 +8,6 @@ import type {
   AurralAlbumStatus,
   Track,
   CoverArtResponse,
-  ReleaseGroup,
-  ArtistTag,
   PreviewTrack,
   DownloadStatusMap,
   CanonicalAlbumItem,
@@ -25,12 +23,6 @@ import type {
   LibraryScanJob,
   LibraryScanStatus,
 } from "@/lib/types/library";
-
-type ArtistDetailsResponse = {
-  tags?: ArtistTag[];
-  bio?: string;
-  "release-groups"?: ReleaseGroup[];
-};
 
 /**
  * The server has no canonical route for a single artist, so this always reads
@@ -534,15 +526,6 @@ export async function refreshCanonicalLibrary() {
 export async function getCanonicalLibraryRefresh(jobId: number) {
   const r = await api.get<LibraryScanStatus>(`/library/refresh/${jobId}`);
   return r.data;
-}
-
-export async function getArtistDetails(mbid: string) {
-  const r = await api.get<ArtistDetailsResponse>(`/artists/${mbid}`);
-  return {
-    tags: r.data.tags ?? [],
-    bio: r.data.bio ?? null,
-    releaseGroups: r.data["release-groups"] ?? [],
-  };
 }
 
 export async function getArtistCover(mbid: string) {

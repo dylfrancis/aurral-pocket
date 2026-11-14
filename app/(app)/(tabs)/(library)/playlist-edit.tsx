@@ -17,14 +17,14 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { usePlaylistEditSnapshot, useUpdateSharedPlaylist } from "@/hooks/flow";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import type {
   FlowJob,
   SharedPlaylist,
   SharedPlaylistTrack,
 } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 const trackSchema = z.object({
   artistName: z.string(),
@@ -59,7 +59,7 @@ function toFormValues(
 }
 
 export default function PlaylistEditScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const params = useLocalSearchParams<{ id?: string }>();
   const playlistId = typeof params.id === "string" ? params.id : null;
 
@@ -104,7 +104,7 @@ function PlaylistEditForm({
   playlist: SharedPlaylist;
   jobs: FlowJob[];
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
 
   const update = useUpdateSharedPlaylist();

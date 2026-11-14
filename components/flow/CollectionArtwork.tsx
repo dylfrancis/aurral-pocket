@@ -3,10 +3,9 @@ import { StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { FlowArtwork } from "./FlowArtwork";
 import { useAuth } from "@/contexts/auth-context";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import { getFlowArtworkSource } from "@/lib/api/flow";
 import type { PlaylistStats } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   collection: {
@@ -28,7 +27,7 @@ export function CollectionArtwork({
   size,
   radius,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { token } = useAuth();
   const artworkSource = getFlowArtworkSource(
     collection.id,
