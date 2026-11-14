@@ -104,7 +104,7 @@ jest.mock("expo-router", () => {
   });
   return {
     useLocalSearchParams: jest.fn(() => ({
-      mbid: "abc-123",
+      mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
     })),
     useRouter: jest.fn(() => ({ back: jest.fn(), push: mockPush })),
     Stack: { Screen: () => null, Toolbar },
@@ -311,8 +311,8 @@ const mockUseLibraryLookup = useLibraryLookup as jest.Mock;
 
 const baseArtist: Artist = {
   id: "1",
-  mbid: "abc-123",
-  foreignArtistId: "abc-123",
+  mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  foreignArtistId: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
   artistName: "Test Artist",
   monitored: true,
   monitorOption: "all",
@@ -354,7 +354,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockLidarrConfigured.mockReturnValue(true);
   (useLocalSearchParams as jest.Mock).mockReturnValue({
-    mbid: "abc-123",
+    mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
   });
   mockUseLibraryArtist.mockReturnValue({
     ...defaultArtistHook,
@@ -440,7 +440,7 @@ describe("ArtistDetailScreen", () => {
           .getAllByTestId("cover-image")
           .map((image) => image.props.accessibilityLabel);
       (useLocalSearchParams as jest.Mock).mockReturnValue({
-        mbid: "abc-123",
+        mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
         coverUrl: "/api/library/artists/7/cover?v=1",
       });
 
@@ -493,7 +493,7 @@ describe("ArtistDetailScreen", () => {
     describe("favorite button", () => {
       const canonicalRecord = (userFavorite: boolean) => ({
         data: {
-          identityKey: "mbid:abc-123",
+          identityKey: "mbid:0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
           userFavorite,
         },
         isPending: false,
@@ -512,7 +512,7 @@ describe("ArtistDetailScreen", () => {
           await fireEvent.press(getByLabelText(label));
 
           expect(updateLibraryFavorites).toHaveBeenCalledWith(
-            ["artist:mbid:abc-123"],
+            ["artist:mbid:0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"],
             starred,
           );
         },
@@ -567,7 +567,7 @@ describe("ArtistDetailScreen", () => {
 
     it("names the artist from its library record over the link", async () => {
       (useLocalSearchParams as jest.Mock).mockReturnValue({
-        mbid: "abc-123",
+        mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
         name: "test artist",
       });
       await renderScreen();
@@ -826,7 +826,7 @@ describe("ArtistDetailScreen", () => {
         pathname: "/artist/releases",
         params: {
           artistId: "1",
-          artistMbid: "abc-123",
+          artistMbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
           albumType: "Compilation",
           title: "Compilations",
           artistName: "Test Artist",
@@ -905,7 +905,7 @@ describe.each([
     // Similar artists, release pages and activity rows link here too, and an
     // artist outside the library has no library record to read.
     (useLocalSearchParams as jest.Mock).mockReturnValue({
-      mbid: "abc-123",
+      mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
       name: "Outside Artist",
     });
     mockUseLibraryLookup.mockReturnValue({
@@ -919,4 +919,22 @@ describe.each([
     expect(screen.getAllByText("Outside Artist").length).toBeGreaterThan(0);
     expect(screen.getByText("Add to Library")).toBeTruthy();
   });
+});
+
+it("shows Artist not found for a library artist with no MusicBrainz id", async () => {
+  // The library list links such an artist by its library id. Without the
+  // check, the page offered Add to Library for an artist already in it.
+  (useLocalSearchParams as jest.Mock).mockReturnValue({
+    mbid: "1801056",
+    name: "Djo",
+  });
+  mockUseLibraryLookup.mockReturnValue({
+    isInLibrary: () => false,
+    isLoading: false,
+  });
+
+  await renderScreen();
+
+  expect(screen.getByText("Artist not found")).toBeTruthy();
+  expect(screen.queryByText("Add to Library")).toBeNull();
 });
