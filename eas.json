@@ -25,6 +25,12 @@
     },
     "test": {
       "extends": "production"
+    },
+    "github-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {

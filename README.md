@@ -44,6 +44,15 @@ Android requires closed testing before the app can be approved for open testing 
 
 > Note: you must join the group before the Play Store / web links will work.
 
+### Android (APK and Obtainium)
+
+Every stable [release](https://github.com/dylfrancis/aurral-pocket/releases/latest) has an APK attached, so you can install the app without Google Play.
+
+- **Obtainium:** add `https://github.com/dylfrancis/aurral-pocket` as a new app in [Obtainium](https://github.com/ImranR98/Obtainium), and it installs each release as it comes out.
+- **By hand:** download `aurral-pocket-<version>.apk` from the latest release and open it on your phone.
+
+> Note: the APK and the Google Play build are signed with different keys, so one can't update the other. To switch, uninstall the app first, which signs you out and removes offline saves.
+
 ## Compatibility
 
 Each release is built and tested against one Aurral version, pinned in [`.aurral-version`](./.aurral-version) (currently **2.13.0**). Settings → About shows both that version and the one your server runs. Older servers are not supported.
@@ -223,7 +232,7 @@ Routing is file-based via [Expo Router](https://docs.expo.dev/router/introductio
 
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (enforced by `commitlint`).
 - `husky` + `lint-staged` format and lint staged files on commit.
-- Releases are automated via [release-please](https://github.com/googleapis/release-please): `main` cuts stable releases and `test` cuts `-test` prereleases. See `CHANGELOG.md`.
+- Releases are automated via [release-please](https://github.com/googleapis/release-please): `main` cuts stable releases and `test` cuts `-test` prereleases. See `CHANGELOG.md`. EAS builds each release for TestFlight and Google Play, and the `Android APK` workflow attaches an APK to each stable release.
 
 ## Credits
 
