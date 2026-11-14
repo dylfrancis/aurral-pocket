@@ -16,16 +16,17 @@ import {
   type SortOption,
 } from "@/components/library/AlbumSortPicker";
 import { EmptyState } from "@/components/library/EmptyState";
-import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
-import { useGridColumns } from "@/hooks/use-grid-columns";
-import { useViewMode } from "@/hooks/use-view-mode";
+import {
+  GRID_EDGE_PADDING,
+  GridCell,
+  gridListStyles,
+} from "@/components/ui/GridCell";
+import { useGridListView } from "@/hooks/use-grid-list-view";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { headerSearchBar } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
 
-const EDGE_PADDING = 12;
-const CARD_GAP = 12;
 const DRAW_DISTANCE = 800;
 
 type ReleaseGridProps<T, SortKey extends string> = {
@@ -85,10 +86,9 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   showSection,
 }: ReleaseGridProps<T, SortKey>) {
   const colors = Colors[useColorScheme()];
-  const [storedViewMode, setViewMode] = useViewMode(viewModeKey, "grid");
+  const view = useGridListView(viewModeKey, "grid");
   const hasGrid = !!renderItem;
-  const viewMode = hasGrid ? storedViewMode : "list";
-  const gridColumns = useGridColumns(EDGE_PADDING * 2);
+  const isGrid = hasGrid && view.isGrid;
 
   // Stack.SearchBar and Stack.Toolbar rebuild the native header when a prop's
   // identity changes, and a rebuild can drop the Android search icon. Stable
@@ -127,7 +127,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
             sortActions
           )}
           {showSection}
-          {hasGrid && viewModeMenuSection(viewMode, setViewMode)}
+          {hasGrid && view.viewMenuSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
     );
@@ -137,15 +137,14 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
     onSortChange,
     showSection,
     hasGrid,
-    viewMode,
-    setViewMode,
+    view.viewMenuSection,
   ]);
 
   if (isLoading) {
     return (
       <View
         style={[
-          styles.listContent,
+          gridListStyles.grid,
           {
             flex: 1,
             justifyContent: "center",
@@ -181,17 +180,17 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
       />
       {toolbar}
       <FlashList
-        key={`${sortMode}-${viewMode}`}
+        key={`${sortMode}-${isGrid}`}
         data={items}
         renderItem={({ item }) =>
-          renderItem && viewMode === "grid" ? (
-            <View style={styles.gridItem}>{renderItem(item)}</View>
+          renderItem && isGrid ? (
+            <GridCell>{renderItem(item)}</GridCell>
           ) : (
             renderListItem(item)
           )
         }
         keyExtractor={keyExtractor}
-        numColumns={viewMode === "grid" ? gridColumns : 1}
+        numColumns={isGrid ? view.numColumns : 1}
         ListEmptyComponent={emptyComponent}
         onEndReached={onEndReached}
         // Two screens, not half a screen, so a fast scroll rarely outruns
@@ -211,7 +210,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         contentContainerStyle={{
-          ...(viewMode === "grid" ? styles.listContent : styles.rowsContent),
+          ...(isGrid ? gridListStyles.grid : gridListStyles.rows),
           backgroundColor: colors.background,
         }}
       />
@@ -222,19 +221,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
 }
 
 const styles = StyleSheet.create({
-  listContent: {
-    paddingHorizontal: EDGE_PADDING,
-    paddingTop: EDGE_PADDING,
-  },
-  rowsContent: {
-    paddingTop: EDGE_PADDING,
-  },
   footer: {
-    paddingVertical: EDGE_PADDING * 2,
-  },
-  gridItem: {
-    flex: 1,
-    paddingHorizontal: CARD_GAP / 2,
-    paddingBottom: CARD_GAP,
+    paddingVertical: GRID_EDGE_PADDING * 2,
   },
 });

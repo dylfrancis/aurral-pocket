@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import {
   Stack,
@@ -20,8 +26,7 @@ import {
 import { useRecommendations } from "@/hooks/discover/use-recommendations";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
-import { useGridColumns } from "@/hooks/use-grid-columns";
-import { useViewMode } from "@/hooks/use-view-mode";
+import { useGridListView } from "@/hooks/use-grid-list-view";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
 import { DiscoverReleaseCard } from "@/components/discover/DiscoverReleaseCard";
 import { RECOMMENDED_SORT_OPTIONS } from "@/components/discover/recommended-sort";
@@ -30,7 +35,6 @@ import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton
 import { Chip } from "@/components/ui/Chip";
 import { PillRow } from "@/components/ui/PillRow";
 import { MediaRow } from "@/components/ui/MediaRow";
-import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
 import { formatDate } from "@/lib/date-time";
 import { formatReleaseStatus, recentlyAddedMbid } from "@/lib/discover/format";
 import {
@@ -41,11 +45,6 @@ import {
   recommendedRows,
   type RecommendedSort,
 } from "@/lib/discover/recommended";
-import type {
-  DiscoveryArtist,
-  RecentlyAddedArtist,
-  RecentReleaseAlbum,
-} from "@/lib/types/search";
 
 type Kind = "recommended" | "trending" | "recently-added" | "recent-releases";
 
@@ -105,12 +104,11 @@ export default function DiscoverListScreen() {
 
   const kind: Kind | null = isValidKind(kindParam) ? kindParam : null;
 
-  const [viewMode, setViewMode] = useViewMode(
+  const { isGrid, numColumns, viewMenuSection } = useGridListView(
     `discover-${kind ?? "unknown"}`,
     "grid",
+    EDGE_PADDING,
   );
-  const gridColumns = useGridColumns(EDGE_PADDING * 2);
-  const isGrid = viewMode === "grid";
 
   const discovery = useDiscovery();
   const recentlyAdded = useRecentlyAdded();
@@ -218,7 +216,7 @@ export default function DiscoverListScreen() {
             ))}
           </Stack.Toolbar.Menu>
         ) : null}
-        {viewModeMenuSection(viewMode, setViewMode)}
+        {viewMenuSection}
       </Stack.Toolbar.Menu>
     </Stack.Toolbar>
   );
@@ -243,30 +241,21 @@ export default function DiscoverListScreen() {
   }
 
   if (kind === "recent-releases") {
-    const albums = recentReleases.data ?? [];
     return (
       <>
         {viewToolbar}
-        <FlatList
-          key={`${viewMode}-${gridColumns}`}
-          data={isGrid ? padForGrid(albums, gridColumns) : albums}
-          keyExtractor={(item, index) =>
-            item === SPACER
-              ? `spacer-${index}`
-              : item.id ||
-                item.mbid ||
-                item.foreignAlbumId ||
-                `${item.albumName}-${index}`
+        <KindList
+          items={recentReleases.data ?? []}
+          isGrid={isGrid}
+          columns={numColumns}
+          backgroundColor={colors.background}
+          keyOf={(item, index) =>
+            item.id ||
+            item.mbid ||
+            item.foreignAlbumId ||
+            `${item.albumName}-${index}`
           }
-          numColumns={isGrid ? gridColumns : 1}
-          columnWrapperStyle={isGrid ? styles.row : undefined}
-          contentContainerStyle={[
-            isGrid ? styles.content : styles.rowsContent,
-            { backgroundColor: colors.background },
-          ]}
-          contentInsetAdjustmentBehavior="automatic"
-          renderItem={({ item }: { item: WithSpacer<RecentReleaseAlbum> }) => {
-            if (item === SPACER) return <SpacerCell />;
+          renderCell={(item) => {
             const onPress = () => {
               const mbid =
                 item.artistMbid || item.foreignArtistId || item.artistId || "";
@@ -290,34 +279,22 @@ export default function DiscoverListScreen() {
             }
             return <DiscoverReleaseCard album={item} fill onPress={onPress} />;
           }}
-          ListEmptyComponent={
-            <EmptyState icon="disc-outline" message="Nothing here yet" />
-          }
         />
       </>
     );
   }
 
   if (kind === "recently-added") {
-    const artists = recentlyAdded.data ?? [];
     return (
       <>
         {viewToolbar}
-        <FlatList
-          key={`${viewMode}-${gridColumns}`}
-          data={isGrid ? padForGrid(artists, gridColumns) : artists}
-          keyExtractor={(item, index) =>
-            item === SPACER ? `spacer-${index}` : item.id
-          }
-          numColumns={isGrid ? gridColumns : 1}
-          columnWrapperStyle={isGrid ? styles.row : undefined}
-          contentContainerStyle={[
-            isGrid ? styles.content : styles.rowsContent,
-            { backgroundColor: colors.background },
-          ]}
-          contentInsetAdjustmentBehavior="automatic"
-          renderItem={({ item }: { item: WithSpacer<RecentlyAddedArtist> }) => {
-            if (item === SPACER) return <SpacerCell />;
+        <KindList
+          items={recentlyAdded.data ?? []}
+          isGrid={isGrid}
+          columns={numColumns}
+          backgroundColor={colors.background}
+          keyOf={(item) => item.id}
+          renderCell={(item) => {
             const mbid = recentlyAddedMbid(item);
             if (!isGrid) {
               return (
@@ -346,9 +323,6 @@ export default function DiscoverListScreen() {
               />
             );
           }}
-          ListEmptyComponent={
-            <EmptyState icon="disc-outline" message="Nothing here yet" />
-          }
         />
       </>
     );
@@ -377,22 +351,14 @@ export default function DiscoverListScreen() {
   return (
     <>
       {viewToolbar}
-      <FlatList
-        key={`${viewMode}-${gridColumns}`}
-        data={isGrid ? padForGrid(artists, gridColumns) : artists}
-        keyExtractor={(item, index) =>
-          item === SPACER ? `spacer-${index}` : item.id
-        }
-        numColumns={isGrid ? gridColumns : 1}
-        columnWrapperStyle={isGrid ? styles.row : undefined}
-        contentContainerStyle={[
-          isGrid ? styles.content : styles.rowsContent,
-          { backgroundColor: colors.background },
-        ]}
-        contentInsetAdjustmentBehavior="automatic"
-        ListHeaderComponent={filterPills}
-        renderItem={({ item }: { item: WithSpacer<DiscoveryArtist> }) => {
-          if (item === SPACER) return <SpacerCell />;
+      <KindList
+        items={artists}
+        isGrid={isGrid}
+        columns={numColumns}
+        backgroundColor={colors.background}
+        header={filterPills}
+        keyOf={(item) => item.id}
+        renderCell={(item) => {
           const subtitle =
             kind === "recommended"
               ? recommendationReason(item, recommendedContext.seeds)
@@ -426,11 +392,53 @@ export default function DiscoverListScreen() {
             />
           );
         }}
-        ListEmptyComponent={
-          <EmptyState icon="disc-outline" message="Nothing here yet" />
-        }
       />
     </>
+  );
+}
+
+type KindListProps<T> = {
+  items: T[];
+  isGrid: boolean;
+  columns: number;
+  backgroundColor: string;
+  keyOf: (item: T, index: number) => string;
+  renderCell: (item: T) => ReactElement;
+  header?: ReactElement;
+};
+
+/** One kind's rows or grid; the grid pads its last row with spacers. */
+function KindList<T>({
+  items,
+  isGrid,
+  columns,
+  backgroundColor,
+  keyOf,
+  renderCell,
+  header,
+}: KindListProps<T>) {
+  return (
+    <FlatList<WithSpacer<T>>
+      key={`${isGrid}-${columns}`}
+      data={isGrid ? padForGrid(items, columns) : items}
+      keyExtractor={(item, index) =>
+        item === SPACER ? `spacer-${index}` : keyOf(item, index)
+      }
+      numColumns={isGrid ? columns : 1}
+      columnWrapperStyle={isGrid ? styles.row : undefined}
+      contentContainerStyle={[
+        isGrid ? styles.content : styles.rowsContent,
+        { backgroundColor },
+      ]}
+      contentInsetAdjustmentBehavior="automatic"
+      ListHeaderComponent={header}
+      renderItem={({ item }) =>
+        item === SPACER ? <SpacerCell /> : renderCell(item)
+      }
+      ListEmptyComponent={
+        <EmptyState icon="disc-outline" message="Nothing here yet" />
+      }
+    />
   );
 }
 

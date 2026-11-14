@@ -22,13 +22,12 @@ import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { Text } from "@/components/ui/Text";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
-import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
+import { GridCell, gridListStyles } from "@/components/ui/GridCell";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
-import { useGridColumns } from "@/hooks/use-grid-columns";
-import { useViewMode } from "@/hooks/use-view-mode";
+import { useGridListView } from "@/hooks/use-grid-list-view";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { releaseRouteParams } from "@/lib/library-read";
 import { Colors, Fonts } from "@/constants/theme";
@@ -60,9 +59,6 @@ const SCOPE_OPTIONS: ScopeOption<ResultScope>[] = [
   },
 ];
 
-const EDGE_PADDING = 12;
-const CARD_GAP = 12;
-
 const TAG_SCOPE_OPTIONS: ScopeOption<TagSearchScope>[] = [
   { key: "all", label: "All Artists", iosIcon: "globe", androidIcon: Public },
   {
@@ -89,8 +85,10 @@ export default function SearchResultsScreen() {
   const [resultScope, setResultScope] = useState<ResultScope>(
     scopeParam === "album" ? "album" : "artist",
   );
-  const [viewMode, setViewMode] = useViewMode("search-results", "list");
-  const gridColumns = useGridColumns(EDGE_PADDING * 2);
+  const { isGrid, numColumns, viewMenuSection } = useGridListView(
+    "search-results",
+    "list",
+  );
 
   const {
     data: artistData,
@@ -217,7 +215,7 @@ export default function SearchResultsScreen() {
 
   const renderArtistGridItem = useCallback(
     ({ item }: { item: SearchArtist | TagArtist }) => (
-      <View style={styles.gridItem}>
+      <GridCell>
         <HorizontalArtistCard
           mbid={item.id}
           name={item.name}
@@ -225,16 +223,16 @@ export default function SearchResultsScreen() {
           fill
           onPress={() => handleArtistPress(item)}
         />
-      </View>
+      </GridCell>
     ),
     [isInLibrary, handleArtistPress],
   );
 
   const renderAlbumGridItem = useCallback(
     ({ item }: { item: SearchAlbum }) => (
-      <View style={styles.gridItem}>
+      <GridCell>
         <SearchAlbumCard album={item} onPress={() => handleAlbumPress(item)} />
-      </View>
+      </GridCell>
     ),
     [handleAlbumPress],
   );
@@ -300,23 +298,19 @@ export default function SearchResultsScreen() {
               </Stack.Toolbar.MenuAction>
             );
           })}
-          {viewModeMenuSection(viewMode, setViewMode)}
+          {viewMenuSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
 
       {isTagSearch ? (
         <FlashList
-          key={`tag-${viewMode}`}
+          key={`tag-${isGrid}`}
           data={showResults ? (tagArtists as TagArtist[]) : []}
-          renderItem={
-            viewMode === "grid" ? renderArtistGridItem : renderTagArtistItem
-          }
+          renderItem={isGrid ? renderArtistGridItem : renderTagArtistItem}
           keyExtractor={artistKeyExtractor}
-          numColumns={viewMode === "grid" ? gridColumns : 1}
+          numColumns={numColumns}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={
-            viewMode === "grid" ? styles.gridContent : undefined
-          }
+          contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
           ListHeaderComponent={tagListHeader}
           ListEmptyComponent={emptyComponent}
           refreshControl={
@@ -325,17 +319,13 @@ export default function SearchResultsScreen() {
         />
       ) : resultScope === "album" ? (
         <FlashList
-          key={`album-${viewMode}`}
+          key={`album-${isGrid}`}
           data={showResults ? (albums as SearchAlbum[]) : []}
-          renderItem={
-            viewMode === "grid" ? renderAlbumGridItem : renderAlbumItem
-          }
+          renderItem={isGrid ? renderAlbumGridItem : renderAlbumItem}
           keyExtractor={albumKeyExtractor}
-          numColumns={viewMode === "grid" ? gridColumns : 1}
+          numColumns={numColumns}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={
-            viewMode === "grid" ? styles.gridContent : undefined
-          }
+          contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
           ListEmptyComponent={emptyComponent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -343,17 +333,13 @@ export default function SearchResultsScreen() {
         />
       ) : (
         <FlashList
-          key={`artist-${viewMode}`}
+          key={`artist-${isGrid}`}
           data={showResults ? (artists as SearchArtist[]) : []}
-          renderItem={
-            viewMode === "grid" ? renderArtistGridItem : renderArtistItem
-          }
+          renderItem={isGrid ? renderArtistGridItem : renderArtistItem}
           keyExtractor={artistKeyExtractor}
-          numColumns={viewMode === "grid" ? gridColumns : 1}
+          numColumns={numColumns}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={
-            viewMode === "grid" ? styles.gridContent : undefined
-          }
+          contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
           ListEmptyComponent={emptyComponent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -370,15 +356,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
     ...Fonts.medium,
-  },
-  gridContent: {
-    paddingHorizontal: EDGE_PADDING,
-    paddingTop: EDGE_PADDING,
-  },
-  gridItem: {
-    flex: 1,
-    paddingHorizontal: CARD_GAP / 2,
-    paddingBottom: CARD_GAP,
   },
 });
 

@@ -13,12 +13,15 @@ import { AlphabetIndex } from "@/components/library/AlphabetIndex";
 import { ArtistCard } from "@/components/library/ArtistCard";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
-import { viewModeMenuSection } from "@/components/ui/ViewModeMenuActions";
+import {
+  GRID_EDGE_PADDING,
+  GridCell,
+  gridListStyles,
+} from "@/components/ui/GridCell";
 import { type SortMode } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { useLibraryArtistsSuspense } from "@/hooks/library/use-library-artists";
-import { useGridColumns } from "@/hooks/use-grid-columns";
-import { useViewMode } from "@/hooks/use-view-mode";
+import { useGridListView } from "@/hooks/use-grid-list-view";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
@@ -34,9 +37,6 @@ const SORT_ICONS = {
   recent: Schedule,
   albums: LibraryMusic,
 } satisfies Record<SortMode, unknown>;
-
-const EDGE_PADDING = 12;
-const CARD_GAP = 12;
 
 const byName = (a: Artist, b: Artist) =>
   stripArticle(a.artistName).localeCompare(stripArticle(b.artistName));
@@ -61,8 +61,10 @@ export default function LibraryArtistsScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("alpha");
-  const [viewMode, setViewMode] = useViewMode("library-artists", "grid");
-  const gridColumns = useGridColumns(EDGE_PADDING * 2);
+  const { isGrid, numColumns, viewMenuSection } = useGridListView(
+    "library-artists",
+    "grid",
+  );
   const listRef = useRef<FlashListRef<Artist>>(null);
 
   const filtered = useMemo(() => {
@@ -137,7 +139,10 @@ export default function LibraryArtistsScreen() {
             list.getWindowSize().height,
         );
         list.scrollToOffset({
-          offset: Math.min(layout.y + EDGE_PADDING - headerHeight, maxOffset),
+          offset: Math.min(
+            layout.y + GRID_EDGE_PADDING - headerHeight,
+            maxOffset,
+          ),
           animated: false,
         });
       });
@@ -166,7 +171,7 @@ export default function LibraryArtistsScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: Artist }) => {
-      if (viewMode === "list") {
+      if (!isGrid) {
         const { albumCount } = item.statistics;
         return (
           <MediaRow
@@ -180,12 +185,12 @@ export default function LibraryArtistsScreen() {
         );
       }
       return (
-        <View style={styles.gridItem}>
+        <GridCell>
           <ArtistCard artist={item} onPress={() => openArtist(item)} />
-        </View>
+        </GridCell>
       );
     },
-    [openArtist, viewMode],
+    [openArtist, isGrid],
   );
 
   return (
@@ -216,17 +221,17 @@ export default function LibraryArtistsScreen() {
               {option.label}
             </Stack.Toolbar.MenuAction>
           ))}
-          {viewModeMenuSection(viewMode, setViewMode)}
+          {viewMenuSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <View style={styles.listWrapper}>
         <FlashList
-          key={`${sortMode}-${viewMode}`}
+          key={`${sortMode}-${isGrid}`}
           ref={listRef}
           data={sorted}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          numColumns={viewMode === "grid" ? gridColumns : 1}
+          numColumns={numColumns}
           // The native scrollTo command clamps negative offsets to the raw
           // contentInset (0), which blocks jumps into the adjusted header
           // inset; this prop disables that clamp.
@@ -236,8 +241,8 @@ export default function LibraryArtistsScreen() {
           contentContainerStyle={{
             // Rows carry their own horizontal padding; only the grid needs
             // it on the container. paddingTop stays in both modes because
-            // the letter-jump offset math adds EDGE_PADDING.
-            ...(viewMode === "grid" ? styles.listContent : styles.rowsContent),
+            // the letter-jump offset math adds GRID_EDGE_PADDING.
+            ...(isGrid ? gridListStyles.grid : gridListStyles.rows),
             backgroundColor: colors.background,
           }}
           refreshControl={
@@ -276,17 +281,5 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 const styles = StyleSheet.create({
   listWrapper: {
     flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: EDGE_PADDING,
-    paddingTop: EDGE_PADDING,
-  },
-  rowsContent: {
-    paddingTop: EDGE_PADDING,
-  },
-  gridItem: {
-    flex: 1,
-    paddingHorizontal: CARD_GAP / 2,
-    paddingBottom: CARD_GAP,
   },
 });
