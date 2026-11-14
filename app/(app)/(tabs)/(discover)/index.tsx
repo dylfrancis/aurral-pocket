@@ -406,6 +406,9 @@ export default function DiscoverScreen() {
       <ShazamSheet
         sheetRef={shazamSheetRef}
         onViewArtist={(mbid, name) => openArtist({ mbid, name })}
+        onViewRelease={(params) =>
+          router.push({ pathname: "/release/[mbid]", params })
+        }
         onSearchManually={(q) =>
           router.push({ pathname: "/results", params: { q, scope: "artist" } })
         }

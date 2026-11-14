@@ -15,6 +15,8 @@ import {
   getEditorialShelf,
   searchArtists,
   searchAlbums,
+  searchLibraryTracks,
+  resolveStreamingLink,
   addArtist,
   getSimilarArtists,
   getDiscovery,
@@ -61,12 +63,69 @@ describe("searchArtists", () => {
     expect(mockApi.get).toHaveBeenCalledWith("/search", {
       params: { q: "radiohead", scope: "artist", limit: 24 },
     });
-    expect(result).toEqual({ artists: [{ id: "mbid-1", name: "Radiohead" }] });
+    expect(result).toEqual({
+      artists: [{ id: "mbid-1", name: "Radiohead", disambiguation: null }],
+    });
+  });
+
+  it("keeps the disambiguation that tells same-named artists apart", async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        count: 2,
+        offset: 0,
+        items: [
+          { id: "nv-us", name: "Nirvana", disambiguation: "US grunge band" },
+          { id: "nv-uk", name: "Nirvana", disambiguation: "60s UK band" },
+        ],
+      },
+    });
+
+    const { artists } = await searchArtists("nirvana");
+
+    expect(artists.map((artist) => artist.disambiguation)).toEqual([
+      "US grunge band",
+      "60s UK band",
+    ]);
   });
 
   it("propagates errors", async () => {
     mockApi.get.mockRejectedValue(new Error("Network error"));
     await expect(searchArtists("test")).rejects.toThrow("Network error");
+  });
+});
+
+describe("searchLibraryTracks", () => {
+  it("asks GET /search/library for the query and returns its tracks", async () => {
+    const track = { id: "9", title: "Blinding Lights", streamPath: "/s" };
+    mockApi.get.mockResolvedValue({
+      data: {
+        query: "Blinding Lights",
+        artists: [],
+        albums: [],
+        tracks: [track],
+      },
+    });
+
+    await expect(searchLibraryTracks("Blinding Lights")).resolves.toEqual([
+      track,
+    ]);
+    expect(mockApi.get).toHaveBeenCalledWith("/search/library", {
+      params: { q: "Blinding Lights", limit: 30 },
+    });
+  });
+});
+
+describe("resolveStreamingLink", () => {
+  it("passes the link to GET /search/link as url", async () => {
+    const link =
+      "https://music.apple.com/us/album/after-hours/1499378108?i=1499378615";
+    mockApi.get.mockResolvedValue({ data: { kind: "track" } });
+
+    await resolveStreamingLink(link);
+
+    expect(mockApi.get).toHaveBeenCalledWith("/search/link", {
+      params: { url: link },
+    });
   });
 });
 

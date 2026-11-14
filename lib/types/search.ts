@@ -12,6 +12,8 @@
 export type SearchArtist = {
   id: string;
   name: string;
+  /** MusicBrainz's note that tells same-named artists apart, such as "US grunge band". */
+  disambiguation?: string | null;
 };
 
 export type SearchArtistsResponse = {
@@ -23,6 +25,49 @@ export type SearchArtistsWire = {
   count: number;
   offset: number;
   items: SearchArtist[];
+};
+
+/**
+ * A track from `GET /search/library`. Only tracks Aurral can read a file for
+ * come back, and `streamPath` plays that file.
+ */
+export type LibrarySearchTrack = {
+  /** The canonical track id, the same id an album's track list carries. */
+  id: string;
+  title: string;
+  /** The album's artist, which may differ from the credit on the song. */
+  artistName: string;
+  albumTitle: string | null;
+  /** Release-group MBID. */
+  albumMbid: string | null;
+  albumCanonicalId: string | null;
+  /** Recording MBID. */
+  trackMbid: string | null;
+  artistMbid: string | null;
+  releaseYear: string | null;
+  durationMs: number | null;
+  streamPath: string | null;
+};
+
+/** Body of `GET /search/library`, as far as pocket reads it. */
+export type LibrarySearchResponse = {
+  query: string;
+  tracks: LibrarySearchTrack[];
+};
+
+/**
+ * Body of `GET /search/link`: what a streaming-service link names. Each MBID
+ * is null when Aurral could not match the name to MusicBrainz, which happens
+ * for most songs credited to more than one artist.
+ */
+export type StreamingLink = {
+  kind: "track" | "album" | "artist" | null;
+  artist: { name: string | null; mbid: string | null };
+  /** Release-group MBID. */
+  album: { title: string; mbid: string | null } | null;
+  /** Recording MBID. */
+  track: { title: string | null; mbid: string | null } | null;
+  source: string;
 };
 
 export type AlbumStatus =

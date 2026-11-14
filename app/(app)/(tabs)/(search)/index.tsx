@@ -347,6 +347,9 @@ export default function SearchScreen() {
       <ShazamSheet
         sheetRef={shazamSheetRef}
         onViewArtist={handleShazamArtist}
+        onViewRelease={(params) =>
+          router.push({ pathname: "/release/[mbid]", params })
+        }
         onSearchManually={(q) => pushResults(q, "artist")}
       />
     </>
