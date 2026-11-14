@@ -31,10 +31,13 @@ function start({
   record,
   files = {},
   offline = false,
+  metered = false,
 }: {
   record?: unknown;
   files?: Record<string, number>;
   offline?: boolean;
+  /** On cellular data. */
+  metered?: boolean;
 } = {}) {
   jest.resetModules();
 
@@ -59,6 +62,7 @@ function start({
   network.getNetworkStateAsync.mockResolvedValue({
     isConnected: !offline,
     isInternetReachable: !offline,
+    isMetered: metered,
   });
 
   lib = require("@/lib/offline/saved-library");
@@ -341,6 +345,30 @@ describe("with no connection", () => {
     await settle();
 
     expect(fs.downloads).toHaveLength(1);
+  });
+});
+
+describe("with Wi-Fi Only on", () => {
+  it("waits out cellular, and stops a save when the phone moves onto it", async () => {
+    start({ metered: true });
+    require("@/lib/player/playback-settings").setPlaybackSettings({
+      wifiOnly: true,
+    });
+    lib.setSavedLibraryUser(1);
+    lib.saveAlbum({ ref: "12", route, tracks: [track("71")] });
+    await settle();
+    expect(fs.downloads).toHaveLength(0);
+
+    const [[onChange]] = network.addNetworkStateListener.mock.calls;
+    onChange({ isConnected: true, isMetered: false });
+    await settle();
+    expect(fs.downloads).toHaveLength(1);
+
+    onChange({ isConnected: true, isMetered: true });
+    await settle();
+    expect(fs.downloads[0].cancelled).toBe(true);
+    expect(fs.downloads).toHaveLength(1);
+    expect(lib.savedFilePath("71")).toBeNull();
   });
 });
 

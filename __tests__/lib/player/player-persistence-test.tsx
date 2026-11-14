@@ -28,6 +28,8 @@ jest.mock("@/lib/offline/network", () => ({
   isOffline: () => mockPhone.offline,
   networkKnown: () => Promise.resolve(),
   onNetworkChange: () => () => {},
+  isMetered: () => false,
+  onMeteredChange: () => () => {},
 }));
 
 const mockQueue = {

@@ -4,6 +4,7 @@ import AccountCircle from "@expo/material-symbols/account_circle.xml";
 import Contrast from "@expo/material-symbols/contrast.xml";
 import Dns from "@expo/material-symbols/dns.xml";
 import Explore from "@expo/material-symbols/explore.xml";
+import HardDrive from "@expo/material-symbols/hard_drive.xml";
 import Headphones from "@expo/material-symbols/headphones.xml";
 import Info from "@expo/material-symbols/info.xml";
 import Logout from "@expo/material-symbols/logout.xml";
@@ -20,6 +21,7 @@ import { APPEARANCE_LABELS } from "@/components/settings/appearance";
 const ICONS = {
   account: Icon.select({ ios: "person.crop.circle", android: AccountCircle }),
   listening: Icon.select({ ios: "headphones", android: Headphones }),
+  playback: Icon.select({ ios: "internaldrive", android: HardDrive }),
   appearance: Icon.select({ ios: "circle.lefthalf.filled", android: Contrast }),
   discover: Icon.select({ ios: "sparkles", android: Explore }),
   server: Icon.select({ ios: "server.rack", android: Dns }),
@@ -57,6 +59,12 @@ export function SettingsScreen() {
             label: "Listening",
             opensPage: true,
             onPress: () => router.push("/settings/listening"),
+          })}
+          {row({
+            icon: ICONS.playback,
+            label: "Playback and Storage",
+            opensPage: true,
+            onPress: () => router.push("/settings/playback"),
           })}
           {row({
             icon: ICONS.appearance,

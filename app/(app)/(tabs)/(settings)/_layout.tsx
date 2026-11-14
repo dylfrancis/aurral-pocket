@@ -45,6 +45,10 @@ export default function SettingsLayout() {
           }}
         />
         <Stack.Screen
+          name="settings/playback"
+          options={{ title: "Playback and Storage" }}
+        />
+        <Stack.Screen
           name="settings/appearance"
           options={{ title: "Appearance" }}
         />

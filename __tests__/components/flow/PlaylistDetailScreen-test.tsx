@@ -7,6 +7,8 @@ jest.mock("@/lib/offline/network", () => ({
   useIsOffline: () => mockOffline,
   onNetworkChange: () => () => {},
   networkKnown: () => Promise.resolve(),
+  isMetered: () => false,
+  onMeteredChange: () => () => {},
 }));
 
 let mockUser: { role: string; permissions: { accessFlow: boolean } };
