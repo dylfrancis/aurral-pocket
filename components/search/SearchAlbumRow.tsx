@@ -7,6 +7,7 @@ import { AlbumSearchStatusBadge } from "./AlbumSearchStatusBadge";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { SearchAlbum } from "@/lib/types/search";
+import { releaseYear } from "@/lib/date-time";
 
 type SearchAlbumRowProps = {
   album: SearchAlbum;
@@ -17,10 +18,8 @@ const THUMB_SIZE = 56;
 
 function formatMeta(album: SearchAlbum) {
   const parts: string[] = [];
-  if (album.releaseDate) {
-    const year = new Date(album.releaseDate).getFullYear();
-    if (Number.isFinite(year)) parts.push(String(year));
-  }
+  const year = releaseYear(album.releaseDate);
+  if (year) parts.push(String(year));
   if (album.primaryType) parts.push(album.primaryType);
   parts.push(...album.secondaryTypes);
   return parts.join(" · ");

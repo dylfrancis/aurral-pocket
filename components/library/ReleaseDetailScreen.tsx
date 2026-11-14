@@ -47,6 +47,7 @@ import { libraryKeys } from "@/lib/query-keys";
 import { Colors, Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import type { AlbumStatus } from "@/lib/types/search";
+import { releaseYear } from "@/lib/date-time";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
@@ -306,9 +307,7 @@ export function ReleaseDetailScreen() {
     trackActionsRef.current?.present();
   }, []);
 
-  const year = params.releaseDate
-    ? new Date(params.releaseDate).getFullYear()
-    : null;
+  const year = releaseYear(params.releaseDate);
   const secondaryTypes = (params.secondaryTypes || "")
     .split(",")
     .filter(Boolean);

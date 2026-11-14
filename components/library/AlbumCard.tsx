@@ -8,6 +8,7 @@ import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { formatReleaseWait } from "@/lib/album-status";
 import { Colors, Fonts } from "@/constants/theme";
 import type { Album, DownloadStatusValue } from "@/lib/types/library";
+import { releaseYear } from "@/lib/date-time";
 
 const CARD_WIDTH = 150;
 
@@ -47,9 +48,7 @@ export const AlbumCard = React.memo(function AlbumCard({
   // repaint the release date even when the album props stay the same.
   useDateTimeFormat();
 
-  const year = album.releaseDate
-    ? new Date(album.releaseDate).getFullYear()
-    : null;
+  const year = releaseYear(album.releaseDate);
 
   const { trackCount, percentOfTracks } = album.statistics;
   const percent = Math.round(percentOfTracks);

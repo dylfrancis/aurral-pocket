@@ -5,6 +5,7 @@ import { CoverArtImage } from "./CoverArtImage";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors, Fonts } from "@/constants/theme";
 import type { ReleaseGroup } from "@/lib/types/library";
+import { releaseYear } from "@/lib/date-time";
 
 const CARD_WIDTH = 150;
 
@@ -21,9 +22,7 @@ export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
 }: ReleaseGroupCardProps) {
   const colors = Colors[useColorScheme()];
 
-  const year = releaseGroup["first-release-date"]
-    ? new Date(releaseGroup["first-release-date"]).getFullYear()
-    : null;
+  const year = releaseYear(releaseGroup["first-release-date"]);
 
   const type = releaseGroup["primary-type"] ?? "Album";
   const secondary = releaseGroup["secondary-types"];
