@@ -39,6 +39,7 @@ export function PlaybackStorageScreen() {
             label: "Prefetch Ahead",
             trailing: (
               <SettingsPicker
+                accessibilityLabel="Prefetch Ahead"
                 value={settings.prefetchAhead}
                 options={PREFETCH_CHOICES}
                 onChange={(prefetchAhead) =>
@@ -51,6 +52,7 @@ export function PlaybackStorageScreen() {
             label: "Queue Length",
             trailing: (
               <SettingsPicker
+                accessibilityLabel="Queue Length"
                 value={settings.queueLimit}
                 options={QUEUE_LIMIT_CHOICES}
                 onChange={(queueLimit) => setPlaybackSettings({ queueLimit })}
@@ -79,6 +81,7 @@ export function PlaybackStorageScreen() {
             label: "Cache Size",
             trailing: (
               <SettingsPicker
+                accessibilityLabel="Cache Size"
                 value={settings.cacheBytes}
                 options={CACHE_SIZE_CHOICES}
                 onChange={(cacheBytes) => setPlaybackSettings({ cacheBytes })}

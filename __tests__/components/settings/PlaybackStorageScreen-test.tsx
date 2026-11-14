@@ -4,16 +4,17 @@ jest.mock("@/hooks/use-color-scheme", () => ({
 
 jest.mock("@expo/ui", () => require("@/test-support/expo-ui"));
 
-// The menus and switch are SwiftUI or Compose. A menu stands in as a button
-// per choice, and the switch as one button.
+// The menus and switch are SwiftUI or Compose. A menu stands in as a group
+// named like the native one, holding a button per choice, and the switch as
+// one button.
 jest.mock("@/components/settings/SettingsPicker", () => {
   const React = require("react");
   const { Pressable, Text, View } = require("react-native");
   return {
-    SettingsPicker: ({ options, onChange }: any) =>
+    SettingsPicker: ({ accessibilityLabel, options, onChange }: any) =>
       React.createElement(
         View,
-        null,
+        { accessibilityLabel },
         options.map((option: any) =>
           React.createElement(
             Pressable,
@@ -50,7 +51,13 @@ jest.mock("@/lib/offline/saved-library", () => ({
   useSavedBytes: () => 2_400_000_000,
 }));
 
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react-native";
 import { PlaybackStorageScreen } from "@/components/settings/PlaybackStorageScreen";
 import {
   DEFAULT_PLAYBACK_SETTINGS,
@@ -66,10 +73,13 @@ describe("PlaybackStorageScreen", () => {
   it("stores each choice in its own setting", async () => {
     await render(<PlaybackStorageScreen />);
 
-    // No two menus share a choice's label.
-    await fireEvent.press(screen.getByLabelText("3 Tracks"));
-    await fireEvent.press(screen.getByLabelText("50 Tracks"));
-    await fireEvent.press(screen.getByLabelText("2 GB"));
+    const choose = (menu: string, choice: string) =>
+      fireEvent.press(
+        within(screen.getByLabelText(menu)).getByLabelText(choice),
+      );
+    await choose("Prefetch Ahead", "3 Tracks");
+    await choose("Queue Length", "50 Tracks");
+    await choose("Cache Size", "2 GB");
     await fireEvent.press(screen.getByRole("switch"));
 
     expect(getPlaybackSettings()).toEqual({

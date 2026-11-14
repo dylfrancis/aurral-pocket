@@ -7,7 +7,11 @@ import {
   Row,
   Text,
 } from "@expo/ui/jetpack-compose";
-import { clickable, defaultMinSize } from "@expo/ui/jetpack-compose/modifiers";
+import {
+  clickable,
+  defaultMinSize,
+  semantics,
+} from "@expo/ui/jetpack-compose/modifiers";
 import { useState } from "react";
 import type { SettingsPickerProps } from "@/components/settings/settings-controls";
 import { Colors } from "@/constants/theme";
@@ -22,6 +26,7 @@ const POPUP_PROPERTIES = { clippingEnabled: false };
  * full-width form field, which doesn't fit a row.
  */
 export function SettingsPicker({
+  accessibilityLabel,
   value,
   options,
   onChange,
@@ -42,6 +47,7 @@ export function SettingsPicker({
           modifiers={[
             defaultMinSize({ minWidth: 48, minHeight: 48 }),
             clickable(() => setExpanded(true)),
+            semantics({ contentDescription: accessibilityLabel }),
           ]}
         >
           {/* Android's text doesn't follow the app's light or dark choice. */}

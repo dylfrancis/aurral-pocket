@@ -3,12 +3,14 @@ import type { SettingsPickerProps } from "@/components/settings/settings-control
 
 /** SwiftUI's menu picker, as iOS Settings draws a choice in a row. */
 export function SettingsPicker({
+  accessibilityLabel,
   value,
   options,
   onChange,
 }: SettingsPickerProps) {
   return (
     <Picker
+      accessibilityLabel={accessibilityLabel}
       selectedValue={value}
       onValueChange={(next) => {
         if (next !== value) onChange(Number(next));
