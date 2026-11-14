@@ -7,6 +7,11 @@ public final class ShazamModule: Module {
   private var session: SHSession?
   private var matchDelegate: MatchDelegate?
   private var isListening = false
+  /// The session's category before listening began. Left on `.record`, the
+  /// app can't play audio, and the player sets its category only at launch.
+  private var categoryBeforeListening:
+    (category: AVAudioSession.Category, mode: AVAudioSession.Mode,
+     options: AVAudioSession.CategoryOptions)?
 
   public func definition() -> ModuleDefinition {
     Name("Shazam")
@@ -51,6 +56,7 @@ public final class ShazamModule: Module {
         self.isListening = true
         promise.resolve(nil)
       } catch {
+        self.restoreAudioCategory()
         self.sendEvent(
           "onError",
           ["code": "unavailable", "message": error.localizedDescription]
@@ -62,6 +68,9 @@ public final class ShazamModule: Module {
 
   private func beginSession() throws {
     let audioSession = AVAudioSession.sharedInstance()
+    categoryBeforeListening = (
+      audioSession.category, audioSession.mode, audioSession.categoryOptions
+    )
     try audioSession.setCategory(.record, mode: .default)
     try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
@@ -121,6 +130,17 @@ public final class ShazamModule: Module {
     try? AVAudioSession.sharedInstance().setActive(
       false,
       options: .notifyOthersOnDeactivation
+    )
+    restoreAudioCategory()
+  }
+
+  private func restoreAudioCategory() {
+    guard let previous = categoryBeforeListening else { return }
+    categoryBeforeListening = nil
+    try? AVAudioSession.sharedInstance().setCategory(
+      previous.category,
+      mode: previous.mode,
+      options: previous.options
     )
   }
 
