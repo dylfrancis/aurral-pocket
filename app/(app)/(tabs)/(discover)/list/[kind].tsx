@@ -13,11 +13,9 @@ import {
   useRouter,
   type ErrorBoundaryProps,
 } from "expo-router";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
 import {
   useDiscovery,
   useRecentlyAdded,
@@ -35,6 +33,10 @@ import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton
 import { Chip } from "@/components/ui/Chip";
 import { PillRow } from "@/components/ui/PillRow";
 import { MediaRow } from "@/components/ui/MediaRow";
+import {
+  FILTER_MENU_ICON,
+  menuOptionSection,
+} from "@/components/ui/MenuOptions";
 import { formatDate } from "@/lib/date-time";
 import { formatReleaseStatus, recentlyAddedMbid } from "@/lib/discover/format";
 import {
@@ -199,23 +201,15 @@ export default function DiscoverListScreen() {
 
   const viewToolbar = (
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Menu
-        icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
-      >
-        {kind === "recommended" ? (
-          <Stack.Toolbar.Menu inline title="Sort by">
-            {RECOMMENDED_SORT_OPTIONS.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.key}
-                icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
-                isOn={sort === option.key}
-                onPress={() => setSort(option.key)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-        ) : null}
+      <Stack.Toolbar.Menu icon={FILTER_MENU_ICON}>
+        {kind === "recommended"
+          ? menuOptionSection(
+              "Sort by",
+              RECOMMENDED_SORT_OPTIONS,
+              sort,
+              setSort,
+            )
+          : null}
         {viewMenuSection}
       </Stack.Toolbar.Menu>
     </Stack.Toolbar>

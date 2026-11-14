@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
-import { showMenuSection } from "@/components/ui/ShowMenuSection";
+import { menuOptionSection } from "@/components/ui/MenuOptions";
 import { SavedMark, albumSavedId } from "@/components/offline/SavedMark";
 import { SEARCH_PLACEHOLDERS } from "@/constants/navigation";
 import { useReleaseGrid } from "@/hooks/library/use-release-grid";
@@ -38,7 +38,8 @@ export function AlbumsGridScreen() {
   const items = showSaved ? grid.items.filter(isSaved) : grid.items;
   const showSection = useMemo(
     () =>
-      showMenuSection<Show>(
+      menuOptionSection<Show>(
+        "Show",
         [
           { key: "all", label: "All Albums" },
           { key: "saved", label: "Saved Offline" },

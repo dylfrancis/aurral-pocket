@@ -4,7 +4,6 @@ import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import Block from "@expo/material-symbols/block.xml";
 import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
 import Schedule from "@expo/material-symbols/schedule.xml";
@@ -12,6 +11,11 @@ import LibraryMusic from "@expo/material-symbols/library_music.xml";
 import { AlphabetIndex } from "@/components/library/AlphabetIndex";
 import { ArtistCard } from "@/components/library/ArtistCard";
 import { MediaRow } from "@/components/ui/MediaRow";
+import {
+  FILTER_MENU_ICON,
+  menuOptionActions,
+  type MenuOption,
+} from "@/components/ui/MenuOptions";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import {
   GRID_EDGE_PADDING,
@@ -32,12 +36,6 @@ import { stripArticle } from "@/lib/strings";
 import type { Artist } from "@/lib/types/library";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
-const SORT_ICONS = {
-  alpha: SortByAlpha,
-  recent: Schedule,
-  albums: LibraryMusic,
-} satisfies Record<SortMode, unknown>;
-
 const byName = (a: Artist, b: Artist) =>
   stripArticle(a.artistName).localeCompare(stripArticle(b.artistName));
 
@@ -48,10 +46,25 @@ function addedTime(artist: Artist): number | null {
   return Number.isNaN(time) ? null : time;
 }
 
-const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
-  { key: "alpha", label: "Alphabetical", icon: "textformat.abc" },
-  { key: "recent", label: "Recently Added", icon: "clock" },
-  { key: "albums", label: "Album Count", icon: "square.stack" },
+const SORT_OPTIONS: MenuOption<SortMode>[] = [
+  {
+    key: "alpha",
+    label: "Alphabetical",
+    iosIcon: "textformat.abc",
+    androidIcon: SortByAlpha,
+  },
+  {
+    key: "recent",
+    label: "Recently Added",
+    iosIcon: "clock",
+    androidIcon: Schedule,
+  },
+  {
+    key: "albums",
+    label: "Album Count",
+    iosIcon: "square.stack",
+    androidIcon: LibraryMusic,
+  },
 ];
 
 export default function LibraryArtistsScreen() {
@@ -207,20 +220,8 @@ export default function LibraryArtistsScreen() {
         >
           Blocklist
         </Stack.Toolbar.Button>
-        <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
-          title="Sort By"
-        >
-          {SORT_OPTIONS.map((option) => (
-            <Stack.Toolbar.MenuAction
-              key={option.key}
-              icon={IS_IOS ? (option.icon as any) : SORT_ICONS[option.key]}
-              isOn={sortMode === option.key}
-              onPress={() => setSortMode(option.key)}
-            >
-              {option.label}
-            </Stack.Toolbar.MenuAction>
-          ))}
+        <Stack.Toolbar.Menu icon={FILTER_MENU_ICON} title="Sort By">
+          {menuOptionActions(SORT_OPTIONS, sortMode, setSortMode)}
           {viewMenuSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>

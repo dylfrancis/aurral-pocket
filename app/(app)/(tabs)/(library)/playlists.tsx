@@ -2,15 +2,16 @@ import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import { EmptyState } from "@/components/library/EmptyState";
 import { FlowAccessGate } from "@/components/flow/FlowAccessGate";
 import { PlaylistCard } from "@/components/flow/PlaylistCard";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
-import { showMenuSection } from "@/components/ui/ShowMenuSection";
+import {
+  FILTER_MENU_ICON,
+  menuOptionSection,
+} from "@/components/ui/MenuOptions";
 import { useFlowStatusSuspense } from "@/hooks/flow";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { IS_IOS } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
 import { useSavedIds } from "@/lib/offline/saved-library";
 import type { SharedPlaylist } from "@/lib/types/flow";
@@ -41,11 +42,12 @@ function LibraryPlaylistsContent() {
     () => (
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
+          icon={FILTER_MENU_ICON}
           title="Filters"
           accessibilityLabel="Filter playlists"
         >
-          {showMenuSection<Show>(
+          {menuOptionSection<Show>(
+            "Show",
             [
               { key: "all", label: "All Playlists" },
               { key: "saved", label: "Saved Offline" },

@@ -2,7 +2,6 @@ import { useCallback, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ActivityRow } from "@/components/activity/ActivityRow";
 import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet";
@@ -20,7 +19,6 @@ import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { useNavigateToTab } from "@/hooks/use-navigate-to-tab";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
 import { isActiveAurralStatus } from "@/lib/album-status";
 import {
   activityArtistMbid,
@@ -38,6 +36,10 @@ import {
   type ActivityView,
 } from "@/lib/activity-views";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import {
+  FILTER_MENU_ICON,
+  menuOptionSection,
+} from "@/components/ui/MenuOptions";
 
 const LIST_PADDING_HORIZONTAL = 16;
 const LIST_PADDING_VERTICAL = 12;
@@ -180,34 +182,27 @@ export function ActivityList({ view }: ActivityListProps) {
     <>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
+          icon={FILTER_MENU_ICON}
           title="Filters"
           accessibilityLabel="Filter activity"
         >
-          <Stack.Toolbar.Menu inline title="View">
-            {ACTIVITY_VIEWS.map((entry) => (
-              <Stack.Toolbar.MenuAction
-                key={entry.id}
-                isOn={view === entry.id}
-                onPress={() => router.replace(`/${entry.id}`)}
-              >
-                {counts[entry.id]
-                  ? `${entry.label} (${counts[entry.id]})`
-                  : entry.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Show">
-            {ACTIVITY_TYPES.map((entry) => (
-              <Stack.Toolbar.MenuAction
-                key={entry.id}
-                isOn={typeFilter === entry.id}
-                onPress={() => setTypeFilter(entry.id)}
-              >
-                {entry.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
+          {menuOptionSection(
+            "View",
+            ACTIVITY_VIEWS.map((entry) => ({
+              key: entry.id,
+              label: counts[entry.id]
+                ? `${entry.label} (${counts[entry.id]})`
+                : entry.label,
+            })),
+            view,
+            (id) => router.replace(`/${id}`),
+          )}
+          {menuOptionSection(
+            "Show",
+            ACTIVITY_TYPES.map(({ id, label }) => ({ key: id, label })),
+            typeFilter,
+            setTypeFilter,
+          )}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <FlashList

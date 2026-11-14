@@ -13,7 +13,6 @@ import Public from "@expo/material-symbols/public.xml";
 import Star from "@expo/material-symbols/star.xml";
 import Group from "@expo/material-symbols/group.xml";
 import Album from "@expo/material-symbols/album.xml";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumCard } from "@/components/search/SearchAlbumCard";
@@ -23,6 +22,11 @@ import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { Text } from "@/components/ui/Text";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
 import { GridCell, gridListStyles } from "@/components/ui/GridCell";
+import {
+  FILTER_MENU_ICON,
+  menuOptionActions,
+  type MenuOption,
+} from "@/components/ui/MenuOptions";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
@@ -31,7 +35,6 @@ import { useGridListView } from "@/hooks/use-grid-list-view";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { releaseRouteParams } from "@/lib/library-read";
 import { Colors, Fonts } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
 import type {
   SearchAlbum,
   SearchArtist,
@@ -42,14 +45,7 @@ import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 type ResultScope = "artist" | "album";
 
-type ScopeOption<T> = {
-  key: T;
-  label: string;
-  iosIcon: string;
-  androidIcon: number;
-};
-
-const SCOPE_OPTIONS: ScopeOption<ResultScope>[] = [
+const SCOPE_OPTIONS: MenuOption<ResultScope>[] = [
   { key: "artist", label: "Artists", iosIcon: "person.2", androidIcon: Group },
   {
     key: "album",
@@ -59,7 +55,7 @@ const SCOPE_OPTIONS: ScopeOption<ResultScope>[] = [
   },
 ];
 
-const TAG_SCOPE_OPTIONS: ScopeOption<TagSearchScope>[] = [
+const TAG_SCOPE_OPTIONS: MenuOption<TagSearchScope>[] = [
   { key: "all", label: "All Artists", iosIcon: "globe", androidIcon: Public },
   {
     key: "recommended",
@@ -273,31 +269,10 @@ export default function SearchResultsScreen() {
   return (
     <>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
-          title="Scope"
-        >
-          {(isTagSearch ? TAG_SCOPE_OPTIONS : SCOPE_OPTIONS).map((option) => {
-            const active = isTagSearch
-              ? tagScope === option.key
-              : resultScope === option.key;
-            return (
-              <Stack.Toolbar.MenuAction
-                key={option.key}
-                icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
-                isOn={active}
-                onPress={() => {
-                  if (isTagSearch) {
-                    setTagScope(option.key as TagSearchScope);
-                  } else {
-                    setResultScope(option.key as ResultScope);
-                  }
-                }}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            );
-          })}
+        <Stack.Toolbar.Menu icon={FILTER_MENU_ICON} title="Scope">
+          {isTagSearch
+            ? menuOptionActions(TAG_SCOPE_OPTIONS, tagScope, setTagScope)
+            : menuOptionActions(SCOPE_OPTIONS, resultScope, setResultScope)}
           {viewMenuSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>

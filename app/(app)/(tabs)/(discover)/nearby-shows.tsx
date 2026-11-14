@@ -11,7 +11,6 @@ import { Stack, type ErrorBoundaryProps } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -32,10 +31,13 @@ import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
-import { IS_IOS } from "@/constants/platform";
 import { filterNearbyShows } from "@/lib/discover/nearby-shows";
 import type { ConcertEvent } from "@/lib/types/search";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import {
+  FILTER_MENU_ICON,
+  menuOptionSection,
+} from "@/components/ui/MenuOptions";
 
 const PAGE_LIMIT = 60;
 
@@ -266,43 +268,20 @@ export default function NearbyShowsScreen() {
         onCancelButtonPress={() => setSearchQuery("")}
       />
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
-          title="Filters"
-        >
-          <Stack.Toolbar.Menu inline title="Sort by">
-            {SORT_OPTIONS.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.value}
-                isOn={sort === option.value}
-                onPress={() => setSort(option.value)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Date range">
-            {DATE_RANGE_OPTIONS.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.value}
-                isOn={dateRange === option.value}
-                onPress={() => setDateRange(option.value)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Show">
-            {SOURCE_OPTIONS.map((option) => (
-              <Stack.Toolbar.MenuAction
-                key={option.value}
-                isOn={sourceFilter === option.value}
-                onPress={() => setSourceFilter(option.value)}
-              >
-                {option.label}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
+        <Stack.Toolbar.Menu icon={FILTER_MENU_ICON} title="Filters">
+          {menuOptionSection("Sort by", SORT_OPTIONS, sort, setSort)}
+          {menuOptionSection(
+            "Date range",
+            DATE_RANGE_OPTIONS,
+            dateRange,
+            setDateRange,
+          )}
+          {menuOptionSection(
+            "Show",
+            SOURCE_OPTIONS,
+            sourceFilter,
+            setSourceFilter,
+          )}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <FlatList

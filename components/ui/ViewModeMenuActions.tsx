@@ -1,15 +1,12 @@
-import { Stack } from "expo-router";
 import GridView from "@expo/material-symbols/grid_view.xml";
 import ViewList from "@expo/material-symbols/view_list.xml";
+import {
+  menuOptionSection,
+  type MenuOption,
+} from "@/components/ui/MenuOptions";
 import type { ViewMode } from "@/hooks/use-view-mode";
-import { IS_IOS } from "@/constants/platform";
 
-const VIEW_OPTIONS: {
-  key: ViewMode;
-  label: string;
-  iosIcon: string;
-  androidIcon: number;
-}[] = [
+const VIEW_OPTIONS: MenuOption<ViewMode>[] = [
   { key: "list", label: "List", iosIcon: "list.bullet", androidIcon: ViewList },
   {
     key: "grid",
@@ -19,24 +16,10 @@ const VIEW_OPTIONS: {
   },
 ];
 
-// A plain function (not a component) so the toolbar sees the menu
-// elements as direct children of the parent Menu.
+/** The filter menu's View section, for choosing rows or a grid. */
 export function viewModeMenuSection(
   mode: ViewMode,
   onChange: (mode: ViewMode) => void,
 ) {
-  return (
-    <Stack.Toolbar.Menu inline title="View">
-      {VIEW_OPTIONS.map((option) => (
-        <Stack.Toolbar.MenuAction
-          key={option.key}
-          icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
-          isOn={mode === option.key}
-          onPress={() => onChange(option.key)}
-        >
-          {option.label}
-        </Stack.Toolbar.MenuAction>
-      ))}
-    </Stack.Toolbar.Menu>
-  );
+  return menuOptionSection("View", VIEW_OPTIONS, mode, onChange);
 }

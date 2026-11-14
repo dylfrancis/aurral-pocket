@@ -10,7 +10,6 @@ import type { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import type { SearchBarTextEventData } from "react-native-screens";
 import { Stack } from "expo-router";
-import FilterList from "@expo/material-symbols/filter_list.xml";
 import {
   type AlbumSortMode,
   type SortOption,
@@ -21,10 +20,13 @@ import {
   GridCell,
   gridListStyles,
 } from "@/components/ui/GridCell";
+import {
+  FILTER_MENU_ICON,
+  menuOptionActions,
+} from "@/components/ui/MenuOptions";
 import { useGridListView } from "@/hooks/use-grid-list-view";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { headerSearchBar } from "@/constants/navigation";
-import { IS_IOS } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
 
 const DRAW_DISTANCE = 800;
@@ -56,7 +58,7 @@ type ReleaseGridProps<T, SortKey extends string> = {
   /** Shows a spinner under the last row while the next page loads. */
   isFetchingNextPage?: boolean;
   /**
-   * The filter menu's Show section, from showMenuSection. Memoize it: a new
+   * The filter menu's Show section, from menuOptionSection. Memoize it: a new
    * element rebuilds the native header.
    */
   showSection?: React.ReactElement;
@@ -103,20 +105,11 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
     [onSearchChange],
   );
   const toolbar = useMemo(() => {
-    const sortActions = sortOptions.map((option) => (
-      <Stack.Toolbar.MenuAction
-        key={option.key}
-        icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
-        isOn={sortMode === option.key}
-        onPress={() => onSortChange(option.key)}
-      >
-        {option.label}
-      </Stack.Toolbar.MenuAction>
-    ));
+    const sortActions = menuOptionActions(sortOptions, sortMode, onSortChange);
     return (
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
-          icon={IS_IOS ? "line.3.horizontal.decrease" : FilterList}
+          icon={FILTER_MENU_ICON}
           title={showSection ? "Filters" : "Sort By"}
         >
           {showSection ? (
