@@ -1,16 +1,9 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactElement,
-} from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import {
   Stack,
   useLocalSearchParams,
   useNavigation,
-  useRouter,
   type ErrorBoundaryProps,
 } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
@@ -47,6 +40,7 @@ import {
   recommendedRows,
   type RecommendedSort,
 } from "@/lib/discover/recommended";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 type Kind = "recommended" | "trending" | "recently-added" | "recent-releases";
 
@@ -98,7 +92,6 @@ export default function DiscoverListScreen() {
     filter: filterParam,
     value: valueParam,
   } = useLocalSearchParams<{ kind: string; filter?: string; value?: string }>();
-  const router = useRouter();
   const navigation = useNavigation();
   const colors = Colors[useColorScheme()];
   // Repaint the dates in this list when the server format changes.
@@ -169,16 +162,7 @@ export default function DiscoverListScreen() {
     });
   }, [navigation, kind]);
 
-  const pushArtist = useCallback(
-    (mbid: string, name?: string) => {
-      if (!mbid) return;
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: { mbid, name: name ?? "" },
-      });
-    },
-    [router],
-  );
+  const openArtist = useOpenArtist();
 
   const isLoading = useMemo(() => {
     switch (kind) {
@@ -253,7 +237,7 @@ export default function DiscoverListScreen() {
             const onPress = () => {
               const mbid =
                 item.artistMbid || item.foreignArtistId || item.artistId || "";
-              pushArtist(mbid, item.artistName);
+              openArtist({ mbid, name: item.artistName });
             };
             if (!isGrid) {
               return (
@@ -302,7 +286,7 @@ export default function DiscoverListScreen() {
                       <Chip label="In Library" variant="brand" />
                     ) : undefined
                   }
-                  onPress={() => pushArtist(mbid, item.artistName)}
+                  onPress={() => openArtist({ mbid, name: item.artistName })}
                 />
               );
             }
@@ -313,7 +297,7 @@ export default function DiscoverListScreen() {
                 subtitle={formatAdded(item.addedAt || item.added)}
                 isInLibrary={isInLibrary(mbid)}
                 fill
-                onPress={() => pushArtist(mbid, item.artistName)}
+                onPress={() => openArtist({ mbid, name: item.artistName })}
               />
             );
           }}
@@ -371,7 +355,7 @@ export default function DiscoverListScreen() {
                     <Chip label="In Library" variant="brand" />
                   ) : undefined
                 }
-                onPress={() => pushArtist(item.id, item.name)}
+                onPress={() => openArtist({ mbid: item.id, name: item.name })}
               />
             );
           }
@@ -382,7 +366,7 @@ export default function DiscoverListScreen() {
               subtitle={subtitle}
               isInLibrary={isInLibrary(item.id)}
               fill
-              onPress={() => pushArtist(item.id, item.name)}
+              onPress={() => openArtist({ mbid: item.id, name: item.name })}
             />
           );
         }}

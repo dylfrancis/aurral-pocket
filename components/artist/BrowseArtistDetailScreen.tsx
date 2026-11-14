@@ -8,6 +8,7 @@ import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { isValidMbid } from "@/lib/blocklist";
 import type { PrimaryReleaseType } from "@/lib/types/library";
 import type { SimilarArtist } from "@/lib/types/search";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 /**
  * The artist page in every tab, for artists in the library and out of it. It
@@ -36,6 +37,7 @@ function ArtistPage() {
     coverUrl?: string;
   }>();
   const router = useRouter();
+  const openArtist = useOpenArtist();
 
   const { isInLibrary } = useLibraryLookup([mbid]);
   const inLibrary = isInLibrary(mbid!);
@@ -80,13 +82,9 @@ function ArtistPage() {
   );
 
   const handleSimilarPress = useCallback(
-    (artist: SimilarArtist) => {
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: { mbid: artist.id, name: artist.name },
-      });
-    },
-    [router],
+    (artist: SimilarArtist) =>
+      openArtist({ mbid: artist.id, name: artist.name }),
+    [openArtist],
   );
 
   return (

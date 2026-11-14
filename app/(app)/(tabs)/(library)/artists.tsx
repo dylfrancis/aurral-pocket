@@ -35,6 +35,7 @@ import { artistRouteId } from "@/lib/library-read";
 import { stripArticle } from "@/lib/strings";
 import type { Artist } from "@/lib/types/library";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 const byName = (a: Artist, b: Artist) =>
   stripArticle(a.artistName).localeCompare(stripArticle(b.artistName));
@@ -168,18 +169,15 @@ export default function LibraryArtistsScreen() {
     "Couldn't refresh library",
   );
 
+  const openArtistPage = useOpenArtist();
   const openArtist = useCallback(
-    (artist: Artist) => {
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: {
-          mbid: artistRouteId(artist),
-          name: artist.artistName,
-          coverUrl: artist.coverUrl ?? "",
-        },
-      });
-    },
-    [router],
+    (artist: Artist) =>
+      openArtistPage({
+        mbid: artistRouteId(artist),
+        name: artist.artistName,
+        coverUrl: artist.coverUrl,
+      }),
+    [openArtistPage],
   );
 
   const renderItem = useCallback(

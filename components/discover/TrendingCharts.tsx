@@ -33,6 +33,7 @@ import { TrendingArtistRail } from "./TrendingArtistRail";
 import { TrendingGenreRail } from "./TrendingGenreRail";
 import { TrendingGenreShare } from "./TrendingGenreShare";
 import { TrendingSpotlightCard } from "./TrendingSpotlight";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 const LAST_LISTED_RANK = 10;
 
@@ -47,6 +48,7 @@ const albumRowId = (album: TrendingAlbum) => `trending-album-${album.key}`;
 export function TrendingCharts({ active = true }: { active?: boolean }) {
   const colors = Colors[useColorScheme()];
   const router = useRouter();
+  const openArtistPage = useOpenArtist();
   const { data, isPending, isFetching, refetch } = useTrendingCharts();
   useEffect(() => {
     if (!active) stopPreviewClip();
@@ -79,12 +81,9 @@ export function TrendingCharts({ active = true }: { active?: boolean }) {
   const openArtist = useCallback(
     (artist: TrendingArtist & { mbid: string }) => {
       stopPreviewClip();
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: { mbid: artist.mbid, name: artist.name },
-      });
+      openArtistPage({ mbid: artist.mbid, name: artist.name });
     },
-    [router],
+    [openArtistPage],
   );
 
   const openChartAlbum = useCallback(

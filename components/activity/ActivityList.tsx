@@ -40,6 +40,7 @@ import {
   FILTER_MENU_ICON,
   menuOptionSection,
 } from "@/components/ui/MenuOptions";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 const LIST_PADDING_HORIZONTAL = 16;
 const LIST_PADDING_VERTICAL = 12;
@@ -55,6 +56,7 @@ type ActivityListProps = {
  */
 export function ActivityList({ view }: ActivityListProps) {
   const router = useRouter();
+  const openArtist = useOpenArtist();
   const colors = Colors[useColorScheme()];
   const hasPermission = useHasPermission();
   const openPlaylist = useOpenPlaylist();
@@ -120,19 +122,15 @@ export function ActivityList({ view }: ActivityListProps) {
   const rowPressHandler = useCallback(
     (item: ActivityItem) => {
       const mbid = activityArtistMbid(item);
-      if (mbid) {
-        // An artist no longer in the library opens the Browse page, which
-        // takes its title from the route.
-        const name = item.artistName ?? "";
-        return () =>
-          router.push({ pathname: "/artist/[mbid]", params: { mbid, name } });
-      }
+      // An artist no longer in the library opens the Browse page, which
+      // takes its title from the route.
+      if (mbid) return () => openArtist({ mbid, name: item.artistName ?? "" });
       if (!canOpenPlaylists || isAlbumRequest(item)) return undefined;
       if (item.status === "blocked") return undefined;
       const playlistId = historyPlaylistId(item);
       return playlistId ? () => void openPlaylist(playlistId) : undefined;
     },
-    [router, canOpenPlaylists, openPlaylist],
+    [openArtist, canOpenPlaylists, openPlaylist],
   );
 
   const handleLongPress = useCallback((item: ActivityItem) => {

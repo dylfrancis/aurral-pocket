@@ -57,6 +57,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 export default function DiscoverScreen() {
   const colors = Colors[useColorScheme()];
@@ -128,37 +129,28 @@ export default function DiscoverScreen() {
   }, [queryClient, refetchDiscovery, refreshForYou, tab]);
   const { refreshing, onRefresh } = usePullToRefresh(refreshTab);
 
-  const pushArtist = useCallback(
-    (mbid: string, name?: string) => {
-      if (!mbid) return;
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: { mbid, name: name ?? "" },
-      });
-    },
-    [router],
-  );
+  const openArtist = useOpenArtist();
 
   const handleRecentlyAddedPress = useCallback(
     (artist: RecentlyAddedArtist) => {
       const mbid = artist.mbid || artist.foreignArtistId || artist.id;
-      pushArtist(mbid, artist.artistName);
+      openArtist({ mbid, name: artist.artistName });
     },
-    [pushArtist],
+    [openArtist],
   );
 
   const handleDiscoveryArtistPress = useCallback(
     (artist: DiscoveryArtist) => {
-      pushArtist(artist.id, artist.name);
+      openArtist({ mbid: artist.id, name: artist.name });
     },
-    [pushArtist],
+    [openArtist],
   );
 
   const handleGenreArtistPress = useCallback(
     (artist: DiscoveryArtist) => {
-      pushArtist(artist.id, artist.name);
+      openArtist({ mbid: artist.id, name: artist.name });
     },
-    [pushArtist],
+    [openArtist],
   );
 
   const handleTagPress = useCallback(
@@ -175,9 +167,9 @@ export default function DiscoverScreen() {
     (album: RecentReleaseAlbum) => {
       const mbid =
         album.artistMbid || album.foreignArtistId || album.artistId || "";
-      pushArtist(mbid, album.artistName);
+      openArtist({ mbid, name: album.artistName });
     },
-    [pushArtist],
+    [openArtist],
   );
 
   const handleShowPress = useCallback((show: ConcertEvent) => {
@@ -413,7 +405,7 @@ export default function DiscoverScreen() {
       </ScrollView>
       <ShazamSheet
         sheetRef={shazamSheetRef}
-        onViewArtist={(mbid, name) => pushArtist(mbid, name)}
+        onViewArtist={(mbid, name) => openArtist({ mbid, name })}
         onSearchManually={(q) =>
           router.push({ pathname: "/results", params: { q, scope: "artist" } })
         }

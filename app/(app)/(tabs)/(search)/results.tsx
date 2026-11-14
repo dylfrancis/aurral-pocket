@@ -42,6 +42,7 @@ import type {
   TagSearchScope,
 } from "@/lib/types/search";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 type ResultScope = "artist" | "album";
 
@@ -71,6 +72,7 @@ export default function SearchResultsScreen() {
     scope?: ResultScope;
   }>();
   const router = useRouter();
+  const openArtist = useOpenArtist();
   const colors = Colors[useColorScheme()];
 
   const query = q ?? "";
@@ -149,13 +151,9 @@ export default function SearchResultsScreen() {
   }, [navigation, isTagSearch, query]);
 
   const handleArtistPress = useCallback(
-    (artist: SearchArtist | TagArtist) => {
-      router.push({
-        pathname: "/artist/[mbid]",
-        params: { mbid: artist.id, name: artist.name },
-      });
-    },
-    [router],
+    (artist: SearchArtist | TagArtist) =>
+      openArtist({ mbid: artist.id, name: artist.name }),
+    [openArtist],
   );
 
   // A bare path, so expo-router resolves it inside the search group.

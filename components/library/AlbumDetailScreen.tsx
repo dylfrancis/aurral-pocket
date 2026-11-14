@@ -73,6 +73,7 @@ import type {
   DownloadStatusValue,
 } from "@/lib/types/library";
 import { releaseYear } from "@/lib/date-time";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
@@ -328,13 +329,11 @@ export function AlbumDetailScreen() {
     ]);
   }, [title, manager?.name, deleteMutation]);
 
-  const openArtist = useCallback(() => {
-    if (!params.artistMbid) return;
-    router.push({
-      pathname: "/artist/[mbid]",
-      params: { mbid: params.artistMbid, name: artistName },
-    });
-  }, [router, params.artistMbid, artistName]);
+  const openArtistPage = useOpenArtist();
+  const openArtist = useCallback(
+    () => openArtistPage({ mbid: params.artistMbid, name: artistName }),
+    [openArtistPage, params.artistMbid, artistName],
+  );
 
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({

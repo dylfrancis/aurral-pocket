@@ -33,6 +33,7 @@ import type {
   LibraryFavorites,
 } from "@/lib/types/library";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useOpenArtist } from "@/hooks/use-open-artist";
 
 const ROW_HEART_SIZE = 40;
 
@@ -133,6 +134,7 @@ function playerContext(
 
 export default function LibraryFavoritesScreen() {
   const router = useRouter();
+  const openArtist = useOpenArtist();
   const queryClient = useQueryClient();
   const colors = Colors[useColorScheme()];
   const { data: favorites, refetch } = useLibraryFavorites();
@@ -200,12 +202,9 @@ export default function LibraryFavoritesScreen() {
               row.artist.identityKey,
             )}
             onPress={() =>
-              router.push({
-                pathname: "/artist/[mbid]",
-                params: {
-                  mbid: artistRouteId(row.artist),
-                  name: row.artist.artistName,
-                },
+              openArtist({
+                mbid: artistRouteId(row.artist),
+                name: row.artist.artistName,
               })
             }
           />
