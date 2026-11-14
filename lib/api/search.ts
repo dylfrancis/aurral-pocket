@@ -3,6 +3,8 @@ import type {
   SearchArtistsResponse,
   SearchArtistsWire,
   SearchAlbumsResponse,
+  LibrarySearchResponse,
+  StreamingLink,
   SimilarArtistsResponse,
   TagSuggestionsResponse,
   TagArtistsResponse,
@@ -32,7 +34,31 @@ export async function searchArtists(
   const r = await api.get<SearchArtistsWire>("/search", {
     params: { q: query, scope: "artist", limit },
   });
-  return { artists: r.data.items.map(({ id, name }) => ({ id, name })) };
+  return {
+    artists: r.data.items.map(({ id, name, disambiguation }) => ({
+      id,
+      name,
+      disambiguation: disambiguation || null,
+    })),
+  };
+}
+
+/**
+ * Tracks in the library that match `query`. The server matches the query
+ * against the title, artist and album separately, so a query that joins an
+ * artist and a title finds nothing.
+ */
+export async function searchLibraryTracks(query: string, limit = 30) {
+  const r = await api.get<LibrarySearchResponse>("/search/library", {
+    params: { q: query, limit },
+  });
+  return r.data.tracks;
+}
+
+/** What a Spotify, Apple Music, TIDAL, Deezer or YouTube Music link names. */
+export async function resolveStreamingLink(url: string) {
+  const r = await api.get<StreamingLink>("/search/link", { params: { url } });
+  return r.data;
 }
 
 export async function searchAlbums(query: string, limit = 24, offset = 0) {

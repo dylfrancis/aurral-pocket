@@ -79,6 +79,24 @@ export function useTrackActions() {
   return { target, open, openItem, close };
 }
 
+/**
+ * A library track as a playlist entry. Built in one place, so the playlist
+ * sheet's "Already added" mark agrees wherever a library track is added. Null
+ * without an artist name, which the server needs.
+ */
+export function libraryPlaylistTrack(
+  track: Track,
+  album: PlayerAlbumContext,
+): SharedPlaylistTrack | null {
+  if (!album.artistName) return null;
+  return {
+    artistName: album.artistName,
+    trackName: track.trackName,
+    albumName: album.albumTitle,
+    artistMbid: album.artistMbid,
+  };
+}
+
 /** The playlist sheet stays outside the content, because it opens as this closes. */
 export function TrackActionsSheet({
   target,
@@ -158,13 +176,8 @@ function TrackActionsContent({
           trackMbid: item.trackMbid,
         }
       : null
-    : track && album.artistName
-      ? {
-          artistName: album.artistName,
-          trackName: track.trackName,
-          albumName: album.albumTitle,
-          artistMbid: album.artistMbid,
-        }
+    : track
+      ? libraryPlaylistTrack(track, album)
       : null;
 
   // On every open, not just on mount: a row tapped while the sheet is still

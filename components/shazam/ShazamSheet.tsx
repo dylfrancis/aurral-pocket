@@ -9,13 +9,15 @@ import { Text } from "@/components/ui/Text";
 import { useShazam } from "@/hooks/shazam/use-shazam";
 import { Fonts } from "@/constants/theme";
 import { ShazamListeningIndicator } from "./ShazamListeningIndicator";
-import { ShazamMatchResult } from "./ShazamMatchResult";
+import { ShazamMatchResult, type ReleaseRoute } from "./ShazamMatchResult";
 import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   sheetRef: React.RefObject<BottomSheetModal | null>;
   /** Navigate to an artist within the host tab's stack. */
   onViewArtist: (mbid: string, name: string) => void;
+  /** Navigate to a release page within the host tab's stack. */
+  onViewRelease: (params: ReleaseRoute) => void;
   /** Open the search tab prefilled with a query. */
   onSearchManually: (query: string) => void;
 };
@@ -23,6 +25,7 @@ type Props = {
 export function ShazamSheet({
   sheetRef,
   onViewArtist,
+  onViewRelease,
   onSearchManually,
 }: Props) {
   const colors = useColors();
@@ -37,8 +40,7 @@ export function ShazamSheet({
     }
   }, [status, sheetRef]);
 
-  // A single-row result (ISRC best match, or a lone name match) stays compact
-  // at 55%; a multi-row fallback list needs room, so grow to 90%.
+  // A result that needs room grows to 90%.
   const handleResolved = useCallback(
     (needsExpandedSheet: boolean) => {
       sheetRef.current?.snapToIndex(needsExpandedSheet ? 1 : 0);
@@ -77,6 +79,14 @@ export function ShazamSheet({
     [dismiss, onViewArtist],
   );
 
+  const handleViewRelease = useCallback(
+    (params: ReleaseRoute) => {
+      dismiss();
+      onViewRelease(params);
+    },
+    [dismiss, onViewRelease],
+  );
+
   const handleSearchManually = useCallback(
     (query: string) => {
       dismiss();
@@ -104,6 +114,7 @@ export function ShazamSheet({
           <ShazamMatchResult
             match={shazam.match}
             onViewArtist={handleViewArtist}
+            onViewRelease={handleViewRelease}
             onSearchManually={handleSearchManually}
             onResolved={handleResolved}
           />
