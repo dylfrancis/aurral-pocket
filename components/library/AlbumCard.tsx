@@ -3,12 +3,12 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { SavedMark, albumSavedId } from "@/components/offline/SavedMark";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { formatReleaseWait } from "@/lib/album-status";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { Album, DownloadStatusValue } from "@/lib/types/library";
 import { releaseYear } from "@/lib/date-time";
+import { useColors } from "@/hooks/use-colors";
 
 const CARD_WIDTH = 150;
 
@@ -43,7 +43,7 @@ export const AlbumCard = React.memo(function AlbumCard({
   showArtist = false,
   savedId,
 }: AlbumCardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   // This card is memoized, so subscribe here: a changed server format has to
   // repaint the release date even when the album props stay the same.
   useDateTimeFormat();

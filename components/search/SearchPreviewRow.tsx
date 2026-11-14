@@ -2,8 +2,8 @@ import React from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type SearchPreviewRowProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -20,7 +20,7 @@ export const SearchPreviewRow = React.memo(function SearchPreviewRow({
   trailing,
   onPress,
 }: SearchPreviewRowProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Pressable

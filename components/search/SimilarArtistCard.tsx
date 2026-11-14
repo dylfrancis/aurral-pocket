@@ -3,9 +3,9 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { SimilarArtist } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 type SimilarArtistCardProps = {
   artist: SimilarArtist;
@@ -21,7 +21,7 @@ export const SimilarArtistCard = React.memo(function SimilarArtistCard({
   isInLibrary,
   onPress,
 }: SimilarArtistCardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Pressable

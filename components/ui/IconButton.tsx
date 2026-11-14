@@ -1,9 +1,8 @@
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassView, isGlassEffectAPIAvailable } from "expo-glass-effect";
 import { Pressable, StyleSheet } from "react-native";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -27,7 +26,7 @@ export function IconButton({
   tintColor,
   fallbackBackground,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const iconColor = tintColor ?? colors.text;
   const background = fallbackBackground ?? colors.inputBackground;
 

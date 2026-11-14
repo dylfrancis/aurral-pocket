@@ -8,9 +8,9 @@ import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SegmentedRow } from "@/components/flow/SegmentedRow";
 import { useUpdateWorkerSettings, useWorkerSettings } from "@/hooks/flow";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { WorkerSettings } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 const CONCURRENCY_OPTIONS = [
   { value: 1 as const, label: "1" },
@@ -24,7 +24,7 @@ const EXISTING_FILE_MODE_OPTIONS = [
 ];
 
 export default function WorkerSettingsScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { data } = useWorkerSettings();
   const update = useUpdateWorkerSettings();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,7 +101,7 @@ function Section({
   subtitle?: string;
   children: React.ReactNode;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Card bordered style={styles.section}>

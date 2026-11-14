@@ -1,13 +1,12 @@
 import { Stack } from "expo-router";
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import {
   DETAIL_SCREEN_OPTIONS,
   artistListScreenOptions,
   stackScreenOptions,
 } from "@/constants/navigation";
 import { IS_ANDROID } from "@/constants/platform";
+import { useColors } from "@/hooks/use-colors";
 
 // Queue is the tab's landing route.
 export const unstable_settings = {
@@ -15,7 +14,7 @@ export const unstable_settings = {
 };
 
 export default function ActivityLayout() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   // The three views are siblings in *this* Stack rather than screens of a
   // nested navigator. iOS only collapses a large title when it can reach the

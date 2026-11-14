@@ -19,9 +19,7 @@ import {
 } from "@/hooks/library/use-library-favorites";
 import { coverArtUrlFrom } from "@/hooks/library/use-cover-art-url";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
-import { Colors } from "@/constants/theme";
 import { albumRouteParams, artistRouteId } from "@/lib/library-read";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import { libraryKeys } from "@/lib/query-keys";
@@ -34,6 +32,7 @@ import type {
 } from "@/lib/types/library";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const ROW_HEART_SIZE = 40;
 
@@ -136,7 +135,7 @@ export default function LibraryFavoritesScreen() {
   const router = useRouter();
   const openArtist = useOpenArtist();
   const queryClient = useQueryClient();
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { data: favorites, refetch } = useLibraryFavorites();
   const toggleFavorite = useToggleFavorite();
   const trackActions = useTrackActions();

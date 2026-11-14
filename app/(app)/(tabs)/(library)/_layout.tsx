@@ -6,12 +6,11 @@ import {
   layoutSearchBar,
   stackScreenOptions,
 } from "@/constants/navigation";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Stack } from "expo-router";
+import { useColors } from "@/hooks/use-colors";
 
 export default function LibraryLayout() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <MiniPlayerHost>

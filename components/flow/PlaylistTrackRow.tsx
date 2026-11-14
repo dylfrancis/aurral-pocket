@@ -10,12 +10,11 @@ import type {
 } from "@/components/player/track-menu-types";
 import { Text } from "@/components/ui/Text";
 import { StatusBadge } from "./StatusBadge";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTrackPlayback } from "@/hooks/player/use-track-playback";
 import { SavedTrackMark } from "@/components/offline/SavedMark";
 import { IS_IOS } from "@/constants/platform";
-import { Colors } from "@/constants/theme";
 import type { FlowJob } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 const COVER_SIZE = 44;
 
@@ -41,7 +40,7 @@ export const PlaylistTrackRow = React.memo(function PlaylistTrackRow({
   onMenuPress,
   markSaved = false,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { isCurrent, isPlaying } = useTrackPlayback(job.id);
 
   return (

@@ -32,9 +32,8 @@ import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useGridListView } from "@/hooks/use-grid-list-view";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { releaseRouteParams } from "@/lib/library-read";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type {
   SearchAlbum,
   SearchArtist,
@@ -43,6 +42,7 @@ import type {
 } from "@/lib/types/search";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 type ResultScope = "artist" | "album";
 
@@ -73,7 +73,7 @@ export default function SearchResultsScreen() {
   }>();
   const router = useRouter();
   const openArtist = useOpenArtist();
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   const query = q ?? "";
   const isTagSearch = query.startsWith("#");

@@ -3,9 +3,9 @@ import { StyleSheet, View } from "react-native";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { Artist } from "@/lib/types/library";
+import { useColors } from "@/hooks/use-colors";
 
 type ArtistCardProps = {
   artist: Artist;
@@ -16,7 +16,7 @@ export const ArtistCard = React.memo(function ArtistCard({
   artist,
   onPress,
 }: ArtistCardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Card onPress={onPress} style={styles.card}>

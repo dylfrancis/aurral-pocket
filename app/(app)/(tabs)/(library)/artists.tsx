@@ -26,9 +26,7 @@ import { type SortMode } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
 import { useLibraryArtistsSuspense } from "@/hooks/library/use-library-artists";
 import { useGridListView } from "@/hooks/use-grid-list-view";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
-import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
 import { artistRouteId } from "@/lib/library-read";
@@ -36,6 +34,7 @@ import { stripArticle } from "@/lib/strings";
 import type { Artist } from "@/lib/types/library";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const byName = (a: Artist, b: Artist) =>
   stripArticle(a.artistName).localeCompare(stripArticle(b.artistName));
@@ -70,7 +69,7 @@ const SORT_OPTIONS: MenuOption<SortMode>[] = [
 
 export default function LibraryArtistsScreen() {
   const router = useRouter();
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { data: artists, refetch } = useLibraryArtistsSuspense();
 
   const [searchQuery, setSearchQuery] = useState("");

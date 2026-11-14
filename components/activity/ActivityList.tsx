@@ -17,8 +17,6 @@ import { useActivityJobControls } from "@/hooks/activity/use-activity-job-contro
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { useNavigateToTab } from "@/hooks/use-navigate-to-tab";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import { isActiveAurralStatus } from "@/lib/album-status";
 import {
   activityArtistMbid,
@@ -41,6 +39,7 @@ import {
   menuOptionSection,
 } from "@/components/ui/MenuOptions";
 import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const LIST_PADDING_HORIZONTAL = 16;
 const LIST_PADDING_VERTICAL = 12;
@@ -57,7 +56,7 @@ type ActivityListProps = {
 export function ActivityList({ view }: ActivityListProps) {
   const router = useRouter();
   const openArtist = useOpenArtist();
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const hasPermission = useHasPermission();
   const openPlaylist = useOpenPlaylist();
   const navigateToTab = useNavigateToTab();

@@ -2,8 +2,8 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type TagSuggestionsProps = {
   tags: string[];
@@ -14,7 +14,7 @@ export const TagSuggestions = React.memo(function TagSuggestions({
   tags,
   onSelect,
 }: TagSuggestionsProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   if (tags.length === 0) return null;
 

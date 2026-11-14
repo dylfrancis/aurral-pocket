@@ -1,15 +1,15 @@
 import { Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts, Radius } from "@/constants/theme";
+import { Fonts, Radius } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type LibraryBadgeProps = {
   onPress: () => void;
 };
 
 export function LibraryBadge({ onPress }: LibraryBadgeProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Pressable

@@ -4,8 +4,8 @@ import {
   type TextStyle,
   StyleSheet,
 } from "react-native";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type Variant = "title" | "subtitle" | "body" | "caption" | "error";
 
@@ -46,7 +46,7 @@ const variantFonts: Record<Variant, TextStyle> = {
 };
 
 export function Text({ variant = "body", style, ...rest }: TextProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   const color =
     variant === "error"

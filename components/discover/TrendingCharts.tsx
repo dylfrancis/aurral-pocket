@@ -6,14 +6,13 @@ import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton
 import { EmptyState } from "@/components/library/EmptyState";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import {
   usePreviewPlayback,
   useRowLinks,
 } from "@/hooks/discover/use-preview-rows";
 import { useTrendingCharts } from "@/hooks/discover/use-trending";
 import { stopPreviewClip } from "@/hooks/library/use-audio-preview";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { formatChartsMeta } from "@/lib/discover/trending-format";
 import type {
   TrendingAlbum,
@@ -34,6 +33,7 @@ import { TrendingGenreRail } from "./TrendingGenreRail";
 import { TrendingGenreShare } from "./TrendingGenreShare";
 import { TrendingSpotlightCard } from "./TrendingSpotlight";
 import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const LAST_LISTED_RANK = 10;
 
@@ -46,7 +46,7 @@ const albumRowId = (album: TrendingAlbum) => `trending-album-${album.key}`;
  * in sight.
  */
 export function TrendingCharts({ active = true }: { active?: boolean }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   const openArtistPage = useOpenArtist();
   const { data, isPending, isFetching, refetch } = useTrendingCharts();
@@ -172,7 +172,7 @@ const TopSongs = memo(function TopSongs({
   links: ReturnType<typeof useRowLinks>;
   onShowAll: () => void;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { playingId, loadingId, progress, togglePreview } =
     usePreviewPlayback();
   const { lookupRowId, openRowArtist, openRowAlbum } = links;

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { StyleSheet, type StyleProp, type TextStyle } from "react-native";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 /** The small uppercase heading over a section of a page. */
 export function SectionLabel({
@@ -12,7 +12,7 @@ export function SectionLabel({
   children: ReactNode;
   style?: StyleProp<TextStyle>;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <Text
       variant="caption"

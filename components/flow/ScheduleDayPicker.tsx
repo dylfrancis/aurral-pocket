@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 const DAYS: { value: number; label: string }[] = [
   { value: 0, label: "S" },
@@ -20,7 +20,7 @@ type Props = {
 };
 
 export function ScheduleDayPicker({ value, onChange }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const selected = new Set(value);
 
   const toggle = (day: number) => {

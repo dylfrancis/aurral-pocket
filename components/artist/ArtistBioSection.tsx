@@ -8,9 +8,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { useColors } from "@/hooks/use-colors";
 
 type ArtistBioSectionProps = {
   bio: string | null | undefined;
@@ -23,7 +22,7 @@ export function ArtistBioSection({
   artistName,
   mbid,
 }: ArtistBioSectionProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const [expanded, setExpanded] = useState(false);
   const [truncated, setTruncated] = useState(false);
 

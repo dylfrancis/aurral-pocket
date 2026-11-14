@@ -6,9 +6,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { useAddArtist } from "@/hooks/search/use-add-artist";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { MonitorOption } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 type AddArtistSheetProps = {
   mbid: string;
@@ -48,7 +48,7 @@ export function AddArtistSheet({
   sheetRef,
   onAdded,
 }: AddArtistSheetProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const [selectedOption, setSelectedOption] = useState<MonitorOption>("all");
 

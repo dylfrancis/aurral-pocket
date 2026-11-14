@@ -6,8 +6,8 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Radius } from "@/constants/theme";
+import { Radius } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type CardProps = Omit<PressableProps, "style" | "children"> & {
   children?: React.ReactNode;
@@ -33,7 +33,7 @@ export function Card({
   children,
   ...rest
 }: CardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   const baseStyle: ViewStyle = {
     backgroundColor: elevated ? colors.surfaceMid : colors.card,

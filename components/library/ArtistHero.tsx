@@ -16,10 +16,10 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { LibraryBadge } from "./LibraryBadge";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts, Radius } from "@/constants/theme";
+import { Fonts, Radius } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import type { Artist } from "@/lib/types/library";
+import { useColors } from "@/hooks/use-colors";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const FAVORITE_BUTTON_SIZE = 44;
@@ -45,7 +45,7 @@ export function ArtistHero({
   onAddPress,
   favorite,
 }: ArtistHeroProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   const backgroundStyle = useAnimatedStyle(() => {
     const offset = scrollY?.value ?? 0;

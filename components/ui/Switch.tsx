@@ -1,12 +1,11 @@
 import { Switch as RNSwitch, type SwitchProps } from "react-native";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useColors } from "@/hooks/use-colors";
 
 /** React Native's switch in the app's track and thumb colors. */
 export function Switch(
   props: Omit<SwitchProps, "trackColor" | "thumbColor" | "ios_backgroundColor">,
 ) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <RNSwitch
       trackColor={{ false: colors.separator, true: colors.brand }}

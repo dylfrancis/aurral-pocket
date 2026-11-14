@@ -9,14 +9,13 @@ import {
   SettingsNote,
   useSettingsRow,
 } from "@/components/settings/SettingsRows";
-import { Colors } from "@/constants/theme";
 import { useThemePreference } from "@/contexts/theme-context";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useColors } from "@/hooks/use-colors";
 
 const CHECK = Icon.select({ ios: "checkmark", android: Check });
 
 export function AppearanceScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const row = useSettingsRow();
   const { preference, setPreference } = useThemePreference();
 

@@ -5,10 +5,9 @@ import { Text } from "@/components/ui/Text";
 import { TrackIndexSlot } from "@/components/library/TrackIndexSlot";
 import { TrackMenuButton } from "@/components/library/TrackMenuButton";
 import { SavedTrackMark } from "@/components/offline/SavedMark";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTrackPlayback } from "@/hooks/player/use-track-playback";
-import { Colors } from "@/constants/theme";
 import type { Track } from "@/lib/types/library";
+import { useColors } from "@/hooks/use-colors";
 
 type TrackRowProps = {
   track: Track;
@@ -30,7 +29,7 @@ export const TrackRow = React.memo(function TrackRow({
   unavailable = false,
   markSaved = false,
 }: TrackRowProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { isCurrent, isPlaying } = useTrackPlayback(String(track.id));
 
   // Every tap reaches the screen, unplayable tracks included — the screen

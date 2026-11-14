@@ -22,8 +22,7 @@ import { FocusEditor } from "@/components/flow/FocusEditor";
 import { YearBoundInput } from "@/components/flow/YearBoundInput";
 import { useCreateFlow, useEditSnapshot, useUpdateFlow } from "@/hooks/flow";
 import { useSignedInHealth } from "@/hooks/auth/use-signed-in-health";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import {
   createDefaultFlowForm,
@@ -32,6 +31,7 @@ import {
 } from "@/lib/types/flow";
 import { flowFormSchema, type FlowFormSchema } from "@/lib/flow-form-schema";
 import { Switch } from "@/components/ui/Switch";
+import { useColors } from "@/hooks/use-colors";
 
 function toFormValues(flow: Flow): FlowFormValues {
   return {
@@ -70,7 +70,7 @@ function describeYearRange(
 }
 
 export default function FlowEditScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const params = useLocalSearchParams<{ id?: string }>();
   const editingId = typeof params.id === "string" ? params.id : null;
 
@@ -130,7 +130,7 @@ function FlowEditForm({
   existingFlow: Flow | undefined;
   newFlowAutoDownload: boolean;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
 
   const createFlow = useCreateFlow();
@@ -498,7 +498,7 @@ function Section({
   trailing?: React.ReactNode;
   children?: React.ReactNode;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Card bordered style={styles.section}>

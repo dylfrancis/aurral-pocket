@@ -42,8 +42,6 @@ import type {
   TrackMenuAction,
   TrackMenuActionId,
 } from "@/components/player/track-menu-types";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import { scheduleLabel } from "@/lib/flow-schedule";
 import { flowKeys } from "@/lib/query-keys";
@@ -55,6 +53,7 @@ import type {
   SharedPlaylist,
   StatusHintPhase,
 } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 const NO_JOBS: FlowJob[] = [];
 
@@ -126,7 +125,7 @@ function FlowPage({
   stats?: PlaylistStats;
   workerHint?: string;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   const queryClient = useQueryClient();
 

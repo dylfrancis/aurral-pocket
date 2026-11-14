@@ -3,15 +3,15 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { useCoverColor } from "@/hooks/player/use-cover-color";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   next,
   togglePlayback,
   useCurrentTrack,
   usePlaybackState,
 } from "@/lib/player/player";
+import { useColors } from "@/hooks/use-colors";
 
 type MiniPlayerProps = {
   /** Artwork and play/pause only, for the accessory's narrow inline slot. */
@@ -25,7 +25,7 @@ type MiniPlayerProps = {
  * reads progress, so a tick cannot re-render it.
  */
 export function MiniPlayer({ compact = false }: MiniPlayerProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   const track = useCurrentTrack();
   const state = usePlaybackState();

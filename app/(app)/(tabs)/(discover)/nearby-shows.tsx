@@ -28,9 +28,8 @@ import {
   type NearbyShowsSource,
 } from "@/components/discover/NearbyShowsFilterSheet";
 import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { filterNearbyShows } from "@/lib/discover/nearby-shows";
 import type { ConcertEvent } from "@/lib/types/search";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
@@ -38,11 +37,12 @@ import {
   FILTER_MENU_ICON,
   menuOptionSection,
 } from "@/components/ui/MenuOptions";
+import { useColors } from "@/hooks/use-colors";
 
 const PAGE_LIMIT = 60;
 
 export default function NearbyShowsScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { mode, appliedZip, setMode, setAppliedZip } = useNearbyLocationPref();
 
   const [searchQuery, setSearchQuery] = useState("");

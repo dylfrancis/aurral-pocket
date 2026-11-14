@@ -8,20 +8,20 @@ import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { ActivityStatusBadge } from "./ActivityStatusBadge";
 import { ReviewActions } from "./ReviewActions";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { formatDate } from "@/lib/date-time";
 import {
   activitySourceLabel,
   activityUpgradeLabel,
 } from "@/lib/activity-views";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { DownloadStatusEntry } from "@/lib/types/library";
 import {
   activityArtistMbid,
   isAlbumRequest,
   type ActivityItem,
 } from "@/lib/types/activity";
+import { useColors } from "@/hooks/use-colors";
 
 const KIND_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   artist_added: "person-add-outline",
@@ -75,7 +75,7 @@ export const ActivityRow = React.memo(function ActivityRow({
   onPress,
   onLongPress,
 }: ActivityRowProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   // This row is memoized, so subscribe here: a changed server format has to
   // repaint the date even when the item props stay the same.
   useDateTimeFormat();

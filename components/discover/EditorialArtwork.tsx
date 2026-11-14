@@ -2,8 +2,7 @@ import { memo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { FlowArtwork } from "@/components/flow/FlowArtwork";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   name: string;
@@ -23,7 +22,7 @@ export const EditorialArtwork = memo(function EditorialArtwork({
   size,
   radius,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const showCover = !!uri && failedUri !== uri;
 

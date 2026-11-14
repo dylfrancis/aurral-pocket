@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts, Radius } from "@/constants/theme";
+import { Fonts, Radius } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 export type TagPillProps = {
   name: string;
@@ -10,7 +10,7 @@ export type TagPillProps = {
 };
 
 export function TagPill({ name, onPress }: TagPillProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const label = (
     <Text
       variant="caption"

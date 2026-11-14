@@ -4,11 +4,10 @@ import {
   DETAIL_SCREEN_OPTIONS,
   stackScreenOptions,
 } from "@/constants/navigation";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useColors } from "@/hooks/use-colors";
 
 export default function FlowLayout() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <MiniPlayerHost>

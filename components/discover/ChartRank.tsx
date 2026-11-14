@@ -1,10 +1,10 @@
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts } from "@/constants/theme";
 import { describeMovement } from "@/lib/discover/trending-format";
 import type { TrendingMovement } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 const CHART_RANK_WIDTH = 28;
 
@@ -14,7 +14,7 @@ type Props = {
 };
 
 export function ChartRank({ position, movement = null }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const movementLabel = describeMovement(movement);
 
   return (

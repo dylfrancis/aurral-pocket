@@ -3,9 +3,8 @@ import { Card } from "@/components/ui/Card";
 import { Ionicons } from "@expo/vector-icons";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import type { PrimaryReleaseType } from "@/lib/types/library";
+import { useColors } from "@/hooks/use-colors";
 
 const MAX_VISIBLE = 10;
 
@@ -26,7 +25,7 @@ export function AlbumCategoryList<T>({
   renderItem,
   onNavigate,
 }: AlbumCategoryListProps<T>) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   if (items.length === 0) return null;
 

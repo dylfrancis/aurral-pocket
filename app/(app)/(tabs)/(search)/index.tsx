@@ -27,15 +27,15 @@ import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import { releaseRouteParams } from "@/lib/library-read";
 import type { SearchAlbum, SearchArtist } from "@/lib/types/search";
 import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 const ARTIST_PREVIEW_LIMIT = 3;
 const ALBUM_PREVIEW_LIMIT = 3;
@@ -44,7 +44,7 @@ const TAG_PREVIEW_LIMIT = 5;
 export default function SearchScreen() {
   const router = useRouter();
   const openArtist = useOpenArtist();
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   const [query, setQuery] = useState("");
   const recentSearches = useRecentSearches();

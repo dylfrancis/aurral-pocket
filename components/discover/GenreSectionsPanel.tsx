@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import { StyleSheet } from "react-native";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { useDiscovery } from "@/hooks/discover";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { buildGenreSections } from "@/lib/discover/format";
 import { recommendationReason, seedNameSet } from "@/lib/discover/recommended";
 import type { DiscoveryArtist } from "@/lib/types/search";
 import { ArtistRail } from "./ArtistRail";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   onArtistPress: (artist: DiscoveryArtist, genre: string) => void;
@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function GenreSectionsPanel({ onArtistPress, onViewAllGenre }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { data } = useDiscovery();
   const { isInLibrary } = useLibraryLookup(
     (data?.recommendations ?? []).map((artist) => artist.id),

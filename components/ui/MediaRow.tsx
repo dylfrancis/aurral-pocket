@@ -3,9 +3,9 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { CoverArtType } from "@/lib/types/library";
+import { useColors } from "@/hooks/use-colors";
 
 type MediaRowProps = {
   /** Omit for a row with no image. */
@@ -44,7 +44,7 @@ export const MediaRow = React.memo(function MediaRow({
   showChevron = true,
   image,
 }: MediaRowProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const thumbSize =
     imageType === "artist" ? ARTIST_THUMB_SIZE : ALBUM_THUMB_SIZE;
   const borderRadius = imageType === "artist" ? thumbSize / 2 : 6;

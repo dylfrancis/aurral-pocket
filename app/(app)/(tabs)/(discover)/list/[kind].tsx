@@ -7,8 +7,6 @@ import {
   type ErrorBoundaryProps,
 } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import {
   useDiscovery,
   useRecentlyAdded,
@@ -41,6 +39,7 @@ import {
   type RecommendedSort,
 } from "@/lib/discover/recommended";
 import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 type Kind = "recommended" | "trending" | "recently-added" | "recent-releases";
 
@@ -93,7 +92,7 @@ export default function DiscoverListScreen() {
     value: valueParam,
   } = useLocalSearchParams<{ kind: string; filter?: string; value?: string }>();
   const navigation = useNavigation();
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   // Repaint the dates in this list when the server format changes.
   useDateTimeFormat();
 

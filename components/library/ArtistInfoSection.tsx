@@ -14,16 +14,16 @@ import { refreshLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import { libraryAlbumsRef } from "@/lib/library-read";
 import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { Artist } from "@/lib/types/library";
+import { useColors } from "@/hooks/use-colors";
 
 type ArtistInfoSectionProps = {
   artist: Artist;
 };
 
 export function ArtistInfoSection({ artist }: ArtistInfoSectionProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const queryClient = useQueryClient();
   const { data: details } = useArtistDetailsStream(artist.mbid);
   const [bioExpanded, setBioExpanded] = useState(false);

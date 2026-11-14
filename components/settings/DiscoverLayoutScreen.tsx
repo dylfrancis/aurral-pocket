@@ -2,12 +2,11 @@ import { Button } from "@/components/ui/Button";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
 import { IS_IOS } from "@/constants/platform";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import {
   DEFAULT_DISCOVER_SECTIONS,
   useDiscoverLayout,
 } from "@/hooks/discover/use-discover-layout";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { DiscoverSection } from "@/lib/types/me";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -27,6 +26,7 @@ import ReorderableList, {
   type ReorderableListReorderEvent,
 } from "react-native-reorderable-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useColors } from "@/hooks/use-colors";
 
 export function DiscoverLayoutScreen() {
   const { sections, hydrated, saveLayout } = useDiscoverLayout();
@@ -41,7 +41,7 @@ type EditorProps = {
 };
 
 function LayoutEditor({ sections, onSave }: EditorProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   // The list starts under iOS's transparent header and runs under the tab
   // bar. They're padding, not automatic insets: a drag turns scrolling off,

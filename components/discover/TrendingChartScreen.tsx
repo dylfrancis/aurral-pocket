@@ -4,14 +4,12 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import { EmptyState } from "@/components/library/EmptyState";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
-import { Colors } from "@/constants/theme";
 import { usePreviewRows } from "@/hooks/discover/use-preview-rows";
 import {
   isChartNotLoaded,
   useTrendingCharts,
   useTrendingGenreChart,
 } from "@/hooks/discover/use-trending";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { formatChartsMeta } from "@/lib/discover/trending-format";
 import type { TrendingChartSong, TrendingSong } from "@/lib/types/search";
 import {
@@ -19,6 +17,7 @@ import {
   type EditorialTrackItem,
 } from "./EditorialTrackRow";
 import { SaveChartButton } from "./SaveChartButton";
+import { useColors } from "@/hooks/use-colors";
 
 type RouteParams = {
   /** "songs", or a genre's id. */
@@ -122,7 +121,7 @@ function ChartList({
   items: ChartItem[];
   rows: ReturnType<typeof usePreviewRows>;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const {
     playingId,
     loadingId,

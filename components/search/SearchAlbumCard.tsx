@@ -2,9 +2,9 @@ import React from "react";
 import { StyleSheet, Pressable, View } from "react-native";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import type { SearchAlbum } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 export type SearchAlbumCardProps = {
   album: SearchAlbum;
@@ -12,7 +12,7 @@ export type SearchAlbumCardProps = {
 };
 
 function SearchAlbumCardComponent({ album, onPress }: SearchAlbumCardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Pressable

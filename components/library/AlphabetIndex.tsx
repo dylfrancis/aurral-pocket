@@ -8,9 +8,9 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts, Radius } from "@/constants/theme";
+import { Fonts, Radius } from "@/constants/theme";
 import type { LetterIndexEntry } from "@/lib/alphabet-index";
+import { useColors } from "@/hooks/use-colors";
 
 const BUBBLE_SIZE = 56;
 const BUBBLE_GAP = 24;
@@ -21,7 +21,7 @@ type AlphabetIndexProps = {
 };
 
 export function AlphabetIndex({ entries, onSelect }: AlphabetIndexProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const stripHeight = useRef(0);
   const lastLetter = useRef<string | null>(null);
   // The bubble stays centered on the screen; a letter change only swaps the

@@ -4,8 +4,7 @@ import {
   BottomSheetModal,
   type BottomSheetModalProps,
 } from "@gorhom/bottom-sheet";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 type AppSheetProps = Omit<
   BottomSheetModalProps,
@@ -26,7 +25,7 @@ export const AppSheet = forwardRef<BottomSheetModal, AppSheetProps>(
     { background = "elevated", backdropPressBehavior = "close", ...rest },
     ref,
   ) {
-    const colors = Colors[useColorScheme()];
+    const colors = useColors();
 
     const renderBackdrop = useCallback(
       (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (

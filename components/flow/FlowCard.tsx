@@ -7,10 +7,10 @@ import { Chip } from "@/components/ui/Chip";
 import { CollectionArtwork } from "./CollectionArtwork";
 import { MixPills } from "./MixPills";
 import { ProgressBar } from "./ProgressBar";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { scheduleLabel } from "@/lib/flow-schedule";
 import type { Flow, PlaylistStats } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   flow: Flow;
@@ -29,7 +29,7 @@ function progressLabel(
 }
 
 export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const progress = progressLabel(stats, flow.size);
 
   return (

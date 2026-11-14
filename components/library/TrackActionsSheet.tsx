@@ -17,8 +17,7 @@ import {
 import type { TrackFavorite } from "@/lib/api/library";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useSongSave } from "@/hooks/offline/use-song-save";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import {
   toPlayerTrack,
   type PlayerAlbumContext,
@@ -30,6 +29,7 @@ import type {
 } from "@/components/player/track-menu-types";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
+import { useColors } from "@/hooks/use-colors";
 
 /** Actions a page adds below the common ones, such as a playlist's own. */
 export type TrackSheetExtras = {
@@ -119,7 +119,7 @@ function TrackActionsContent({
   onClose: () => void;
 }) {
   const { album } = target;
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const sheetRef = useRef<BottomSheetModal>(null);
   const queue = useQueueActions();
@@ -343,7 +343,7 @@ function SheetAction({
   disabled?: boolean;
   destructive?: boolean;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const color = disabled
     ? colors.subtle
     : destructive

@@ -4,9 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
 import { EmptyState } from "@/components/library/EmptyState";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { useRecommendations } from "@/hooks/discover/use-recommendations";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import {
   buildRecommendedRails,
@@ -19,6 +18,7 @@ import {
 import type { DiscoveryArtist } from "@/lib/types/search";
 import { ArtistRail } from "./ArtistRail";
 import { RecommendedTopPick } from "./RecommendedTopPick";
+import { useColors } from "@/hooks/use-colors";
 
 const RAILS_ON_SCREEN = 2;
 
@@ -41,7 +41,7 @@ const railKey = ({ filter }: Rail) =>
 
 /** Not a FlatList: it sits inside Discover's scroll view. */
 export function RecommendedTab({ onArtistPress, onShowList }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const { isLoading, isError, refetch, recommendations, topGenres, context } =
     useRecommendations();
   const { seeds } = context;

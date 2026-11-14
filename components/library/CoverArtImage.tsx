@@ -5,10 +5,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCoverArtUrl } from "@/hooks/library/use-cover-art-url";
 import { imageSource, serverImageSource } from "@/lib/api/client";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import type { AlbumCoverHints } from "@/lib/api/library";
 import type { CoverArtType } from "@/lib/types/library";
+import { useColors } from "@/hooks/use-colors";
 
 type CoverArtImageProps = {
   type: CoverArtType;
@@ -56,7 +55,7 @@ export function CoverArtImage({
   const isLoading = !loadFromServer && mbidLookup.isLoading;
   const failed = !!source && failedUris.includes(source.uri);
 
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const recyclingKey = source?.uri ?? `${type}-${mbid}`;
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const loaded = loadedKey === recyclingKey;

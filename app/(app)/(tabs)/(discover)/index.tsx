@@ -19,7 +19,7 @@ import { isShazamAvailable } from "@/modules/shazam";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import { useOpenOverflowScreen } from "@/hooks/use-open-overflow-screen";
@@ -29,7 +29,6 @@ import {
   useRecentlyAdded,
   useRecentReleases,
 } from "@/hooks/discover";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   recommendedFilterParams,
   type RecommendedFilter,
@@ -58,9 +57,10 @@ import {
 } from "react-native";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useColors } from "@/hooks/use-colors";
 
 export default function DiscoverScreen() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   const queryClient = useQueryClient();
 

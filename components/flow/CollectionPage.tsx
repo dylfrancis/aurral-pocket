@@ -23,12 +23,11 @@ import type {
   TrackMenuAction,
   TrackMenuActionId,
 } from "@/components/player/track-menu-types";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { searchBarColors } from "@/constants/navigation";
-import { Colors } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import { isPlayableJob } from "@/lib/player/track-item";
 import type { FlowJob, PlaylistStats } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 export const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
@@ -83,7 +82,7 @@ export function CollectionPage({
   onTrackMenuPress,
   markSavedTracks = false,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   // See AlbumDetailScreen: only iOS scrolls under its translucent header.
   const headerHeight = useHeaderHeight();

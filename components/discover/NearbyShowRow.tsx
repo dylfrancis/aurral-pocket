@@ -5,11 +5,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts } from "@/constants/theme";
 import { formatShowArtists } from "@/lib/discover/nearby-shows";
 import { formatShowDateLabel } from "@/lib/discover/show-dates";
 import type { ConcertEvent, NearbyShowSource } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   show: ConcertEvent;
@@ -42,7 +42,7 @@ function SourceBadge({ sourceTypes }: { sourceTypes: NearbyShowSource[] }) {
 }
 
 function NearbyShowRowComponent({ show, onPress }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   const dateLabel = formatShowDateLabel(show);
   const venueLine = [

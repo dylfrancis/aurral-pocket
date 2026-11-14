@@ -1,7 +1,6 @@
 import { Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 export function TrackMenuButton({
   trackName,
@@ -10,7 +9,7 @@ export function TrackMenuButton({
   trackName: string;
   onPress: () => void;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Pressable

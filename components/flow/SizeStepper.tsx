@@ -3,9 +3,9 @@ import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { FLOW_SIZE_MAX, FLOW_SIZE_MIN, FLOW_SIZE_STEP } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   value: number;
@@ -18,7 +18,7 @@ function clamp(next: number): number {
 }
 
 export function SizeStepper({ value, onChange }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const [draft, setDraft] = useState(String(value));
   const [editing, setEditing] = useState(false);
   // While idle the input mirrors the prop; the draft only exists mid-edit.

@@ -25,9 +25,8 @@ import {
   menuOptionActions,
 } from "@/components/ui/MenuOptions";
 import { useGridListView } from "@/hooks/use-grid-list-view";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { headerSearchBar } from "@/constants/navigation";
-import { Colors } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 const DRAW_DISTANCE = 800;
 
@@ -87,7 +86,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   isFetchingNextPage = false,
   showSection,
 }: ReleaseGridProps<T, SortKey>) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const view = useGridListView(viewModeKey, "grid");
   const hasGrid = !!renderItem;
   const isGrid = hasGrid && view.isGrid;

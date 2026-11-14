@@ -3,8 +3,8 @@ import { StyleSheet, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 export type HorizontalArtistCardProps = {
   mbid: string;
@@ -27,7 +27,7 @@ function HorizontalArtistCardComponent({
   fill,
   imageUrl,
 }: HorizontalArtistCardProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Pressable

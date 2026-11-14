@@ -2,9 +2,9 @@ import { StyleSheet, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { getCalendars } from "expo-localization";
 import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   value: string;
@@ -36,7 +36,7 @@ function toHourString(hour: number): string {
 }
 
 export function ScheduleHourPicker({ value, onChange }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const selectedHour = parseHour(value);
   const h24 = uses24HourClock();
 

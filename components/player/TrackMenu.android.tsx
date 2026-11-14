@@ -23,8 +23,7 @@ import type {
   TrackMenuActionId,
   TrackMenuProps,
 } from "@/components/player/track-menu-types";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useColors } from "@/hooks/use-colors";
 
 const ICONS: Record<TrackMenuActionId, ImageSourcePropType> = {
   playlist: PlaylistAddIcon,
@@ -51,7 +50,7 @@ export function TrackMenu({
   accessibilityLabel = "More actions",
 }: TrackMenuProps) {
   const [expanded, setExpanded] = useState(false);
-  const errorColor = Colors[useColorScheme()].error;
+  const errorColor = useColors().error;
 
   return (
     <Host matchContents>

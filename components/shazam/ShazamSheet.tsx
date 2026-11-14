@@ -7,10 +7,10 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
 import { useShazam } from "@/hooks/shazam/use-shazam";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { ShazamListeningIndicator } from "./ShazamListeningIndicator";
 import { ShazamMatchResult } from "./ShazamMatchResult";
+import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   sheetRef: React.RefObject<BottomSheetModal | null>;
@@ -25,7 +25,7 @@ export function ShazamSheet({
   onViewArtist,
   onSearchManually,
 }: Props) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const shazam = useShazam();
   const { status, start, cancel, reset } = shazam;
@@ -184,7 +184,7 @@ function CenteredState({
   secondaryLabel: string;
   onSecondary: () => void;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <View style={styles.centered}>
       <Ionicons name={icon} size={48} color={colors.subtle} />

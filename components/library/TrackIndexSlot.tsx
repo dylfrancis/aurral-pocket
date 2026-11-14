@@ -1,8 +1,8 @@
 import { StyleSheet, View } from "react-native";
 import { PlayingBars } from "@/components/library/PlayingBars";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 /**
  * The slot before a track's title: its number, or the equaliser while the
@@ -17,7 +17,7 @@ export function TrackIndexSlot({
   isCurrent: boolean;
   isPlaying: boolean;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <View style={styles.slot}>
       {isCurrent ? (

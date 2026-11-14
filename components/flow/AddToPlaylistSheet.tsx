@@ -11,12 +11,12 @@ import { CollectionArtwork } from "./CollectionArtwork";
 import { useAddSharedPlaylistTracks } from "@/hooks/flow/use-flow-mutations";
 import { useSharedPlaylists } from "@/hooks/flow/use-flow-selectors";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SHEET_BOTTOM_PADDING } from "@/constants/navigation";
-import { Colors, Fonts } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { buildSharedTrackIdentity } from "@/lib/shared-track-identity";
 import type { ApiError } from "@/lib/api/client";
 import type { SharedPlaylist, SharedPlaylistTrack } from "@/lib/types/flow";
+import { useColors } from "@/hooks/use-colors";
 
 const ROW_ARTWORK_SIZE = 44;
 
@@ -65,7 +65,7 @@ function AddToPlaylistSheetContent({
   track: SharedPlaylistTrack;
   onClose: () => void;
 }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const sheetRef = useRef<BottomSheetModal>(null);
   const [isNaming, setIsNaming] = useState(false);
 

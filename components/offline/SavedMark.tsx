@@ -1,12 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { libraryTracksRef } from "@/lib/library-read";
 import {
   useIsSaved,
   useIsTrackSaved,
   type SavedKind,
 } from "@/lib/offline/saved-library";
+import { useColors } from "@/hooks/use-colors";
 
 /**
  * The ↓ beside an album or playlist once it's all on the phone. `inline` is
@@ -36,7 +35,7 @@ export function SavedTrackMark({ trackId }: { trackId: string }) {
 }
 
 function SavedIcon({ size }: { size: number }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   return (
     <Ionicons
       name="arrow-down-circle"

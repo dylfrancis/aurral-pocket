@@ -1,12 +1,12 @@
 import { StyleSheet, View } from "react-native";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
-import { Colors, Fonts } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Fonts } from "@/constants/theme";
 import type { TrendingGenreShare as GenreShare } from "@/lib/types/search";
+import { useColors } from "@/hooks/use-colors";
 
 export function TrendingGenreShare({ share }: { share: GenreShare }) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const largestCount = share.genres[0]?.count || 1;
 
   return (

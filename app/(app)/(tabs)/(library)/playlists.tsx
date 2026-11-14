@@ -11,11 +11,10 @@ import {
   menuOptionSection,
 } from "@/components/ui/MenuOptions";
 import { useFlowStatusSuspense } from "@/hooks/flow";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import { useSavedIds } from "@/lib/offline/saved-library";
 import type { SharedPlaylist } from "@/lib/types/flow";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useColors } from "@/hooks/use-colors";
 
 export default function LibraryPlaylistsScreen() {
   return (
@@ -28,7 +27,7 @@ export default function LibraryPlaylistsScreen() {
 type Show = "all" | "saved";
 
 function LibraryPlaylistsContent() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   const { data, refetch } = useFlowStatusSuspense();
   const [show, setShow] = useState<Show>("all");

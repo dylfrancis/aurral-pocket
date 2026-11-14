@@ -1,7 +1,6 @@
 import { Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
 
 const MIN_TAP_SIZE = 44;
 const ICON_SIZE_RATIO = 0.48;
@@ -22,7 +21,7 @@ export function CircleButton({
   onPress,
   disabled,
 }: CircleButtonProps) {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
 
   return (
     <Pressable

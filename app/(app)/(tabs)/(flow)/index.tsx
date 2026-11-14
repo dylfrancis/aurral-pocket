@@ -16,12 +16,11 @@ import {
   useFlowTemplates,
   useSetFlowEnabled,
 } from "@/hooks/flow";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import type { Flow } from "@/lib/types/flow";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useColors } from "@/hooks/use-colors";
 
 /**
  * NativeTabs mounts every tab's screen at launch — `hidden` on a Trigger only
@@ -38,7 +37,7 @@ export default function FlowScreen() {
 }
 
 function FlowScreenContent() {
-  const colors = Colors[useColorScheme()];
+  const colors = useColors();
   const router = useRouter();
   const { data, refetch } = useFlowStatusSuspense();
   const setEnabled = useSetFlowEnabled();
