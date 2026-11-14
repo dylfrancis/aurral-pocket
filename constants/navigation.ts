@@ -18,7 +18,7 @@ export const HAS_LIQUID_GLASS = IS_IOS && isLiquidGlassAvailable();
  * native blur effect so large titles and search bars stay legible. On Android,
  * the header is opaque by default.
  */
-export const TRANSPARENT_HEADER = IS_IOS
+const TRANSPARENT_HEADER = IS_IOS
   ? {
       headerTransparent: true,
       headerStyle: { backgroundColor: "transparent" },

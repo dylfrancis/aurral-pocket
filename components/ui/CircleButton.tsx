@@ -13,7 +13,7 @@ type CircleButtonProps = {
   disabled?: boolean;
 };
 
-/** Flat, unlike IconButton's glass, for actions in a page's content. */
+/** A flat round icon button for actions in a page's content. */
 export function CircleButton({
   icon,
   size,
