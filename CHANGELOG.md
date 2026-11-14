@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.15.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.14.0...v0.15.0) (2026-11-14)
+
+
+### Features
+
+* **activity:** filter by status and mark quality upgrades ([#285](https://github.com/dylfrancis/aurral-pocket/issues/285)) ([#334](https://github.com/dylfrancis/aurral-pocket/issues/334)) ([98b374b](https://github.com/dylfrancis/aurral-pocket/commit/98b374b76ed3a38ac278ec7805ff9e606e94fead))
+* **auth:** send custom headers to the server for reverse proxies ([#330](https://github.com/dylfrancis/aurral-pocket/issues/330)) ([#333](https://github.com/dylfrancis/aurral-pocket/issues/333)) ([cc9f5d0](https://github.com/dylfrancis/aurral-pocket/commit/cc9f5d0b8f0a3c2791070b5ca5f5d1be7f867f30))
+* **discover:** add the Trending charts page ([#283](https://github.com/dylfrancis/aurral-pocket/issues/283)) ([#319](https://github.com/dylfrancis/aurral-pocket/issues/319)) ([7c7a324](https://github.com/dylfrancis/aurral-pocket/commit/7c7a324da9162713b7aa04de4b19f705e4f8385f))
+* **discover:** group recommendations by why they showed up ([#284](https://github.com/dylfrancis/aurral-pocket/issues/284)) ([#331](https://github.com/dylfrancis/aurral-pocket/issues/331)) ([4e4c33d](https://github.com/dylfrancis/aurral-pocket/commit/4e4c33da95a6f0d9f6a21562ffcb0e6792dc2ef1))
+* **flow:** create flows from templates in the + menu ([#264](https://github.com/dylfrancis/aurral-pocket/issues/264)) ([#321](https://github.com/dylfrancis/aurral-pocket/issues/321)) ([d8bf623](https://github.com/dylfrancis/aurral-pocket/commit/d8bf6231fc95639785894a913d4cff7e286ddcb5))
+* **flow:** preview flow picks before downloading them ([#282](https://github.com/dylfrancis/aurral-pocket/issues/282)) ([#332](https://github.com/dylfrancis/aurral-pocket/issues/332)) ([659eb71](https://github.com/dylfrancis/aurral-pocket/commit/659eb711637361fe52d1f3e0403f1983386be191))
+* **flow:** stop and retry single track downloads ([#267](https://github.com/dylfrancis/aurral-pocket/issues/267)) ([#329](https://github.com/dylfrancis/aurral-pocket/issues/329)) ([7e981df](https://github.com/dylfrancis/aurral-pocket/commit/7e981df57d68f50bcf99b30ff9ca6b461185a3a5))
+* **library:** route album actions to Aurral-managed albums ([#266](https://github.com/dylfrancis/aurral-pocket/issues/266)) ([#328](https://github.com/dylfrancis/aurral-pocket/issues/328)) ([1d9290c](https://github.com/dylfrancis/aurral-pocket/commit/1d9290cbe6149d0c21a7d5ee245102c4097f0906))
+* **library:** show Aurral-managed album downloads in Activity and the library ([#265](https://github.com/dylfrancis/aurral-pocket/issues/265)) ([#327](https://github.com/dylfrancis/aurral-pocket/issues/327)) ([fccc7eb](https://github.com/dylfrancis/aurral-pocket/commit/fccc7eb8a5815651e044ca40d9078610b61cd5b9))
+* **library:** tint the album page with its cover's color ([#339](https://github.com/dylfrancis/aurral-pocket/issues/339)) ([afafa0e](https://github.com/dylfrancis/aurral-pocket/commit/afafa0e8a8849154b7332a42aadf8388894f24c2))
+* **offline:** save albums, playlists and songs for offline play ([#315](https://github.com/dylfrancis/aurral-pocket/issues/315)) ([#341](https://github.com/dylfrancis/aurral-pocket/issues/341)) ([0b57187](https://github.com/dylfrancis/aurral-pocket/commit/0b57187885f6dddc2f1a3a11a5a9150e1b28255c))
+* **player:** rebuild now playing as a full-screen tinted sheet ([#317](https://github.com/dylfrancis/aurral-pocket/issues/317)) ([64bb557](https://github.com/dylfrancis/aurral-pocket/commit/64bb557386cc4da2990ab9f238e6fc6502e1a11e))
+* **settings:** add a Playback and Storage page ([#336](https://github.com/dylfrancis/aurral-pocket/issues/336)) ([#342](https://github.com/dylfrancis/aurral-pocket/issues/342)) ([bbae6fa](https://github.com/dylfrancis/aurral-pocket/commit/bbae6fa64b86c2817a2057856c414ac1978eceba))
+* **settings:** rebuild Settings as a screen and move it and Activity to overflow ([#316](https://github.com/dylfrancis/aurral-pocket/issues/316)) ([#337](https://github.com/dylfrancis/aurral-pocket/issues/337)) ([21b16e3](https://github.com/dylfrancis/aurral-pocket/commit/21b16e3ccb12cf939f39b3d44d20d91c3fe133e0))
+* **shazam:** offer the song, its album and every credited artist ([#344](https://github.com/dylfrancis/aurral-pocket/issues/344)) ([#347](https://github.com/dylfrancis/aurral-pocket/issues/347)) ([8b4ac0d](https://github.com/dylfrancis/aurral-pocket/commit/8b4ac0d24746dc5c7f1913cba7bfc9244bdf152c))
+
+
+### Bug Fixes
+
+* **artist:** open Library and Activity artists on the shared artist page ([#325](https://github.com/dylfrancis/aurral-pocket/issues/325)) ([#345](https://github.com/dylfrancis/aurral-pocket/issues/345)) ([7ce92d8](https://github.com/dylfrancis/aurral-pocket/commit/7ce92d8c2ce1dd568bd7c18940bc20fcb8911442))
+* **header:** blur rows under the header on pages with a scroll title ([#338](https://github.com/dylfrancis/aurral-pocket/issues/338)) ([#340](https://github.com/dylfrancis/aurral-pocket/issues/340)) ([be0a0da](https://github.com/dylfrancis/aurral-pocket/commit/be0a0da942f124ebe3fcc449c4ff0cf79f5f3288))
+* **library:** read release years from the date text ([#346](https://github.com/dylfrancis/aurral-pocket/issues/346)) ([ef6d180](https://github.com/dylfrancis/aurral-pocket/commit/ef6d1808e397de5296d84b62bba1529b62ffc93f))
+* **player:** keep unsent plays with the account that played them ([#313](https://github.com/dylfrancis/aurral-pocket/issues/313)) ([#335](https://github.com/dylfrancis/aurral-pocket/issues/335)) ([9dfc005](https://github.com/dylfrancis/aurral-pocket/commit/9dfc005e01d2231cd5da1b5fdb4ac06659a5b6fb))
+* **player:** show the favorite button on flow and playlist tracks ([#320](https://github.com/dylfrancis/aurral-pocket/issues/320)) ([22b9e73](https://github.com/dylfrancis/aurral-pocket/commit/22b9e73a74dfc082c95af71fe85b5534803ac773))
+
 ## [0.14.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.13.0...v0.14.0) (2026-11-08)
 
 
