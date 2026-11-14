@@ -15,15 +15,16 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Then wire Aurral to Lidarr:
+Then set Aurral up and connect it to Lidarr:
 
-1. Open `http://localhost:8686`, finish Lidarr's setup wizard.
-2. In Lidarr → Settings → General, copy the **API Key**.
-3. Open `http://localhost:3001`, create an admin user.
-4. In Aurral → Settings → Lidarr, set:
+1. Open `http://localhost:3001` and run the onboarding: create an admin account, then set **Library folder** to `/app/downloads`, which the compose file mounts from `./data/aurral/downloads`.
+2. Open `http://localhost:8686`, finish Lidarr's setup wizard, and copy the **API Key** from Lidarr → Settings → General.
+3. In Aurral → Settings → Library → Lidarr, set:
    - URL: `http://lidarr:8686` (inside the compose network)
    - API Key: paste from step 2
-5. Add a Last.fm API key in Aurral → Settings if you want discovery to do anything interesting.
+4. Recommendations use ListenBrainz out of the box. For closer matches, add a Last.fm API key in Aurral → Settings → Discovery → Last.fm.
+
+Aurral can manage a library without Lidarr. The stack includes Lidarr so the app's Lidarr-backed screens and actions have something to talk to.
 
 Optional but useful for meaningful testing:
 
@@ -87,9 +88,11 @@ Then `docker compose up -d` again. Update the URLs you point the app at accordin
 The compose file uses `:latest` for ease of first setup. Once the stack works for you, pin both images to specific tags so reviewers don't get silently upgraded mid-review:
 
 ```yaml
-image: lscr.io/linuxserver/lidarr:2.x.x      # check Lidarr releases
-image: ghcr.io/lklynet/aurral:vX.Y.Z         # check Aurral releases
+image: lscr.io/linuxserver/lidarr:2.x.x # check Lidarr releases
+image: ghcr.io/lklynet/aurral:X.Y.Z # tags have no "v" prefix
 ```
+
+To test against the Aurral version the app is built for, use the one in [`.aurral-version`](../../.aurral-version).
 
 ## Tearing down
 
