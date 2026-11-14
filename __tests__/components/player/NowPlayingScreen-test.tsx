@@ -422,7 +422,7 @@ describe("NowPlayingScreen", () => {
 
     expectLeftFor({
       pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
-      params: { mbid: "artist-mb-1" },
+      params: { mbid: "artist-mb-1", name: "Radiohead" },
     });
   });
 
@@ -495,7 +495,7 @@ describe("NowPlayingScreen", () => {
 
     expectLeftFor({
       pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
-      params: { mbid: "slowdive-mb" },
+      params: { mbid: "slowdive-mb", name: "Slowdive" },
     });
   });
 

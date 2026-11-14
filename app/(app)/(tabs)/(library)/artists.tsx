@@ -166,6 +166,7 @@ export default function LibraryArtistsScreen() {
         pathname: "/artist/[mbid]",
         params: {
           mbid: artistRouteId(artist),
+          name: artist.artistName,
           coverUrl: artist.coverUrl ?? "",
         },
       });

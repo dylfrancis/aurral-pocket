@@ -478,6 +478,25 @@ describe("ActivityList", () => {
     expect(getByLabelText("Approve download")).toBeTruthy();
     expect(getByLabelText("Deny download")).toBeTruthy();
   });
+
+  it("opens an artist row with the artist's name", async () => {
+    // An artist since removed from the library opens the Browse page, whose
+    // title comes from the route.
+    mockUseActivitySuspense.mockReturnValue({
+      ...defaultHook,
+      data: [makeHistoryItem({ id: "3" })],
+    });
+    const { getByText } = await renderWithClient(
+      <ActivityList view="history" />,
+    );
+
+    await fireEvent.press(getByText("Added Artist 3 to library"));
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/artist/[mbid]",
+      params: { mbid: "mbid-3", name: "Artist 3" },
+    });
+  });
 });
 
 describe("ActivityList playlist rows", () => {
