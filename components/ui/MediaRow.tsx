@@ -13,6 +13,8 @@ type MediaRowProps = {
   mbid?: string | null;
   title: string;
   subtitle?: string;
+  /** A second caption line under the subtitle. */
+  detail?: string;
   trailing?: React.ReactNode;
   onPress: () => void;
   onLongPress?: () => void;
@@ -27,13 +29,14 @@ type MediaRowProps = {
 const ARTIST_THUMB_SIZE = 48;
 const ALBUM_THUMB_SIZE = 56;
 
-// List row for screens whose grid cells are artwork cards; mirrors the
-// search result row styling.
+// List row for search results and for screens whose grid cells are artwork
+// cards.
 export const MediaRow = React.memo(function MediaRow({
   imageType,
   mbid,
   title,
   subtitle,
+  detail,
   trailing,
   onPress,
   onLongPress,
@@ -92,6 +95,15 @@ export const MediaRow = React.memo(function MediaRow({
             style={{ color: colors.subtle }}
           >
             {subtitle}
+          </Text>
+        )}
+        {!!detail && (
+          <Text
+            variant="caption"
+            numberOfLines={1}
+            style={{ color: colors.subtle }}
+          >
+            {detail}
           </Text>
         )}
       </View>
