@@ -1,6 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, type ErrorBoundaryProps } from "expo-router";
-import * as Burnt from "burnt";
 import {
   GENRE_SORT_OPTIONS,
   type GenreSortMode,
@@ -11,6 +10,7 @@ import { MediaRow } from "@/components/ui/MediaRow";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { useLibraryGenres } from "@/hooks/library/use-library-genres";
 import type { CanonicalGenre } from "@/lib/types/library";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 const countLabel = (count: number, noun: string) =>
   `${count} ${noun}${count === 1 ? "" : "s"}`;
@@ -50,24 +50,17 @@ export default function LibraryGenresScreen() {
     );
   }, [sortedGenres, searchQuery]);
 
-  // Its own flag, not isRefetching, so a refetch nobody pulled for shows no
-  // spinner.
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    const result = await refetch();
-    setRefreshing(false);
-    if (result.isError) {
-      Burnt.toast({ title: "Couldn't refresh genres", preset: "error" });
-    }
-  }, [refetch]);
+  const { refreshing, onRefresh } = usePullToRefresh(
+    refetch,
+    "Couldn't refresh genres",
+  );
 
   return (
     <ReleaseGrid
       items={visibleGenres}
       isLoading={false}
       refreshing={refreshing}
-      onRefresh={handleRefresh}
+      onRefresh={onRefresh}
       sortMode={sortMode}
       onSortChange={setSortMode}
       sortOptions={GENRE_SORT_OPTIONS}

@@ -4,7 +4,6 @@ import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import * as Burnt from "burnt";
 import FilterList from "@expo/material-symbols/filter_list.xml";
 import Block from "@expo/material-symbols/block.xml";
 import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
@@ -28,6 +27,7 @@ import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
 import { artistRouteId } from "@/lib/library-read";
 import { stripArticle } from "@/lib/strings";
 import type { Artist } from "@/lib/types/library";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 const SORT_ICONS = {
   alpha: SortByAlpha,
@@ -57,12 +57,7 @@ const SORT_OPTIONS: { key: SortMode; label: string; icon: string }[] = [
 export default function LibraryArtistsScreen() {
   const router = useRouter();
   const colors = Colors[useColorScheme()];
-  const {
-    data: artists,
-    refetch,
-    isRefetching,
-    isFetchingNextPage,
-  } = useLibraryArtistsSuspense();
+  const { data: artists, refetch } = useLibraryArtistsSuspense();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("alpha");
@@ -150,15 +145,10 @@ export default function LibraryArtistsScreen() {
     [headerHeight],
   );
 
-  const handleRefresh = useCallback(async () => {
-    const result = await refetch();
-    if (result.isError) {
-      Burnt.toast({
-        title: "Couldn't refresh library",
-        preset: "error",
-      });
-    }
-  }, [refetch]);
+  const { refreshing, onRefresh } = usePullToRefresh(
+    refetch,
+    "Couldn't refresh library",
+  );
 
   const openArtist = useCallback(
     (artist: Artist) => {
@@ -252,8 +242,8 @@ export default function LibraryArtistsScreen() {
           }}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching && !isFetchingNextPage}
-              onRefresh={handleRefresh}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               tintColor={colors.brand}
             />
           }

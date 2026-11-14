@@ -6,6 +6,7 @@ import {
 import { useLibraryAlbumsAll } from "@/hooks/library/use-library-albums-all";
 import { useDebouncedValue } from "@/hooks/search/use-debounced-value";
 import type { LibraryAlbumsParams } from "@/lib/types/library";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 /** The web library's search debounce (QUERY_DEBOUNCE_MS in LibraryPage). */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -43,12 +44,7 @@ export function useAlbumGrid({ genre = "" }: { genre?: string } = {}) {
     refetch,
   } = useLibraryAlbumsAll(params);
 
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
-  }, [refetch]);
+  const { refreshing, onRefresh: handleRefresh } = usePullToRefresh(refetch);
 
   const loadMore = useCallback(() => {
     if (!hasNextPage || isFetchingNextPage) return;

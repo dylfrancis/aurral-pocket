@@ -3,7 +3,6 @@ import { RefreshControl, StyleSheet } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import * as Burnt from "burnt";
 import { EmptyState } from "@/components/library/EmptyState";
 import {
   TrackActionsSheet,
@@ -33,6 +32,7 @@ import type {
   FavoriteTrack,
   LibraryFavorites,
 } from "@/lib/types/library";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 const ROW_HEART_SIZE = 40;
 
@@ -154,17 +154,10 @@ export default function LibraryFavoritesScreen() {
   );
   const handleSearchCancel = useCallback(() => setSearchQuery(""), []);
 
-  // Its own flag, not isRefetching, so a refetch nobody pulled for shows no
-  // spinner.
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    const result = await refetch();
-    setRefreshing(false);
-    if (result.isError) {
-      Burnt.toast({ title: "Couldn't refresh favorites", preset: "error" });
-    }
-  }, [refetch]);
+  const { refreshing, onRefresh } = usePullToRefresh(
+    refetch,
+    "Couldn't refresh favorites",
+  );
 
   const renderRemoveButton = (
     kind: "artist" | "album",
@@ -303,7 +296,7 @@ export default function LibraryFavoritesScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={handleRefresh}
+            onRefresh={onRefresh}
             tintColor={colors.brand}
           />
         }

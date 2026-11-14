@@ -56,6 +56,7 @@ import {
   type ScrollViewInstance,
   StyleSheet,
 } from "react-native";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 export default function DiscoverScreen() {
   const colors = Colors[useColorScheme()];
@@ -77,7 +78,6 @@ export default function DiscoverScreen() {
     );
     setTab(next);
   }, []);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
 
   // The header shrinks as the large title collapses; the page's top is where
@@ -112,25 +112,21 @@ export default function DiscoverScreen() {
     ],
   );
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      if (tab === "forYou") {
-        await refreshForYou();
-      } else if (tab === "recommended") {
-        await refetchDiscovery();
-      } else {
-        await queryClient.invalidateQueries({
-          queryKey:
-            tab === "playlists"
-              ? discoverKeys.editorialShelf()
-              : discoverKeys.trending(),
-        });
-      }
-    } finally {
-      setIsRefreshing(false);
+  const refreshTab = useCallback(async () => {
+    if (tab === "forYou") {
+      await refreshForYou();
+    } else if (tab === "recommended") {
+      await refetchDiscovery();
+    } else {
+      await queryClient.invalidateQueries({
+        queryKey:
+          tab === "playlists"
+            ? discoverKeys.editorialShelf()
+            : discoverKeys.trending(),
+      });
     }
   }, [queryClient, refetchDiscovery, refreshForYou, tab]);
+  const { refreshing, onRefresh } = usePullToRefresh(refreshTab);
 
   const pushArtist = useCallback(
     (mbid: string, name?: string) => {
@@ -278,8 +274,8 @@ export default function DiscoverScreen() {
         contentContainerStyle={styles.contentContainer}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={colors.subtle}
           />
         }

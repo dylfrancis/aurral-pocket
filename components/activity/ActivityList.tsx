@@ -3,7 +3,6 @@ import { RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import FilterList from "@expo/material-symbols/filter_list.xml";
-import * as Burnt from "burnt";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ActivityRow } from "@/components/activity/ActivityRow";
 import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet";
@@ -38,6 +37,7 @@ import {
   getActivityCounts,
   type ActivityView,
 } from "@/lib/activity-views";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 const LIST_PADDING_HORIZONTAL = 16;
 const LIST_PADDING_VERTICAL = 12;
@@ -81,28 +81,16 @@ export function ActivityList({ view }: ActivityListProps) {
     [downloadStatuses],
   );
 
-  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
-
   useFocusEffect(
     useCallback(() => {
       refetch();
     }, [refetch]),
   );
 
-  const handlePullRefresh = useCallback(async () => {
-    setIsPullRefreshing(true);
-    try {
-      const ok = await refreshActivity();
-      if (!ok) {
-        Burnt.toast({
-          title: "Couldn't refresh activity",
-          preset: "error",
-        });
-      }
-    } finally {
-      setIsPullRefreshing(false);
-    }
-  }, [refreshActivity]);
+  const { refreshing, onRefresh } = usePullToRefresh(
+    refreshActivity,
+    "Couldn't refresh activity",
+  );
 
   // Other history entries stay read-only: artist_added rows look actionable,
   // but DELETE /requests/:mbid removes the artist from Lidarr entirely.
@@ -249,8 +237,8 @@ export function ActivityList({ view }: ActivityListProps) {
         }}
         refreshControl={
           <RefreshControl
-            refreshing={isPullRefreshing}
-            onRefresh={handlePullRefresh}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={colors.brand}
           />
         }

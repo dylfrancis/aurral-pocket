@@ -39,6 +39,7 @@ import type {
   TagArtist,
   TagSearchScope,
 } from "@/lib/types/search";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 type ResultScope = "artist" | "album";
 
@@ -112,18 +113,16 @@ export default function SearchResultsScreen() {
     tagScope,
   );
 
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    if (isTagSearch) {
-      await refetchTags();
-    } else if (resultScope === "album") {
-      await refetchAlbums();
-    } else {
-      await refetchArtists();
-    }
-    setRefreshing(false);
-  }, [isTagSearch, resultScope, refetchTags, refetchAlbums, refetchArtists]);
+  const refreshResults = useCallback(
+    () =>
+      isTagSearch
+        ? refetchTags()
+        : resultScope === "album"
+          ? refetchAlbums()
+          : refetchArtists(),
+    [isTagSearch, resultScope, refetchTags, refetchAlbums, refetchArtists],
+  );
+  const { refreshing, onRefresh } = usePullToRefresh(refreshResults);
 
   const isLoading = isTagSearch
     ? tagLoading
@@ -321,7 +320,7 @@ export default function SearchResultsScreen() {
           ListHeaderComponent={tagListHeader}
           ListEmptyComponent={emptyComponent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         />
       ) : resultScope === "album" ? (
@@ -339,7 +338,7 @@ export default function SearchResultsScreen() {
           }
           ListEmptyComponent={emptyComponent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         />
       ) : (
@@ -357,7 +356,7 @@ export default function SearchResultsScreen() {
           }
           ListEmptyComponent={emptyComponent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         />
       )}

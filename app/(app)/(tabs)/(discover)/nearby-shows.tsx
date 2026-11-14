@@ -35,6 +35,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import { filterNearbyShows } from "@/lib/discover/nearby-shows";
 import type { ConcertEvent } from "@/lib/types/search";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 const PAGE_LIMIT = 60;
 
@@ -47,7 +48,6 @@ export default function NearbyShowsScreen() {
   const [sort, setSort] = useState<NearbyShowsSort>("date");
   const [dateRange, setDateRange] = useState<NearbyShowsDateRange>("all");
   const [zipEditorVisible, setZipEditorVisible] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const zipModeActive = mode === "zip";
   const zipQueryValue =
@@ -86,14 +86,7 @@ export default function NearbyShowsScreen() {
     setMode("zip");
   }, [setMode]);
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      await refetch();
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [refetch]);
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
   const handleShowPress = useCallback((show: ConcertEvent) => {
     if (show.url) {
@@ -327,8 +320,8 @@ export default function NearbyShowsScreen() {
         style={{ backgroundColor: colors.background }}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={colors.subtle}
           />
         }
