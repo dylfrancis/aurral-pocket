@@ -4,7 +4,7 @@ import {
   isListeningService,
   SERVICE_LABELS,
 } from "@/components/settings/listening";
-import { TRANSPARENT_HEADER } from "@/constants/navigation";
+import { stackScreenOptions } from "@/constants/navigation";
 import { IS_ANDROID } from "@/constants/platform";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -20,10 +20,8 @@ export default function SettingsLayout() {
     <MiniPlayerHost aboveTabs={IS_ANDROID}>
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
+          ...stackScreenOptions(colors),
           headerBackButtonDisplayMode: "minimal",
-          ...TRANSPARENT_HEADER,
         }}
       >
         <Stack.Screen

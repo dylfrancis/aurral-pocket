@@ -1,8 +1,10 @@
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import {
+  DETAIL_SCREEN_OPTIONS,
   SEARCH_PLACEHOLDERS,
-  TRANSPARENT_HEADER,
+  artistListScreenOptions,
   layoutSearchBar,
+  stackScreenOptions,
 } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -13,13 +15,7 @@ export default function LibraryLayout() {
 
   return (
     <MiniPlayerHost>
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          ...TRANSPARENT_HEADER,
-        }}
-      >
+      <Stack screenOptions={stackScreenOptions(colors)}>
         <Stack.Screen
           name="index"
           options={{
@@ -56,8 +52,8 @@ export default function LibraryLayout() {
         />
         <Stack.Screen
           name="genre/[genre]"
-          options={({ route }: any) => ({
-            title: route.params?.genre ?? "Genre",
+          options={({ route }) => ({
+            title: (route.params as { genre?: string })?.genre ?? "Genre",
             headerLargeTitleEnabled: true,
             headerBackButtonDisplayMode: "minimal",
             ...layoutSearchBar(SEARCH_PLACEHOLDERS.albums, colors),
@@ -88,10 +84,7 @@ export default function LibraryLayout() {
             headerBackButtonDisplayMode: "minimal",
           }}
         />
-        <Stack.Screen
-          name="playlist/[id]"
-          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
-        />
+        <Stack.Screen name="playlist/[id]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen
           name="playlist-edit"
           options={{
@@ -100,35 +93,16 @@ export default function LibraryLayout() {
             presentation: "card",
           }}
         />
-        <Stack.Screen
-          name="artist/[mbid]"
-          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
-        />
-        <Stack.Screen
-          name="album/[ref]"
-          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
-        />
-        <Stack.Screen
-          name="release/[mbid]"
-          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
-        />
+        <Stack.Screen name="artist/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen name="album/[ref]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen name="release/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen
           name="artist/albums"
-          options={({ route }: any) => ({
-            title: route.params?.title ?? "Albums",
-            headerLargeTitleEnabled: true,
-            headerBackButtonDisplayMode: "minimal",
-            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistAlbums, colors),
-          })}
+          options={artistListScreenOptions("albums", colors)}
         />
         <Stack.Screen
           name="artist/releases"
-          options={({ route }: any) => ({
-            title: route.params?.title ?? "Releases",
-            headerLargeTitleEnabled: true,
-            headerBackButtonDisplayMode: "minimal",
-            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistReleases, colors),
-          })}
+          options={artistListScreenOptions("releases", colors)}
         />
         <Stack.Screen
           name="blocklist"

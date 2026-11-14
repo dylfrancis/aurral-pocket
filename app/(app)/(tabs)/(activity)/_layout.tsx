@@ -3,9 +3,9 @@ import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 import {
-  SEARCH_PLACEHOLDERS,
-  TRANSPARENT_HEADER,
-  layoutSearchBar,
+  DETAIL_SCREEN_OPTIONS,
+  artistListScreenOptions,
+  stackScreenOptions,
 } from "@/constants/navigation";
 import { IS_ANDROID } from "@/constants/platform";
 
@@ -23,7 +23,6 @@ export default function ActivityLayout() {
   // navigator (a pager, a tab bar) inserts a view that breaks that chain.
   // Keeping them flat is what lets Activity behave like Library and Discover.
   const feedOptions = {
-    ...TRANSPARENT_HEADER,
     title: "Activity",
     headerLargeTitleEnabled: true,
     // Switching views is a filter, not a journey — no push animation.
@@ -32,58 +31,20 @@ export default function ActivityLayout() {
 
   return (
     <MiniPlayerHost aboveTabs={IS_ANDROID}>
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-        }}
-      >
+      <Stack screenOptions={stackScreenOptions(colors)}>
         <Stack.Screen name="queue" options={feedOptions} />
         <Stack.Screen name="review" options={feedOptions} />
         <Stack.Screen name="history" options={feedOptions} />
-        <Stack.Screen
-          name="artist/[mbid]"
-          options={{
-            ...TRANSPARENT_HEADER,
-            headerTitle: "",
-            headerBackButtonDisplayMode: "minimal",
-          }}
-        />
-        <Stack.Screen
-          name="album/[ref]"
-          options={{
-            ...TRANSPARENT_HEADER,
-            headerTitle: "",
-            headerBackButtonDisplayMode: "minimal",
-          }}
-        />
-        <Stack.Screen
-          name="release/[mbid]"
-          options={{
-            ...TRANSPARENT_HEADER,
-            headerTitle: "",
-            headerBackButtonDisplayMode: "minimal",
-          }}
-        />
+        <Stack.Screen name="artist/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen name="album/[ref]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen name="release/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen
           name="artist/albums"
-          options={({ route }: any) => ({
-            ...TRANSPARENT_HEADER,
-            title: route.params?.title ?? "Albums",
-            headerLargeTitleEnabled: true,
-            headerBackButtonDisplayMode: "minimal",
-            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistAlbums, colors),
-          })}
+          options={artistListScreenOptions("albums", colors)}
         />
         <Stack.Screen
           name="artist/releases"
-          options={({ route }: any) => ({
-            ...TRANSPARENT_HEADER,
-            title: route.params?.title ?? "Releases",
-            headerLargeTitleEnabled: true,
-            headerBackButtonDisplayMode: "minimal",
-            ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistReleases, colors),
-          })}
+          options={artistListScreenOptions("releases", colors)}
         />
       </Stack>
     </MiniPlayerHost>

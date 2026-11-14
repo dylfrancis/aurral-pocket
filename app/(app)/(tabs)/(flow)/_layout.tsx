@@ -1,6 +1,9 @@
 import { Stack } from "expo-router";
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
-import { TRANSPARENT_HEADER } from "@/constants/navigation";
+import {
+  DETAIL_SCREEN_OPTIONS,
+  stackScreenOptions,
+} from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
@@ -9,13 +12,7 @@ export default function FlowLayout() {
 
   return (
     <MiniPlayerHost>
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          ...TRANSPARENT_HEADER,
-        }}
-      >
+      <Stack screenOptions={stackScreenOptions(colors)}>
         <Stack.Screen
           name="index"
           options={{
@@ -23,10 +20,7 @@ export default function FlowLayout() {
             headerLargeTitleEnabled: true,
           }}
         />
-        <Stack.Screen
-          name="flow/[id]"
-          options={{ headerTitle: "", headerBackButtonDisplayMode: "minimal" }}
-        />
+        <Stack.Screen name="flow/[id]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen
           name="flow-edit"
           options={{
