@@ -1,8 +1,4 @@
-import {
-  queryOptions,
-  useQuery,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { getCanonicalArtist, getLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
@@ -22,14 +18,6 @@ export function useLibraryArtist(mbid: string | undefined) {
     ...libraryArtistQueryOptions(mbid!),
     enabled: !!mbid && !!serverUrl && !!token,
   });
-}
-
-/**
- * Suspense variant. Caller must be inside a Suspense + ErrorBoundary, and
- * inside the `(app)` route group (auth is guaranteed there).
- */
-export function useLibraryArtistSuspense(mbid: string) {
-  return useSuspenseQuery(libraryArtistQueryOptions(mbid));
 }
 
 /** The artist's canonical row, which has the `coverUrl` the legacy read lacks. */

@@ -155,9 +155,11 @@ export function NowPlayingScreen() {
     if (!artistMbid) return;
     leaveFor({
       pathname: "/(app)/(tabs)/(library)/artist/[mbid]",
-      params: { mbid: artistMbid },
+      // An artist outside the library opens the Browse page, which takes its
+      // title from the route.
+      params: { mbid: artistMbid, name: track?.artist ?? "" },
     });
-  }, [artistMbid, leaveFor]);
+  }, [artistMbid, track?.artist, leaveFor]);
 
   const addToPlaylist = useAddToPlaylist();
   const menuActions: TrackMenuAction[] = [];

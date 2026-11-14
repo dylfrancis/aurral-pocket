@@ -131,8 +131,11 @@ export function ActivityList({ view }: ActivityListProps) {
     (item: ActivityItem) => {
       const mbid = activityArtistMbid(item);
       if (mbid) {
+        // An artist no longer in the library opens the Browse page, which
+        // takes its title from the route.
+        const name = item.artistName ?? "";
         return () =>
-          router.push({ pathname: "/artist/[mbid]", params: { mbid } });
+          router.push({ pathname: "/artist/[mbid]", params: { mbid, name } });
       }
       if (!canOpenPlaylists || isAlbumRequest(item)) return undefined;
       if (item.status === "blocked") return undefined;

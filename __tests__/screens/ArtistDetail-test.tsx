@@ -103,7 +103,9 @@ jest.mock("expo-router", () => {
     Button: () => null,
   });
   return {
-    useLocalSearchParams: jest.fn(() => ({ mbid: "abc-123" })),
+    useLocalSearchParams: jest.fn(() => ({
+      mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    })),
     useRouter: jest.fn(() => ({ back: jest.fn(), push: mockPush })),
     Stack: { Screen: () => null, Toolbar },
   };
@@ -235,7 +237,6 @@ jest.mock("@/components/library/ArtistTags", () => {
 
 jest.mock("@/hooks/library/use-library-artist", () => ({
   useLibraryArtist: jest.fn(),
-  useLibraryArtistSuspense: jest.fn(),
   useCanonicalArtist: jest.fn(),
 }));
 
@@ -276,10 +277,10 @@ import { updateLibraryFavorites } from "@/lib/api/library";
 import ArtistDetailScreen, {
   ErrorBoundary,
 } from "@/app/(app)/(tabs)/(library)/artist/[mbid]";
+import ActivityArtistScreen from "@/app/(app)/(tabs)/(activity)/artist/[mbid]";
 import {
   useCanonicalArtist,
   useLibraryArtist,
-  useLibraryArtistSuspense,
 } from "@/hooks/library/use-library-artist";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
@@ -288,9 +289,8 @@ import { ApiError, setBaseUrl } from "@/lib/api/client";
 import type { Artist, Album } from "@/lib/types/library";
 
 const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
-const mockUseLibraryArtistSuspense = useLibraryArtistSuspense as jest.Mock;
 
-async function renderScreen() {
+async function renderScreen(Screen: React.ComponentType = ArtistDetailScreen) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Infinity },
@@ -299,7 +299,7 @@ async function renderScreen() {
   });
   return await render(
     <QueryClientProvider client={queryClient}>
-      <ArtistDetailScreen />
+      <Screen />
     </QueryClientProvider>,
   );
 }
@@ -311,8 +311,8 @@ const mockUseLibraryLookup = useLibraryLookup as jest.Mock;
 
 const baseArtist: Artist = {
   id: "1",
-  mbid: "abc-123",
-  foreignArtistId: "abc-123",
+  mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  foreignArtistId: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
   artistName: "Test Artist",
   monitored: true,
   monitorOption: "all",
@@ -349,24 +349,22 @@ const defaultArtistHook = {
   isRefetching: false,
 };
 
-const defaultSuspenseHook = {
-  data: baseArtist,
-  refetch: jest.fn().mockResolvedValue({ isError: false }),
-  isRefetching: false,
-};
-
 let consoleErrorSpy: jest.SpyInstance | undefined;
 beforeEach(() => {
   jest.clearAllMocks();
   mockLidarrConfigured.mockReturnValue(true);
-  (useLocalSearchParams as jest.Mock).mockReturnValue({ mbid: "abc-123" });
-  mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook });
+  (useLocalSearchParams as jest.Mock).mockReturnValue({
+    mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  });
+  mockUseLibraryArtist.mockReturnValue({
+    ...defaultArtistHook,
+    data: baseArtist,
+  });
   mockUseCanonicalArtist.mockReturnValue({
     data: undefined,
     refetch: jest.fn().mockResolvedValue({}),
   });
   mockUseLibraryAlbums.mockReturnValue({ ...defaultAlbumHook });
-  mockUseLibraryArtistSuspense.mockReturnValue({ ...defaultSuspenseHook });
   mockUseLibraryLookup.mockReturnValue({
     isInLibrary: () => true,
     isLoading: false,
@@ -442,7 +440,7 @@ describe("ArtistDetailScreen", () => {
           .getAllByTestId("cover-image")
           .map((image) => image.props.accessibilityLabel);
       (useLocalSearchParams as jest.Mock).mockReturnValue({
-        mbid: "abc-123",
+        mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
         coverUrl: "/api/library/artists/7/cover?v=1",
       });
 
@@ -494,7 +492,10 @@ describe("ArtistDetailScreen", () => {
 
     describe("favorite button", () => {
       const canonicalRecord = (userFavorite: boolean) => ({
-        data: { identityKey: "mbid:abc-123", userFavorite },
+        data: {
+          identityKey: "mbid:0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+          userFavorite,
+        },
         isPending: false,
         refetch: jest.fn().mockResolvedValue({}),
       });
@@ -511,7 +512,7 @@ describe("ArtistDetailScreen", () => {
           await fireEvent.press(getByLabelText(label));
 
           expect(updateLibraryFavorites).toHaveBeenCalledWith(
-            ["artist:mbid:abc-123"],
+            ["artist:mbid:0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"],
             starred,
           );
         },
@@ -564,9 +565,14 @@ describe("ArtistDetailScreen", () => {
       });
     });
 
-    it("renders artist name", async () => {
-      const { getByText } = await renderScreen();
-      expect(getByText("Test Artist")).toBeTruthy();
+    it("names the artist from its library record over the link", async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        name: "test artist",
+      });
+      await renderScreen();
+      expect(screen.getAllByText("Test Artist").length).toBeGreaterThan(0);
+      expect(screen.queryByText("test artist")).toBeNull();
     });
 
     it("shows albums section header", async () => {
@@ -820,7 +826,7 @@ describe("ArtistDetailScreen", () => {
         pathname: "/artist/releases",
         params: {
           artistId: "1",
-          artistMbid: "abc-123",
+          artistMbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
           albumType: "Compilation",
           title: "Compilations",
           artistName: "Test Artist",
@@ -889,4 +895,46 @@ describe("ArtistDetailScreen", () => {
       expect(queryByText("Albums & Releases")).toBeNull();
     });
   });
+});
+
+describe.each([
+  ["Library", ArtistDetailScreen],
+  ["Activity", ActivityArtistScreen],
+])("the %s tab's artist page", (_tab, Screen) => {
+  it("opens an artist outside the library", async () => {
+    // Similar artists, release pages and activity rows link here too, and an
+    // artist outside the library has no library record to read.
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+      name: "Outside Artist",
+    });
+    mockUseLibraryLookup.mockReturnValue({
+      isInLibrary: () => false,
+      isLoading: false,
+    });
+    mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook });
+
+    await renderScreen(Screen);
+
+    expect(screen.getAllByText("Outside Artist").length).toBeGreaterThan(0);
+    expect(screen.getByText("Add to Library")).toBeTruthy();
+  });
+});
+
+it("shows Artist not found for a library artist with no MusicBrainz id", async () => {
+  // The library list links such an artist by its library id. Without the
+  // check, the page offered Add to Library for an artist already in it.
+  (useLocalSearchParams as jest.Mock).mockReturnValue({
+    mbid: "1801056",
+    name: "Djo",
+  });
+  mockUseLibraryLookup.mockReturnValue({
+    isInLibrary: () => false,
+    isLoading: false,
+  });
+
+  await renderScreen();
+
+  expect(screen.getByText("Artist not found")).toBeTruthy();
+  expect(screen.queryByText("Add to Library")).toBeNull();
 });
