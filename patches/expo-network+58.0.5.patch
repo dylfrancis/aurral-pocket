@@ -1,0 +1,27 @@
+diff --git a/node_modules/expo-network/android/src/main/java/expo/modules/network/NetworkModule.kt b/node_modules/expo-network/android/src/main/java/expo/modules/network/NetworkModule.kt
+index 5e51327..d815950 100644
+--- a/node_modules/expo-network/android/src/main/java/expo/modules/network/NetworkModule.kt
++++ b/node_modules/expo-network/android/src/main/java/expo/modules/network/NetworkModule.kt
+@@ -194,6 +194,8 @@ class NetworkModule : Module() {
+         putString("type", connectionType?.value ?: NetworkStateType.NONE.value)
+         putBoolean("isInternetReachable", isInternetReachable)
+         putBoolean("isConnected", connectionType != null && connectionType.isDefined)
++        // Cellular or a metered Wi-Fi, and a VPN over either.
++        putBoolean("isMetered", network != null && connectivityManager.isActiveNetworkMetered)
+       }
+       return result
+     } catch (e: Exception) {
+diff --git a/node_modules/expo-network/ios/NetworkModule.swift b/node_modules/expo-network/ios/NetworkModule.swift
+index ce150f7..526c5cc 100644
+--- a/node_modules/expo-network/ios/NetworkModule.swift
++++ b/node_modules/expo-network/ios/NetworkModule.swift
+@@ -159,6 +159,9 @@ public final class NetworkModule: Module {
+       "type": currentNetworkType.description,
+       "isConnected": isConnected,
+       "isInternetReachable": isConnected,
++      // Cellular or a hotspot, even through a VPN, which reports its type as
++      // unknown.
++      "isMetered": currentPath?.isExpensive ?? false,
+     ]
+   }
+ }

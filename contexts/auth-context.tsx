@@ -12,6 +12,7 @@ import {
 import { forgetDateTimeFormat, restoreDateTimeFormat } from "@/lib/date-time";
 import { forgetPlayHistory } from "@/lib/player/play-history";
 import { forgetQueue } from "@/lib/player/player";
+import { forgetAudioCache } from "@/lib/offline/audio-cache";
 import { forgetSavedLibrary } from "@/lib/offline/saved-library";
 import { AppStorage, SecureStorage } from "@/lib/storage";
 import type { HealthResponse, User } from "@/lib/types/auth";
@@ -84,6 +85,16 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Stop the player and forget the queue, then the tracks fetched ahead of it.
+ * In that order, so the engine isn't left playing a file that's just gone.
+ */
+function forgetPlayback(): Promise<void> {
+  return forgetQueue()
+    .catch(() => {})
+    .then(() => forgetAudioCache());
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [customHeaders, setCustomHeadersState] = useState<
@@ -154,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             AppStorage.deleteOidcSession(),
             AppStorage.deletePlaybackQueue(),
             AppStorage.deletePlayEventOutbox(),
+            forgetAudioCache(),
             forgetSavedLibrary(),
             forgetDateTimeFormat(),
           ]);
@@ -355,7 +367,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSessionExpiredState(false);
     notifyReAuthResult(false);
     await Promise.all([
-      forgetQueue(),
+      forgetPlayback(),
       SecureStorage.deleteToken(),
       SecureStorage.deleteUser(),
       SecureStorage.deleteExpiresAt(),
@@ -379,7 +391,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await Promise.all([
       AppStorage.deleteServerUrl(),
       AppStorage.deleteOidcSession(),
-      forgetQueue(),
+      forgetPlayback(),
       forgetPlayHistory(),
       forgetSavedLibrary(),
       forgetDateTimeFormat(),

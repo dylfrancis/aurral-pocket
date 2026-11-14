@@ -50,6 +50,8 @@ jest.mock("@/lib/offline/network", () => ({
   useIsOffline: () => mockOffline,
   onNetworkChange: () => () => {},
   networkKnown: () => Promise.resolve(),
+  isMetered: () => false,
+  onMeteredChange: () => () => {},
 }));
 
 // What the server lists. Each screen's own hook is stood in for, so these

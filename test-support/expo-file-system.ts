@@ -10,6 +10,8 @@ type Download = {
   url: string;
   destination: string;
   headers: Record<string, string>;
+  /** iOS's default is a background session. */
+  sessionType: "background" | "foreground";
   finish: (bytes: number) => void;
   fail: (message: string) => void;
   cancelled: boolean;
@@ -52,7 +54,10 @@ export class File {
   static createDownloadTask(
     url: string,
     destination: File,
-    options: { headers?: Record<string, string> } = {},
+    options: {
+      headers?: Record<string, string>;
+      sessionType?: "background" | "foreground";
+    } = {},
   ) {
     let settle: {
       resolve: (file: File) => void;
@@ -62,6 +67,7 @@ export class File {
       url,
       destination: destination.uri,
       headers: options.headers ?? {},
+      sessionType: options.sessionType ?? "background",
       cancelled: false,
       finish(bytes) {
         files.set(destination.uri, bytes);
@@ -114,6 +120,9 @@ export class Directory {
 export const Paths = {
   get document(): Directory {
     return new Directory("file:///documents");
+  },
+  get cache(): Directory {
+    return new Directory("file:///caches");
   },
 };
 

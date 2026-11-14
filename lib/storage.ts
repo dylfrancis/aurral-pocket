@@ -27,6 +27,8 @@ const KEYS = {
   PLAYBACK_QUEUE: "playback_queue",
   PLAY_EVENT_OUTBOX: "play_event_outbox",
   SAVED_OFFLINE: "saved_offline",
+  AUDIO_CACHE: "audio_cache",
+  PLAYBACK_SETTINGS: "playback_settings",
   DATE_TIME_FORMAT: "date_time_format",
   CUSTOM_HEADERS: "custom_headers",
 } as const;
@@ -378,6 +380,42 @@ export const AppStorage = {
   async deleteSavedOffline(): Promise<void> {
     try {
       await AsyncStorage.removeItem(KEYS.SAVED_OFFLINE);
+    } catch {}
+  },
+
+  /** Tracks fetched ahead of the queue. Its shape lives in lib/offline/audio-cache.ts. */
+  async getAudioCache(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(KEYS.AUDIO_CACHE);
+    } catch {
+      return null;
+    }
+  },
+
+  async setAudioCache(json: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.AUDIO_CACHE, json);
+    } catch {}
+  },
+
+  async deleteAudioCache(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.AUDIO_CACHE);
+    } catch {}
+  },
+
+  /** Its shape lives in lib/player/playback-settings.ts. */
+  async getPlaybackSettings(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(KEYS.PLAYBACK_SETTINGS);
+    } catch {
+      return null;
+    }
+  },
+
+  async setPlaybackSettings(json: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.PLAYBACK_SETTINGS, json);
     } catch {}
   },
 

@@ -16,8 +16,23 @@ const mockSavedFiles = new Map<string, string>();
 let mockOffline = false;
 jest.mock("@/lib/offline/saved-library", () => ({
   savedFilePath: (id: string) => mockSavedFiles.get(id) ?? null,
-  canPlayNow: (id: string) => !mockOffline || mockSavedFiles.has(id),
+  canPlayNow: (id: string) =>
+    !mockOffline || mockSavedFiles.has(id) || mockCachedFiles.has(id),
   savedLibraryReady: () => Promise.resolve(),
+}));
+// The cache's files, the windows it's given, and its change listeners.
+const mockCachedFiles = new Map<string, string>();
+const mockSetPrefetchWindow = jest.fn();
+const mockCacheListeners: ((trackIds: string[]) => void)[] = [];
+jest.mock("@/lib/offline/audio-cache", () => ({
+  cachedFilePath: (id: string) => mockCachedFiles.get(id) ?? null,
+  audioCacheReady: () => Promise.resolve(),
+  markPlayed: () => {},
+  setPrefetchWindow: (...args: unknown[]) => mockSetPrefetchWindow(...args),
+  onCachedFilesChange: (listener: (trackIds: string[]) => void) => {
+    mockCacheListeners.push(listener);
+    return () => {};
+  },
 }));
 const mockNetworkListeners: ((offline: boolean) => void)[] = [];
 jest.mock("@/lib/offline/network", () => ({
@@ -55,6 +70,10 @@ import {
   useCurrentTrack,
   useQueue,
 } from "@/lib/player/player";
+import {
+  DEFAULT_PLAYBACK_SETTINGS,
+  setPlaybackSettings,
+} from "@/lib/player/playback-settings";
 import type { Track } from "@/lib/types/library";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
@@ -724,6 +743,19 @@ describe("playback events", () => {
     });
   });
 
+  it("asks for tracks to be fetched ahead only while one plays", async () => {
+    await forgetQueue();
+    await playAlbumFromTrack([track()], track(), album);
+    const lastIsPlaying = () => mockSetPrefetchWindow.mock.calls.at(-1)?.[2];
+    expect(lastIsPlaying()).toBe(false);
+
+    engine.stateChange("playing", undefined);
+    expect(lastIsPlaying()).toBe(true);
+
+    engine.stateChange("paused", undefined);
+    expect(lastIsPlaying()).toBe(false);
+  });
+
   it("emits track-started when the engine moves onto a track", () => {
     const started: string[] = [];
     const unsubscribe = onTrackStarted((track) => started.push(track.id));
@@ -1100,5 +1132,140 @@ describe("refreshQueueUrls", () => {
     await refreshQueueUrls();
 
     expect(queue.createPlaylist).not.toHaveBeenCalled();
+  });
+});
+
+describe("fetching ahead", () => {
+  const albumTracks = ["71", "72", "73", "74", "75"].map((id, index) =>
+    track({ id, trackNumber: index + 1, streamPath: `/stream/12/${id}` }),
+  );
+
+  /** What the player last asked to have fetched, and the track playing. */
+  function lastWindow() {
+    const calls = mockSetPrefetchWindow.mock.calls;
+    const [tracks, playing] = calls[calls.length - 1];
+    return { ids: tracks.map((t: { id: string }) => t.id), playing };
+  }
+
+  beforeAll(() => {
+    // The facade listens for settings and files once it's wired.
+    onTrackStarted(() => {})();
+  });
+
+  beforeEach(async () => {
+    await forgetQueue();
+  });
+
+  afterEach(async () => {
+    setPlaybackSettings(DEFAULT_PLAYBACK_SETTINGS);
+    await setRepeatMode("off");
+    mockSavedFiles.clear();
+    mockCachedFiles.clear();
+  });
+
+  it("names the tracks up next, as the queue stands, and not the one playing", async () => {
+    await playAlbumFromTrack(albumTracks, albumTracks[1], album);
+    expect(lastWindow()).toEqual({ ids: ["73"], playing: "72" });
+
+    setPlaybackSettings({ prefetchAhead: 3 });
+    expect(lastWindow().ids).toEqual(["73", "74", "75"]);
+
+    await playNextInQueue(
+      [track({ id: "81", streamPath: "/stream/13/81" })],
+      album,
+    );
+    expect(lastWindow().ids).toEqual(["81", "73", "74"]);
+
+    setPlaybackSettings({ prefetchAhead: 0 });
+    expect(lastWindow()).toEqual({ ids: [], playing: "72" });
+  });
+
+  it("wraps around under repeat all, and leaves out tracks saved offline", async () => {
+    mockSavedFiles.set("71", "/files/71.flac");
+    setPlaybackSettings({ prefetchAhead: 3 });
+    await playAlbumFromTrack(albumTracks, albumTracks[4], album);
+    expect(lastWindow().ids).toEqual([]);
+
+    await setRepeatMode("all");
+
+    expect(lastWindow().ids).toEqual(["72", "73"]);
+  });
+
+  it("moves a queued track onto its file once fetched, and back to its stream once evicted", async () => {
+    await playAlbumFromTrack(albumTracks.slice(0, 3), albumTracks[0], album);
+    jest.clearAllMocks();
+
+    mockCachedFiles.set("71", "/cache/71.flac");
+    mockCachedFiles.set("72", "/cache/72.flac");
+    mockCacheListeners.forEach((listener) => listener(["71", "72"]));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    // The playing track stays as the engine holds it.
+    expect(player.updateTracks).toHaveBeenCalledTimes(1);
+    expect(player.updateTracks).toHaveBeenLastCalledWith([
+      expect.objectContaining({ id: "72", url: "/cache/72.flac" }),
+    ]);
+
+    mockCachedFiles.delete("72");
+    mockCacheListeners.forEach((listener) => listener(["72"]));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(player.updateTracks).toHaveBeenLastCalledWith([
+      expect.objectContaining({
+        id: "72",
+        url: "https://test.example/api/stream/12/72?token=test-token-123",
+      }),
+    ]);
+  });
+});
+
+describe("queue length", () => {
+  const ids = Array.from({ length: 30 }, (_, i) => String(i + 1));
+  const albumTracks = ids.map((id) =>
+    track({ id, trackNumber: Number(id), streamPath: `/stream/12/${id}` }),
+  );
+  const byNumber = (a: string, b: string) => Number(a) - Number(b);
+
+  // A stateful stand-in for the engine playlist.
+  let playlistIds: string[] = [];
+
+  beforeEach(async () => {
+    await forgetQueue();
+    playlistIds = [];
+    queue.addTracksToPlaylist.mockImplementation((_, tracks) => {
+      playlistIds = tracks.map((t) => t.id);
+      return Promise.resolve();
+    });
+    queue.reorderTrackInPlaylist.mockImplementation((_, trackId, newIndex) => {
+      playlistIds.splice(playlistIds.indexOf(trackId), 1);
+      playlistIds.splice(newIndex, 0, trackId);
+      return Promise.resolve();
+    });
+    setPlaybackSettings({ queueLimit: 25 });
+  });
+
+  afterEach(async () => {
+    setPlaybackSettings(DEFAULT_PLAYBACK_SETTINGS);
+    await setShuffle(false);
+  });
+
+  it("loads at most that many tracks, from the tapped one on", async () => {
+    await playAlbumFromTrack(albumTracks, albumTracks[2], album);
+
+    expect(playlistIds).toEqual(ids.slice(2, 27));
+    expect(queue.loadPlaylist).toHaveBeenLastCalledWith("playlist-1", 0);
+  });
+
+  it("under shuffle, starts with the tapped track, and unshuffle puts the rest in album order", async () => {
+    await setShuffle(true);
+    await playAlbumFromTrack(albumTracks, albumTracks[9], album);
+
+    expect(playlistIds).toHaveLength(25);
+    expect(playlistIds[0]).toBe("10");
+    const drawn = [...playlistIds];
+
+    await setShuffle(false);
+
+    expect(playlistIds).toEqual([...drawn].sort(byNumber));
   });
 });

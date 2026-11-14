@@ -22,6 +22,14 @@ import {
   customHeadersFor,
 } from "@/lib/api/client";
 import {
+  audioCacheReady,
+  cachedFilePath,
+  markPlayed,
+  onCachedFilesChange,
+  setPrefetchWindow,
+  type PrefetchTrack,
+} from "@/lib/offline/audio-cache";
+import {
   isOffline,
   networkKnown,
   onNetworkChange,
@@ -31,6 +39,12 @@ import {
   savedFilePath,
   savedLibraryReady,
 } from "@/lib/offline/saved-library";
+import {
+  getPlaybackSettings,
+  onPlaybackSettingsChange,
+  playbackSettingsReady,
+} from "@/lib/player/playback-settings";
+import { limitQueue } from "@/lib/player/queue-limit";
 import type { Track } from "@/lib/types/library";
 import { useSyncExternalStore } from "react";
 import {
@@ -126,7 +140,9 @@ export function playItem(item: PlayerClip): Promise<void> {
     albumMbid: null,
     favorite: null,
   };
-  const run = lastPlay.then(() => replaceAndPlay([track], track.id, null));
+  const run = lastPlay.then(async () => {
+    await replaceAndPlay([track], track.id, null);
+  });
   // A failed play must not wedge every later one.
   lastPlay = run.catch(() => {});
   return run;
@@ -135,7 +151,9 @@ export function playItem(item: PlayerClip): Promise<void> {
 /**
  * Play one track from an album, queueing the whole album in order. The whole
  * album — not just the remainder — so previous can walk back past the tapped
- * track and repeat-all cycles the full album. Returns false — not an error —
+ * track and repeat-all cycles the full album. A queue length set in Settings
+ * cuts it to the tapped track and the ones after it. Returns false — not an
+ * error —
  * when the tapped track cannot play: Aurral has no readable file for it, or
  * the session token is gone, or the phone is offline and the track isn't saved.
  */
@@ -161,17 +179,27 @@ export async function playAlbumFromTrack(
     : [startItem];
 
   const run = lastPlay.then(() => replaceAndPlay(queued, startItem.id, album));
-  lastPlay = run.catch(() => {});
+  lastPlay = run.then(
+    () => {},
+    () => {},
+  );
   await run;
   return true;
 }
 
+/** Returns how many tracks the queue took, after the queue length in Settings. */
 async function replaceAndPlay(
-  items: PlayerTrack[],
+  tracks: PlayerTrack[],
   startId: string,
   album: PlayerAlbumContext | null,
-): Promise<void> {
-  await configureEngine();
+): Promise<number> {
+  await Promise.all([configureEngine(), playbackSettingsReady()]);
+  const { queue: items, original } = limitQueue(
+    tracks,
+    startId,
+    getPlaybackSettings().queueLimit,
+    shuffleOn,
+  );
 
   if (currentPlaylistId) {
     await PlayerQueue.deletePlaylist(currentPlaylistId);
@@ -179,7 +207,7 @@ async function replaceAndPlay(
   const playlistId = await PlayerQueue.createPlaylist(PLAYLIST_NAME);
   currentPlaylistId = playlistId;
   queueOrder = items;
-  originalOrder = items;
+  originalOrder = original;
   queueAlbumContext = album;
   // Show the started track now, not on the engine's track-change event, so
   // the mini player appears with the tap. The engine's event re-delivers
@@ -201,6 +229,12 @@ async function replaceAndPlay(
   if (shuffleOn) {
     await shuffleUpcomingAfter(startId, playlistId);
   }
+  return items.length;
+}
+
+/** A track saved offline or fetched ahead plays from its file. */
+function localFilePath(id: string): string | null {
+  return savedFilePath(id) ?? cachedFilePath(id);
 }
 
 function toEngineTrack(item: PlayerTrack): TrackItem {
@@ -208,8 +242,8 @@ function toEngineTrack(item: PlayerTrack): TrackItem {
   // cover needs a token in its URL. It is added here, on the way out, so the
   // queue and its saved copy never hold a token for artwork.
   const artwork = authenticatedImageUrl(item.coverPath) ?? item.artwork;
-  // A saved track plays from its file, connection or not.
-  const url = savedFilePath(item.id) ?? item.url;
+  // A saved or fetched track plays from its file, connection or not.
+  const url = localFilePath(item.id) ?? item.url;
   // Worked out per URL, so a Deezer clip, a cover or a file gets no custom
   // headers.
   const headers = customHeadersFor(url);
@@ -240,7 +274,10 @@ export async function playQueueFrom(
   const playable = playableNow(items);
   if (!playable.some((item) => item.id === startId)) return false;
   const run = lastPlay.then(() => replaceAndPlay(playable, startId, context));
-  lastPlay = run.catch(() => {});
+  lastPlay = run.then(
+    () => {},
+    () => {},
+  );
   await run;
   return true;
 }
@@ -456,8 +493,7 @@ function editQueue(
       !currentPlaylistId ||
       queueAlbumContext === null
     ) {
-      await replaceAndPlay(items, items[0].id, album);
-      return items.length;
+      return replaceAndPlay(items, items[0].id, album);
     }
 
     const currentId = displayedTrack?.id ?? null;
@@ -605,12 +641,52 @@ function refreshQueueSnapshot(): void {
   };
   queueChangedListeners.forEach((listener) => listener());
   persistQueue();
+  updatePrefetchWindow();
 }
 
 function notifyModesChanged(): void {
   modesSnapshot = { shuffle: shuffleOn, repeat: repeatMode };
   modesChangedListeners.forEach((listener) => listener());
   persistQueue();
+  updatePrefetchWindow();
+}
+
+/**
+ * Name the tracks to fetch ahead: the next ones in the queue as it stands, not
+ * the one playing. Repeat all wraps around to the top. A preview clip has
+ * nothing to fetch.
+ */
+function updatePrefetchWindow(): void {
+  const current = queueAlbumContext ? displayedTrack : null;
+  const index = current
+    ? queueOrder.findIndex((item) => item.id === current.id)
+    : -1;
+  const ahead = Math.min(
+    getPlaybackSettings().prefetchAhead,
+    queueOrder.length - 1,
+  );
+  const upcoming: PlayerTrack[] = [];
+  for (let step = 1; index >= 0 && step <= ahead; step++) {
+    const at = index + step;
+    if (at >= queueOrder.length && repeatMode !== "all") break;
+    upcoming.push(queueOrder[at % queueOrder.length]);
+  }
+  // Not while paused, or while a stream is still buffering its start.
+  setPrefetchWindow(
+    upcoming.flatMap((item) => toPrefetchTrack(item) ?? []),
+    current?.id ?? null,
+    playbackState === "playing",
+  );
+}
+
+/** Saved tracks are on the phone already, and a clip has no file to fetch. */
+function toPrefetchTrack(item: PlayerTrack): PrefetchTrack | null {
+  if (!item.streamPath || savedFilePath(item.id) !== null) return null;
+  return {
+    id: item.id,
+    streamPath: item.streamPath,
+    audioFormat: item.audioFormat,
+  };
 }
 
 /*
@@ -688,13 +764,13 @@ async function restoreNow(): Promise<boolean> {
   const saved = await readSavedQueue();
   if (!saved) return false;
 
-  // A saved track plays from its file, so the server isn't asked about it.
-  // Offline, the unsaved ones still come back, passed over until the
+  // A saved or fetched track plays from its file, so the server isn't asked
+  // about it. Offline, the others still come back, passed over until the
   // connection does.
-  await Promise.all([savedLibraryReady(), networkKnown()]);
+  await Promise.all([savedLibraryReady(), audioCacheReady(), networkKnown()]);
   const items = await restorableTracks(
     saved,
-    (id) => savedFilePath(id) !== null,
+    (id) => localFilePath(id) !== null,
   );
   if (items.length === 0) {
     await clearSavedQueue();
@@ -908,8 +984,12 @@ function wireEngineEvents(): void {
   engineEventsWired = true;
 
   onNetworkChange((offline) => {
-    if (offline) switchToSavedFiles();
+    if (offline) switchToLocalFiles();
   });
+  onCachedFilesChange(followCachedFiles);
+  // Read early, so an offline start knows which tracks are on the phone.
+  void audioCacheReady();
+  onPlaybackSettingsChange(updatePrefetchWindow);
 
   callbackManager.subscribeToTrackChange(
     function handleTrackChange(engineTrack): void {
@@ -947,6 +1027,7 @@ function wireEngineEvents(): void {
         started.duration || restored?.duration || 0,
       );
       setDisplayedTrack(started);
+      markPlayed(started.id);
       // A queue rebuilt or restored partway through a track carries on the
       // same play rather than starting a new one.
       if (!restored?.position) {
@@ -999,6 +1080,7 @@ function wireEngineEvents(): void {
     function handleStateChange(state, reason): void {
       playbackState = state;
       playbackStateListeners.forEach((listener) => listener());
+      updatePrefetchWindow();
       if (state === "stopped" && reason === "error") {
         // A streamed track can play out its buffer after the connection goes.
         if (currentEventTrack && isUnplayableNow(currentEventTrack.id)) {
@@ -1213,15 +1295,33 @@ function skipUnplayable(
  * goes, the queue's saved tracks move to their files. The engine keeps the
  * one it's playing as it is, and loads the rest from the new URLs.
  */
-function switchToSavedFiles(): void {
+function switchToLocalFiles(): void {
   const run = lastPlay.then(async () => {
     if (!currentPlaylistId) return;
-    const saved = queueOrder.filter(
+    const local = queueOrder.filter(
       (item) =>
-        item.id !== displayedTrack?.id && savedFilePath(item.id) !== null,
+        item.id !== displayedTrack?.id && localFilePath(item.id) !== null,
     );
-    if (saved.length === 0) return;
-    await TrackPlayer.updateTracks(saved.map(toEngineTrack));
+    if (local.length === 0) return;
+    await TrackPlayer.updateTracks(local.map(toEngineTrack));
+  });
+  lastPlay = run.catch(() => {});
+}
+
+/**
+ * A queued track whose file was just fetched plays from it, and one whose file
+ * was evicted or cleared goes back to its stream. The engine keeps the track
+ * it's playing as it is.
+ */
+function followCachedFiles(trackIds: string[]): void {
+  const changed = new Set(trackIds);
+  const run = lastPlay.then(async () => {
+    if (!currentPlaylistId || !queueAlbumContext) return;
+    const items = queueOrder.filter(
+      (item) => changed.has(item.id) && item.id !== displayedTrack?.id,
+    );
+    if (items.length === 0) return;
+    await TrackPlayer.updateTracks(items.map(toEngineTrack));
   });
   lastPlay = run.catch(() => {});
 }

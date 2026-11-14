@@ -5,6 +5,8 @@ jest.mock("@/lib/offline/network", () => ({
   useIsOffline: () => mockOffline,
   networkKnown: () => Promise.resolve(),
   onNetworkChange: () => () => {},
+  isMetered: () => false,
+  onMeteredChange: () => () => {},
 }));
 
 jest.mock("expo-secure-store", () => ({
@@ -622,7 +624,11 @@ describe("NowPlayingScreen", () => {
         }
       });
 
-      expect(downloads.map((download) => download.url)).toEqual([
+      // Fetching ahead downloads too, into its own folder.
+      const saves = downloads.filter((download) =>
+        download.destination.includes("/saved-offline/"),
+      );
+      expect(saves.map((download) => download.url)).toEqual([
         "https://test.example/api/stream/12/1?token=test-token-123",
       ]);
     } finally {

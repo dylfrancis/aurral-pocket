@@ -2,12 +2,19 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { Directory, File, Paths } from "expo-file-system";
 import { buildAuthenticatedUrl, customHeadersFor } from "@/lib/api/client";
 import { getFlowStreamPath } from "@/lib/api/flow";
+import { cachedFilePath, useIsTrackCached } from "@/lib/offline/audio-cache";
 import {
-  isOffline,
-  onNetworkChange,
-  useIsOffline,
-} from "@/lib/offline/network";
-import { audioFormatLabel } from "@/lib/player/audio-format";
+  MAX_ATTEMPTS,
+  RETRY_DELAY_MS,
+  deleteQuietly,
+  downloadHold,
+  downloadHoldKnown,
+  enginePath,
+  fileName,
+  httpStatusOf,
+  onDownloadHoldChange,
+} from "@/lib/offline/download";
+import { isOffline, useIsOffline } from "@/lib/offline/network";
 import { toSavedTrack, type SavedTrack } from "@/lib/player/saved-queue";
 import type { PlayerTrack } from "@/lib/player/track-item";
 import { AppStorage } from "@/lib/storage";
@@ -115,9 +122,6 @@ type Snapshot = {
 };
 
 const RECORD_VERSION = 1;
-/** Tries per file before a lost connection, busy server or refused session sticks. */
-const MAX_ATTEMPTS = 3;
-const RETRY_DELAY_MS = 2_000;
 
 let snapshot: Snapshot = { items: [], files: {}, userId: null, blocked: null };
 /** The signed-in account's tracks with a file on disk. */
@@ -142,38 +146,6 @@ function audioDirectory(): Directory {
 
 function fileFor(name: string): File {
   return new File(audioDirectory(), name);
-}
-
-/** The container each format the player names comes in. */
-const LABEL_EXTENSIONS: Record<string, string> = {
-  FLAC: "flac",
-  MP3: "mp3",
-  AAC: "m4a",
-  ALAC: "m4a",
-  Opus: "opus",
-  Vorbis: "ogg",
-  WAV: "wav",
-  AIFF: "aiff",
-};
-
-/**
- * Files are named by track, with the file's extension: iOS picks the parser
- * by it. The server's extension wins; without one, the codec's container.
- */
-function fileName(
-  id: string,
-  extension: string | null | undefined,
-  codec: string | null | undefined,
-): string {
-  const safeId = id.replace(/[^A-Za-z0-9_-]/g, "_");
-  const given = (extension ?? "").toLowerCase();
-  const label = audioFormatLabel(codec, null);
-  const ext = /^[a-z0-9]{1,5}$/.test(given)
-    ? given
-    : label
-      ? LABEL_EXTENSIONS[label]
-      : undefined;
-  return ext ? `${safeId}.${ext}` : safeId;
 }
 
 function itemKey(kind: SavedKind, id: string): string {
@@ -229,8 +201,14 @@ function load(): Promise<void> {
       { persist: false },
     );
     write();
-    onNetworkChange((offline) => {
-      if (!offline && snapshot.blocked === "network") resumeSaving();
+    onDownloadHoldChange((hold) => {
+      if (hold === null) {
+        if (snapshot.blocked === "network") resumeSaving();
+        return;
+      }
+      // A save going on Wi-Fi doesn't carry on over cellular. The next one
+      // finds the hold and waits.
+      if (hold === "wifi" && inFlight) cancelInFlight();
     });
   })();
   return loaded;
@@ -274,12 +252,6 @@ function reconcile(
     return files;
   }
   return result;
-}
-
-function deleteQuietly(file: File): void {
-  try {
-    if (file.exists) file.delete();
-  } catch {}
 }
 
 export function savedLibraryReady(): Promise<void> {
@@ -326,15 +298,21 @@ export function savedFilePath(trackId: string): string | null {
   if (!savedTrackIds.has(trackId)) return null;
   const file = snapshot.files[trackId];
   if (!file) return null;
-  // The engine reads a path that starts with "/" as a local file on both
-  // platforms. The app's folder can move on an update, so the path is built
-  // fresh rather than stored.
-  return decodeURI(fileFor(file.name).uri.replace(/^file:\/\//, ""));
+  // The app's folder can move on an update, so the path is built fresh
+  // rather than stored.
+  return enginePath(fileFor(file.name));
 }
 
-/** Online, any track can play; offline, only one the signed-in account saved. */
+/**
+ * Online, any track can play; offline, only one the signed-in account saved
+ * or one fetched ahead of the queue.
+ */
 export function canPlayNow(trackId: string): boolean {
-  return !isOffline() || savedFilePath(trackId) !== null;
+  return (
+    !isOffline() ||
+    savedFilePath(trackId) !== null ||
+    cachedFilePath(trackId) !== null
+  );
 }
 
 export function saveAlbum(input: {
@@ -567,6 +545,7 @@ async function saveWaitingFiles(): Promise<void> {
   pumping = true;
   try {
     await load();
+    await downloadHoldKnown();
     while (snapshot.blocked === null && snapshot.userId !== null) {
       const next = nextToSave();
       if (!next) break;
@@ -579,7 +558,7 @@ async function saveWaitingFiles(): Promise<void> {
 }
 
 async function saveFile(trackId: string, file: SavedFile): Promise<void> {
-  if (isOffline()) {
+  if (downloadHold() !== null) {
     commit({ blocked: "network" }, { persist: false });
     return;
   }
@@ -647,13 +626,6 @@ function setFile(trackId: string, change: Partial<SavedFile>): void {
   const file = snapshot.files[trackId];
   if (!file) return;
   commit({ files: { ...snapshot.files, [trackId]: { ...file, ...change } } });
-}
-
-/** Both platforms put the status in the message, as in "HTTP 401". */
-function httpStatusOf(error: unknown): number | null {
-  const message = error instanceof Error ? error.message : String(error);
-  const match = /\b(?:HTTP|status)\s+(\d{3})\b/i.exec(message);
-  return match ? Number(match[1]) : null;
 }
 
 function statusOf(state: Snapshot, item: SavedItem): SaveStatus {
@@ -738,11 +710,12 @@ export function useIsTrackSaved(trackId: string): boolean {
   return useSyncExternalStore(subscribe, getSaved, getSaved);
 }
 
-/** canPlayNow as a hook: it follows the connection and the saves. */
+/** canPlayNow as a hook: it follows the connection, the saves and the cache. */
 export function useCanPlayNow(trackId: string): boolean {
   const offline = useIsOffline();
   const saved = useIsTrackSaved(trackId);
-  return !offline || saved;
+  const cached = useIsTrackCached(trackId);
+  return !offline || saved || cached;
 }
 
 /**
