@@ -224,7 +224,6 @@ Routing is file-based via [Expo Router](https://docs.expo.dev/router/introductio
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (enforced by `commitlint`).
 - `husky` + `lint-staged` format and lint staged files on commit.
 - Releases are automated via [release-please](https://github.com/googleapis/release-please): `main` cuts stable releases and `test` cuts `-test` prereleases. See `CHANGELOG.md`.
-- Known tech-debt items are tracked in [`TODO.md`](./TODO.md).
 
 ## Credits
 
