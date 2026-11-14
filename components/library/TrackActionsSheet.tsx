@@ -196,6 +196,9 @@ function TrackActionsContent({
       ref={sheetRef}
       enableDynamicSizing
       enablePanDownToClose
+      // Over another sheet, such as the Shazam match, "switch" would minimize
+      // that sheet, and the bottom-sheet library then dismisses it for good.
+      stackBehavior="push"
       onDismiss={onClose}
     >
       <BottomSheetView
