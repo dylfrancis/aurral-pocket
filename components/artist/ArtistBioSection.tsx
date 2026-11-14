@@ -9,7 +9,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 
 type ArtistBioSectionProps = {
   bio: string | null | undefined;
@@ -34,12 +35,7 @@ export function ArtistBioSection({
     <>
       {bio && (
         <View style={styles.bioSection}>
-          <Text
-            variant="caption"
-            style={[styles.label, { color: colors.subtle }]}
-          >
-            About
-          </Text>
+          <SectionLabel>About</SectionLabel>
           <Text
             variant="caption"
             style={styles.bio}
@@ -99,13 +95,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     gap: 6,
-  },
-  label: {
-    ...Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 14,
-    paddingVertical: 8,
   },
   bio: {
     lineHeight: 18,

@@ -2,11 +2,9 @@ import { StyleSheet, View } from "react-native";
 import { ReleaseGroupCard } from "@/components/library/ReleaseGroupCard";
 import { AlbumCategoryList } from "@/components/artist/AlbumCategoryList";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
-import { Text } from "@/components/ui/Text";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, Fonts } from "@/constants/theme";
 import { RELEASE_SECTIONS } from "@/lib/release-groups";
 import type { PrimaryReleaseType, ReleaseGroup } from "@/lib/types/library";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 
 type ReleaseGroupsSectionProps = {
   grouped: Map<PrimaryReleaseType, ReleaseGroup[]> | null;
@@ -21,18 +19,11 @@ export function ReleaseGroupsSection({
   onPress,
   onNavigate,
 }: ReleaseGroupsSectionProps) {
-  const colors = Colors[useColorScheme()];
-
   if (!grouped || grouped.size === 0) {
     if (isLoading) {
       return (
         <View style={styles.container}>
-          <Text
-            variant="caption"
-            style={[styles.label, { color: colors.subtle }]}
-          >
-            Albums & Releases
-          </Text>
+          <SectionLabel style={styles.label}>Albums & Releases</SectionLabel>
           <AlbumCategorySkeleton />
         </View>
       );
@@ -42,9 +33,7 @@ export function ReleaseGroupsSection({
 
   return (
     <View style={styles.container}>
-      <Text variant="caption" style={[styles.label, { color: colors.subtle }]}>
-        Albums & Releases
-      </Text>
+      <SectionLabel style={styles.label}>Albums & Releases</SectionLabel>
       {RELEASE_SECTIONS.map(({ type, label }) => {
         const list = grouped.get(type);
         if (!list || list.length === 0) return null;
@@ -71,11 +60,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   label: {
-    ...Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 14,
-    paddingVertical: 8,
     paddingHorizontal: 16,
     marginBottom: 4,
   },
