@@ -1,4 +1,5 @@
-import { StyleSheet, Switch, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Switch } from "@/components/ui/Switch";
 import { Card } from "@/components/ui/Card";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
@@ -53,13 +54,7 @@ export function FlowCard({ flow, stats, onPress, onToggleEnabled }: Props) {
             {flow.size} tracks · {scheduleLabel(flow)}
           </Text>
         </View>
-        <Switch
-          value={flow.enabled}
-          onValueChange={onToggleEnabled}
-          trackColor={{ false: colors.separator, true: colors.brand }}
-          thumbColor={colors.switchThumb}
-          ios_backgroundColor={colors.separator}
-        />
+        <Switch value={flow.enabled} onValueChange={onToggleEnabled} />
       </View>
 
       <ProgressBar done={stats?.done ?? 0} total={flow.size} />

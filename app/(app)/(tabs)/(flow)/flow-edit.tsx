@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   StyleSheet,
-  Switch,
   View,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -32,6 +31,7 @@ import {
   type FlowFormValues,
 } from "@/lib/types/flow";
 import { flowFormSchema, type FlowFormSchema } from "@/lib/flow-form-schema";
+import { Switch } from "@/components/ui/Switch";
 
 function toFormValues(flow: Flow): FlowFormValues {
   return {
@@ -294,15 +294,7 @@ function FlowEditForm({
             <Section
               title="Deeper Cuts"
               subtitle="Use tracks ranked 10 to 25 instead of each artist's top 10."
-              trailing={
-                <Switch
-                  value={value}
-                  onValueChange={onChange}
-                  trackColor={{ false: colors.separator, true: colors.brand }}
-                  thumbColor={colors.switchThumb}
-                  ios_backgroundColor={colors.separator}
-                />
-              }
+              trailing={<Switch value={value} onValueChange={onChange} />}
             />
           )}
         />
@@ -314,15 +306,7 @@ function FlowEditForm({
             <Section
               title="Record History"
               subtitle="Count plays from this flow in your listening history."
-              trailing={
-                <Switch
-                  value={value}
-                  onValueChange={onChange}
-                  trackColor={{ false: colors.separator, true: colors.brand }}
-                  thumbColor={colors.switchThumb}
-                  ios_backgroundColor={colors.separator}
-                />
-              }
+              trailing={<Switch value={value} onValueChange={onChange} />}
             />
           )}
         />
@@ -339,9 +323,6 @@ function FlowEditForm({
                   value={value}
                   onValueChange={onChange}
                   accessibilityLabel="Download automatically"
-                  trackColor={{ false: colors.separator, true: colors.brand }}
-                  thumbColor={colors.switchThumb}
-                  ios_backgroundColor={colors.separator}
                 />
               }
             />
@@ -456,9 +437,6 @@ function FlowEditForm({
                   value={value}
                   onValueChange={onChange}
                   accessibilityLabel="Recent listening"
-                  trackColor={{ false: colors.separator, true: colors.brand }}
-                  thumbColor={colors.switchThumb}
-                  ios_backgroundColor={colors.separator}
                 />
               </View>
             )}
