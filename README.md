@@ -55,7 +55,7 @@ Every stable [release](https://github.com/dylfrancis/aurral-pocket/releases/late
 
 ## Compatibility
 
-Each release is built and tested against one Aurral version, pinned in [`.aurral-version`](./.aurral-version) (currently **2.13.0**). Settings → About shows both that version and the one your server runs. Older servers are not supported.
+Each release is built and tested against one Aurral version, pinned in [`.aurral-version`](./.aurral-version) (currently **nightly**, until Aurral 3.0.0 ships). Settings → About shows both that version and the one your server runs. Older servers are not supported.
 
 ## Features
 
@@ -143,19 +143,16 @@ of retargeting a new Aurral release; CI fails if pocket has not caught up.
 Run it locally against a throwaway container:
 
 ```bash
+# The nightly image is amd64 only. On Apple silicon, add --platform linux/amd64.
 docker run -d --name aurral -p 3001:3001 \
   ghcr.io/lklynet/aurral:$(cat .aurral-version)
 
 # Wait for the server to come up.
 until curl -fsS http://localhost:3001/api/health/live >/dev/null; do sleep 1; done
 
-# Onboarding demands Lidarr credentials, but passing both profile IDs
-# short-circuits the lookup, so no Lidarr instance is required.
 curl -fsS -X POST http://localhost:3001/api/onboarding/complete \
   -H 'Content-Type: application/json' \
   -d '{"authUser":"ci","authPassword":"Ci-Contract-Check-2026!",
-       "lidarr":{"url":"http://lidarr.invalid:8686","apiKey":"ci-stub-key",
-                 "qualityProfileId":1,"metadataProfileId":1},
        "downloadFolderPath":"/config/downloads"}'
 
 AURRAL_URL=http://localhost:3001 npm run check:api-contract
@@ -193,7 +190,8 @@ AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs --record
 In CI, the check runs on pull requests that touch `lib/api/`, on pushes to
 `main`, and weekly. An advisory job also runs it against Aurral `latest`; on
 `main`, any drift it finds lands in an open `api-drift` issue instead of a red
-build.
+build. The advisory job is skipped while the pin is `nightly`, which is already
+ahead of `latest`.
 
 ## Project structure
 
