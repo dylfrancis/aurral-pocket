@@ -1,12 +1,12 @@
 {
-  "aurralVersion": "2.13.0",
+  "aurralVersion": "nightly",
   "shapes": {
     "GET /auth/me": {
       "expiresAt": "number",
       "user": {
         "id": "number",
         "permissions": {
-          "accessFlow": "boolean",
+          "accessPlaylists": "boolean",
           "addAlbum": "boolean",
           "addArtist": "boolean",
           "changeMonitoring": "boolean",
@@ -60,25 +60,6 @@
       "topGenres": [],
       "topTags": []
     },
-    "GET /discover/editorial": {
-      "forYou": [],
-      "genres": [
-        {
-          "id": "number",
-          "name": "string",
-          "playlists": [
-            {
-              "artworkUrl": "string",
-              "curator": "string",
-              "description": "null",
-              "id": "string",
-              "name": "string",
-              "trackCount": "number"
-            }
-          ]
-        }
-      ]
-    },
     "GET /discover/feedback": {
       "feedback": []
     },
@@ -96,6 +77,7 @@
       "genreShare": "null",
       "genres": [],
       "region": "null",
+      "regionChoice": "string",
       "songs": "null",
       "updatedAt": "null"
     },
@@ -109,48 +91,9 @@
       "authUser": "string",
       "dateTimeFormat": "string",
       "deemixConfigured": "boolean",
-      "downloadSources": {
-        "deemix": {
-          "configured": "boolean",
-          "enabled": "boolean",
-          "id": "string",
-          "label": "string",
-          "priority": "number"
-        },
-        "slskd": {
-          "configured": "boolean",
-          "enabled": "boolean",
-          "id": "string",
-          "label": "string",
-          "priority": "number"
-        },
-        "usenet": {
-          "configured": "boolean",
-          "enabled": "boolean",
-          "id": "string",
-          "label": "string",
-          "nzbgetConfigured": "boolean",
-          "priority": "number",
-          "prowlarrConfigured": "boolean",
-          "sabnzbdConfigured": "boolean",
-          "tidarrConfigured": "boolean"
-        },
-        "ytdlp": {
-          "configured": "boolean",
-          "enabled": "boolean",
-          "id": "string",
-          "label": "string",
-          "priority": "number"
-        }
-      },
       "googleLoginEnabled": "boolean",
       "inboxEnabled": "boolean",
       "lastfmConfigured": "boolean",
-      "lidarr": {
-        "circuitOpen": "boolean",
-        "configured": "boolean"
-      },
-      "lidarrConfigured": "boolean",
       "localNetworkBypass": {
         "active": "boolean",
         "eligible": "boolean",
@@ -177,26 +120,21 @@
       },
       "musicbrainzConfigured": "boolean",
       "newsConfigured": "boolean",
-      "nzbgetConfigured": "boolean",
       "oidcEnabled": "boolean",
       "oidcLogoutUrl": "null",
       "onboardingRequired": "boolean",
-      "plexLoginEnabled": "boolean",
       "prowlarrConfigured": "boolean",
       "proxyAuthEnabled": "boolean",
       "proxyLogoutUrl": "null",
       "rootFolderConfigured": "boolean",
-      "sabnzbdConfigured": "boolean",
-      "slskdConfigured": "boolean",
       "ssoOnly": "boolean",
       "status": "string",
       "ticketmasterConfigured": "boolean",
       "timestamp": "string",
-      "usenetConfigured": "boolean",
       "user": {
         "id": "number",
         "permissions": {
-          "accessFlow": "boolean",
+          "accessPlaylists": "boolean",
           "accessSettings": "boolean",
           "addAlbum": "boolean",
           "addArtist": "boolean",
@@ -213,33 +151,23 @@
     "GET /health/live": {
       "status": "string"
     },
-    "GET /library/canonical": {
-      "albums": [],
-      "artists": [],
-      "genres": [],
-      "hasMore": "boolean",
-      "items": [],
-      "kind": "string",
-      "page": "number",
-      "pageSize": "number",
-      "total": "number",
-      "tracks": []
-    },
     "GET /library/favorites": {
-      "album": [],
-      "artist": [],
+      "albumIds": [],
+      "artistIds": [],
       "library": {
         "albums": [],
         "artists": [],
         "tracks": []
       },
-      "song": []
+      "playlistSongs": [],
+      "songIds": []
     },
     "GET /library/recent": [],
     "GET /library/recent-releases": [],
     "GET /playlists/flow-templates": {
       "templates": [
         {
+          "artworkUrl": "string",
           "available": "boolean",
           "description": "string",
           "id": "string",
@@ -265,21 +193,21 @@
       },
       "retryCyclePausedByPlaylist": {},
       "reviewCount": "number",
-      "sharedPlaylistStats": {},
-      "sharedPlaylists": [],
-      "sharedStats": {
+      "slskd": {
+        "configured": "boolean",
+        "connected": "boolean",
+        "downloadPath": "null",
+        "serverState": "null"
+      },
+      "staticPlaylistStats": {},
+      "staticPlaylists": [],
+      "staticStats": {
         "blocked": "number",
         "done": "number",
         "downloading": "number",
         "failed": "number",
         "pending": "number",
         "total": "number"
-      },
-      "slskd": {
-        "configured": "boolean",
-        "connected": "boolean",
-        "downloadPath": "null",
-        "serverState": "null"
       },
       "stats": {
         "blocked": "number",
@@ -296,7 +224,7 @@
         "running": "boolean",
         "settings": {
           "concurrency": "number",
-          "existingFileMode": "string",
+          "paused": "boolean",
           "retryPausedPlaylistIds": []
         },
         "stats": {
@@ -311,7 +239,7 @@
     },
     "GET /playlists/worker/settings": {
       "concurrency": "number",
-      "existingFileMode": "string",
+      "paused": "boolean",
       "retryPausedPlaylistIds": []
     },
     "GET /requests": [],

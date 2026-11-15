@@ -12,7 +12,7 @@ jest.mock("@/lib/api/client", () => ({
 jest.mock("@/lib/api/health", () => ({
   checkServerLive: jest.fn(),
   getServerHealth: jest.fn(),
-  SUPPORTED_API_VERSION: 1,
+  SUPPORTED_API_VERSION: 2,
 }));
 
 jest.mock("@tanstack/react-query", () => ({
@@ -77,22 +77,7 @@ describe("useServerConnect", () => {
     expect(mockGetServerHealth).toHaveBeenCalled();
   });
 
-  it("connects to a server on API version 1", async () => {
-    mockCheckServerLive.mockResolvedValue(undefined);
-    mockGetServerHealth.mockResolvedValue({
-      authRequired: true,
-      api: { version: 1, features: [] },
-    });
-
-    useServerConnect();
-    const { config } = mockUseMutation.mock.results[0].value;
-
-    await expect(
-      config.mutationFn({ url: "https://server.com", headers: {} }),
-    ).resolves.toEqual(expect.objectContaining({ url: "https://server.com" }));
-  });
-
-  it("refuses a server on a newer API version", async () => {
+  it("connects to a server on API version 2", async () => {
     mockCheckServerLive.mockResolvedValue(undefined);
     mockGetServerHealth.mockResolvedValue({
       authRequired: true,
@@ -104,7 +89,25 @@ describe("useServerConnect", () => {
 
     await expect(
       config.mutationFn({ url: "https://server.com", headers: {} }),
-    ).rejects.toThrow("This server is newer than Aurral Pocket supports.");
+    ).resolves.toEqual(expect.objectContaining({ url: "https://server.com" }));
+  });
+
+  it.each([
+    [3, "This server is newer than Aurral Pocket supports."],
+    [1, "This server runs an older Aurral than Aurral Pocket supports."],
+  ])("refuses a server on API version %i", async (version, message) => {
+    mockCheckServerLive.mockResolvedValue(undefined);
+    mockGetServerHealth.mockResolvedValue({
+      authRequired: true,
+      api: { version, features: [] },
+    });
+
+    useServerConnect();
+    const { config } = mockUseMutation.mock.results[0].value;
+
+    await expect(
+      config.mutationFn({ url: "https://server.com", headers: {} }),
+    ).rejects.toThrow(message);
   });
 
   it("sends the custom headers with the health check, so a proxy lets it through", async () => {
