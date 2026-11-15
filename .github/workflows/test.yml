@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, aurral-3]
   pull_request:
-    branches: [main]
+    branches: [main, aurral-3]
 
 jobs:
   test:
