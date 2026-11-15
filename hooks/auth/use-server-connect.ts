@@ -27,11 +27,16 @@ export function useServerConnect() {
       setCustomHeaders(headers);
       await checkServerLive();
       const health = await getServerHealth();
-      // A new contract version means a breaking change pocket has not
-      // adopted, so refuse the server instead of misreading its responses.
-      if (health.api && health.api.version !== SUPPORTED_API_VERSION) {
+      // Any other contract version renames or drops fields pocket reads, so
+      // refuse the server instead of misreading its responses.
+      if (health.api && health.api.version > SUPPORTED_API_VERSION) {
         throw new Error(
           "This server is newer than Aurral Pocket supports. Update the app and try again.",
+        );
+      }
+      if (health.api && health.api.version < SUPPORTED_API_VERSION) {
+        throw new Error(
+          "This server runs an older Aurral than Aurral Pocket supports. Update Aurral and try again.",
         );
       }
       return { url: normalized, health, headers };

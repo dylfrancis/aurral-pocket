@@ -6,7 +6,7 @@ import type { HealthLiveResponse, HealthResponse } from "@/lib/types/auth";
  * The app contract version pocket is built against. Connect refuses a server
  * on any other, and scripts/check-api-contract.mjs fails when Aurral moves.
  */
-export const SUPPORTED_API_VERSION = 1;
+export const SUPPORTED_API_VERSION = 2;
 
 export function checkServerLive() {
   return api

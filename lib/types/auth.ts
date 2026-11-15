@@ -21,22 +21,19 @@ export type HealthLiveResponse = {
 
 /**
  * Capability names from Aurral's app contract (`backend/config/apiContract.ts`).
+ * Version 2 lists only capabilities added after it; everything version 1 named
+ * is part of every version 2 server and has no name.
  * A server can list names pocket does not know yet, and the app ignores them.
  * scripts/check-api-contract.mjs reads this list and fails when Aurral adds or
  * drops a name, so a new capability gets adopted or added here on purpose.
  */
 export type ServerFeature =
-  | "discover"
-  | "flows"
-  | "playlistCoverTemplates"
-  | "activity"
-  | "review"
-  | "trackDownloads"
-  | "linkSearch"
-  | "downloadCancel"
-  | "shareImports"
-  | "trending"
-  | "flowAutoDownload";
+  | "libraryStatusFilter"
+  | "albumEditions"
+  | "activityCauses"
+  | "librarySorts"
+  | "queueCancelAll"
+  | "queuePause";
 
 /** The app contract a server implements, from `GET /health/bootstrap`. */
 export type ApiContract = {
