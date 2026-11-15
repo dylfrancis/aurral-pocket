@@ -52,7 +52,7 @@ describe("useServerFeatures", () => {
   it("returns the features the server's bootstrap lists", async () => {
     mockGetServerHealth.mockResolvedValue({
       ...bootstrap,
-      api: { version: 1, features: ["discover", "downloadCancel"] },
+      api: { version: 2, features: ["libraryStatusFilter", "queuePause"] },
     });
 
     const { result } = await renderHook(() => useServerFeatures(), {
@@ -60,7 +60,7 @@ describe("useServerFeatures", () => {
     });
 
     await waitFor(() =>
-      expect(result.current).toEqual(["discover", "downloadCancel"]),
+      expect(result.current).toEqual(["libraryStatusFilter", "queuePause"]),
     );
   });
 
