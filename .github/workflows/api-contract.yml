@@ -51,21 +51,13 @@ jobs:
           exit 1
 
       - name: Complete onboarding
-        # Onboarding demands Lidarr credentials, but supplying both profile IDs
-        # short-circuits the lookup, so no Lidarr instance is needed. The
-        # download path must be writable inside the container.
+        # The download path must be writable inside the container.
         run: |
           curl -fsS -X POST http://localhost:3001/api/onboarding/complete \
             -H 'Content-Type: application/json' \
             -d '{
               "authUser": "ci",
               "authPassword": "Ci-Contract-Check-2026!",
-              "lidarr": {
-                "url": "http://lidarr.invalid:8686",
-                "apiKey": "ci-stub-key",
-                "qualityProfileId": 1,
-                "metadataProfileId": 1
-              },
               "downloadFolderPath": "/config/downloads"
             }'
 
@@ -78,9 +70,27 @@ jobs:
         if: failure()
         run: docker logs aurral
 
+  pin:
+    name: Read pinned Aurral version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.pin.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .aurral-version
+          sparse-checkout-cone-mode: false
+
+      - id: pin
+        run: echo "version=$(tr -d '[:space:]' < .aurral-version)" >> "$GITHUB_OUTPUT"
+
   next:
     name: Against Aurral latest (advisory)
     runs-on: ubuntu-latest
+    needs: pin
+    # A nightly pin is already ahead of `latest`, so there is no next release
+    # to warn about.
+    if: needs.pin.outputs.version != 'nightly'
     # Early warning for the next Aurral release. Never blocks a merge — it
     # reports drift we have not chosen to adopt yet, in an `api-drift` issue
     # rather than a red build.
@@ -115,12 +125,6 @@ jobs:
             -d '{
               "authUser": "ci",
               "authPassword": "Ci-Contract-Check-2026!",
-              "lidarr": {
-                "url": "http://lidarr.invalid:8686",
-                "apiKey": "ci-stub-key",
-                "qualityProfileId": 1,
-                "metadataProfileId": 1
-              },
               "downloadFolderPath": "/config/downloads"
             }'
 

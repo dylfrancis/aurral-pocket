@@ -64,6 +64,9 @@
  *   curl -X POST http://localhost:3001/api/onboarding/complete ...   # see workflow
  *   AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs --record
  *
+ * The nightly image is published for amd64 only. On Apple silicon, add
+ * `--platform linux/amd64` to the docker run.
+ *
  * Record right after onboarding, as CI checks. Until the background download
  * worker reports in, GET /playlists/status answers a fallback `worker` without
  * `downloadMetrics`, `lastJobMetrics` and `operationWorker`
@@ -129,7 +132,77 @@ const MAX_RELOGINS = 2;
  * Keep this list short. Every entry is a call pocket makes that 404s in
  * production.
  */
-const KNOWN_DRIFT = new Map([]);
+const KNOWN_DRIFT = new Map([
+  ["GET /library/canonical", "API v2 reads the Library from GET /library"],
+  [
+    "PUT /library/albums/aurral/${canonicalId}",
+    "API v2 moved it to /library/albums/:albumId",
+  ],
+  [
+    "DELETE /library/albums/aurral/${canonicalId}",
+    "API v2 moved it to /library/albums/:albumId",
+  ],
+  [
+    "POST /library/albums/aurral/${canonicalId}/cancel",
+    "API v2 moved it to /library/albums/:albumId/cancel",
+  ],
+  [
+    "POST /library/downloads/album/search",
+    "Aurral 3.0 removed it with Lidarr mode",
+  ],
+  [
+    "POST /library/artists/${mbid}/refresh",
+    "Aurral 3.0 removed it with Lidarr mode",
+  ],
+  [
+    "DELETE /requests/album/${albumId}",
+    "Aurral 3.0 removed it with Lidarr mode",
+  ],
+  [
+    "POST /playlists/shared-playlists",
+    "API v2 renamed it /playlists/static-playlists",
+  ],
+  [
+    "PUT /playlists/shared-playlists/${playlistId}",
+    "API v2 renamed it /playlists/static-playlists",
+  ],
+  [
+    "DELETE /playlists/shared-playlists/${playlistId}",
+    "API v2 renamed it /playlists/static-playlists",
+  ],
+  [
+    "POST /playlists/shared-playlists/${playlistId}/tracks",
+    "API v2 renamed it /playlists/static-playlists",
+  ],
+  [
+    "DELETE /playlists/shared-playlists/${playlistId}/tracks/${jobId}",
+    "API v2 renamed it /playlists/static-playlists",
+  ],
+  [
+    "POST /playlists/shared-playlists/${playlistId}/tracks/${jobId}/research",
+    "API v2 renamed it /playlists/static-playlists",
+  ],
+  [
+    "PUT /playlists/playlists/${playlistId}/retry-cycle",
+    "Aurral 3.0 removed it; static playlists no longer own downloads",
+  ],
+  [
+    "GET /discover/editorial",
+    "Aurral 3.0 moved editorial playlists to /discover/playlists",
+  ],
+  [
+    "GET /discover/editorial/links",
+    "Aurral 3.0 moved editorial playlists to /discover/playlists",
+  ],
+  [
+    "GET /discover/editorial/${encodeURIComponent(playlistId)}",
+    "Aurral 3.0 moved editorial playlists to /discover/playlists",
+  ],
+  [
+    "POST /discover/editorial/${encodeURIComponent(playlistId)}/library",
+    "Aurral 3.0 moved editorial playlists to /discover/playlists",
+  ],
+]);
 
 /**
  * GET routes whose body comes straight from a third party. When Deezer is down
@@ -139,8 +212,8 @@ const KNOWN_DRIFT = new Map([]);
 const THIRD_PARTY_ROUTES = new Set(["GET /discover/editorial"]);
 
 /**
- * Aurral's app contract, version 1, as docs/src/content/docs/api/app-contract.mdx
- * states it at the pinned tag. These are the routes Aurral promises apps. Any
+ * Aurral's app contract, version 2, as docs/src/content/docs/api/app-contract.mdx
+ * states it at the pinned version. These are the routes Aurral promises apps. Any
  * other route pocket calls can change in any release, so the summary counts
  * how many of pocket's routes the contract covers. Update this with the pin.
  *
@@ -200,7 +273,7 @@ const CONTRACT = new Map([
   ["GET /artists/:mbid", null],
   ["GET /artists/release-group/:mbid", null],
   [
-    "GET /library/canonical",
+    "GET /library",
     {
       kind: "string",
       page: "number",
@@ -224,7 +297,7 @@ const CONTRACT = new Map([
     "GET /playlists/status",
     {
       flows: "array",
-      sharedPlaylists: "array",
+      staticPlaylists: "array",
       stats: "object",
       flowStats: "object",
       worker: "object",
