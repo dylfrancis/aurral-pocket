@@ -830,7 +830,11 @@ function persistQueue(position?: number): void {
   lastSave = lastSave.then(() => saveQueue(record)).catch(() => {});
 }
 
-function currentPosition(): number {
+/**
+ * Seconds into the current track, as of the engine's last report. For a
+ * display that keeps its own clock between reports, which come once a second.
+ */
+export function currentPosition(): number {
   return lastProgress?.position ?? progressSnapshot.position;
 }
 
