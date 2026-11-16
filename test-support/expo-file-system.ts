@@ -47,6 +47,17 @@ export class File {
   get size(): number {
     return files.get(this.uri) ?? 0;
   }
+  create(): void {
+    files.set(this.uri, 0);
+  }
+  open() {
+    return {
+      close() {},
+      writeBytes: async (bytes: Uint8Array) => {
+        files.set(this.uri, this.size + bytes.byteLength);
+      },
+    };
+  }
   delete(): void {
     if (!files.delete(this.uri)) throw new Error("No such file");
   }

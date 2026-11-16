@@ -1,9 +1,14 @@
 import { FieldGroup, Host } from "@expo/ui";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   CACHE_SIZE_CHOICES,
   PREFETCH_CHOICES,
   QUEUE_LIMIT_CHOICES,
+  formatAt,
+  formatValue,
+  profileSummary,
+  TRANSCODE_FORMAT_CHOICES,
 } from "@/components/settings/playback";
 import { SettingsPicker } from "@/components/settings/SettingsPicker";
 import {
@@ -20,11 +25,13 @@ import {
 } from "@/lib/player/playback-settings";
 
 export function PlaybackStorageScreen() {
+  const router = useRouter();
   const row = useSettingsRow();
   const settings = usePlaybackSettings();
   const cachedBytes = useCachedBytes();
   const savedBytes = useSavedBytes();
   const [clearing, setClearing] = useState(false);
+  const profiles = settings.transcoding;
 
   const clear = () => {
     setClearing(true);
@@ -34,6 +41,67 @@ export function PlaybackStorageScreen() {
   return (
     <Host style={{ flex: 1 }}>
       <FieldGroup>
+        <FieldGroup.Section title="Transcoding">
+          {row({
+            label: "Cellular",
+            value: profileSummary(profiles.cellular),
+            opensPage: true,
+            onPress: () =>
+              router.push({
+                pathname: "/settings/playback/[network]",
+                params: { network: "cellular" },
+              }),
+          })}
+          {row({
+            label: "Wi-Fi",
+            value: profileSummary(profiles.wifi),
+            opensPage: true,
+            onPress: () =>
+              router.push({
+                pathname: "/settings/playback/[network]",
+                params: { network: "wifi" },
+              }),
+          })}
+          {row({
+            label: "Prefer Lossless on Wi-Fi",
+            trailing: (
+              <SettingsSwitch
+                value={profiles.preferLosslessOnWifi}
+                onChange={(preferLosslessOnWifi) =>
+                  setPlaybackSettings({
+                    transcoding: { ...profiles, preferLosslessOnWifi },
+                  })
+                }
+              />
+            ),
+          })}
+          {row({
+            label: "Transcoding Fallback",
+            trailing: (
+              <SettingsPicker
+                accessibilityLabel="Transcoding Fallback"
+                value={formatValue(profiles.fallbackFormat)}
+                options={TRANSCODE_FORMAT_CHOICES}
+                onChange={(value) =>
+                  setPlaybackSettings({
+                    transcoding: {
+                      ...profiles,
+                      fallbackFormat: formatAt(value),
+                    },
+                  })
+                }
+              />
+            ),
+          })}
+          <FieldGroup.SectionFooter>
+            <SettingsNote>
+              Server Default uses Aurral’s usual streams. The fallback format is
+              for files Pocket can’t play directly. Transcoding uses your
+              existing session on supported Aurral servers. Offline saves keep
+              their original quality.
+            </SettingsNote>
+          </FieldGroup.SectionFooter>
+        </FieldGroup.Section>
         <FieldGroup.Section title="Playback">
           {row({
             label: "Prefetch Ahead",

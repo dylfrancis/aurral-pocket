@@ -46,6 +46,8 @@ export type PlayerTrack = PlayerClip & {
   /** As the player names it, such as "FLAC". */
   audioFormat?: string | null;
   bitrateKbps?: number | null;
+  /** A saved playlist job may only have a short remote preview. */
+  isPreview?: boolean;
   recordHistory?: boolean;
 };
 
@@ -156,6 +158,7 @@ export function jobToPlayerTrack(
     },
     audioFormat: audioFormatLabel(job.qualityFormat, job.streamFormat),
     bitrateKbps: job.qualityBitrateKbps ?? null,
+    ...(job.status === "saved" ? { isPreview: true } : {}),
     recordHistory: job.status === "saved" ? false : collection.recordHistory,
   };
 }
