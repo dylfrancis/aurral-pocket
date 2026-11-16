@@ -77,7 +77,6 @@ describe("search types", () => {
         foreignArtistId: "abc-123",
         artistName: "Radiohead",
         monitored: true,
-        monitorOption: "all",
         statistics: { albumCount: 9, trackCount: 101, sizeOnDisk: 0 },
       },
     };

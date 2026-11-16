@@ -83,12 +83,13 @@ const mockGet = api.get as jest.Mock;
 const mockPost = api.post as jest.Mock;
 const mockPlayAlbumFromTrack = playAlbumFromTrack as jest.Mock;
 
-// The shape a 2.13.0 server sends: starred ids, plus the rows they name, their
-// parents and their children.
+// The shape API version 2 sends: starred ids, plus the rows they name and
+// their parents.
 const favoritesResponse = {
-  artist: [{ id: "artist:mbid:sigur-ros" }],
-  album: [{ id: "album:release-group:second-album" }],
-  song: [{ id: "song:recording:first-song" }],
+  artistIds: ["artist:mbid:sigur-ros"],
+  albumIds: ["album:release-group:second-album"],
+  songIds: ["song:recording:first-song"],
+  playlistSongs: [],
   library: {
     artists: [
       {
@@ -128,12 +129,6 @@ const favoritesResponse = {
         identityKey: "recording:first-song",
         albums: [{ albumId: 4, trackNumber: 1 }],
         files: [{ id: 1, albumId: 4, available: true }],
-      },
-      {
-        id: 60,
-        title: "Child Of A Starred Album",
-        identityKey: "recording:second-song",
-        albums: [{ albumId: 8, trackNumber: 1 }],
       },
     ],
   },
@@ -287,7 +282,7 @@ describe("favorites screen", () => {
 
   it("drops the header of a section with nothing in it", async () => {
     mockGet.mockResolvedValue({
-      data: { ...favoritesResponse, artist: [], song: [] },
+      data: { ...favoritesResponse, artistIds: [], songIds: [] },
     });
     await openFavorites();
 
@@ -299,9 +294,10 @@ describe("favorites screen", () => {
   it("shows an empty state when nothing is starred", async () => {
     mockGet.mockResolvedValue({
       data: {
-        artist: [],
-        album: [],
-        song: [],
+        artistIds: [],
+        albumIds: [],
+        songIds: [],
+        playlistSongs: [],
         library: favoritesResponse.library,
       },
     });
@@ -330,7 +326,7 @@ describe("favorites screen", () => {
     expect(queue.map((t: { title: string }) => t.title)).toEqual([
       "First Song",
     ]);
-    expect(track.streamPath).toBe("/library/canonical-stream/4/30");
+    expect(track.streamPath).toBe("/library/stream/4/30");
     expect(context).toMatchObject({
       albumTitle: "First Album",
       artistName: "Test Artist",

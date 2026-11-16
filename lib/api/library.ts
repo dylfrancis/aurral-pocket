@@ -26,9 +26,8 @@ import type {
 } from "@/lib/types/library";
 
 /**
- * The server has no canonical route for a single artist, so this always reads
- * the legacy path. Artists that exist only in the canonical library return 404,
- * and artists whose id is not a UUID return 400.
+ * Read one Library artist by MBID. An unknown artist answers 404, and an id
+ * that is not a UUID answers 400.
  */
 export async function getLibraryArtist(mbid: string) {
   const r = await api.get<Artist>(`/library/artists/${mbid}`);
@@ -45,27 +44,19 @@ type CanonicalPageWire = Omit<
 };
 
 /**
- * The field choices mirror the server's own read adapter
- * (canonicalArtistProjection in backend/services/libraryQueryService.js), so
- * both read paths present an artist the same way. A file-scanned artist can
- * carry no metadata at all: it has no MBID, no added date, and was never
- * monitored, so every fallback here must hold.
+ * The field choices follow buildArtist in the server's
+ * backend/services/libraryReadModel.ts. A file-scanned artist can have no
+ * MBID, so every fallback here must hold. Library rows carry no added date.
  */
 function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
-  const metadata = item.metadata ?? {};
   return {
     id: String(item.id),
     canonicalId: String(item.id),
     mbid: item.mbid ?? "",
-    foreignArtistId:
-      metadata.foreignArtistId ??
-      item.mbid ??
-      item.identityKey ??
-      String(item.id),
+    foreignArtistId: item.mbid ?? item.identityKey ?? String(item.id),
     artistName: item.name ?? item.sortName ?? "",
-    monitored: metadata.monitored === true,
-    monitorOption: metadata.monitor ?? "none",
-    addedAt: metadata.added ?? null,
+    monitored: item.monitored === true,
+    addedAt: null,
     statistics: {
       albumCount: item.albumCount ?? 0,
       trackCount: item.trackCount ?? 0,
@@ -80,64 +71,38 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
 }
 
 /**
- * The field choices mirror the server's own read adapter (buildAlbum in
- * backend/services/canonicalLibraryReadAdapter.js), with one deviation:
- * percentOfTracks is the real file ratio from the counts the page route
- * adds, because the screens shipped against Lidarr's real percentages and
- * useResearchMissingAlbums reads partial progress from it.
+ * The field choices follow buildAlbum in the server's
+ * backend/services/libraryReadModel.ts, with one deviation: percentOfTracks is
+ * the real file ratio from the counts the page route adds, where buildAlbum
+ * reads 0 until every track has a file. The artist screen shows partial
+ * progress, and useResearchMissingAlbums counts it.
  *
- * The canonical counts only see files Aurral can stat on its own
- * filesystem. When Lidarr's music folder is not mounted into Aurral, every
- * canonical count is 0 even though Lidarr has the files. The stored Lidarr
- * payload carries Lidarr's own statistics, and the Aurral web UI derives
- * its status dot from them. The mapper takes the larger percent of the two
- * views, so a Lidarr-complete album reads 100% and an Aurral-only album
- * keeps its real ratio. sizeOnDisk comes from Lidarr's statistics — the
- * canonical album row carries no size.
- *
- * `id` is the canonical id. Lidarr's album routes need Lidarr's own id, a
- * different small integer from a different table, which a Lidarr-sourced row
- * keeps in its stored payload. Sending the canonical id there acts on some
- * other album, so it travels separately as `lidarrId`.
+ * Library album rows carry no size, so sizeOnDisk is 0.
  */
 function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
-  const metadata = item.metadata ?? {};
-  const lidarrStatistics = metadata.statistics ?? {};
   const trackCount = item.trackCount ?? 0;
   const trackFileCount = item.availableTrackCount ?? 0;
-  const canonicalPercent =
-    trackCount > 0 ? Math.round((trackFileCount / trackCount) * 100) : 0;
   return {
     id: String(item.id),
     canonicalId: String(item.id),
-    lidarrId:
-      metadata.librarySource === "lidarr" && metadata.id != null
-        ? String(metadata.id)
-        : undefined,
-    managedBy: item.managedBy ?? null,
+    managedBy: item.managed ? "aurral" : null,
     artistId: item.artistId != null ? String(item.artistId) : "",
     artistName: item.albumArtist ?? "",
     // A row scanned from tagged files keeps its release's id in `mbid`. Release
     // lists, cover lookups and the web's album route all use the release group.
     mbid: item.releaseGroupMbid || item.mbid || "",
     foreignAlbumId:
-      metadata.foreignAlbumId ||
-      item.releaseGroupMbid ||
-      item.mbid ||
-      item.identityKey ||
-      String(item.id),
+      item.releaseGroupMbid || item.mbid || item.identityKey || String(item.id),
     albumName: item.title ?? "",
     title: item.title ?? "",
     releaseDate: item.releaseDate ?? null,
-    monitored: metadata.monitored === true,
+    monitored: item.monitored === true,
     statistics: {
       trackCount,
       trackFileCount,
-      sizeOnDisk: lidarrStatistics.sizeOnDisk ?? 0,
-      percentOfTracks: Math.max(
-        canonicalPercent,
-        lidarrStatistics.percentOfTracks ?? 0,
-      ),
+      sizeOnDisk: 0,
+      percentOfTracks:
+        trackCount > 0 ? Math.round((trackFileCount / trackCount) * 100) : 0,
     },
     sources: item.sources,
     available: item.available,
@@ -150,7 +115,8 @@ function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
 /**
  * Pick the file that represents a track on one album: an available file
  * scoped to that album, then an available unscoped file, then any file.
- * Mirrors firstAvailableFile in the server's read adapter.
+ * Follows selectCanonicalFile in the server's
+ * backend/services/canonicalFileSelector.ts.
  */
 function firstAvailableFile(
   item: CanonicalTrackItem,
@@ -171,20 +137,13 @@ function firstAvailableFile(
 }
 
 /**
- * The field choices mirror the server's own read adapter (buildTrack in
- * backend/services/canonicalLibraryReadAdapter.js), and streamPath mirrors
- * the canonical branch of GET /library/tracks. This is the one place the
- * client knows the canonical-stream route shape; the paged route sends raw
- * files instead of a streamPath, so the client has to derive it. One
- * deviation from buildTrack: quality maps to the recorded format string,
- * because the legacy Track type declares `quality: string | null`.
- *
- * hasFile and streamPath carry two different truths. hasFile means someone
- * has the file: Aurral, or Lidarr through the hasFile flag in the stored
- * track payload. It drives the checkmark in the track list, so the app
- * matches the web UI when Aurral cannot see Lidarr's files. streamPath and
- * available stay tied to a file Aurral can read, because Aurral cannot
- * stream a file it cannot stat.
+ * The field choices follow buildTrack in the server's
+ * backend/services/libraryReadModel.ts, and streamPath follows the Library
+ * branch of GET /library/tracks. This is the one place the client knows the
+ * stream route's shape; the paged route sends raw files instead of a
+ * streamPath, so the client has to derive it. One deviation from buildTrack:
+ * quality maps to the recorded format string, because the legacy Track type
+ * declares `quality: string | null`.
  */
 function canonicalTrackToTrack(
   item: CanonicalTrackItem,
@@ -200,19 +159,18 @@ function canonicalTrackToTrack(
   const streamable = file?.available === true;
   // The scanner records bits per second.
   const bitrate = Number(file?.quality?.bitrate);
-  const hasFile = streamable || item.metadata?.hasFile === true;
   return {
     id: String(item.id),
     mbid: item.mbid ?? "",
     trackName: item.title ?? "",
     title: item.title ?? "",
     trackNumber: relation?.trackNumber ?? 0,
-    hasFile,
+    hasFile: streamable,
     size: Number(file?.size ?? 0),
     quality: file?.quality?.format ?? null,
     streamPath:
       streamable && albumId
-        ? `/library/canonical-stream/${encodeURIComponent(albumId)}/${encodeURIComponent(String(item.id))}`
+        ? `/library/stream/${encodeURIComponent(albumId)}/${encodeURIComponent(String(item.id))}`
         : null,
     streamFormat: file?.format ?? null,
     bitrateKbps: bitrate > 0 ? Math.round(bitrate / 1000) : null,
@@ -225,12 +183,10 @@ function canonicalTrackToTrack(
 }
 
 /**
- * Read one page of the canonical library.
+ * Read one page of the Library.
  *
- * Aurral 2.6.0 made `kind` and `pageSize` mandatory ("bounded reads" — the
- * route answers 400 without both), so `pageSize` always goes on the wire.
- * 100 is the server's cap, and was its default while the parameter was still
- * optional, so the fallback preserves the pre-2.6 page size.
+ * The route answers 400 without both `kind` and `pageSize`, so `pageSize`
+ * always goes on the wire. The fallback is the server's cap of 100.
  *
  * `availableOnly` is tri-state on the wire — see CanonicalPageParams — so
  * `false` is sent, not dropped.
@@ -257,7 +213,7 @@ export async function getCanonicalLibraryPage(
   if (params.artistId) query.artistId = params.artistId;
   if (params.albumId) query.albumId = params.albumId;
 
-  const r = await api.get<CanonicalPageWire>("/library/canonical", {
+  const r = await api.get<CanonicalPageWire>("/library", {
     params: query,
   });
   return {
@@ -311,7 +267,7 @@ function canonicalArtistId(artistRef: string): Promise<string | null> {
 }
 
 /**
- * Read one artist's canonical row. The legacy artist route has no cover and
+ * Read one artist's canonical row. The single-artist route has no cover and
  * the paged route has no single-artist read, but a page of albums carries the
  * rows of its artists. Null until the canonical library has an album for them.
  */
@@ -444,25 +400,14 @@ export function favoriteEntityId(kind: FavoriteKind, key: string) {
   return `${kind}:${encodeURIComponent(key).replaceAll("%3A", ":")}`;
 }
 
-function isPlaylistSongId(id: string) {
-  return id.startsWith("flow-song:") || id.startsWith("shared-song:");
-}
-
-/**
- * Read the signed-in user's favorites. The response's `library` field also
- * carries the parents and children of starred rows, so a starred artist arrives
- * with its whole discography. Only starred rows are returned. The parents just
- * name a track's album and an album's artist.
- */
+/** Read the signed-in user's starred artists, albums and tracks. */
 export async function getLibraryFavorites(): Promise<LibraryFavorites> {
   const r = await api.get<LibraryFavoritesWire>("/library/favorites");
-  const starred = new Set(
-    [
-      ...(r.data.artist ?? []),
-      ...(r.data.album ?? []),
-      ...(r.data.song ?? []),
-    ].map((entry) => entry.id),
-  );
+  const starred = new Set([
+    ...(r.data.artistIds ?? []),
+    ...(r.data.albumIds ?? []),
+    ...(r.data.songIds ?? []),
+  ]);
   const library = r.data.library ?? {};
   const keep = (kind: FavoriteKind, identityKey?: string) =>
     !!identityKey && starred.has(favoriteEntityId(kind, identityKey));
@@ -504,7 +449,7 @@ export async function getLibraryFavorites(): Promise<LibraryFavorites> {
           album: albumsById.get(String(streamAlbumId)),
         };
       }),
-    playlistSongIds: [...starred].filter(isPlaylistSongId),
+    playlistSongIds: (r.data.playlistSongs ?? []).map((song) => song.id),
   };
 }
 
