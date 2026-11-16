@@ -40,13 +40,21 @@ describe("playback settings", () => {
       queueLimit: 0,
       cacheBytes: 1_000_000_000,
       wifiOnly: false,
+      transcoding: settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
   });
 
   it("come back after a restart", async () => {
     await start();
     settings.setPlaybackSettings({ prefetchAhead: 3, wifiOnly: true });
-    settings.setPlaybackSettings({ cacheBytes: 5_000_000_000 });
+    const transcoding = {
+      ...settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
+      cellular: { format: "mp3", kbps: 192, losslessOnly: true },
+    } as const;
+    settings.setPlaybackSettings({
+      cacheBytes: 5_000_000_000,
+      transcoding,
+    });
     await settle();
 
     await restart();
@@ -56,6 +64,7 @@ describe("playback settings", () => {
       queueLimit: 0,
       cacheBytes: 5_000_000_000,
       wifiOnly: true,
+      transcoding,
     });
   });
 
@@ -84,6 +93,7 @@ describe("playback settings", () => {
       queueLimit: 100,
       cacheBytes: 1_000_000_000,
       wifiOnly: false,
+      transcoding: settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
   });
 });

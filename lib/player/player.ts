@@ -23,15 +23,20 @@ import {
 } from "@/lib/api/client";
 import {
   audioCacheReady,
+  cancelTranscodes,
+  cacheTranscodedTrack,
   cachedFilePath,
+  cachedTranscode,
   markPlayed,
   onCachedFilesChange,
   setPrefetchWindow,
   type PrefetchTrack,
 } from "@/lib/offline/audio-cache";
 import {
+  isMetered,
   isOffline,
   networkKnown,
+  onMeteredChange,
   onNetworkChange,
 } from "@/lib/offline/network";
 import {
@@ -44,6 +49,13 @@ import {
   onPlaybackSettingsChange,
   playbackSettingsReady,
 } from "@/lib/player/playback-settings";
+import {
+  DEFAULT_TRANSCODING,
+  TRANSCODE_OUTPUT,
+  transcodeForSource,
+  transcodeKey,
+  type TranscodingSettings,
+} from "@/lib/player/transcoding";
 import { limitQueue } from "@/lib/player/queue-limit";
 import type { Track } from "@/lib/types/library";
 import { useSyncExternalStore } from "react";
@@ -76,6 +88,13 @@ const PLAYLIST_NAME = "Aurral";
 let currentPlaylistId: string | null = null;
 let configureOnce: Promise<void> | null = null;
 let lastPlay: Promise<void> = Promise.resolve();
+let queueTranscoding: TranscodingSettings = DEFAULT_TRANSCODING;
+let queueMetered = false;
+
+function readQueueQuality() {
+  queueTranscoding = getPlaybackSettings().transcoding;
+  queueMetered = isMetered();
+}
 
 /**
  * The queue as the facade arranged it. The engine has no shuffle of its own,
@@ -95,6 +114,13 @@ function configureEngine(): Promise<void> {
     showInNotification: true,
     androidAutoEnabled: false,
     carPlayEnabled: false,
+    // Pocket's cache already fetches the upcoming tracks the listener chose.
+    // Ask for a missing source only once it becomes the current track.
+    lookaheadCount: 0,
+  }).then(() => {
+    TrackPlayer.onTracksNeedUpdate((tracks) => {
+      void resolveEngineTracks(tracks).catch(() => {});
+    });
   });
   return configureOnce;
 }
@@ -193,13 +219,18 @@ async function replaceAndPlay(
   startId: string,
   album: PlayerAlbumContext | null,
 ): Promise<number> {
-  await Promise.all([configureEngine(), playbackSettingsReady()]);
+  await Promise.all([
+    configureEngine(),
+    playbackSettingsReady(),
+    networkKnown(),
+  ]);
   const { queue: items, original } = limitQueue(
     tracks,
     startId,
     getPlaybackSettings().queueLimit,
     shuffleOn,
   );
+  readQueueQuality();
 
   if (currentPlaylistId) {
     await PlayerQueue.deletePlaylist(currentPlaylistId);
@@ -218,7 +249,13 @@ async function replaceAndPlay(
   const startIndex = items.findIndex((item) => item.id === startId);
   setDisplayedTrack(items[startIndex] ?? null);
   refreshQueueSnapshot();
-  await PlayerQueue.addTracksToPlaylist(playlistId, items.map(toEngineTrack));
+  const starting = await resolveEngineTrack(items[startIndex]);
+  await PlayerQueue.addTracksToPlaylist(
+    playlistId,
+    items.map((item, index) =>
+      index === startIndex ? starting : toEngineTrack(item),
+    ),
+  );
   // Without an index the engine loads from the top and reports the first track,
   // which would replace the started one on screen. The load already puts the
   // started track in place, so a playSong after it would start the track over.
@@ -233,17 +270,72 @@ async function replaceAndPlay(
 }
 
 /** A track saved offline or fetched ahead plays from its file. */
-function localFilePath(id: string): string | null {
-  return savedFilePath(id) ?? cachedFilePath(id);
+function localFilePath(item: PlayerTrack): string | null {
+  const profile = transcodeFor(item);
+  const saved =
+    !profile?.required || isOffline() ? savedFilePath(item.id) : null;
+  return saved ?? cachedFilePath(item.id, profile);
 }
 
 function toEngineTrack(item: PlayerTrack): TrackItem {
+  const local = localFilePath(item);
+  return engineTrackWithUrl(
+    item,
+    local ?? (transcodeFor(item) && !isOffline() ? "" : item.url),
+  );
+}
+
+function transcodeFor(item: PlayerTrack): PrefetchTrack["transcode"] {
+  if (!item.streamPath || item.isPreview) return undefined;
+  return transcodeForSource(queueTranscoding, queueMetered, item);
+}
+
+async function resolveEngineTrack(item: PlayerTrack): Promise<TrackItem> {
+  const local = localFilePath(item);
+  if (local) return engineTrackWithUrl(item, local);
+  const transcode = transcodeFor(item);
+  const converted =
+    item.streamPath &&
+    transcode &&
+    (await cacheTranscodedTrack(item.id, item.streamPath, transcode));
+  return engineTrackWithUrl(
+    item,
+    converted || localFilePath(item) || withCurrentToken(item).url,
+  );
+}
+
+async function resolveEngineTracks(tracks: TrackItem[]): Promise<void> {
+  const playlist = currentPlaylistId;
+  if (!playlist) return;
+  for (const track of tracks) {
+    const item = queueOrder.find(({ id }) => id === track.id);
+    if (!item) continue;
+    const resolved = await resolveEngineTrack(item);
+    if (playlist !== currentPlaylistId) return;
+    if (queueOrder.some(({ id }) => id === track.id)) {
+      await TrackPlayer.updateTracks([resolved]);
+      // Replacing the current item's source can leave its track ID unchanged.
+      if (
+        playlist === currentPlaylistId &&
+        displayedTrack?.id === resolved.id
+      ) {
+        const playing = asPlayerTrack(resolved);
+        if (
+          playing.audioFormat !== displayedTrack.audioFormat ||
+          playing.bitrateKbps !== displayedTrack.bitrateKbps
+        ) {
+          setDisplayedTrack(playing);
+        }
+      }
+    }
+  }
+}
+
+function engineTrackWithUrl(item: PlayerTrack, url: string): TrackItem {
   // The engine fetches the lock screen's image with no session header, so the
   // cover needs a token in its URL. It is added here, on the way out, so the
   // queue and its saved copy never hold a token for artwork.
   const artwork = authenticatedImageUrl(item.coverPath) ?? item.artwork;
-  // A saved or fetched track plays from its file, connection or not.
-  const url = localFilePath(item.id) ?? item.url;
   // Worked out per URL, so a Deezer clip, a cover or a file gets no custom
   // headers.
   const headers = customHeadersFor(url);
@@ -258,7 +350,15 @@ function toEngineTrack(item: PlayerTrack): TrackItem {
     duration: item.duration,
     url,
     artwork,
-    ...(hasHeaders ? { extraPayload: { headers, artworkHeaders } } : {}),
+    ...(url === "" || hasHeaders
+      ? {
+          extraPayload: {
+            headers,
+            artworkHeaders,
+            ...(url === "" ? { pocketDeferredUrl: true } : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -681,11 +781,17 @@ function updatePrefetchWindow(): void {
 
 /** Saved tracks are on the phone already, and a clip has no file to fetch. */
 function toPrefetchTrack(item: PlayerTrack): PrefetchTrack | null {
-  if (!item.streamPath || savedFilePath(item.id) !== null) return null;
+  const transcode = transcodeFor(item);
+  if (
+    !item.streamPath ||
+    (!transcode?.required && savedFilePath(item.id) !== null)
+  )
+    return null;
   return {
     id: item.id,
     streamPath: item.streamPath,
     audioFormat: item.audioFormat,
+    transcode,
   };
 }
 
@@ -767,10 +873,16 @@ async function restoreNow(): Promise<boolean> {
   // A saved or fetched track plays from its file, so the server isn't asked
   // about it. Offline, the others still come back, passed over until the
   // connection does.
-  await Promise.all([savedLibraryReady(), audioCacheReady(), networkKnown()]);
+  await Promise.all([
+    savedLibraryReady(),
+    audioCacheReady(),
+    networkKnown(),
+    playbackSettingsReady(),
+  ]);
+  readQueueQuality();
   const items = await restorableTracks(
     saved,
-    (id) => localFilePath(id) !== null,
+    (id) => savedFilePath(id) !== null || cachedFilePath(id) !== null,
   );
   if (items.length === 0) {
     await clearSavedQueue();
@@ -800,7 +912,11 @@ async function restoreNow(): Promise<boolean> {
     refreshQueueSnapshot();
     notifyModesChanged();
 
-    await PlayerQueue.addTracksToPlaylist(playlistId, items.map(toEngineTrack));
+    const starting = await resolveEngineTrack(current);
+    await PlayerQueue.addTracksToPlaylist(
+      playlistId,
+      items.map((item) => (item === current ? starting : toEngineTrack(item))),
+    );
     // loadPlaylist readies the track without playing it.
     await PlayerQueue.loadPlaylist(playlistId, items.indexOf(current));
     if (repeatMode !== "off") {
@@ -874,14 +990,17 @@ export function refreshQueueUrls(): Promise<void> {
       await PlayerQueue.deletePlaylist(previousPlaylistId);
       const playlistId = await PlayerQueue.createPlaylist(PLAYLIST_NAME);
       currentPlaylistId = playlistId;
+      const currentIndex = queueOrder.findIndex(
+        (item) => item.id === displayedTrack?.id,
+      );
+      const starting = await resolveEngineTrack(queueOrder[currentIndex]);
       await PlayerQueue.addTracksToPlaylist(
         playlistId,
-        queueOrder.map(toEngineTrack),
+        queueOrder.map((item, index) =>
+          index === currentIndex ? starting : toEngineTrack(item),
+        ),
       );
-      await PlayerQueue.loadPlaylist(
-        playlistId,
-        queueOrder.findIndex((item) => item.id === displayedTrack?.id),
-      );
+      await PlayerQueue.loadPlaylist(playlistId, currentIndex);
       if (position > 0) {
         await TrackPlayer.seek(position);
       }
@@ -920,6 +1039,7 @@ export function refreshQueueHeaders(): Promise<void> {
  * back after it.
  */
 export function forgetQueue(): Promise<void> {
+  cancelTranscodes();
   const run = lastPlay.then(async () => {
     queueOrder = [];
     originalOrder = [];
@@ -986,10 +1106,14 @@ function wireEngineEvents(): void {
   onNetworkChange((offline) => {
     if (offline) switchToLocalFiles();
   });
+  onMeteredChange(refreshTranscoding);
   onCachedFilesChange(followCachedFiles);
   // Read early, so an offline start knows which tracks are on the phone.
   void audioCacheReady();
-  onPlaybackSettingsChange(updatePrefetchWindow);
+  onPlaybackSettingsChange(() => {
+    refreshTranscoding();
+    updatePrefetchWindow();
+  });
 
   callbackManager.subscribeToTrackChange(
     function handleTrackChange(engineTrack): void {
@@ -1114,7 +1238,17 @@ function wireEngineEvents(): void {
  */
 function asPlayerTrack(engineTrack: TrackItem): PlayerTrack {
   const queued = queueOrder.find((item) => item.id === engineTrack.id);
-  if (queued) return queued;
+  if (queued) {
+    const url = engineTrack.url || localFilePath(queued);
+    const converted = url ? cachedTranscode(queued.id, url) : undefined;
+    return converted
+      ? {
+          ...queued,
+          audioFormat: TRANSCODE_OUTPUT[converted.format].label,
+          bitrateKbps: converted.kbps,
+        }
+      : queued;
+  }
   return {
     id: engineTrack.id,
     title: engineTrack.title,
@@ -1299,8 +1433,7 @@ function switchToLocalFiles(): void {
   const run = lastPlay.then(async () => {
     if (!currentPlaylistId) return;
     const local = queueOrder.filter(
-      (item) =>
-        item.id !== displayedTrack?.id && localFilePath(item.id) !== null,
+      (item) => item.id !== displayedTrack?.id && localFilePath(item) !== null,
     );
     if (local.length === 0) return;
     await TrackPlayer.updateTracks(local.map(toEngineTrack));
@@ -1322,6 +1455,33 @@ function followCachedFiles(trackIds: string[]): void {
     );
     if (items.length === 0) return;
     await TrackPlayer.updateTracks(items.map(toEngineTrack));
+  });
+  lastPlay = run.catch(() => {});
+}
+
+/** Keep playing the current track and select fresh sources for the rest. */
+function refreshTranscoding(): void {
+  if (
+    queueMetered === isMetered() &&
+    queueTranscoding === getPlaybackSettings().transcoding
+  )
+    return;
+  const run = lastPlay.then(async () => {
+    const qualityOf = (item: PlayerTrack) => {
+      const request = transcodeFor(item);
+      return request ? transcodeKey(request) : null;
+    };
+    const before = queueOrder.map(qualityOf);
+    readQueueQuality();
+    if (!currentPlaylistId) return;
+    const changed = queueOrder.filter(
+      (item, index) =>
+        item.id !== displayedTrack?.id && before[index] !== qualityOf(item),
+    );
+    if (changed.length) {
+      await TrackPlayer.updateTracks(changed.map(toEngineTrack));
+      updatePrefetchWindow();
+    }
   });
   lastPlay = run.catch(() => {});
 }

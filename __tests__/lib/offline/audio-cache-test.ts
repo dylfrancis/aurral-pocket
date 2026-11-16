@@ -2,6 +2,8 @@ import type * as AudioCache from "@/lib/offline/audio-cache";
 import type * as Settings from "@/lib/player/playback-settings";
 import type * as FakeFileSystem from "@/test-support/expo-file-system";
 
+jest.mock("@/lib/api/transcoding", () => ({ fetchTranscodedAudio: jest.fn() }));
+
 // The cache, the settings, the storage mock and the fake disk all keep module
 // state. Each test loads fresh copies, as a cold start would, after seeding
 // what a restart finds.
@@ -98,6 +100,39 @@ afterEach(() => {
 });
 
 describe("fetching ahead", () => {
+  it("publishes a complete transcode only for its requested quality and replaces it with an original when needed", async () => {
+    start();
+    const fetchTranscodedAudio = jest.mocked(
+      require("@/lib/api/transcoding").fetchTranscodedAudio,
+    );
+    const request = { format: "aac", kbps: 128 } as const;
+    const streamPath = "/library/stream/12/1";
+    fetchTranscodedAudio.mockResolvedValueOnce({
+      getReader: () => ({
+        read: jest
+          .fn()
+          .mockResolvedValueOnce({ done: false, value: new Uint8Array([1, 2]) })
+          .mockResolvedValueOnce({ done: true }),
+      }),
+    });
+
+    const path = await cache.cacheTranscodedTrack("1", streamPath, request);
+    expect(fetchTranscodedAudio).toHaveBeenCalledWith(
+      streamPath,
+      request,
+      expect.anything(),
+    );
+    expect(path).toBe("/caches/prefetch/1_transcoded_aac-128.aac");
+    expect(cache.cachedFilePath("1", request)).toBe(path);
+    expect(cache.cachedFilePath("1")).toBeNull();
+    expect(cache.cachedFilePath("1", { format: "mp3", kbps: 128 })).toBeNull();
+
+    await want(["1"]);
+    await finishAll(MB);
+    expect(cache.cachedFilePath("1")).toBe("/caches/prefetch/1.flac");
+    expect(fs.fakeFileExists(`file://${path}`)).toBe(false);
+  });
+
   it("fetches the tracks up next one at a time, with the session's URL and the proxy headers", async () => {
     start();
     const changed = jest.fn();

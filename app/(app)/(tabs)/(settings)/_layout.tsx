@@ -46,6 +46,15 @@ export default function SettingsLayout() {
           options={{ title: "Playback and Storage" }}
         />
         <Stack.Screen
+          name="settings/playback/[network]"
+          options={({ route }) => ({
+            title:
+              (route.params as { network?: string })?.network === "cellular"
+                ? "Cellular Settings"
+                : "Wi-Fi Settings",
+          })}
+        />
+        <Stack.Screen
           name="settings/appearance"
           options={{ title: "Appearance" }}
         />

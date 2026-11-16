@@ -38,6 +38,7 @@ export type SavedTrack = {
   /** Written since the player shows the file's format and bitrate. */
   audioFormat?: string | null;
   bitrateKbps?: number | null;
+  isPreview?: boolean;
   /** Absent on tracks that report their plays. */
   recordHistory?: boolean;
 };
@@ -135,6 +136,7 @@ function parseTrack(raw: unknown): SavedTrack | null {
       typeof raw.bitrateKbps === "number" && raw.bitrateKbps > 0
         ? raw.bitrateKbps
         : null,
+    isPreview: raw.isPreview === true,
     recordHistory: raw.recordHistory !== false,
   };
 }
@@ -175,6 +177,7 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
     albumRef: item.albumRef,
     audioFormat: item.audioFormat,
     bitrateKbps: item.bitrateKbps,
+    isPreview: item.isPreview,
     recordHistory: item.recordHistory,
   };
 }
@@ -217,6 +220,7 @@ export function toPlayableTrack(
     coverPath: saved.coverPath ?? null,
     trackMbid: saved.trackMbid ?? null,
     favorite: saved.favorite ?? null,
+    isPreview: saved.isPreview,
     recordHistory: saved.recordHistory,
     artistMbid: saved.artistMbid ?? album.artistMbid,
     albumMbid: saved.albumMbid ?? album.albumMbid,
