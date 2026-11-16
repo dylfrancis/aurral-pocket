@@ -4,7 +4,6 @@ jest.mock("@/lib/api/library", () => ({
   getReleaseGroupTracks: jest.fn(() => Promise.resolve([])),
   requestAlbumFromSearch: jest.fn(),
   searchDeezerAlbum: jest.fn(() => Promise.resolve(null)),
-  triggerAlbumSearch: jest.fn(),
 }));
 
 jest.mock("burnt", () => ({ toast: jest.fn() }));

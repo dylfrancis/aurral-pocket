@@ -342,12 +342,9 @@ describe("ActivityList", () => {
     expect(getByText("First Album")).toBeTruthy();
     expect(getByText("Second Album")).toBeTruthy();
   });
-  it("shows an Aurral request its own album's status, not a Lidarr album's with the same id", async () => {
+  it("shows an Aurral request its album's status over its own", async () => {
     mockUseActivityDownloadStatuses.mockReturnValue({
-      data: {
-        "12": { status: "failed" },
-        "aurral:12": { status: "queued" },
-      },
+      data: { "12": { status: "queued" } },
     });
     mockUseActivitySuspense.mockReturnValue({
       ...defaultHook,
@@ -367,13 +364,13 @@ describe("ActivityList", () => {
       <ActivityList view="history" />,
     );
     expect(getByText("Queued")).toBeTruthy();
-    expect(queryByText("Failed")).toBeNull();
+    expect(queryByText("Requested")).toBeNull();
   });
 
   it("opens the actions for an Aurral request while its album downloads", async () => {
     mockUseHasPermission.mockReturnValue(() => true);
     mockUseActivityDownloadStatuses.mockReturnValue({
-      data: { "aurral:12": { status: "downloading" } },
+      data: { "12": { status: "downloading" } },
     });
     const request = makeHistoryItem({
       id: "aurral-request",

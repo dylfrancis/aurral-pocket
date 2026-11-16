@@ -1,8 +1,6 @@
 jest.mock("@/lib/api/library", () => ({
-  deleteAlbum: jest.fn(() => Promise.resolve({})),
   deleteAurralAlbum: jest.fn(() => Promise.resolve({})),
   researchAurralAlbum: jest.fn(() => Promise.resolve(null)),
-  triggerAlbumSearch: jest.fn(() => Promise.resolve({})),
   getDownloadStatuses: jest.fn(() => Promise.resolve({})),
   updateLibraryFavorites: jest.fn(() => Promise.resolve({})),
   favoriteEntityId: jest.requireActual("@/lib/api/library").favoriteEntityId,
@@ -167,11 +165,9 @@ import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import {
-  deleteAlbum,
   deleteAurralAlbum,
   getDownloadStatuses,
   researchAurralAlbum,
-  triggerAlbumSearch,
   updateLibraryFavorites,
 } from "@/lib/api/library";
 import { albumRouteParams } from "@/lib/library-read";
@@ -186,20 +182,16 @@ import type { Album, Track } from "@/lib/types/library";
 
 const mockUseLibraryAlbum = useLibraryAlbum as jest.Mock;
 const mockUseLibraryTracks = useLibraryTracks as jest.Mock;
-const mockDeleteAlbum = deleteAlbum as jest.Mock;
-const mockTriggerAlbumSearch = triggerAlbumSearch as jest.Mock;
 const mockDeleteAurralAlbum = deleteAurralAlbum as jest.Mock;
 const mockResearchAurralAlbum = researchAurralAlbum as jest.Mock;
 const mockGetDownloadStatuses = getDownloadStatuses as jest.Mock;
 const mockCoverArtImage = CoverArtImage as unknown as jest.Mock;
 const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
 
-// A Lidarr-backed album whose canonical id and Lidarr id differ, the case
-// where sending the wrong one acts on a different album.
-const lidarrAlbum: Album = {
+const album: Album = {
   id: "14",
   canonicalId: "14",
-  lidarrId: "301",
+  managed: true,
   artistId: "7",
   artistName: "Radiohead",
   mbid: "rg-1",
@@ -246,35 +238,15 @@ afterEach(() => {
 });
 
 describe("AlbumDetailScreen", () => {
-  it("sends Lidarr's album id, not the canonical id, to re-search and delete", async () => {
-    await openAlbumPage(lidarrAlbum);
-
-    await act(async () => {
-      fireEvent.press(screen.getByText("Re-search"));
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByText("Delete Album"));
-    });
-
-    expect(mockTriggerAlbumSearch).toHaveBeenCalledWith("301");
-    expect(mockDeleteAlbum).toHaveBeenCalledWith("301");
-  });
-
   describe("an album Aurral manages", () => {
-    const aurralAlbum: Album = {
-      ...lidarrAlbum,
-      lidarrId: undefined,
-      managedBy: "aurral",
-    };
-
     beforeEach(() => {
       mockGetDownloadStatuses.mockResolvedValue({
-        "aurral:14": { status: "cancelled" },
+        "14": { status: "cancelled" },
       });
     });
 
-    it("sends re-search and delete to Aurral by canonical id, and deletes the files", async () => {
-      await openAlbumPage(aurralAlbum);
+    it("sends re-search and delete by its Library id, and deletes the files", async () => {
+      await openAlbumPage(album);
 
       const research = await screen.findByText("Re-search");
       await act(async () => {
@@ -289,16 +261,14 @@ describe("AlbumDetailScreen", () => {
         { mbid: "artist-mb", name: "Radiohead" },
       );
       expect(mockDeleteAurralAlbum).toHaveBeenCalledWith("14", true);
-      expect(mockTriggerAlbumSearch).not.toHaveBeenCalled();
-      expect(mockDeleteAlbum).not.toHaveBeenCalled();
     });
 
     it("offers an unmonitored album that isn't out yet for when it's out", async () => {
       mockGetDownloadStatuses.mockResolvedValue({
-        "aurral:14": { status: "unreleased", releaseDate: "2099-06-01" },
+        "14": { status: "unreleased", releaseDate: "2099-06-01" },
       });
       await openAlbumPage({
-        ...aurralAlbum,
+        ...album,
         monitored: false,
         releaseDate: "2099-06-01",
       });
@@ -307,7 +277,7 @@ describe("AlbumDetailScreen", () => {
     });
 
     it("asks again whether the artist is in the library, since its last album takes it along", async () => {
-      const queryClient = await openAlbumPage(aurralAlbum);
+      const queryClient = await openAlbumPage(album);
       const membership = libraryKeys.artistLookup("artist-mb");
       queryClient.setQueryData(membership, { "artist-mb": true });
 
@@ -320,7 +290,7 @@ describe("AlbumDetailScreen", () => {
 
     it("hides both actions from a user who may not take them", async () => {
       mockHasPermission.mockReturnValue(false);
-      await openAlbumPage(aurralAlbum);
+      await openAlbumPage(album);
       await screen.findByText("Cancelled");
 
       expect(screen.queryByText("Re-search")).toBeNull();
@@ -329,7 +299,7 @@ describe("AlbumDetailScreen", () => {
   });
 
   it("refreshes the whole-library album list and genre counts after a delete", async () => {
-    const queryClient = await openAlbumPage(lidarrAlbum);
+    const queryClient = await openAlbumPage(album);
     // The screens the page was opened from, still counting the album.
     const albumsView = libraryKeys.albumsAll({
       genre: "",
@@ -368,7 +338,7 @@ describe("AlbumDetailScreen", () => {
         data: [{ ...track, ...overrides }],
         isLoading: false,
       });
-      const queryClient = await openAlbumPage(lidarrAlbum);
+      const queryClient = await openAlbumPage(album);
       await fireEvent.press(screen.getByLabelText("More actions for Nude"));
       return queryClient;
     }
@@ -400,7 +370,7 @@ describe("AlbumDetailScreen", () => {
     });
 
     const favoriteAlbum: Album = {
-      ...lidarrAlbum,
+      ...album,
       identityKey: "release-group:in-rainbows",
       userFavorite: false,
     };
@@ -461,13 +431,13 @@ describe("AlbumDetailScreen", () => {
     });
 
     it("hides the heart when the canonical record cannot name the album", async () => {
-      await openAlbumPage(lidarrAlbum);
+      await openAlbumPage(album);
 
       expect(screen.queryByLabelText(/to favorites$/)).toBeNull();
     });
 
     it("holds the heart's place while the album loads, and ignores a tap", async () => {
-      const queryClient = await openAlbumPage(lidarrAlbum);
+      const queryClient = await openAlbumPage(album);
       mockUseLibraryAlbum.mockReturnValue({ data: undefined, isPending: true });
       await screen.rerender(
         <QueryClientProvider client={queryClient}>
@@ -502,37 +472,21 @@ describe("AlbumDetailScreen", () => {
     });
   });
 
-  it("reads the download status badge by Lidarr's album id", async () => {
-    mockGetDownloadStatuses.mockImplementation(async (ids: string[]) =>
-      Object.fromEntries(ids.map((id) => [id, { status: "downloading" }])),
-    );
-
-    await openAlbumPage(lidarrAlbum);
-
-    expect(await screen.findByText("Downloading...")).toBeTruthy();
-    expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["301"]);
-  });
-
-  it("reads an Aurral album's status by its canonical id and says when an unreleased one downloads", async () => {
+  it("reads the album's status by its Library id and says when an unreleased one downloads", async () => {
     mockGetDownloadStatuses.mockResolvedValue({
-      "aurral:14": { status: "unreleased", releaseDate: "2027-03-05" },
+      "14": { status: "unreleased", releaseDate: "2027-03-05" },
     });
 
-    await openAlbumPage({
-      ...lidarrAlbum,
-      lidarrId: undefined,
-      managedBy: "aurral",
-      releaseDate: "2027-03-05",
-    });
+    await openAlbumPage({ ...album, releaseDate: "2027-03-05" });
 
     expect(await screen.findByText("Downloads Mar 5, 2027")).toBeTruthy();
-    expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["aurral:14"]);
+    expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["14"]);
   });
 
   it("loads the hero cover from the server's artwork path, from the live record once it loads", async () => {
     // No MBID, so the server's path is the only way to a cover.
     const row: Album = {
-      ...lidarrAlbum,
+      ...album,
       mbid: "",
       coverUrl: "/api/library/artwork/album/14?v=1",
     };
@@ -577,7 +531,7 @@ describe("AlbumDetailScreen", () => {
       isLoading: false,
     });
     await openAlbumPage({
-      ...lidarrAlbum,
+      ...album,
       coverUrl: "/api/library/albums/14/cover?v=1",
     });
 
@@ -594,17 +548,17 @@ describe("AlbumDetailScreen", () => {
   it("shuffles the album from the icon-only button", async () => {
     const tracks = [{ id: "1", trackName: "Nude", hasFile: true }];
     mockUseLibraryTracks.mockReturnValue({ data: tracks, isLoading: false });
-    await openAlbumPage(lidarrAlbum);
+    await openAlbumPage(album);
 
     await fireEvent.press(screen.getByLabelText("Shuffle In Rainbows"));
 
     expect(mockShuffleAlbum).toHaveBeenCalledWith(tracks, expect.anything());
   });
 
-  it("hides the Lidarr actions for an album Lidarr does not manage", async () => {
-    await openAlbumPage({ ...lidarrAlbum, lidarrId: undefined });
+  it("hides the album actions for an album Aurral doesn't manage", async () => {
+    await openAlbumPage({ ...album, managed: false });
 
-    // The menu itself renders; only the Lidarr actions are gone.
+    // The menu itself renders; only the actions the routes would refuse are gone.
     expect(screen.getByText("View on Last.fm")).toBeTruthy();
     expect(screen.queryByText("Re-search")).toBeNull();
     expect(screen.queryByText("Delete Album")).toBeNull();
@@ -670,7 +624,7 @@ describe("AlbumDetailScreen", () => {
     });
 
     it("shows the size before saving, the progress while saving, and a filled button once it's all saved", async () => {
-      await openAlbumPage(lidarrAlbum);
+      await openAlbumPage(album);
       expect(screen.getByText("2007 · 10 tracks · 62 MB")).toBeTruthy();
 
       await act(async () => {
@@ -695,7 +649,7 @@ describe("AlbumDetailScreen", () => {
     });
 
     it("saves one song from its menu, and offers to take it off the phone again", async () => {
-      await openAlbumPage(lidarrAlbum);
+      await openAlbumPage(album);
 
       await fireEvent.press(screen.getByLabelText("More actions for 15 Step"));
       await act(async () => {
@@ -717,7 +671,7 @@ describe("AlbumDetailScreen", () => {
     });
 
     it("says a song of a saved album goes with it, and won't remove it alone", async () => {
-      await openAlbumPage(lidarrAlbum);
+      await openAlbumPage(album);
       await saveFromToolbar();
 
       await fireEvent.press(screen.getByLabelText("More actions for 15 Step"));
@@ -733,7 +687,7 @@ describe("AlbumDetailScreen", () => {
     });
 
     it("removes a saved album from the phone once the listener agrees", async () => {
-      await openAlbumPage(lidarrAlbum);
+      await openAlbumPage(album);
       await saveFromToolbar();
 
       await act(async () => {
@@ -753,7 +707,7 @@ describe("AlbumDetailScreen", () => {
     });
 
     it("lists and plays a saved album's tracks when the server can't send them", async () => {
-      await openAlbumPage(lidarrAlbum);
+      await openAlbumPage(album);
       await saveFromToolbar();
       await screen.unmount();
       mockUseLibraryTracks.mockReturnValue({
@@ -761,7 +715,7 @@ describe("AlbumDetailScreen", () => {
         isLoading: false,
       });
 
-      await openAlbumPage(lidarrAlbum);
+      await openAlbumPage(album);
       expect(screen.getByText("Bodysnatchers")).toBeTruthy();
       await fireEvent.press(screen.getByText("Play"));
 

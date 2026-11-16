@@ -21,9 +21,6 @@ import {
   getCanonicalLibraryRefresh,
   getArtistCover,
   getAlbumCover,
-  triggerAlbumSearch,
-  updateLibraryAlbum,
-  deleteAlbum,
   deleteAurralAlbum,
   requestAlbumFromSearch,
   researchAurralAlbum,
@@ -93,59 +90,12 @@ describe("getAlbumCover", () => {
   });
 });
 
-describe("triggerAlbumSearch", () => {
-  it("calls POST /library/downloads/album/search", async () => {
-    mockApi.post.mockResolvedValue({ data: { success: true } });
-
-    const result = await triggerAlbumSearch("99");
-    expect(mockApi.post).toHaveBeenCalledWith(
-      "/library/downloads/album/search",
-      { albumId: "99" },
-    );
-    expect(result).toEqual({ success: true });
-  });
-});
-
-describe("updateLibraryAlbum", () => {
-  it("calls PUT /library/albums/:id with the body and returns data", async () => {
-    const album = { id: "99", albumName: "Album", monitored: true };
-    mockApi.put.mockResolvedValue({ data: album });
-
-    const result = await updateLibraryAlbum("99", { monitored: true });
-    expect(mockApi.put).toHaveBeenCalledWith("/library/albums/99", {
-      monitored: true,
-    });
-    expect(result).toEqual(album);
-  });
-});
-
-describe("deleteAlbum", () => {
-  it("calls DELETE /library/albums/:id with deleteFiles param", async () => {
-    mockApi.delete.mockResolvedValue({ data: { success: true } });
-
-    const result = await deleteAlbum("99");
-    expect(mockApi.delete).toHaveBeenCalledWith("/library/albums/99", {
-      params: { deleteFiles: false },
-    });
-    expect(result).toEqual({ success: true });
-  });
-
-  it("passes deleteFiles=true when specified", async () => {
-    mockApi.delete.mockResolvedValue({ data: { success: true } });
-
-    await deleteAlbum("99", true);
-    expect(mockApi.delete).toHaveBeenCalledWith("/library/albums/99", {
-      params: { deleteFiles: true },
-    });
-  });
-});
-
 describe("deleteAurralAlbum", () => {
-  it("deletes the album's files by canonical id when asked to", async () => {
+  it("deletes the album's files by Library id when asked to", async () => {
     mockApi.delete.mockResolvedValue({ data: { success: true } });
 
     await deleteAurralAlbum("14", true);
-    expect(mockApi.delete).toHaveBeenCalledWith("/library/albums/aurral/14", {
+    expect(mockApi.delete).toHaveBeenCalledWith("/library/albums/14", {
       params: { deleteFiles: true },
     });
   });
@@ -169,14 +119,14 @@ describe("researchAurralAlbum", () => {
       artist,
     );
 
-    expect(mockApi.put).toHaveBeenCalledWith("/library/albums/aurral/14", {
+    expect(mockApi.put).toHaveBeenCalledWith("/library/albums/14", {
       monitored: true,
     });
     expect(mockApi.post).not.toHaveBeenCalled();
     expect(status).toEqual({ status: "queued", releaseDate: null });
   });
 
-  it("requests a monitored album again, keeping it with Aurral", async () => {
+  it("requests a monitored album again", async () => {
     mockApi.post.mockResolvedValue({
       data: { albumStatus: { status: "queued", releaseDate: null } },
     });
@@ -188,7 +138,6 @@ describe("researchAurralAlbum", () => {
       albumName: "Abbey Road",
       artistMbid: "artist-1",
       artistName: "The Beatles",
-      managedBy: "aurral",
     });
     expect(mockApi.put).not.toHaveBeenCalled();
   });
@@ -379,7 +328,7 @@ describe("getCanonicalLibraryPage", () => {
       {
         id: "12",
         canonicalId: "12",
-        managedBy: "aurral",
+        managed: true,
         artistId: "7",
         artistName: "Radiohead",
         mbid: "mb-rg-1",
@@ -440,7 +389,7 @@ describe("getCanonicalLibraryPage", () => {
       {
         id: "13",
         canonicalId: "13",
-        managedBy: "aurral",
+        managed: true,
         artistId: "7",
         artistName: "Radiohead",
         mbid: "mb-rg-2",
@@ -462,9 +411,9 @@ describe("getCanonicalLibraryPage", () => {
     ]);
   });
 
-  it("reads an album Aurral doesn't manage as having no owner", async () => {
-    // The album actions route by owner, so a missed flag would offer Aurral's
-    // monitor and delete actions on an album Aurral doesn't manage.
+  it("reads an album Aurral doesn't manage as unmanaged", async () => {
+    // A missed flag would offer the monitor and delete actions on an album
+    // their routes refuse.
     mockApi.get.mockResolvedValue({
       data: {
         kind: "albums",
@@ -479,7 +428,7 @@ describe("getCanonicalLibraryPage", () => {
     });
 
     const page = await getCanonicalLibraryPage({ kind: "albums" });
-    expect(page.albums[0].managedBy).toBeNull();
+    expect(page.albums[0].managed).toBe(false);
   });
 
   it("maps raw Library track rows to the legacy Track shape", async () => {

@@ -1,5 +1,3 @@
-import { aurralStatusKey } from "@/lib/library-read";
-
 export type RequestStatus = "processing" | "available" | "failed";
 
 /**
@@ -126,16 +124,9 @@ export function activityArtistMbid(item: ActivityItem): string | null {
 }
 
 /**
- * Only album requests have a key. A missing-track search also carries a
- * canonical id in `albumId`, which Lidarr would read as some other album.
+ * The Library album id of a request for an album Aurral manages. It also keys
+ * the row in the download status map.
  */
-export function activityStatusKey(item: ActivityItem): string | null {
-  if (isAlbumRequest(item)) return item.albumId;
-  if (item.kind !== "album_requested") return null;
-  const canonicalId = aurralRequestAlbumId(item);
-  return canonicalId ? aurralStatusKey(canonicalId) : item.albumId;
-}
-
 export function aurralRequestAlbumId(item: ActivityItem): string | null {
   return isHistoryItem(item) && item.kind === "album_requested"
     ? item.canonicalAlbumId
