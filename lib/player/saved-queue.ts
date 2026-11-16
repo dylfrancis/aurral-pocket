@@ -111,6 +111,19 @@ function parseSavedQueue(parsed: unknown): SavedQueue | null {
   };
 }
 
+const RETIRED_STREAM_ROUTE = "/library/canonical-stream/";
+const STREAM_ROUTE = "/library/stream/";
+
+/**
+ * Aurral 3.0 renamed the Library stream route, kept its ids, and answers the
+ * old name with a 404.
+ */
+export function upgradeStreamPath(path: string): string {
+  return path.startsWith(RETIRED_STREAM_ROUTE)
+    ? STREAM_ROUTE + path.slice(RETIRED_STREAM_ROUTE.length)
+    : path;
+}
+
 function parseTrack(raw: unknown): SavedTrack | null {
   if (!isRecord(raw)) return null;
   if (!isString(raw.id) || !isString(raw.streamPath)) return null;
@@ -120,7 +133,8 @@ function parseTrack(raw: unknown): SavedTrack | null {
     artist: isString(raw.artist) ? raw.artist : "",
     album: isString(raw.album) ? raw.album : "",
     artwork: isString(raw.artwork) ? raw.artwork : null,
-    streamPath: raw.streamPath,
+    // A restored queue is written back with the new path.
+    streamPath: upgradeStreamPath(raw.streamPath),
     coverPath: isString(raw.coverPath) ? raw.coverPath : null,
     trackMbid: isString(raw.trackMbid) ? raw.trackMbid : null,
     artistMbid: isString(raw.artistMbid) ? raw.artistMbid : null,

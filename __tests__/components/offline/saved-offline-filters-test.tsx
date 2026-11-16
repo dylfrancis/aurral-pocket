@@ -169,8 +169,7 @@ function route(title: string) {
     artistMbid: "artist-mb",
     albumMbid: "",
     coverUrl: "",
-    lidarrAlbumId: "",
-    canonicalAlbumId: "",
+    libraryAlbumId: "",
     artistId: "",
   };
 }

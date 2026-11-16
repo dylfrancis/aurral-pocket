@@ -49,20 +49,20 @@ describe("artistRouteId", () => {
 });
 
 describe("libraryTracksRef", () => {
-  it("prefers the canonical album id, the only id the paged route matches", () => {
+  it("prefers the Library album id, the only id the paged route matches", () => {
     expect(
       libraryTracksRef({
         albumId: "7",
         albumMbid: "mb-album",
-        canonicalAlbumId: "c-7",
+        libraryAlbumId: "c-7",
       }),
     ).toBe("c-7");
   });
 
-  it("falls back to the MBID when the canonical id is unknown", () => {
+  it("falls back to the MBID when the Library album id is unknown", () => {
     // The paged route cannot match an MBID, so this read returns an empty
     // track list instead of the album. It degrades a caller that skipped
-    // the canonical id; it does not crash it.
+    // the Library album id; it does not crash it.
     expect(libraryTracksRef({ albumId: "7", albumMbid: "mb-album" })).toBe(
       "mb-album",
     );
@@ -92,7 +92,7 @@ describe("albumRouteParams", () => {
       libraryTracksRef({
         albumId: album.id,
         albumMbid: album.mbid,
-        canonicalAlbumId: album.canonicalId,
+        libraryAlbumId: album.canonicalId,
       }),
     );
     expect(albumRouteParams(album).ref).toBe("900");
@@ -113,7 +113,7 @@ describe("albumRouteParams", () => {
     expect(params).toEqual({
       ref: "42",
       albumMbid: "",
-      canonicalAlbumId: "",
+      libraryAlbumId: "",
       title: "Untitled",
       artistName: "",
       artistMbid: "",

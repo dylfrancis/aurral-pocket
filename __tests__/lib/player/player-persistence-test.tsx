@@ -102,7 +102,7 @@ function track(id: string, name: string): Track {
     hasFile: true,
     size: 9_000_000,
     quality: "FLAC",
-    streamPath: `/library/canonical-stream/12/${id}`,
+    streamPath: `/library/stream/12/${id}`,
     streamFormat: "flac",
     available: true,
   };
@@ -345,7 +345,7 @@ describe("saving the queue", () => {
     expect(saved.items).toEqual([
       expect.objectContaining({
         id: "71",
-        streamPath: "/library/canonical-stream/12/71",
+        streamPath: "/library/stream/12/71",
       }),
       expect.objectContaining({ id: "72" }),
       expect.objectContaining({ id: "73" }),
@@ -376,7 +376,7 @@ describe("saving the queue", () => {
     expect(queuedTracks()[0]).not.toHaveProperty("streamPath");
     expect(queuedTracks()[0]).toMatchObject({
       id: "71",
-      url: `${STREAM_ROOT}/library/canonical-stream/12/71?token=test-token-123`,
+      url: `${STREAM_ROOT}/library/stream/12/71?token=test-token-123`,
     });
   });
 
@@ -505,12 +505,38 @@ describe("restoring the queue", () => {
 
     expect(queuedIds()).toEqual(["71", "72", "73"]);
     expect(queuedTracks()[1].url).toBe(
-      `${STREAM_ROOT}/library/canonical-stream/12/72?token=restored-token`,
+      `${STREAM_ROOT}/library/stream/12/72?token=restored-token`,
     );
     expect(mockQueue.loadPlaylist).toHaveBeenCalledWith("playlist-1", 1);
     expect(mockPlayer.playSong).not.toHaveBeenCalled();
     expect(mockPlayer.play).not.toHaveBeenCalled();
     expect(mockPlayer.seek).toHaveBeenCalledWith(96);
+  });
+
+  it("brings back a queue saved before Aurral 3.0 on the renamed stream route, and saves it that way", async () => {
+    mockStorage.getItem.mockResolvedValue(
+      savedRecord().replace(
+        /\/library\/stream\//g,
+        "/library/canonical-stream/",
+      ),
+    );
+    // Aurral 3.0 answers the old route with a 404.
+    mockFetch.mockImplementation((url: string) =>
+      Promise.resolve({
+        status: url.includes("/canonical-stream/") ? 404 : 206,
+      }),
+    );
+    const player = await freshFacade();
+
+    await expect(player.restoreSavedQueue()).resolves.toBe(true);
+    await flush();
+
+    expect(queuedTracks().map((item) => item.url)).toEqual(
+      ["71", "72", "73"].map(
+        (id) => `${STREAM_ROOT}/library/stream/12/${id}?token=restored-token`,
+      ),
+    );
+    expect(JSON.stringify(lastSavedQueue())).not.toContain("canonical-stream");
   });
 
   it("deletes the playlists an earlier process left before building its own", async () => {
@@ -714,10 +740,7 @@ describe("restoring the queue", () => {
       // The rest play again once the connection is back.
       expect(queuedTracks().map(({ id, url }) => [id, url])).toEqual([
         ["71", "/files/71.flac"],
-        [
-          "72",
-          `${STREAM_ROOT}/library/canonical-stream/12/72?token=restored-token`,
-        ],
+        ["72", `${STREAM_ROOT}/library/stream/12/72?token=restored-token`],
         ["73", "/files/73.flac"],
       ]);
       // A saved track plays from the phone, so the server isn't asked.
@@ -778,7 +801,7 @@ describe("restoring the queue", () => {
             artist: "Radiohead",
             album: "Kid A",
             artwork: null,
-            streamPath: "/library/canonical-stream/12/73",
+            streamPath: "/library/stream/12/73",
             coverPath: null,
           },
           {
@@ -787,7 +810,7 @@ describe("restoring the queue", () => {
             artist: "Radiohead",
             album: "Kid A",
             artwork: null,
-            streamPath: "/library/canonical-stream/12/71",
+            streamPath: "/library/stream/12/71",
             coverPath: null,
           },
         ],
