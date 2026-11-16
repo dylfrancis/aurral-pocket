@@ -55,6 +55,6 @@ export function albumSavedId(album: {
   return libraryTracksRef({
     albumId: album.id,
     albumMbid: album.mbid,
-    canonicalAlbumId: album.canonicalId,
+    libraryAlbumId: album.canonicalId,
   });
 }
