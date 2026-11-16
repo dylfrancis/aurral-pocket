@@ -16,36 +16,21 @@ import {
 } from "@/lib/activity-views";
 import { Fonts } from "@/constants/theme";
 import type { DownloadStatusEntry } from "@/lib/types/library";
-import {
-  activityArtistMbid,
-  isAlbumRequest,
-  type ActivityItem,
-} from "@/lib/types/activity";
+import { activityArtistMbid, type ActivityItem } from "@/lib/types/activity";
 import { useColors } from "@/hooks/use-colors";
 
 const KIND_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   artist_added: "person-add-outline",
   track_download: "cloud-download-outline",
-  track_reused_lidarr: "repeat-outline",
   album_requested: "musical-notes-outline",
   missing_track_search: "search-outline",
 };
 
 function fallbackIcon(item: ActivityItem): keyof typeof Ionicons.glyphMap {
-  if (isAlbumRequest(item)) return "musical-notes-outline";
   return KIND_ICONS[item.kind ?? ""] ?? "pulse-outline";
 }
 
-/**
- * Album requests title on the album; history entries arrive with the server's
- * own pre-rendered title/subtitle, so they are shown verbatim.
- */
-function primaryText(item: ActivityItem): string {
-  return isAlbumRequest(item) ? item.albumName : item.title;
-}
-
 function secondaryText(item: ActivityItem): string | null {
-  if (isAlbumRequest(item)) return item.artistName || null;
   // A blocked job's subtitle says little; the staged filename is what the user
   // needs in order to decide whether to approve it.
   if (item.status === "blocked" && item.sourceFilename) {
@@ -56,7 +41,6 @@ function secondaryText(item: ActivityItem): string | null {
 
 /** Blocked jobs are the only rows that carry an inline decision. */
 function reviewJobId(item: ActivityItem): string | null {
-  if (isAlbumRequest(item)) return null;
   return item.status === "blocked" && item.jobId ? item.jobId : null;
 }
 
@@ -135,7 +119,7 @@ export const ActivityRow = React.memo(function ActivityRow({
           numberOfLines={1}
           style={[styles.title, { color: colors.text }]}
         >
-          {primaryText(item)}
+          {item.title}
         </Text>
         {subtitle ? (
           <Text

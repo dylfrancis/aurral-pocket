@@ -29,7 +29,7 @@ function libraryTrack(
     artistName: "Sam Smith",
     albumTitle: "Gloria",
     albumMbid: "rg-gloria",
-    albumCanonicalId: "12",
+    libraryAlbumId: "12",
     trackMbid: null,
     artistMbid: null,
     releaseYear: "2023",

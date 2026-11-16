@@ -2,10 +2,6 @@ jest.mock("@/lib/api/library", () => ({
   cancelAurralAlbum: jest.fn(() => Promise.resolve({ cancelledJobIds: [] })),
 }));
 
-jest.mock("@/lib/api/activity", () => ({
-  deleteAlbumRequest: jest.fn(() => Promise.resolve({})),
-}));
-
 jest.mock("@/lib/api/flow", () => ({
   cancelTrackJob: jest.fn(),
   retryTrackJob: jest.fn(() =>
@@ -65,17 +61,15 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet";
-import { deleteAlbumRequest } from "@/lib/api/activity";
 import { retryTrackJob } from "@/lib/api/flow";
 import { cancelAurralAlbum } from "@/lib/api/library";
-import type { ActivityHistoryItem } from "@/lib/types/activity";
+import type { ActivityItem } from "@/lib/types/activity";
 
 const mockCancelAurralAlbum = cancelAurralAlbum as jest.Mock;
-const mockDeleteAlbumRequest = deleteAlbumRequest as jest.Mock;
 
 // Aurral marks the request completed at once; only the album's own status
 // says it is still downloading.
-const aurralRequest: ActivityHistoryItem = {
+const aurralRequest: ActivityItem = {
   id: "aurral-album_requested-12",
   type: "activity",
   source: "aurral",
@@ -91,16 +85,14 @@ const aurralRequest: ActivityHistoryItem = {
   trackName: null,
   artistName: "Radiohead",
   albumName: "Kid A",
-  albumId: "12",
-  canonicalAlbumId: "12",
+  libraryAlbumId: "12",
   requestedBy: null,
   sourceFilename: null,
   upgrade: null,
   inQueue: false,
-  canReSearch: false,
 };
 
-const failedDownload: ActivityHistoryItem = {
+const failedDownload: ActivityItem = {
   ...aurralRequest,
   id: "aurral-track_download-j1",
   kind: "track_download",
@@ -113,12 +105,11 @@ const failedDownload: ActivityHistoryItem = {
   jobId: "j1",
   trackName: "Idioteque",
   albumName: null,
-  albumId: null,
-  canonicalAlbumId: null,
+  libraryAlbumId: null,
 };
 
 async function openSheet(
-  request: ActivityHistoryItem = aurralRequest,
+  request: ActivityItem = aurralRequest,
   sheetRef = React.createRef<BottomSheetModal>(),
 ) {
   const queryClient = new QueryClient({
@@ -148,7 +139,7 @@ afterEach(() => {
 });
 
 describe("ActivityActionsSheet", () => {
-  it("stops an Aurral album by cancelling its downloads, not by dismissing the request", async () => {
+  it("stops a requested album by cancelling its downloads", async () => {
     await openSheet();
 
     await act(async () => {
@@ -156,11 +147,10 @@ describe("ActivityActionsSheet", () => {
     });
 
     expect(mockCancelAurralAlbum).toHaveBeenCalledWith("12");
-    expect(mockDeleteAlbumRequest).not.toHaveBeenCalled();
   });
 
-  it("offers Stop on an Aurral album only to a user who can add albums", async () => {
-    // Lidarr's Stop takes deleteAlbum; Aurral's cancel route takes addAlbum.
+  it("offers Stop on an album only to a user who can add albums", async () => {
+    // The cancel route takes addAlbum, so deleteAlbum alone is not enough.
     mockHasPermission.mockImplementation(
       (permission) => permission === "deleteAlbum",
     );

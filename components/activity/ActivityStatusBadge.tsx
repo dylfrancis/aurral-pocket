@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Chip } from "@/components/ui/Chip";
 import { formatReleaseWait } from "@/lib/album-status";
 import type { DownloadStatusEntry } from "@/lib/types/library";
-import { isAlbumRequest, type ActivityItem } from "@/lib/types/activity";
+import type { ActivityItem } from "@/lib/types/activity";
 
 type BadgeConfig = {
   label: string;
@@ -80,15 +80,15 @@ function resolveBadge(
 
   if (item.status === "cancelled") {
     return {
-      label: (!isAlbumRequest(item) && item.statusLabel) || "Cancelled",
+      label: item.statusLabel || "Cancelled",
       icon: "close-circle-outline",
       variant: "subtle",
     };
   }
 
-  // History entries ship a server-rendered label ("Added", "Reused", ...).
-  // Prefer it over anything Pocket would invent for the same status.
-  if (!isAlbumRequest(item) && item.statusLabel) {
+  // Aurral renders the label ("Added", "Reused", ...). Prefer it over
+  // anything Pocket would invent for the same status.
+  if (item.statusLabel) {
     const settled = item.status === "completed";
     return {
       label: item.statusLabel,

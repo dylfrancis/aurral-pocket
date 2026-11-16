@@ -25,16 +25,12 @@ const baseAlbum: SearchAlbum = {
   primaryType: "Album",
   secondaryTypes: [],
   coverUrl: null,
-  inLibrary: false,
-  libraryAlbumId: null,
-  libraryArtistId: null,
-  status: "missing",
 };
 
 describe("SearchAlbumRow", () => {
   it("renders title, artist and meta line", async () => {
     const { getByText } = await render(
-      <SearchAlbumRow album={baseAlbum} onPress={() => {}} />,
+      <SearchAlbumRow album={baseAlbum} status="missing" onPress={() => {}} />,
     );
     expect(getByText("Abbey Road")).toBeTruthy();
     expect(getByText("The Beatles")).toBeTruthy();
@@ -45,6 +41,7 @@ describe("SearchAlbumRow", () => {
     const { getByText } = await render(
       <SearchAlbumRow
         album={{ ...baseAlbum, secondaryTypes: ["Live", "Soundtrack"] }}
+        status="missing"
         onPress={() => {}}
       />,
     );
@@ -54,7 +51,8 @@ describe("SearchAlbumRow", () => {
   it("renders the available status pill when status is available", async () => {
     const { getByText } = await render(
       <SearchAlbumRow
-        album={{ ...baseAlbum, status: "available" }}
+        album={baseAlbum}
+        status="available"
         onPress={() => {}}
       />,
     );
@@ -64,7 +62,8 @@ describe("SearchAlbumRow", () => {
   it("renders the inLibrary status pill when status is inLibrary", async () => {
     const { getByText } = await render(
       <SearchAlbumRow
-        album={{ ...baseAlbum, status: "inLibrary" }}
+        album={baseAlbum}
+        status="inLibrary"
         onPress={() => {}}
       />,
     );
@@ -73,7 +72,7 @@ describe("SearchAlbumRow", () => {
 
   it("hides the status pill when status is missing", async () => {
     const { queryByText } = await render(
-      <SearchAlbumRow album={baseAlbum} onPress={() => {}} />,
+      <SearchAlbumRow album={baseAlbum} status="missing" onPress={() => {}} />,
     );
     expect(queryByText("Missing")).toBeNull();
     expect(queryByText("Available")).toBeNull();
@@ -83,7 +82,7 @@ describe("SearchAlbumRow", () => {
   it("calls onPress when tapped", async () => {
     const onPress = jest.fn();
     const { getByText } = await render(
-      <SearchAlbumRow album={baseAlbum} onPress={onPress} />,
+      <SearchAlbumRow album={baseAlbum} status="missing" onPress={onPress} />,
     );
     await fireEvent.press(getByText("Abbey Road"));
     expect(onPress).toHaveBeenCalledTimes(1);

@@ -1,9 +1,5 @@
 import type { FlowJobStatus } from "@/lib/types/flow";
-import {
-  isAlbumRequest,
-  type ActivityHistoryItem,
-  type ActivityItem,
-} from "@/lib/types/activity";
+import type { ActivityItem } from "@/lib/types/activity";
 
 /**
  * A job with no controls gets `null`: it has finished, waits for review, or
@@ -56,9 +52,7 @@ export function activityJobControls(
   item: ActivityItem,
   access: ActivityJobAccess,
 ): ActivityJobControls | null {
-  if (isAlbumRequest(item) || item.kind !== "track_download" || !item.jobId) {
-    return null;
-  }
+  if (item.kind !== "track_download" || !item.jobId) return null;
   if (!canControl(item, access)) return null;
   const active = item.status === "pending" || item.status === "processing";
   if (!active && item.status !== "failed" && item.status !== "cancelled") {
@@ -72,7 +66,7 @@ export function activityJobControls(
   };
 }
 
-function canControl(item: ActivityHistoryItem, access: ActivityJobAccess) {
+function canControl(item: ActivityItem, access: ActivityJobAccess) {
   if (access.hasPlaylistAccess) return true;
   return (
     item.playlistId === "library" &&

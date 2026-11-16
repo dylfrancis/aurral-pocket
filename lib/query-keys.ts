@@ -27,6 +27,10 @@ export const libraryKeys = {
   albumsAllViews: () => ["library", "albumsAll"] as const,
   albumsAll: (params: LibraryAlbumsParams) =>
     ["library", "albumsAll", params] as const,
+  // Album lookups live under `albumsAll`, so every invalidation of the
+  // whole-library album list refreshes them too.
+  albumLookup: (mbids: string) =>
+    ["library", "albumsAll", "lookup", mbids] as const,
   album: (albumRef: string) => ["library", "album", albumRef] as const,
   // The prefix of every single-album read, for invalidation.
   albumRecords: () => ["library", "album"] as const,

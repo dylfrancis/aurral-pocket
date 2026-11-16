@@ -1,8 +1,4 @@
-import {
-  isAlbumRequest,
-  type ActivityItem,
-  type ActivitySource,
-} from "@/lib/types/activity";
+import type { ActivityItem } from "@/lib/types/activity";
 
 /**
  * Mirrors Aurral's own activity segmentation (navigation/activityNavConfig.ts)
@@ -36,31 +32,12 @@ export function matchesActivityView(
   return !isQueueItem(item) && item.status !== "blocked";
 }
 
-/**
- * Re-searchable failures float to the top — they are the only history rows the
- * user can act on. Otherwise newest first, with id as a stable tiebreak.
- */
+/** Newest first, with id as a stable tiebreak. */
 export function compareActivityItems(a: ActivityItem, b: ActivityItem): number {
-  const aReSearch = canReSearch(a) ? 1 : 0;
-  const bReSearch = canReSearch(b) ? 1 : 0;
-  if (aReSearch !== bReSearch) return bReSearch - aReSearch;
-
   const delta =
     new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime();
   if (delta) return delta;
   return String(b.id ?? "").localeCompare(String(a.id ?? ""));
-}
-
-/**
- * Aurral computes this itself for history entries (album_requested + failed +
- * has an albumId). Album requests never carry the flag, so fall back to the
- * equivalent condition for them.
- */
-export function canReSearch(item: ActivityItem): boolean {
-  if (isAlbumRequest(item)) {
-    return item.status === "failed" && !!item.albumId;
-  }
-  return item.canReSearch === true;
 }
 
 const ACTIVITY_STATUS_LABELS = {
@@ -100,10 +77,8 @@ export function getActivityStatus(item: ActivityItem): ActivityStatus | null {
       return null;
     case "completed":
     case "available":
-      if (!isAlbumRequest(item)) {
-        if (item.upgrade) return "upgraded";
-        if (item.kind === "track_download") return "downloaded";
-      }
+      if (item.upgrade) return "upgraded";
+      if (item.kind === "track_download") return "downloaded";
       return label === "Downloaded" ? "downloaded" : null;
     case "failed":
       return "failed";
@@ -143,26 +118,44 @@ export function getActivityStatusOptions(
 }
 
 export function activityUpgradeLabel(item: ActivityItem): string | null {
-  if (isAlbumRequest(item) || !item.upgrade) return null;
+  if (!item.upgrade) return null;
   const { fromQuality } = item.upgrade;
   return fromQuality ? `Upgrade from ${fromQuality}` : "Quality upgrade";
 }
 
 // Aurral's own names for its download clients. Lidarr and Aurral say who
 // manages an entry, not where a file came from, so they get none.
-const SOURCE_LABELS: Partial<Record<ActivitySource, string>> = {
-  slskd: "slskd",
-  nzbget: "NZBGet",
-  sabnzbd: "SABnzbd",
-  tidarr: "Tidarr",
-  ytdlp: "yt-dlp",
-  deemix: "deemix",
-  share: "Aurral share",
-};
+const SOURCE_LABELS = new Map([
+  ["slskd", "slskd"],
+  ["usenet", "Usenet"],
+  ["nzbget", "NZBGet"],
+  ["sabnzbd", "SABnzbd"],
+  ["tidarr", "Tidarr"],
+  ["ytdlp", "yt-dlp"],
+  ["deemix", "deemix"],
+  ["qbittorrent", "qBittorrent"],
+  ["share", "Aurral share"],
+]);
 
+const PLUGIN_SOURCE_PREFIX = "plugin:";
+
+function downloadSourceLabel(source: string | null | undefined) {
+  if (!source) return null;
+  if (source.startsWith(PLUGIN_SOURCE_PREFIX)) {
+    const pluginId = source.slice(PLUGIN_SOURCE_PREFIX.length).trim();
+    return pluginId ? `${pluginId} plugin` : null;
+  }
+  return SOURCE_LABELS.get(source) ?? null;
+}
+
+/**
+ * Aurral reads a plugin download as "unknown", so a track of an album download
+ * falls back to the source Aurral recorded for it.
+ */
 export function activitySourceLabel(item: ActivityItem): string | null {
-  if (isAlbumRequest(item)) return null;
-  return SOURCE_LABELS[item.source] ?? null;
+  return downloadSourceLabel(
+    item.source === "unknown" ? item.actualDownloadSource : item.source,
+  );
 }
 
 /** Counts per view, from the unfiltered feed, for the tab labels. */
@@ -210,16 +203,12 @@ export function matchesActivityType(
   filter: ActivityTypeFilter,
 ): boolean {
   if (filter === "all") return true;
-  if (isAlbumRequest(item)) return filter === "requests";
-
   switch (filter) {
     case "requests":
       return item.kind === "album_requested";
     case "downloads":
       return (
-        item.kind === "track_download" ||
-        item.kind === "track_reused_lidarr" ||
-        item.kind === "missing_track_search"
+        item.kind === "track_download" || item.kind === "missing_track_search"
       );
     case "library":
       return item.kind === "artist_added";
