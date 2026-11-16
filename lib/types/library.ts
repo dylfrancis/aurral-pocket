@@ -23,11 +23,7 @@ export type Artist = {
   foreignArtistId: string;
   artistName: string;
   monitored: boolean;
-  monitorOption: string;
-  /**
-   * Null on the canonical read path. The canonical library does not record an
-   * added date, so screens must not assume a parseable value here.
-   */
+  /** Null on the canonical read path, whose rows carry no added date. */
   addedAt: string | null;
   statistics: ArtistStatistics;
   /** Canonical read path only. The artist id in the canonical library. */
@@ -35,8 +31,8 @@ export type Artist = {
   /** Canonical read path only. The scanners that found this artist. */
   sources?: LibrarySource[];
   /**
-   * GET /library/artists/:mbid only. Null when the server has no owner on
-   * record, as for an artist found by scanning files.
+   * Never set on API version 2: GET /library/artists/:mbid sends a `managed`
+   * flag instead.
    */
   managedBy?: LibraryOwner | null;
   /** Canonical read path only. True when at least one file exists. */
@@ -110,14 +106,13 @@ export type Album = {
   canonicalId?: string;
   /**
    * Lidarr's own id for this album. Lidarr's album routes — delete, monitor,
-   * search, download status — take this id and nothing else. Unset when
-   * Lidarr does not manage the album.
+   * search, download status — take this id and nothing else. API version 2
+   * has no Lidarr albums, so the Library read never sets it.
    */
   lidarrId?: string;
   /**
-   * Canonical read path only. Null when the server has no owner on record,
-   * as for an album Lidarr added without Aurral; such a row still carries
-   * `lidarrId`.
+   * Canonical read path only. "aurral" when the row's `managed` flag is set,
+   * otherwise null.
    */
   managedBy?: LibraryOwner | null;
   /** Canonical read path only. The scanners that found this album. */
@@ -144,9 +139,8 @@ export type Track = {
   size: number;
   quality: string | null;
   /**
-   * Canonical read path only. The server route that streams the file. Null
-   * when no file exists. The canonical response carries this in place of the
-   * filesystem path, which the server strips.
+   * Canonical read path only. The server route that streams the file; null
+   * when Aurral has no file it can read.
    */
   streamPath?: string | null;
   /** Canonical read path only. The container format of the file. */
@@ -270,78 +264,10 @@ export type LibraryAlbumsParams = {
   direction: "asc" | "desc";
 };
 
-// The canonical metadata bags below are declared partially, by design. A
-// Lidarr-managed artist or album stores the whole Lidarr payload; a
-// file-scanned entity stores `{ tags }` read from its file. Only the keys
-// pocket or the server reads are declared — an undeclared key still arrives
-// on the wire, it just cannot be read without widening the type here.
+// The raw rows below declare only the keys pocket reads. The server sends
+// more, such as the file tags in `metadata`.
 
-/** File tags as the scanner stored them (music-metadata's common tags). */
-export type CanonicalFileTags = {
-  title?: string;
-  artist?: string;
-  album?: string;
-  albumartist?: string;
-  date?: string;
-  releasedate?: string;
-};
-
-/** One provider image inside stored metadata; the server reads the URLs. */
-export type CanonicalMetadataImage = {
-  url?: string;
-  remoteUrl?: string;
-  imageUrl?: string;
-  coverType?: string;
-};
-
-export type CanonicalArtistMetadata = {
-  foreignArtistId?: string;
-  monitored?: boolean;
-  monitor?: string;
-  added?: string;
-  librarySource?: "lidarr";
-  tags?: CanonicalFileTags;
-};
-
-/**
- * Lidarr's own album statistics, stored inside the synced payload. They
- * describe what Lidarr has, not what Aurral can read. The album mapper
- * falls back to them when Aurral cannot see the files.
- */
-export type CanonicalLidarrAlbumStatistics = {
-  trackCount?: number;
-  trackFileCount?: number;
-  sizeOnDisk?: number;
-  percentOfTracks?: number;
-};
-
-export type CanonicalAlbumMetadata = {
-  /**
-   * Lidarr's album id on a Lidarr-sourced row. An album Aurral manages
-   * itself (2.11.0+) stores its release-group MBID here instead, so read it
-   * only when `librarySource` is "lidarr".
-   */
-  id?: number | string;
-  foreignAlbumId?: string;
-  librarySource?: "lidarr" | "aurral";
-  monitored?: boolean;
-  images?: CanonicalMetadataImage[];
-  tags?: CanonicalFileTags;
-  statistics?: CanonicalLidarrAlbumStatistics;
-};
-
-/** Lidarr track payloads are stored without a `librarySource` marker. */
-export type CanonicalTrackMetadata = {
-  tags?: CanonicalFileTags;
-  /** Lidarr's flag: Lidarr has a file, whether or not Aurral can read it. */
-  hasFile?: boolean;
-};
-
-/**
- * The quality the indexing scanner recorded. The file scanner writes the
- * declared keys; the Lidarr indexer stores Lidarr's mediaInfo object
- * instead, whose keys arrive undeclared.
- */
+/** The quality the scanner recorded for a file. */
 export type CanonicalMediaQuality = {
   format?: string | null;
   bitrate?: number | null;
@@ -350,10 +276,9 @@ export type CanonicalMediaQuality = {
 };
 
 /**
- * One artist as GET /library/canonical returns it: the raw canonical library
- * row. Unlike the read adapter behind /library/artists?readPath=canonical,
- * this route does not adapt rows to the legacy shape. getCanonicalLibraryPage
- * maps these to `Artist` before anything else sees them.
+ * One artist as GET /library returns it: the raw Library row.
+ * getCanonicalLibraryPage maps these to `Artist` before anything else sees
+ * them.
  */
 export type CanonicalArtistItem = {
   id: number | string;
@@ -361,7 +286,7 @@ export type CanonicalArtistItem = {
   mbid?: string | null;
   name?: string;
   sortName?: string | null;
-  metadata?: CanonicalArtistMetadata | null;
+  monitored?: boolean;
   albumCount?: number;
   trackCount?: number;
   sizeOnDisk?: number;
@@ -379,7 +304,7 @@ export type CanonicalArtistItem = {
 };
 
 /**
- * One media file on a canonical track. The server strips every key that ends
+ * One media file on a Library track. The server strips every key that ends
  * in "path" from this route, so a file never carries its filesystem path.
  */
 export type CanonicalTrackFile = {
@@ -395,10 +320,10 @@ export type CanonicalTrackFile = {
 };
 
 /**
- * One album as GET /library/canonical returns it: the raw canonical library
- * row. It does not match the legacy Album type — map it before treating it as
- * one. `trackCount`, `availableTrackCount`, and `coverUrl` are added by the
- * page route on top of the stored row.
+ * One album as GET /library returns it: the raw Library row. It does not match
+ * the legacy Album type — map it before treating it as one. `trackCount`,
+ * `availableTrackCount`, and `coverUrl` are added by the page route on top of
+ * the stored row.
  */
 export type CanonicalAlbumItem = {
   id: number | string;
@@ -409,13 +334,14 @@ export type CanonicalAlbumItem = {
   title?: string;
   albumArtist?: string | null;
   releaseDate?: string | null;
-  metadata?: CanonicalAlbumMetadata | null;
+  monitored?: boolean;
   trackIds?: (number | string)[];
   sources?: LibrarySource[];
   available?: boolean;
   trackCount?: number;
   availableTrackCount?: number;
-  managedBy?: LibraryOwner | null;
+  /** True when Aurral manages the album's downloads and monitoring. */
+  managed?: boolean;
   /**
    * The server-relative path of the album's cover: custom artwork when set,
    * otherwise `/api/library/albums/:id/cover?v=…`, which answers 404 when the
@@ -427,10 +353,9 @@ export type CanonicalAlbumItem = {
 };
 
 /**
- * One track as GET /library/canonical returns it: the raw canonical library
- * row. It does not match the legacy Track type — map it before treating it as
- * one. A track can appear on several albums; `albums` carries its position on
- * each.
+ * One track as GET /library returns it: the raw Library row. It does not match
+ * the legacy Track type — map it before treating it as one. A track can appear
+ * on several albums; `albums` carries its position on each.
  */
 export type CanonicalTrackItem = {
   id: number | string;
@@ -438,7 +363,6 @@ export type CanonicalTrackItem = {
   mbid?: string | null;
   title?: string;
   artistName?: string;
-  metadata?: CanonicalTrackMetadata | null;
   albums?: {
     albumId: number | string;
     discNumber?: number | null;
@@ -453,16 +377,21 @@ export type CanonicalTrackItem = {
 
 /**
  * GET /library/favorites, as the server sends it. The starred lists carry the
- * ids favoriteEntityId builds. `library` carries raw canonical rows for the
- * starred entities, plus their parents and the children of starred artists and
- * albums — the reader must intersect the two. Its rows carry no counts and no
- * `userFavorite`. Only the keys pocket reads are declared, per the convention
- * above.
+ * ids favoriteEntityId builds. `library` carries raw Library rows for the
+ * starred entities, plus the album of each starred track and the artist of
+ * each album — the reader must intersect the two. Its rows carry no
+ * `userFavorite`.
  */
 export type LibraryFavoritesWire = {
-  artist?: { id: string }[];
-  album?: { id: string }[];
-  song?: { id: string }[];
+  artistIds?: string[];
+  albumIds?: string[];
+  /**
+   * Starred library tracks, and starred flow and playlist downloads under the
+   * id they were starred with, matched or not.
+   */
+  songIds?: string[];
+  /** Starred flow and playlist downloads Aurral hasn't matched to a track. */
+  playlistSongs?: { id: string }[];
   library?: {
     artists?: CanonicalArtistItem[];
     albums?: CanonicalAlbumItem[];

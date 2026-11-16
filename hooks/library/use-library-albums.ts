@@ -3,17 +3,8 @@ import { getCanonicalAlbum, getCanonicalArtistAlbums } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 
 /**
- * Read an artist's albums from the paged canonical route.
- *
- * `artistRef` must come from `libraryAlbumsRef`. It identifies the artist on
- * the canonical read path, and it is also the query key, so mutations can
- * invalidate the same entry. The read asks for wanted (fileless) albums
- * explicitly, so they arrive whatever the server's library view hides.
- *
- * No monitored filter here, unlike the retired Lidarr read. The canonical
- * library copies the monitored flag from Lidarr when Lidarr indexed the
- * album, and leaves it false for albums scanned from the Aurral root, so
- * filtering on it would hide every Aurral-only album.
+ * Read an artist's albums. `artistRef` must come from `libraryAlbumsRef`; it
+ * is also the query key, so mutations invalidate the same entry.
  */
 export function useLibraryAlbums(artistRef: string | undefined) {
   return useQuery({
@@ -24,12 +15,12 @@ export function useLibraryAlbums(artistRef: string | undefined) {
 }
 
 /**
- * Read one album from the paged canonical route.
+ * Read one album from the paged Library route.
  *
  * `albumRef` must come from `libraryTracksRef`, the same reference the track
  * list uses, so the page reads both halves of an album under one identifier.
- * Only a canonical id matches; a reference that fell back to an MBID or a
- * Lidarr id reads as null, and the page paints from its route params instead.
+ * Only a Library album id matches; a reference that fell back to an MBID
+ * reads as null, and the page paints from its route params instead.
  */
 export function useLibraryAlbum(albumRef: string | undefined) {
   return useQuery({

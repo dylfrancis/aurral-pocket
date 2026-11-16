@@ -156,7 +156,6 @@ export type AddArtistResponse = {
     foreignArtistId: string;
     artistName: string;
     monitored: boolean;
-    monitorOption: string;
     statistics: {
       albumCount: number;
       trackCount: number;

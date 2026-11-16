@@ -151,6 +151,18 @@
     "GET /health/live": {
       "status": "string"
     },
+    "GET /library": {
+      "albums": [],
+      "artists": [],
+      "genres": [],
+      "hasMore": "boolean",
+      "items": [],
+      "kind": "string",
+      "page": "number",
+      "pageSize": "number",
+      "total": "number",
+      "tracks": []
+    },
     "GET /library/favorites": {
       "albumIds": [],
       "artistIds": [],

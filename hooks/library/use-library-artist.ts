@@ -20,7 +20,10 @@ export function useLibraryArtist(mbid: string | undefined) {
   });
 }
 
-/** The artist's canonical row, which has the `coverUrl` the legacy read lacks. */
+/**
+ * The artist's canonical row, which has the `coverUrl` the single-artist read
+ * lacks.
+ */
 export function useCanonicalArtist(mbid: string | undefined) {
   const { serverUrl, token } = useAuth();
 

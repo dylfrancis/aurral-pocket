@@ -71,8 +71,7 @@ export type PlayerAlbumContext = {
 /**
  * Turn a library track into a playable one. Returns null — meaning "do not
  * start playback", not an error — when the track has no streamPath (Aurral
- * cannot read a file for it, even if Lidarr has one and the row shows a
- * checkmark) or when the session token is gone.
+ * cannot read a file for it) or when the session token is gone.
  */
 export function toPlayerTrack(
   track: Track,
