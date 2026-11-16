@@ -119,7 +119,7 @@ async function renderSignedIn(stored: Record<string, string> = {}) {
         id: 1,
         username: "ada",
         role: "user",
-        permissions: {},
+        permissions: { accessPlaylists: false },
       }),
       ...stored,
     }),

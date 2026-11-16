@@ -10,14 +10,14 @@ const isFlow = (status: FlowStatusSnapshot | undefined, id: string) =>
   !!status?.flows.some((flow) => flow.id === id);
 
 const isStaticPlaylist = (status: FlowStatusSnapshot | undefined, id: string) =>
-  !!status?.sharedPlaylists.some((playlist) => playlist.id === id);
+  !!status?.staticPlaylists.some((playlist) => playlist.id === id);
 
 /**
  * An id never changes kind, so a cached snapshot that knows it answers without
  * a request, and the tap responds at once. An id nobody knows, or a failed
  * lookup, lands on Library > Playlists, as the web's redirect does.
  *
- * Callers must gate on `accessFlow`: the lookup answers 403 without it.
+ * Callers must gate on `accessPlaylists`: the lookup answers 403 without it.
  */
 export function useOpenPlaylist() {
   const navigateToTab = useNavigateToTab();

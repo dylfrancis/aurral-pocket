@@ -30,11 +30,11 @@ type Props = {
  * State and permission gate for one AddToPlaylistSheet. `open` sets the track
  * and gives haptic feedback; wire it to a long-press only when
  * `canAddToPlaylist` is true, because the playlist API answers 403 without
- * the accessFlow permission.
+ * the accessPlaylists permission.
  */
 export function useAddToPlaylist() {
   const hasPermission = useHasPermission();
-  const canAddToPlaylist = hasPermission("accessFlow");
+  const canAddToPlaylist = hasPermission("accessPlaylists");
   const [track, setTrack] = useState<SharedPlaylistTrack | null>(null);
 
   const open = useCallback((next: SharedPlaylistTrack) => {
@@ -51,7 +51,7 @@ export function useAddToPlaylist() {
  * Bottom sheet that saves one track into a static playlist — an existing one,
  * or a new one named in a sheet on top. Mounted only while a track is set, so the flow
  * status query behind useSharedPlaylists() does not run until the sheet opens.
- * Callers must gate on the accessFlow permission; that query 403s without it.
+ * Callers must gate on the accessPlaylists permission; that query 403s without it.
  */
 export function AddToPlaylistSheet({ track, onClose }: Props) {
   if (!track) return null;

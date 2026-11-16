@@ -179,7 +179,7 @@ function FlowPage({
               name: nextStaticPlaylistName(
                 flow.name,
                 queryClient.getQueryData<FlowStatusSnapshot>(flowKeys.status())
-                  ?.sharedPlaylists ?? [],
+                  ?.staticPlaylists ?? [],
               ),
             }),
         },

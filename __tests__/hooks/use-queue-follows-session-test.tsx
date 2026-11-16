@@ -88,7 +88,7 @@ async function renderListening() {
         id: 1,
         username: "ada",
         role: "user",
-        permissions: {},
+        permissions: { accessPlaylists: false },
       }),
       remember_credentials: "true",
       saved_username: "ada",

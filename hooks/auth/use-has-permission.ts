@@ -7,7 +7,7 @@ type Permission =
   | "deleteArtist"
   | "deleteAlbum"
   | "accessSettings"
-  | "accessFlow";
+  | "accessPlaylists";
 
 export function useHasPermission() {
   const { user } = useAuth();

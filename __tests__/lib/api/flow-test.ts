@@ -84,7 +84,7 @@ describe("createSharedPlaylist", () => {
       name: "Keepers",
       tracks: [TRACK],
     });
-    expect(api.post).toHaveBeenCalledWith("/playlists/shared-playlists", {
+    expect(api.post).toHaveBeenCalledWith("/playlists/static-playlists", {
       name: "Keepers",
       tracks: [TRACK],
     });
@@ -97,7 +97,7 @@ describe("addSharedPlaylistTracks", () => {
     (api.post as jest.Mock).mockResolvedValueOnce(QUEUED_RESPONSE);
     const result = await addSharedPlaylistTracks("pl-1", [TRACK]);
     expect(api.post).toHaveBeenCalledWith(
-      "/playlists/shared-playlists/pl-1/tracks",
+      "/playlists/static-playlists/pl-1/tracks",
       { tracks: [TRACK] },
     );
     expect(result).toEqual({ playlistId: "pl-1", operationId: "op-1" });

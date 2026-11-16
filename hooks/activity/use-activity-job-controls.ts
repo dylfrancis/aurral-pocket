@@ -6,12 +6,12 @@ import type { ActivityItem } from "@/lib/types/activity";
 
 export function useActivityJobControls() {
   const { user } = useAuth();
-  const hasAccessFlow = useHasPermission()("accessFlow");
+  const hasPlaylistAccess = useHasPermission()("accessPlaylists");
   const userId = user?.id ?? null;
 
   return useCallback(
     (item: ActivityItem) =>
-      activityJobControls(item, { userId, hasAccessFlow }),
-    [userId, hasAccessFlow],
+      activityJobControls(item, { userId, hasPlaylistAccess }),
+    [userId, hasPlaylistAccess],
   );
 }

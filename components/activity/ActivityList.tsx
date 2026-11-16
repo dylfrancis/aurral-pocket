@@ -112,11 +112,11 @@ export function ActivityList({ view }: ActivityListProps) {
     [jobControlsFor, downloadEntryFor, hasPermission],
   );
 
-  // Playlist links need accessFlow: both lists and the lookup behind them
+  // Playlist links need accessPlaylists: both lists and the lookup behind them
   // answer 403 without it. A blocked row is skipped because its inline Approve
   // and Deny sit on the row, and a near miss must not navigate away from the
   // decision.
-  const canOpenPlaylists = hasPermission("accessFlow");
+  const canOpenPlaylists = hasPermission("accessPlaylists");
   const rowPressHandler = useCallback(
     (item: ActivityItem) => {
       const mbid = activityArtistMbid(item);
