@@ -14,9 +14,6 @@ export type ArtistStatistics = {
 /** Which scanner owns the records in the canonical library. */
 export type LibrarySource = "aurral" | "lidarr" | "all";
 
-/** Which manager downloads and monitors an album. */
-export type LibraryOwner = "aurral" | "lidarr";
-
 export type Artist = {
   id: string;
   mbid: string;
@@ -30,11 +27,6 @@ export type Artist = {
   canonicalId?: string;
   /** Canonical read path only. The scanners that found this artist. */
   sources?: LibrarySource[];
-  /**
-   * Never set on API version 2: GET /library/artists/:mbid sends a `managed`
-   * flag instead.
-   */
-  managedBy?: LibraryOwner | null;
   /** Canonical read path only. True when at least one file exists. */
   available?: boolean;
   /** Canonical read path only. The key the favorites API addresses this artist by. */
@@ -105,16 +97,10 @@ export type Album = {
   /** Canonical read path only. The album id in the canonical library. */
   canonicalId?: string;
   /**
-   * Lidarr's own id for this album. Lidarr's album routes — delete, monitor,
-   * search, download status — take this id and nothing else. API version 2
-   * has no Lidarr albums, so the Library read never sets it.
+   * Canonical read path only. True when Aurral manages the album's downloads
+   * and monitoring. Its album routes answer 409 for any other album.
    */
-  lidarrId?: string;
-  /**
-   * Canonical read path only. "aurral" when the row's `managed` flag is set,
-   * otherwise null.
-   */
-  managedBy?: LibraryOwner | null;
+  managed?: boolean;
   /** Canonical read path only. The scanners that found this album. */
   sources?: LibrarySource[];
   /** Canonical read path only. True when at least one track has a file. */
@@ -196,13 +182,12 @@ export type DownloadStatusValue = LidarrDownloadStatus | AurralAlbumStatus;
 
 export type DownloadStatusEntry = {
   status: DownloadStatusValue;
-  /** Aurral entries only. */
   releaseDate?: string | null;
 };
 
 /**
- * GET /library/downloads/status. Lidarr entries are keyed by Lidarr album id
- * and Aurral entries by `aurral:<canonicalId>`; see albumStatusKey.
+ * GET /library/downloads/status, keyed by Library album id. Albums Aurral
+ * doesn't manage are left out.
  */
 export type DownloadStatusMap = Record<string, DownloadStatusEntry>;
 

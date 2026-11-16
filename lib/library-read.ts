@@ -7,7 +7,7 @@
  * invalidate.
  */
 
-import type { DownloadStatusMap, LibraryOwner } from "@/lib/types/library";
+import type { DownloadStatusMap } from "@/lib/types/library";
 
 type ArtistReference = {
   /** The Library artist id. */
@@ -69,11 +69,6 @@ export function libraryTracksRef({
  * and a caller that built the reference differently would read a cache entry
  * no mutation can invalidate.
  *
- * `lidarrAlbumId` is the only id the page sends to Lidarr's album routes. It
- * comes from `lidarrId` alone: `id` and `canonicalId` are canonical ids, and
- * Lidarr would read them as some other album. It is empty for an album Lidarr
- * does not manage, and the page hides the Lidarr actions.
- *
  * The rest are query params the page paints from before its own reads
  * resolve. `artistName` and `artistMbid` override the album's own fields
  * because an artist screen knows the artist it is showing, while a canonical
@@ -83,7 +78,6 @@ export function albumRouteParams(
   album: {
     id: string;
     canonicalId?: string;
-    lidarrId?: string;
     mbid?: string;
     albumName: string;
     artistId?: string;
@@ -105,7 +99,6 @@ export function albumRouteParams(
       albumMbid: album.mbid,
       canonicalAlbumId: album.canonicalId,
     })!,
-    lidarrAlbumId: album.lidarrId ?? "",
     albumMbid: album.mbid ?? "",
     canonicalAlbumId: album.canonicalId ?? "",
     title: album.albumName,
@@ -117,45 +110,23 @@ export function albumRouteParams(
   };
 }
 
-/** The status route reads an id with this prefix as a canonical album id. */
-export function aurralStatusKey(canonicalId: string) {
-  return `aurral:${canonicalId}`;
-}
-
 /**
- * Aurral addresses the albums it manages by canonical id. Every other album
- * goes to Lidarr, including those with no owner on record, and Lidarr needs
- * its own album id: a bare canonical id would read as some other Lidarr album.
+ * The Library id the album actions and the download status map take. Only an
+ * album Aurral manages has one: the routes answer 409 for any other.
  */
-export function albumManager(album: {
-  managedBy?: string | null;
+export function managedAlbumId(album: {
+  managed?: boolean;
   canonicalId?: string;
-  lidarrId?: string;
-}): { name: LibraryOwner; albumId: string } | undefined {
-  if (album.managedBy === "aurral") {
-    return album.canonicalId
-      ? { name: "aurral", albumId: album.canonicalId }
-      : undefined;
-  }
-  return album.lidarrId
-    ? { name: "lidarr", albumId: album.lidarrId }
-    : undefined;
-}
-
-export function albumStatusKey(album: Parameters<typeof albumManager>[0]) {
-  const manager = albumManager(album);
-  if (!manager) return undefined;
-  return manager.name === "aurral"
-    ? aurralStatusKey(manager.albumId)
-    : manager.albumId;
+}) {
+  return album.managed ? album.canonicalId || undefined : undefined;
 }
 
 export function albumDownloadStatus(
   statuses: DownloadStatusMap | undefined,
-  album: Parameters<typeof albumStatusKey>[0],
+  album: Parameters<typeof managedAlbumId>[0],
 ) {
-  const key = albumStatusKey(album);
-  return key ? statuses?.[key]?.status : undefined;
+  const albumId = managedAlbumId(album);
+  return albumId ? statuses?.[albumId]?.status : undefined;
 }
 
 /**
@@ -165,7 +136,7 @@ export function albumDownloadStatus(
  *
  * Both entry points name the same thing by a release-group MBID, but they
  * hold different records: search knows the album's library status, an artist
- * page knows the Lidarr artist id that can add it. The page takes the union
+ * page knows the Library artist id that can add it. The page takes the union
  * and offers whichever actions its params support.
  */
 export function releaseRouteParams(release: {
@@ -173,15 +144,13 @@ export function releaseRouteParams(release: {
   title: string;
   artistName: string;
   artistMbid?: string | null;
-  /** The Lidarr artist id, when the caller knows the artist is in Lidarr. */
+  /** The Library artist id, when the caller knows the artist is in the Library. */
   artistId?: string | null;
   primaryType?: string | null;
   secondaryTypes?: readonly string[];
   releaseDate?: string | null;
   /** Search only. Absent means the page treats the album as addable. */
   status?: string;
-  /** Search only. Present when a re-search is possible. */
-  libraryAlbumId?: string | null;
 }) {
   return {
     mbid: release.mbid,
@@ -195,6 +164,5 @@ export function releaseRouteParams(release: {
     secondaryTypes: (release.secondaryTypes ?? []).join(","),
     releaseDate: release.releaseDate ?? "",
     status: release.status ?? "",
-    libraryAlbumId: release.libraryAlbumId ?? "",
   };
 }

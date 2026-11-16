@@ -36,7 +36,6 @@ import {
   getReleaseGroupTracks,
   requestAlbumFromSearch,
   searchDeezerAlbum,
-  triggerAlbumSearch,
   type ReleaseGroupTrack,
 } from "@/lib/api/library";
 import { formatReleaseWait } from "@/lib/album-status";
@@ -69,7 +68,6 @@ type ReleaseRouteParams = {
   secondaryTypes?: string;
   releaseDate?: string;
   status?: string;
-  libraryAlbumId?: string;
 };
 
 function formatDuration(ms: number | null) {
@@ -82,12 +80,6 @@ function formatDuration(ms: number | null) {
 
 function describeError(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.status === 409) {
-      return "Album already exists in Lidarr under a different artist.";
-    }
-    if (error.status === 503) {
-      return error.message || "Lidarr is not configured.";
-    }
     if (error.status === 403) {
       return "You don't have permission to add albums.";
     }
@@ -126,7 +118,6 @@ export function ReleaseDetailScreen() {
   const title = params.title ?? "";
   const artistName = params.artistName ?? "";
   const status = params.status || "missing";
-  const libraryAlbumId = params.libraryAlbumId || "";
 
   // Search knows the artist only by MBID, so the library artist id it needs
   // to add an album is looked up here. An artist page passes its own.
@@ -255,38 +246,17 @@ export function ReleaseDetailScreen() {
     },
   });
 
-  const researchMutation = useMutation({
-    mutationFn: () => triggerAlbumSearch(libraryAlbumId),
-    onSuccess: () => {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      invalidateAfterMutation();
-      Burnt.toast({ title: "Searching for this album", preset: "done" });
-    },
-    onError: (error) => {
-      Burnt.toast({
-        title: "Couldn't trigger search",
-        message: describeError(error),
-        preset: "error",
-      });
-    },
-  });
-
   const action = resolveAction({
     status,
-    libraryAlbumId,
     canAddAlbum,
     added: addMutation.isSuccess,
-    isPending: addMutation.isPending || researchMutation.isPending,
+    isPending: addMutation.isPending,
   });
 
   const onActionPress = () => {
-    if (action.kind === "add") {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      addMutation.mutate();
-    } else if (action.kind === "research") {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      researchMutation.mutate();
-    }
+    if (action.kind !== "add") return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    addMutation.mutate();
   };
 
   const openArtistPage = useOpenArtist();
@@ -492,7 +462,7 @@ function trackKey(track: ReleaseGroupTrack) {
 }
 
 type ActionState = {
-  kind: "add" | "research" | "none";
+  kind: "add" | "none";
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   disabled: boolean;
@@ -505,13 +475,11 @@ type ActionState = {
  */
 function resolveAction({
   status,
-  libraryAlbumId,
   canAddAlbum,
   added,
   isPending,
 }: {
   status: string;
-  libraryAlbumId: string;
   canAddAlbum: boolean;
   added: boolean;
   isPending: boolean;
@@ -560,15 +528,6 @@ function resolveAction({
       label: "In Library",
       icon: "checkmark",
       disabled: true,
-      busy: false,
-    };
-  }
-  if (status === "inLibrary" && libraryAlbumId) {
-    return {
-      kind: "research",
-      label: "Search Album",
-      icon: "search",
-      disabled: false,
       busy: false,
     };
   }

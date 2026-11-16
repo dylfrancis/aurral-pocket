@@ -1,8 +1,6 @@
 import type {
   SimilarArtist,
   SimilarArtistsResponse,
-  MonitorOption,
-  AddArtistRequest,
   AddArtistResponse,
 } from "@/lib/types/search";
 
@@ -22,38 +20,6 @@ describe("search types", () => {
       artists: [{ id: "1", name: "Test", image: null, match: 50 }],
     };
     expect(response.artists).toHaveLength(1);
-  });
-
-  it("MonitorOption covers all valid values", () => {
-    const options: MonitorOption[] = [
-      "none",
-      "all",
-      "existing",
-      "latest",
-      "first",
-      "missing",
-      "future",
-    ];
-    expect(options).toHaveLength(7);
-  });
-
-  it("AddArtistRequest has foreignArtistId and artistName", () => {
-    const request: AddArtistRequest = {
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-      monitorOption: "all",
-    };
-    expect(request.foreignArtistId).toBe("abc-123");
-    expect(request.artistName).toBe("Radiohead");
-  });
-
-  it("AddArtistRequest works with only required fields", () => {
-    const request: AddArtistRequest = {
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-    };
-    expect(request.quality).toBeUndefined();
-    expect(request.monitorOption).toBeUndefined();
   });
 
   it("AddArtistResponse has queued flag", () => {

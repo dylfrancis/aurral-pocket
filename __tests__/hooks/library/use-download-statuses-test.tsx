@@ -14,7 +14,7 @@ const mockGetDownloadStatuses = getDownloadStatuses as jest.Mock;
 const wantedAurralAlbum: Album = {
   id: "7",
   canonicalId: "7",
-  managedBy: "aurral",
+  managed: true,
   artistId: "3",
   artistName: "Artist",
   mbid: "rg-7",
@@ -45,15 +45,25 @@ afterEach(() => {
 describe("useDownloadStatuses", () => {
   it("polls an Aurral album while it is queued and stops once it is cancelled", async () => {
     mockGetDownloadStatuses
-      .mockResolvedValueOnce({ "aurral:7": { status: "queued" } })
-      .mockResolvedValue({ "aurral:7": { status: "cancelled" } });
+      .mockResolvedValueOnce({ "7": { status: "queued" } })
+      .mockResolvedValue({ "7": { status: "cancelled" } });
+    // The status route leaves out albums Aurral doesn't manage.
+    const unmanagedAlbum = {
+      ...wantedAurralAlbum,
+      id: "8",
+      canonicalId: "8",
+      managed: false,
+    };
 
-    await renderHook(() => useDownloadStatuses([wantedAurralAlbum]), {
-      wrapper: ({ children }) => (
-        <QueryClientProvider client={client}>{children}</QueryClientProvider>
-      ),
-    });
-    expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["aurral:7"]);
+    await renderHook(
+      () => useDownloadStatuses([wantedAurralAlbum, unmanagedAlbum]),
+      {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+    expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["7"]);
 
     await act(async () => {
       jest.advanceTimersByTime(15_000);

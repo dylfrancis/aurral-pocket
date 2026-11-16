@@ -136,14 +136,23 @@ export type TagArtistsResponse = {
   offset: number;
 };
 
-export type MonitorOption =
-  "none" | "all" | "existing" | "latest" | "first" | "missing" | "future";
+/**
+ * `useDefault` follows the server's default rules. An unmonitored artist is
+ * added and nothing downloads.
+ */
+export type ArtistMonitoring =
+  { monitored: true; useDefault: true } | { monitored: false };
+
+/** What adding an artist sends unless the listener picks otherwise. */
+export const DEFAULT_ARTIST_MONITORING: ArtistMonitoring = {
+  monitored: true,
+  useDefault: true,
+};
 
 export type AddArtistRequest = {
   foreignArtistId: string;
   artistName: string;
-  quality?: string;
-  monitorOption?: MonitorOption;
+  monitoring: ArtistMonitoring;
 };
 
 export type AddArtistResponse = {

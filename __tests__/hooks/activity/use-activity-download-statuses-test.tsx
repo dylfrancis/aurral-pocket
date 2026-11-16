@@ -102,12 +102,12 @@ afterEach(() => {
 });
 
 describe("useActivityDownloadStatuses", () => {
-  it("asks for an Aurral request's album by canonical id, and skips settled and cancelled rows", async () => {
+  it("asks only for an Aurral request's album, by its Library id", async () => {
     await renderStatuses([
       lidarrRequest({ albumId: "301", inQueue: true }),
       lidarrRequest({ albumId: "302", status: "available" }),
       aurralRequest,
-      // Carries the same canonical id in albumId, but is not an album row.
+      // Carries the same Library id in albumId, but is not an album request.
       historyItem({
         kind: "missing_track_search",
         albumId: "12",
@@ -122,13 +122,14 @@ describe("useActivityDownloadStatuses", () => {
     ]);
 
     expect(mockGetDownloadStatuses).toHaveBeenCalledTimes(1);
-    expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["301", "aurral:12"]);
+    // The Lidarr rows' ids would read as some other Library album.
+    expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["12"]);
   });
 
   it("stops polling an Aurral album once its downloads are cancelled", async () => {
     mockGetDownloadStatuses
-      .mockResolvedValueOnce({ "aurral:12": { status: "downloading" } })
-      .mockResolvedValue({ "aurral:12": { status: "cancelled" } });
+      .mockResolvedValueOnce({ "12": { status: "downloading" } })
+      .mockResolvedValue({ "12": { status: "cancelled" } });
 
     await renderStatuses([aurralRequest]);
     await act(async () => {

@@ -179,7 +179,6 @@ export default function SearchScreen() {
           secondaryTypes: album.secondaryTypes,
           releaseDate: album.releaseDate,
           status: album.status,
-          libraryAlbumId: album.libraryAlbumId,
         }),
       });
     },

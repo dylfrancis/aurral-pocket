@@ -5,8 +5,6 @@ jest.mock("react", () => {
 
 jest.mock("@/lib/api/library", () => ({
   researchAurralAlbum: jest.fn(),
-  triggerAlbumSearch: jest.fn(),
-  updateLibraryAlbum: jest.fn(),
 }));
 
 jest.mock("burnt", () => ({ toast: jest.fn() }));
@@ -33,31 +31,23 @@ jest.mock("@tanstack/react-query", () => ({
 }));
 
 import { useMutation } from "@tanstack/react-query";
-import {
-  researchAurralAlbum,
-  triggerAlbumSearch,
-  updateLibraryAlbum,
-} from "@/lib/api/library";
+import { researchAurralAlbum } from "@/lib/api/library";
 import {
   getEligibleMissingAlbums,
   useResearchMissingAlbums,
 } from "@/hooks/library/use-research-missing-albums";
-import type { Album } from "@/lib/types/library";
+import type { Album, DownloadStatusMap } from "@/lib/types/library";
 
 const mockUseMutation = useMutation as jest.Mock;
-const mockTriggerAlbumSearch = triggerAlbumSearch as jest.Mock;
-const mockUpdateLibraryAlbum = updateLibraryAlbum as jest.Mock;
 const mockResearchAurralAlbum = researchAurralAlbum as jest.Mock;
 
 const artist = { mbid: "artist-mb", name: "Artist" };
 
-// Canonical ids are numeric and Lidarr ids here are "a"-prefixed, so a
-// Lidarr call that received a canonical id shows up in the assertion.
 function makeAlbum(overrides: Partial<Album> = {}): Album {
   return {
     id: "900",
     canonicalId: "900",
-    lidarrId: "a1",
+    managed: true,
     artistId: "art1",
     artistName: "Artist",
     mbid: "mb1",
@@ -71,9 +61,9 @@ function makeAlbum(overrides: Partial<Album> = {}): Album {
   };
 }
 
-function makeAurralAlbum(overrides: Partial<Album> = {}): Album {
-  return makeAlbum({ lidarrId: undefined, managedBy: "aurral", ...overrides });
-}
+// Aurral answers a status for every album it manages; without one an album
+// isn't offered, so each case below that expects to drop an album has one.
+const partialStatuses: DownloadStatusMap = { "900": { status: "partial" } };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -84,64 +74,37 @@ describe("getEligibleMissingAlbums", () => {
     expect(getEligibleMissingAlbums(undefined, undefined)).toEqual([]);
   });
 
-  it("includes monitored incomplete albums", () => {
-    const album = makeAlbum({ monitored: true });
-    expect(getEligibleMissingAlbums([album], {})).toEqual([album]);
-  });
-
   it("excludes complete albums (percentOfTracks >= 100)", () => {
     const album = makeAlbum({
       statistics: { trackCount: 10, sizeOnDisk: 0, percentOfTracks: 100 },
     });
-    expect(getEligibleMissingAlbums([album], {})).toEqual([]);
+    expect(getEligibleMissingAlbums([album], partialStatuses)).toEqual([]);
   });
 
   it("excludes complete albums (sizeOnDisk > 0)", () => {
     const album = makeAlbum({
       statistics: { trackCount: 10, sizeOnDisk: 500, percentOfTracks: 0 },
     });
-    expect(getEligibleMissingAlbums([album], {})).toEqual([]);
+    expect(getEligibleMissingAlbums([album], partialStatuses)).toEqual([]);
   });
 
-  it("excludes albums Lidarr does not manage", () => {
-    const album = makeAlbum({ lidarrId: undefined });
-    expect(getEligibleMissingAlbums([album], {})).toEqual([]);
-  });
-
-  it("excludes albums already downloading", () => {
-    const album = makeAlbum();
-    expect(
-      getEligibleMissingAlbums([album], { a1: { status: "downloading" } }),
-    ).toEqual([]);
-  });
-
-  it("includes failed albums even if unmonitored", () => {
-    const album = makeAlbum({ monitored: false });
-    expect(
-      getEligibleMissingAlbums([album], { a1: { status: "failed" } }),
-    ).toEqual([album]);
-  });
-
-  it("excludes unmonitored albums with no failed status", () => {
-    const album = makeAlbum({ monitored: false });
-    expect(getEligibleMissingAlbums([album], {})).toEqual([]);
+  it("excludes albums Aurral doesn't manage", () => {
+    const album = makeAlbum({ managed: false });
+    expect(getEligibleMissingAlbums([album], partialStatuses)).toEqual([]);
   });
 
   it.each([
     ["partial", true, true],
     ["queued", true, false],
+    ["downloading", true, false],
     ["unreleased", true, false],
     // Aurral doesn't count an unmonitored album's tracks toward failed.
     ["failed", false, false],
   ])(
-    "reads an Aurral album's %p status by its canonical id (monitored %p)",
+    "reads an album's %p status by its Library id (monitored %p)",
     (status, monitored, eligible) => {
-      const album = makeAurralAlbum({ monitored });
-      // A Lidarr album with the canonical id as its id must not decide it.
-      const statuses = {
-        "900": { status: "failed" as const },
-        "aurral:900": { status: status as "partial" },
-      };
+      const album = makeAlbum({ monitored });
+      const statuses = { "900": { status: status as "partial" } };
       expect(getEligibleMissingAlbums([album], statuses)).toEqual(
         eligible ? [album] : [],
       );
@@ -152,51 +115,26 @@ describe("getEligibleMissingAlbums", () => {
 describe("useResearchMissingAlbums", () => {
   it("reports the count of eligible missing albums", () => {
     const albums = [
-      makeAlbum({ monitored: true }),
+      makeAlbum(),
       makeAlbum({
         id: "901",
-        lidarrId: "a2",
+        canonicalId: "901",
         statistics: { trackCount: 10, sizeOnDisk: 1, percentOfTracks: 100 },
       }),
     ];
-    const result = useResearchMissingAlbums(albums, {}, artist);
+    const result = useResearchMissingAlbums(
+      albums,
+      { ...partialStatuses, "901": { status: "partial" } },
+      artist,
+    );
     expect(result.missingCount).toBe(1);
   });
 
-  it("force-monitors unmonitored albums then searches all eligible, by Lidarr id", async () => {
-    mockUpdateLibraryAlbum.mockResolvedValue({});
-    mockTriggerAlbumSearch.mockResolvedValue({});
-    const albums = [
-      makeAlbum({ monitored: true }),
-      makeAlbum({
-        id: "901",
-        lidarrId: "a2",
-        monitored: false,
-        statistics: { trackCount: 1, sizeOnDisk: 0, percentOfTracks: 0 },
-      }),
-    ];
-
-    useResearchMissingAlbums(albums, { a2: { status: "failed" } }, artist);
-    const { config } = mockUseMutation.mock.results[0].value;
-    const count = await config.mutationFn();
-
-    expect(mockUpdateLibraryAlbum).toHaveBeenCalledTimes(1);
-    expect(mockUpdateLibraryAlbum).toHaveBeenCalledWith("a2", {
-      monitored: true,
-    });
-    expect(mockTriggerAlbumSearch.mock.calls).toEqual([["a1"], ["a2"]]);
-    expect(count).toBe(2);
-  });
-
-  it("re-searches an Aurral album through Aurral, never Lidarr", async () => {
+  it("re-searches each eligible album by its Library id", async () => {
     mockResearchAurralAlbum.mockResolvedValue(null);
-    const album = makeAurralAlbum({ artistName: "" });
+    const album = makeAlbum({ artistName: "" });
 
-    useResearchMissingAlbums(
-      [album],
-      { "aurral:900": { status: "partial" } },
-      artist,
-    );
+    useResearchMissingAlbums([album], partialStatuses, artist);
     const { config } = mockUseMutation.mock.results[0].value;
     await config.mutationFn();
 
@@ -204,18 +142,21 @@ describe("useResearchMissingAlbums", () => {
       expect.objectContaining({ canonicalId: "900", monitored: true }),
       { mbid: "artist-mb", name: "Artist" },
     );
-    expect(mockTriggerAlbumSearch).not.toHaveBeenCalled();
-    expect(mockUpdateLibraryAlbum).not.toHaveBeenCalled();
   });
 
-  it("optimistically marks eligible albums as in flight, under each one's status key", () => {
+  it("optimistically marks eligible albums as queued, under each one's Library id", () => {
     const albums = [
-      makeAlbum({ monitored: true }),
-      makeAurralAlbum({ id: "901", canonicalId: "901" }),
+      makeAlbum(),
+      makeAlbum({ id: "901", canonicalId: "901" }),
+      makeAlbum({ id: "902", canonicalId: "902" }),
     ];
     useResearchMissingAlbums(
       albums,
-      { "aurral:901": { status: "cancelled" } },
+      {
+        ...partialStatuses,
+        "901": { status: "cancelled" },
+        "902": { status: "downloading" },
+      },
       artist,
     );
     const { config } = mockUseMutation.mock.results[0].value;
@@ -227,8 +168,8 @@ describe("useResearchMissingAlbums", () => {
     );
     const updater = mockSetQueriesData.mock.calls[0][1];
     expect(updater({})).toEqual({
-      a1: { status: "searching" },
-      "aurral:901": { status: "queued" },
+      "900": { status: "queued" },
+      "901": { status: "queued" },
     });
   });
 });

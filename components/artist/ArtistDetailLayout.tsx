@@ -31,7 +31,6 @@ import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import { useLidarrConfigured } from "@/hooks/auth/use-lidarr-configured";
 import {
   useBlocklist,
   useBlocklistMutations,
@@ -42,7 +41,7 @@ import {
   useLibraryLookup,
 } from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
-import { deleteLibraryArtist, refreshLibraryArtist } from "@/lib/api/library";
+import { deleteLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
 import type {
@@ -59,7 +58,6 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
-import Sync from "@expo/material-symbols/sync.xml";
 import SearchIcon from "@expo/material-symbols/search.xml";
 import BlockIcon from "@expo/material-symbols/block.xml";
 import CheckCircle from "@expo/material-symbols/check_circle.xml";
@@ -143,8 +141,6 @@ export function ArtistDetailLayout({
       starred: !isFavorite,
     });
   };
-  // The read path decides whether albums are addressed by Lidarr id or by
-  // MBID, so both identifiers go in and the helper picks one.
   const albumsRef = libraryAlbumsRef({
     artistId: libraryArtist?.id,
     artistMbid: inLibrary ? mbid : undefined,
@@ -175,13 +171,6 @@ export function ArtistDetailLayout({
       mbid,
       name: libraryArtist?.artistName || artistName,
     });
-  // The server's refresh only asks Lidarr to search the artist.
-  const lidarrConfigured = useLidarrConfigured();
-  const canRefresh =
-    inLibrary &&
-    lidarrConfigured &&
-    !!libraryArtist &&
-    libraryArtist.managedBy !== "aurral";
 
   const pollCount = useRef(0);
   useEffect(() => {
@@ -315,25 +304,6 @@ export function ArtistDetailLayout({
     },
   });
 
-  const refreshMutation = useMutation({
-    mutationFn: () => refreshLibraryArtist(mbid),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: libraryKeys.artist(mbid),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: libraryKeys.canonicalArtist(mbid),
-      });
-      if (libraryArtist) {
-        void queryClient.invalidateQueries({
-          queryKey: libraryKeys.albums(
-            libraryAlbumsRef({ artistId: libraryArtist.id, artistMbid: mbid })!,
-          ),
-        });
-      }
-    },
-  });
-
   const handleBadgePress = useCallback(() => {
     if (!libraryArtist) return;
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -417,18 +387,6 @@ export function ArtistDetailLayout({
           icon={IS_IOS ? "ellipsis" : MoreVert}
           accessibilityLabel="More actions"
         >
-          {canRefresh && (
-            <Stack.Toolbar.MenuAction
-              icon={IS_IOS ? "arrow.clockwise" : Sync}
-              disabled={refreshMutation.isPending}
-              onPress={() => {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                refreshMutation.mutate();
-              }}
-            >
-              {refreshMutation.isPending ? "Refreshing…" : "Refresh"}
-            </Stack.Toolbar.MenuAction>
-          )}
           {inLibrary && canResearchMissing && (
             <Stack.Toolbar.MenuAction
               icon={IS_IOS ? "magnifyingglass" : SearchIcon}
