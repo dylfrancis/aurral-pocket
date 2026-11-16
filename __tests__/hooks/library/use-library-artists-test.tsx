@@ -22,7 +22,6 @@ function makeArtist(id: string): Artist {
     foreignArtistId: `f-${id}`,
     artistName: `Artist ${id}`,
     monitored: true,
-    monitorOption: "all",
     addedAt: "2020-01-01T00:00:00.000Z",
     statistics: { albumCount: 0, trackCount: 0, sizeOnDisk: 0 },
   };

@@ -16,10 +16,8 @@ type Options = {
 };
 
 /**
- * Enriches library albums with primary type and secondary types. Prefers the
- * Lidarr-sourced `albumType` / `secondaryTypes` already on the album. Falls
- * back to matching against release groups — supplied via `options` if the
- * consumer already has them, otherwise read with `useArtistDetails`.
+ * Adds release types to library albums from their matching release groups,
+ * since Library rows carry none. Types already on an album win.
  */
 export function useAlbumsWithTypes(
   mbid: string | undefined,

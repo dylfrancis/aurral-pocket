@@ -102,15 +102,13 @@ const SYNTHETIC = {
 };
 
 /**
- * Query strings for routes that reject a bare probe. Aurral 2.6.0 made `kind`
- * and `pageSize` mandatory on /library/canonical ("bounded reads"), so a probe
- * without them answers 400 and the route silently drops out of shape coverage.
- * The values mirror what the client always sends, so the recorded shape is the
- * envelope pocket actually reads rather than the parameter-less legacy body.
+ * Query strings for routes that reject a bare probe. GET /library answers 400
+ * without `kind` and `pageSize`, so a bare probe would drop the route out of
+ * shape coverage and out of the app contract's field check. The values mirror
+ * what the client always sends, so the recorded shape is the envelope pocket
+ * actually reads.
  */
-const REQUIRED_QUERY = new Map([
-  ["GET /library/canonical", "kind=artists&pageSize=100"],
-]);
+const REQUIRED_QUERY = new Map([["GET /library", "kind=artists&pageSize=100"]]);
 
 /**
  * Probed last, for two reasons:
@@ -133,7 +131,6 @@ const MAX_RELOGINS = 2;
  * production.
  */
 const KNOWN_DRIFT = new Map([
-  ["GET /library/canonical", "API v2 reads the Library from GET /library"],
   [
     "PUT /library/albums/aurral/${canonicalId}",
     "API v2 moved it to /library/albums/:albumId",

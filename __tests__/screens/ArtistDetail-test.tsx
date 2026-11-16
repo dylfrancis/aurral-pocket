@@ -316,7 +316,6 @@ const baseArtist: Artist = {
   foreignArtistId: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
   artistName: "Test Artist",
   monitored: true,
-  monitorOption: "all",
   addedAt: "2024-01-01",
   statistics: { albumCount: 2, trackCount: 20, sizeOnDisk: 1000 },
 };

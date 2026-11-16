@@ -14,7 +14,6 @@ describe("Library types", () => {
       foreignArtistId: "abc-123",
       artistName: "Test",
       monitored: true,
-      monitorOption: "all",
       addedAt: "2024-01-01T00:00:00Z",
       statistics: { albumCount: 5, trackCount: 50, sizeOnDisk: 1000 },
     };

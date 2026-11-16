@@ -9,8 +9,8 @@ import type { Track } from "@/lib/types/library";
 /**
  * Play a library track, queueing the rest of its album behind it, and say
  * what happened when it does not play. Both failures would otherwise look
- * like a silent tap: Aurral has no readable file (the row can still show a
- * checkmark, because Lidarr has one), or the engine rejected the track.
+ * like a silent tap: Aurral has no readable file, or the engine rejected the
+ * track.
  */
 export function usePlayTrack() {
   return useCallback(
