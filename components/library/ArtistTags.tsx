@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet } from "react-native";
-import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
+import { useArtistDetails } from "@/hooks/library/use-artist-details";
 import { ArtistTagsSkeleton } from "@/components/library/ArtistTagsSkeleton";
 import { TagPill } from "@/components/ui/TagPill";
 
@@ -8,12 +8,10 @@ type ArtistTagsProps = {
 };
 
 export function ArtistTags({ mbid }: ArtistTagsProps) {
-  const { data } = useArtistDetailsStream(mbid);
+  const { data, isPending } = useArtistDetails(mbid);
   const tags = data?.tags;
 
-  if (!data?.isComplete && (!tags || tags.length === 0)) {
-    return <ArtistTagsSkeleton />;
-  }
+  if (isPending) return <ArtistTagsSkeleton />;
   if (!tags || tags.length === 0) return null;
 
   return (

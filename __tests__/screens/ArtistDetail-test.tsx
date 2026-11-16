@@ -201,14 +201,15 @@ jest.mock("@/hooks/search/use-library-lookup", () => ({
   })),
 }));
 
-jest.mock("@/hooks/library/use-artist-details-stream", () => ({
-  useArtistDetailsStream: jest.fn(() => ({
+jest.mock("@/hooks/library/use-artist-details", () => ({
+  useArtistDetails: jest.fn(() => ({
     data: {
       tags: [],
       bio: "A test biography.",
-      releaseGroups: [],
-      isComplete: true,
+      "release-groups": [],
+      "release-stats-pending": false,
     },
+    isPending: false,
     isLoading: false,
     error: null,
   })),
@@ -771,13 +772,13 @@ describe("ArtistDetailScreen", () => {
 
     it("shows Albums & Releases section when release groups exist", async () => {
       const {
-        useArtistDetailsStream,
-      } = require("@/hooks/library/use-artist-details-stream");
-      (useArtistDetailsStream as jest.Mock).mockReturnValue({
+        useArtistDetails,
+      } = require("@/hooks/library/use-artist-details");
+      (useArtistDetails as jest.Mock).mockReturnValue({
         data: {
           tags: [],
           bio: "A test biography.",
-          releaseGroups: [
+          "release-groups": [
             {
               id: "rg-1",
               title: "Unreleased EP",
@@ -786,8 +787,9 @@ describe("ArtistDetailScreen", () => {
               "secondary-types": [],
             },
           ],
-          isComplete: true,
+          "release-stats-pending": false,
         },
+        isPending: false,
         isLoading: false,
         error: null,
       });
@@ -798,13 +800,13 @@ describe("ArtistDetailScreen", () => {
 
     it("opens a row's full list with that row's filter", async () => {
       const {
-        useArtistDetailsStream,
-      } = require("@/hooks/library/use-artist-details-stream");
-      (useArtistDetailsStream as jest.Mock).mockReturnValue({
+        useArtistDetails,
+      } = require("@/hooks/library/use-artist-details");
+      (useArtistDetails as jest.Mock).mockReturnValue({
         data: {
           tags: [],
           bio: null,
-          releaseGroups: [
+          "release-groups": [
             {
               id: "rg-1",
               title: "Greatest Hits",
@@ -813,8 +815,9 @@ describe("ArtistDetailScreen", () => {
               "secondary-types": ["Compilation"],
             },
           ],
-          isComplete: true,
+          "release-stats-pending": false,
         },
+        isPending: false,
         isLoading: false,
         error: null,
       });
@@ -836,23 +839,24 @@ describe("ArtistDetailScreen", () => {
 
     it("leaves albums already in the library out of the release rows", async () => {
       const {
-        useArtistDetailsStream,
-      } = require("@/hooks/library/use-artist-details-stream");
+        useArtistDetails,
+      } = require("@/hooks/library/use-artist-details");
       const release = {
         "first-release-date": "2023-06-01",
         "primary-type": "Album",
         "secondary-types": [],
       };
-      (useArtistDetailsStream as jest.Mock).mockReturnValue({
+      (useArtistDetails as jest.Mock).mockReturnValue({
         data: {
           tags: [],
           bio: null,
-          releaseGroups: [
+          "release-groups": [
             { ...release, id: "mbid-1", title: "Owned Release" },
             { ...release, id: "rg-2", title: "Not Owned" },
           ],
-          isComplete: true,
+          "release-stats-pending": false,
         },
+        isPending: false,
         isLoading: false,
         error: null,
       });
@@ -866,18 +870,14 @@ describe("ArtistDetailScreen", () => {
       expect(queryByText("Owned Release")).toBeNull();
     });
 
-    it("does not show Albums & Releases skeleton for in-library artist while stream is still loading", async () => {
+    it("does not show Albums & Releases skeleton for in-library artist while details are still loading", async () => {
       const {
-        useArtistDetailsStream,
-      } = require("@/hooks/library/use-artist-details-stream");
-      (useArtistDetailsStream as jest.Mock).mockReturnValue({
-        data: {
-          tags: [],
-          bio: null,
-          releaseGroups: [],
-          isComplete: false,
-        },
-        isLoading: false,
+        useArtistDetails,
+      } = require("@/hooks/library/use-artist-details");
+      (useArtistDetails as jest.Mock).mockReturnValue({
+        data: undefined,
+        isPending: true,
+        isLoading: true,
         error: null,
       });
       mockUseLibraryAlbums.mockReturnValue({
@@ -891,7 +891,6 @@ describe("ArtistDetailScreen", () => {
       expect(queryAllByText("In Your Library").length).toBeGreaterThanOrEqual(
         2,
       );
-      // But the "Other Releases" skeleton/header is suppressed while streaming
       expect(queryByText("Albums & Releases")).toBeNull();
     });
   });

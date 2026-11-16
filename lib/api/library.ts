@@ -2,6 +2,7 @@ import { fetch } from "expo/fetch";
 import { api } from "./client";
 import type {
   Artist,
+  ArtistDetails,
   ArtistLibraryLookup,
   ArtistLookupBatch,
   Album,
@@ -525,6 +526,18 @@ export async function refreshCanonicalLibrary() {
 /** Poll one queued rescan. The server returns 404 for an unknown job id. */
 export async function getCanonicalLibraryRefresh(jobId: number) {
   const r = await api.get<LibraryScanStatus>(`/library/refresh/${jobId}`);
+  return r.data;
+}
+
+/**
+ * `mode=core` leaves out what pocket doesn't show: the artist's appearances on
+ * other artists' releases, and each release's track count.
+ */
+export async function getArtistDetails(mbid: string, signal?: AbortSignal) {
+  const r = await api.get<ArtistDetails>(`/artists/${mbid}`, {
+    params: { mode: "core" },
+    signal,
+  });
   return r.data;
 }
 

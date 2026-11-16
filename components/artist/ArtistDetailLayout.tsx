@@ -14,7 +14,7 @@ import { Fonts } from "@/constants/theme";
 import { HAS_LIQUID_GLASS } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
-import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
+import { useArtistDetails } from "@/hooks/library/use-artist-details";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import {
@@ -156,10 +156,10 @@ export function ArtistDetailLayout({
     refetch: refetchAlbums,
   } = useLibraryAlbums(albumsRef);
   const { stop: stopPreview, ...preview } = usePreviewPlayer(mbid, artistName);
-  const { data: details } = useArtistDetailsStream(mbid);
+  const { data: details, isPending: detailsLoading } = useArtistDetails(mbid);
   const { data: similarArtists } = useSimilarArtists(mbid);
 
-  const allReleaseGroups = details?.releaseGroups;
+  const allReleaseGroups = details?.["release-groups"];
 
   const { albums: typedAlbums, isLoadingTypes } = useAlbumsWithTypes(
     inLibrary ? mbid : undefined,
@@ -532,11 +532,7 @@ export function ArtistDetailLayout({
 
         <ReleaseGroupsSection
           grouped={groupedReleases}
-          isLoading={
-            !inLibrary &&
-            !details?.isComplete &&
-            (!allReleaseGroups || allReleaseGroups.length === 0)
-          }
+          isLoading={!inLibrary && detailsLoading}
           onPress={openReleaseGroup}
           onNavigate={onNavigateToReleases}
         />
