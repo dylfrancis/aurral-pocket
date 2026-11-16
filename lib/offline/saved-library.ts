@@ -15,7 +15,11 @@ import {
   onDownloadHoldChange,
 } from "@/lib/offline/download";
 import { isOffline, useIsOffline } from "@/lib/offline/network";
-import { toSavedTrack, type SavedTrack } from "@/lib/player/saved-queue";
+import {
+  toSavedTrack,
+  upgradeStreamPath,
+  type SavedTrack,
+} from "@/lib/player/saved-queue";
 import type { PlayerTrack } from "@/lib/player/track-item";
 import { AppStorage } from "@/lib/storage";
 import type { FlowJob, SharedPlaylist } from "@/lib/types/flow";
@@ -47,9 +51,18 @@ export type SavedAlbumRoute = {
   artistMbid: string;
   albumMbid: string;
   coverUrl: string;
-  lidarrAlbumId: string;
-  canonicalAlbumId: string;
+  libraryAlbumId: string;
   artistId: string;
+};
+
+/**
+ * A stored route; before Aurral 3.0 it held `canonicalAlbumId` and
+ * `lidarrAlbumId`.
+ */
+type StoredAlbumRoute = Omit<SavedAlbumRoute, "libraryAlbumId"> & {
+  libraryAlbumId?: string;
+  canonicalAlbumId?: string;
+  lidarrAlbumId?: string;
 };
 
 type ItemBase = {
@@ -796,19 +809,58 @@ function parseRecord(raw: string | null): {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed) || parsed.version !== RECORD_VERSION) return empty;
+    // The launch writes the record back, so an old one is upgraded once.
     const items = Array.isArray(parsed.items)
-      ? parsed.items.filter(isSavedItem)
+      ? parsed.items.filter(isSavedItem).map(upgradeItem)
       : [];
     const files: Record<string, SavedFile> = {};
     if (isRecord(parsed.files)) {
       for (const [id, file] of Object.entries(parsed.files)) {
-        if (isSavedFile(file)) files[id] = file;
+        if (isSavedFile(file)) {
+          files[id] = {
+            ...file,
+            streamPath: upgradeStreamPath(file.streamPath),
+          };
+        }
       }
     }
     return { items, files };
   } catch {
     return empty;
   }
+}
+
+/**
+ * Moves an item saved before Aurral 3.0 onto the new stream route and
+ * `libraryAlbumId`.
+ */
+function upgradeItem(item: SavedItem): SavedItem {
+  if (item.kind === "album") {
+    const { canonicalAlbumId, lidarrAlbumId, ...route } =
+      item.route as StoredAlbumRoute;
+    return {
+      ...item,
+      route: {
+        ...route,
+        libraryAlbumId: route.libraryAlbumId ?? canonicalAlbumId ?? "",
+      },
+      tracks: item.tracks.map((track) =>
+        track.streamPath
+          ? { ...track, streamPath: upgradeStreamPath(track.streamPath) }
+          : track,
+      ),
+    };
+  }
+  if (item.kind === "song") {
+    return {
+      ...item,
+      track: {
+        ...item.track,
+        streamPath: upgradeStreamPath(item.track.streamPath),
+      },
+    };
+  }
+  return item;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

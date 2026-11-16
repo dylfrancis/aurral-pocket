@@ -121,8 +121,7 @@ const route = {
   artistMbid: "artist-mb",
   albumMbid: "album-mb",
   coverUrl: "/api/library/albums/12/cover",
-  lidarrAlbumId: "",
-  canonicalAlbumId: "12",
+  libraryAlbumId: "12",
   artistId: "",
 };
 

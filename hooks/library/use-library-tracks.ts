@@ -5,7 +5,7 @@ import { libraryKeys } from "@/lib/query-keys";
 /**
  * Read an album's tracks from the paged canonical route.
  *
- * `albumRef` must come from `libraryTracksRef`. It is the canonical album id,
+ * `albumRef` must come from `libraryTracksRef`. It is the Library album id,
  * because the paged route matches nothing else. It is also the query key, so
  * mutations can invalidate the same entry. The read asks for wanted
  * (fileless) tracks explicitly, so they arrive whatever the server's library

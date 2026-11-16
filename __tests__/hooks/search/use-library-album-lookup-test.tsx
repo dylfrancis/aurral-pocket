@@ -120,7 +120,7 @@ describe("useLibraryAlbumLookup", () => {
       pathname: "/album/[ref]",
       params: expect.objectContaining({
         ref: "41",
-        canonicalAlbumId: "41",
+        libraryAlbumId: "41",
         artistId: "7",
         albumMbid: "rg-kid-a",
         title: "Kid A",

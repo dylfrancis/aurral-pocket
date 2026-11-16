@@ -45,8 +45,7 @@ type AlbumReference = {
   albumId?: string;
   /** The MusicBrainz release-group id. */
   albumMbid?: string;
-  /** The album id in the canonical library. */
-  canonicalAlbumId?: string;
+  libraryAlbumId?: string;
 };
 
 /**
@@ -56,9 +55,9 @@ type AlbumReference = {
 export function libraryTracksRef({
   albumId,
   albumMbid,
-  canonicalAlbumId,
+  libraryAlbumId,
 }: AlbumReference) {
-  return canonicalAlbumId || albumMbid || albumId;
+  return libraryAlbumId || albumMbid || albumId;
 }
 
 /**
@@ -97,10 +96,10 @@ export function albumRouteParams(
     ref: libraryTracksRef({
       albumId: album.id,
       albumMbid: album.mbid,
-      canonicalAlbumId: album.canonicalId,
+      libraryAlbumId: album.canonicalId,
     })!,
     albumMbid: album.mbid ?? "",
-    canonicalAlbumId: album.canonicalId ?? "",
+    libraryAlbumId: album.canonicalId ?? "",
     title: album.albumName,
     artistName: artistName ?? album.artistName ?? "",
     artistMbid: artistMbid ?? "",

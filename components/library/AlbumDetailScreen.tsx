@@ -81,7 +81,7 @@ type AlbumRouteParams = {
   ref: string;
   downloadStatus?: string;
   albumMbid?: string;
-  canonicalAlbumId?: string;
+  libraryAlbumId?: string;
   title?: string;
   artistName?: string;
   artistMbid?: string;
@@ -328,8 +328,7 @@ export function AlbumDetailScreen() {
                 artistMbid,
                 albumMbid,
                 coverUrl: coverUrl ?? "",
-                lidarrAlbumId: "",
-                canonicalAlbumId: params.canonicalAlbumId ?? "",
+                libraryAlbumId: params.libraryAlbumId ?? "",
                 artistId: params.artistId || album?.artistId || "",
               },
               tracks,

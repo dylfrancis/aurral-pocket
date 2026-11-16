@@ -139,9 +139,9 @@ function firstAvailableFile(
 /**
  * The field choices follow buildTrack in the server's
  * backend/services/libraryReadModel.ts, and streamPath follows the Library
- * branch of GET /library/tracks. This is the one place the client knows the
- * stream route's shape; the paged route sends raw files instead of a
- * streamPath, so the client has to derive it. One deviation from buildTrack:
+ * branch of GET /library/tracks. This is the one place the client builds a
+ * stream path; the paged route sends raw files instead of a streamPath, so
+ * the client has to derive it. One deviation from buildTrack:
  * quality maps to the recorded format string, because the legacy Track type
  * declares `quality: string | null`.
  */

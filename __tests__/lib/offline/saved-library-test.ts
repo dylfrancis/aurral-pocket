@@ -86,7 +86,7 @@ function track(id: string, overrides: Partial<Track> = {}): Track {
     hasFile: true,
     size: 1_000,
     quality: "FLAC",
-    streamPath: `/library/canonical-stream/12/${id}`,
+    streamPath: `/library/stream/12/${id}`,
     streamFormat: "flac",
     ...overrides,
   };
@@ -98,8 +98,7 @@ const route = {
   artistMbid: "artist-mb",
   albumMbid: "album-mb",
   coverUrl: "",
-  lidarrAlbumId: "",
-  canonicalAlbumId: "12",
+  libraryAlbumId: "12",
   artistId: "",
 };
 
@@ -131,7 +130,7 @@ describe("saving an album", () => {
 
     expect(fs.downloads).toHaveLength(1);
     expect(fs.downloads[0]).toMatchObject({
-      url: `${SERVER}/api/library/canonical-stream/12/71?token=token-1`,
+      url: `${SERVER}/api/library/stream/12/71?token=token-1`,
       destination: `${DIRECTORY}/71.flac`,
       headers: { "CF-Access-Client-Id": "proxy-id" },
     });
@@ -156,7 +155,7 @@ describe("saving an album", () => {
     await saveAndFinish("12", [track("71"), track("72")]);
 
     const record = await storage.getItem("saved_offline");
-    expect(record).toContain("/library/canonical-stream/12/71");
+    expect(record).toContain("/library/stream/12/71");
     expect(record).not.toContain("token-1");
   });
 });
@@ -227,7 +226,7 @@ describe("a song saved on its own", () => {
     duration: 0,
     url: "https://music.example/stream",
     artwork: null,
-    streamPath: "/library/canonical-stream/12/71",
+    streamPath: "/library/stream/12/71",
     coverPath: null,
     trackMbid: null,
     artistMbid: null,
@@ -281,7 +280,7 @@ describe("a refused session", () => {
 
     expect(fs.downloads).toHaveLength(2);
     expect(fs.downloads[1].url).toBe(
-      `${SERVER}/api/library/canonical-stream/12/71?token=token-2`,
+      `${SERVER}/api/library/stream/12/71?token=token-2`,
     );
   });
 });
@@ -375,7 +374,7 @@ describe("with Wi-Fi Only on", () => {
 describe("at launch", () => {
   it("saves again a file that has gone, keeps one that's there, and deletes files it doesn't know", async () => {
     const file = (name: string, bytes: number | null) => ({
-      streamPath: `/library/canonical-stream/12/${name}`,
+      streamPath: `/library/stream/12/${name}`,
       name: `${name}.flac`,
       expectedBytes: 1_000,
       bytes,
@@ -407,6 +406,64 @@ describe("at launch", () => {
       `${DIRECTORY}/71.flac`,
     ]);
     expect(fs.fakeFileExists(`${DIRECTORY}/99.flac`)).toBe(false);
+  });
+});
+
+describe("a save from before Aurral 3.0", () => {
+  it("plays its files from the phone, saves a lost one from the renamed route, and writes the record in the new form", async () => {
+    const oldPath = (id: string) => `/library/canonical-stream/12/${id}`;
+    const file = (id: string) => ({
+      streamPath: oldPath(id),
+      name: `${id}.flac`,
+      expectedBytes: 1_000,
+      bytes: 1_000,
+      failed: false,
+    });
+    start({
+      record: {
+        version: 1,
+        items: [
+          {
+            kind: "album",
+            id: "12",
+            userId: 1,
+            savedAt: 1,
+            route: {
+              title: "Kid A",
+              artistName: "Radiohead",
+              artistMbid: "artist-mb",
+              albumMbid: "album-mb",
+              coverUrl: "",
+              lidarrAlbumId: "",
+              canonicalAlbumId: "12",
+              artistId: "",
+            },
+            tracks: ["71", "72"].map((id) =>
+              track(id, { streamPath: oldPath(id) }),
+            ),
+          },
+          {
+            kind: "song",
+            id: "73",
+            userId: 1,
+            savedAt: 2,
+            track: { id: "73", title: "Track 73", streamPath: oldPath("73") },
+          },
+        ],
+        files: { "71": file("71"), "72": file("72"), "73": file("73") },
+      },
+      files: { "71.flac": 1_000, "73.flac": 1_000 },
+    });
+    lib.setSavedLibraryUser(1);
+    await settle();
+
+    expect(lib.savedFilePath("71")).toBe("/documents/saved-offline/71.flac");
+    expect(fs.downloads.map((download) => download.url)).toEqual([
+      `${SERVER}/api/library/stream/12/72?token=token-1`,
+    ]);
+    const record = (await storage.getItem("saved_offline"))!;
+    expect(record).not.toContain("canonical-stream");
+    expect(JSON.parse(record).items[0].route).toEqual(route);
   });
 });
 
