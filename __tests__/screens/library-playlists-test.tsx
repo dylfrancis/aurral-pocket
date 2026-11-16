@@ -3,7 +3,7 @@ jest.mock("@/lib/api/client", () => ({
   api: { defaults: { baseURL: "http://server/api" }, get: jest.fn() },
 }));
 
-let mockUser: { role: string; permissions: { accessFlow: boolean } };
+let mockUser: { role: string; permissions: { accessPlaylists: boolean } };
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => ({
     serverUrl: "http://server",
@@ -60,10 +60,9 @@ const ROAD_TRIP = {
 
 const statusResponse = {
   flows: [{ id: "flow-1", name: "Chill", enabled: true, scheduleDays: [] }],
-  sharedPlaylists: [ROAD_TRIP],
+  staticPlaylists: [ROAD_TRIP],
   flowStats: {},
-  sharedPlaylistStats: {},
-  retryCyclePausedByPlaylist: {},
+  staticPlaylistStats: {},
 };
 
 function serve(status: unknown = statusResponse) {
@@ -123,7 +122,7 @@ async function open(initialUrl: string) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockUser = { role: "user", permissions: { accessFlow: true } };
+  mockUser = { role: "user", permissions: { accessPlaylists: true } };
   serve();
 });
 
@@ -138,9 +137,9 @@ describe("Library > Playlists", () => {
     expect(screen.queryByText("Chill")).toBeNull();
   });
 
-  describe("without accessFlow", () => {
+  describe("without accessPlaylists", () => {
     beforeEach(() => {
-      mockUser = { role: "user", permissions: { accessFlow: false } };
+      mockUser = { role: "user", permissions: { accessPlaylists: false } };
     });
 
     it("leaves the row off the Library home", async () => {
@@ -161,7 +160,7 @@ describe("Library > Playlists", () => {
   });
 
   it("explains the empty list without offering to create a flow", async () => {
-    serve({ ...statusResponse, sharedPlaylists: [] });
+    serve({ ...statusResponse, staticPlaylists: [] });
 
     await open("/playlists");
 

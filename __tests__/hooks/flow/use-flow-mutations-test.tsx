@@ -21,15 +21,10 @@ import {
   useCreateFlow,
   useCreateFlowFromTemplate,
   useSetFlowEnabled,
-  useSetRetryCyclePaused,
   useStartFlow,
   useUpdateFlow,
 } from "@/hooks/flow/use-flow-mutations";
-import type {
-  FlowFormValues,
-  FlowJob,
-  FlowStatusSnapshot,
-} from "@/lib/types/flow";
+import type { FlowFormValues, FlowStatusSnapshot } from "@/lib/types/flow";
 
 const mockGet = api.get as jest.Mock;
 const mockPut = api.put as jest.Mock;
@@ -47,100 +42,12 @@ function makeWrapper() {
   return Wrapper;
 }
 
-function job(id: string, status: FlowJob["status"]): FlowJob {
-  return {
-    id,
-    playlistType: "pl-1",
-    artistName: "Slowdive",
-    trackName: id,
-    albumName: null,
-    artistMbid: null,
-    albumMbid: null,
-    trackMbid: null,
-    status,
-  };
-}
-
 const OK = { data: { success: true }, status: 200 };
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockPut.mockResolvedValue(OK);
   mockPost.mockResolvedValue(OK);
-});
-
-describe("useSetRetryCyclePaused", () => {
-  it("requeues the playlist's failed tracks after resuming, even when the server refuses one", async () => {
-    mockGet.mockResolvedValue({
-      data: [
-        job("job-1", "failed"),
-        job("job-2", "done"),
-        job("job-3", "failed"),
-        job("job-4", "pending"),
-      ],
-      status: 200,
-    });
-    mockPost.mockImplementation((path: string) =>
-      path.includes("job-3")
-        ? Promise.reject(new ApiError(409, "Track is already being processed"))
-        : Promise.resolve(OK),
-    );
-    const { result } = await renderHook(() => useSetRetryCyclePaused(), {
-      wrapper: makeWrapper(),
-    });
-
-    await act(() =>
-      result.current.mutateAsync({ playlistId: "pl-1", paused: false }),
-    );
-
-    expect(mockPut).toHaveBeenCalledWith(
-      "/playlists/playlists/pl-1/retry-cycle",
-      { paused: false },
-    );
-    expect(mockPost.mock.calls.map(([path]) => path)).toEqual([
-      "/playlists/shared-playlists/pl-1/tracks/job-1/research",
-      "/playlists/shared-playlists/pl-1/tracks/job-3/research",
-    ]);
-    expect(Burnt.toast).not.toHaveBeenCalled();
-  });
-
-  it("reports a requeue failure that is not a per-track refusal", async () => {
-    mockGet.mockResolvedValue({
-      data: [job("job-1", "failed")],
-      status: 200,
-    });
-    mockPost.mockRejectedValue(
-      new ApiError(0, "Unable to reach server. Check your connection."),
-    );
-    const { result } = await renderHook(() => useSetRetryCyclePaused(), {
-      wrapper: makeWrapper(),
-    });
-
-    await act(() =>
-      result.current
-        .mutateAsync({ playlistId: "pl-1", paused: false })
-        .catch(() => {}),
-    );
-
-    expect(Burnt.toast).toHaveBeenCalledWith({
-      title: "Couldn't resume retries",
-      message: "Unable to reach server. Check your connection.",
-      preset: "error",
-    });
-  });
-
-  it("requeues nothing when pausing", async () => {
-    const { result } = await renderHook(() => useSetRetryCyclePaused(), {
-      wrapper: makeWrapper(),
-    });
-
-    await act(() =>
-      result.current.mutateAsync({ playlistId: "pl-1", paused: true }),
-    );
-
-    expect(mockGet).not.toHaveBeenCalled();
-    expect(mockPost).not.toHaveBeenCalled();
-  });
 });
 
 describe("flow error toasts", () => {

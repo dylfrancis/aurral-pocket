@@ -226,7 +226,7 @@ describe("against a real server's URLs", () => {
         id: 2,
         username: "ada",
         role: "admin",
-        permissions: { accessSettings: true, accessFlow: true },
+        permissions: { accessSettings: true, accessPlaylists: true },
       },
     };
     expect(

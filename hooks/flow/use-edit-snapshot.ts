@@ -73,7 +73,7 @@ function selectPlaylistEditSnapshot(
   status: FlowStatusSnapshot,
   jobs: FlowJob[],
 ): PlaylistEditSnapshot | undefined {
-  const playlist = status.sharedPlaylists.find((p) => p.id === playlistId);
+  const playlist = status.staticPlaylists.find((p) => p.id === playlistId);
   if (!playlist) return undefined;
   return { playlist, jobs: jobs.filter((job) => job.status !== "failed") };
 }

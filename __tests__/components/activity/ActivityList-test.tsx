@@ -501,7 +501,7 @@ describe("ActivityList playlist rows", () => {
   const LIBRARY_PLAYLISTS = "/(app)/(tabs)/(library)/playlists";
   const STATUS = {
     flows: [{ id: "flow-1", name: "Chill" }],
-    sharedPlaylists: [{ id: "pl-1", name: "Road Trip" }],
+    staticPlaylists: [{ id: "pl-1", name: "Road Trip" }],
   };
   const TITLE = "Downloading Some Track";
 
@@ -584,7 +584,7 @@ describe("ActivityList playlist rows", () => {
     const client = makeClient();
     client.setQueryData(flowKeys.status(), {
       flows: [],
-      sharedPlaylists: [],
+      staticPlaylists: [],
     });
     showRow("flow-1");
     const { getByText } = await renderWithClient(
@@ -630,7 +630,7 @@ describe("ActivityList playlist rows", () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it("stays inert without accessFlow, and requests nothing", async () => {
+  it("stays inert without accessPlaylists, and requests nothing", async () => {
     mockUseHasPermission.mockReturnValue(() => false);
     showRow("flow-1");
     const { getByText } = await renderWithClient(

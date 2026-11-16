@@ -325,7 +325,7 @@ describe("response parsing", () => {
   it("prefers the body's message to its error label, and keeps the body", async () => {
     const body = {
       error: "Forbidden",
-      message: "Permission required: accessFlow",
+      message: "Permission required: accessPlaylists",
     };
     mockFetch.mockResolvedValueOnce(
       mockResponse({ ok: false, status: 403, body }),
@@ -333,7 +333,7 @@ describe("response parsing", () => {
 
     await expect(api.get("/playlists/status")).rejects.toMatchObject({
       status: 403,
-      message: "Permission required: accessFlow",
+      message: "Permission required: accessPlaylists",
       body,
     });
   });

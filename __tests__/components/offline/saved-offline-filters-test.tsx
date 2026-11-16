@@ -102,9 +102,8 @@ let mockPlaylists: unknown[] = [];
 jest.mock("@/hooks/flow", () => ({
   useFlowStatusSuspense: () => ({
     data: {
-      sharedPlaylists: mockPlaylists,
-      sharedPlaylistStats: {},
-      retryCyclePausedByPlaylist: {},
+      staticPlaylists: mockPlaylists,
+      staticPlaylistStats: {},
     },
     refetch: jest.fn(),
   }),

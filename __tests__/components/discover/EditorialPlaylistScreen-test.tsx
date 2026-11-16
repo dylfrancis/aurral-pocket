@@ -1,6 +1,6 @@
 jest.mock("burnt", () => ({ toast: jest.fn() }));
 
-let mockUser: { role: string; permissions: { accessFlow: boolean } };
+let mockUser: { role: string; permissions: { accessPlaylists: boolean } };
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => ({
     serverUrl: "http://server",
@@ -18,7 +18,7 @@ jest.mock("@/lib/api/search", () => ({
 jest.mock("@/lib/api/flow", () => ({
   ...jest.requireActual("@/lib/api/flow"),
   getFlowStatus: jest.fn(() =>
-    Promise.resolve({ flows: [], sharedPlaylists: [] }),
+    Promise.resolve({ flows: [], staticPlaylists: [] }),
   ),
 }));
 
@@ -156,7 +156,7 @@ beforeEach(() => {
   mockGetPlaylist.mockReset();
   mockAdd.mockReset();
   mockGetLinks.mockReset();
-  mockUser = { role: "user", permissions: { accessFlow: true } };
+  mockUser = { role: "user", permissions: { accessPlaylists: true } };
   mockParams = { id: "878" };
   mockFocused = true;
   mockStatus = {};
@@ -280,7 +280,7 @@ describe("Add to Library", () => {
     });
     const { client } = await openPage();
     client.setQueryDefaults(flowKeys.status(), { gcTime: Infinity });
-    client.setQueryData(flowKeys.status(), { flows: [], sharedPlaylists: [] });
+    client.setQueryData(flowKeys.status(), { flows: [], staticPlaylists: [] });
 
     await fireEvent.press(await screen.findByText("Add to Library"));
 
@@ -353,9 +353,9 @@ describe("Add to Library", () => {
   });
 
   it.each([null, "lib-1"])(
-    "offers nothing without accessFlow (saved as %s)",
+    "offers nothing without accessPlaylists (saved as %s)",
     async (libraryPlaylistId) => {
-      mockUser = { role: "user", permissions: { accessFlow: false } };
+      mockUser = { role: "user", permissions: { accessPlaylists: false } };
 
       await openPage(playlist({ libraryPlaylistId }));
 

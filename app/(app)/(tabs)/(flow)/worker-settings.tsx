@@ -18,11 +18,6 @@ const CONCURRENCY_OPTIONS = [
   { value: 3 as const, label: "3" },
 ];
 
-const EXISTING_FILE_MODE_OPTIONS = [
-  { value: "reuse" as const, label: "Reuse" },
-  { value: "download" as const, label: "Download" },
-];
-
 export default function WorkerSettingsScreen() {
   const colors = useColors();
   const { data } = useWorkerSettings();
@@ -58,17 +53,6 @@ export default function WorkerSettingsScreen() {
           value={data.concurrency}
           options={CONCURRENCY_OPTIONS}
           onChange={(concurrency) => apply({ concurrency })}
-        />
-      </Section>
-
-      <Section
-        title="Existing Files"
-        subtitle="Reuse tracks already in Aurral or Lidarr before downloading new copies."
-      >
-        <SegmentedRow
-          value={data.existingFileMode}
-          options={EXISTING_FILE_MODE_OPTIONS}
-          onChange={(existingFileMode) => apply({ existingFileMode })}
         />
       </Section>
     </ScrollView>

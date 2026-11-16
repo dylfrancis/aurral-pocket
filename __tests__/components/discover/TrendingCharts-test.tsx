@@ -1,6 +1,6 @@
 jest.mock("burnt", () => ({ toast: jest.fn() }));
 
-let mockUser: { role: string; permissions: { accessFlow: boolean } };
+let mockUser: { role: string; permissions: { accessPlaylists: boolean } };
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => ({
     serverUrl: "http://server",
@@ -23,7 +23,7 @@ jest.mock("@/lib/api/library", () => ({
 jest.mock("@/lib/api/flow", () => ({
   ...jest.requireActual("@/lib/api/flow"),
   getFlowStatus: jest.fn(() =>
-    Promise.resolve({ flows: [], sharedPlaylists: [{ id: "lib-1" }] }),
+    Promise.resolve({ flows: [], staticPlaylists: [{ id: "lib-1" }] }),
   ),
 }));
 
@@ -181,7 +181,7 @@ beforeEach(() => {
   mockGetCharts.mockReset();
   mockAdd.mockReset();
   mockGetLinks.mockReset();
-  mockUser = { role: "user", permissions: { accessFlow: true } };
+  mockUser = { role: "user", permissions: { accessPlaylists: true } };
 });
 
 afterEach(() => {
@@ -344,7 +344,7 @@ describe("Save as Playlist", () => {
   });
 
   it("isn't offered without playlist access", async () => {
-    mockUser = { role: "user", permissions: { accessFlow: false } };
+    mockUser = { role: "user", permissions: { accessPlaylists: false } };
 
     await renderCharts();
 

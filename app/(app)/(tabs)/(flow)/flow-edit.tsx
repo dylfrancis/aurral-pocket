@@ -21,7 +21,6 @@ import { ScheduleHourPicker } from "@/components/flow/ScheduleHourPicker";
 import { FocusEditor } from "@/components/flow/FocusEditor";
 import { YearBoundInput } from "@/components/flow/YearBoundInput";
 import { useCreateFlow, useEditSnapshot, useUpdateFlow } from "@/hooks/flow";
-import { useSignedInHealth } from "@/hooks/auth/use-signed-in-health";
 import { Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import {
@@ -81,9 +80,8 @@ export default function FlowEditScreen() {
     !!editingId,
     (status) => status.flows.find((flow) => flow.id === editingId),
   );
-  const health = useSignedInHealth();
 
-  if (editingId ? isLoading : health.isLoading) {
+  if (editingId && isLoading) {
     return (
       <View
         style={[styles.placeholder, { backgroundColor: colors.background }]}
@@ -105,30 +103,15 @@ export default function FlowEditScreen() {
     );
   }
 
-  const downloadSources = health.data?.downloadSources;
-  return (
-    <FlowEditForm
-      editingId={editingId}
-      existingFlow={existingFlow}
-      // Aurral's default for a new flow. Without an answer, on is safe: a run
-      // with no download source saves its picks anyway.
-      newFlowAutoDownload={
-        downloadSources
-          ? Object.values(downloadSources).some((source) => source.configured)
-          : true
-      }
-    />
-  );
+  return <FlowEditForm editingId={editingId} existingFlow={existingFlow} />;
 }
 
 function FlowEditForm({
   editingId,
   existingFlow,
-  newFlowAutoDownload,
 }: {
   editingId: string | null;
   existingFlow: Flow | undefined;
-  newFlowAutoDownload: boolean;
 }) {
   const colors = useColors();
   const router = useRouter();
@@ -146,7 +129,7 @@ function FlowEditForm({
     resolver: zodResolver(flowFormSchema),
     defaultValues: existingFlow
       ? toFormValues(existingFlow)
-      : createDefaultFlowForm(newFlowAutoDownload),
+      : createDefaultFlowForm(),
   });
 
   const [

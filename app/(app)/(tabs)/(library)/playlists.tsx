@@ -34,8 +34,8 @@ function LibraryPlaylistsContent() {
   const savedIds = useSavedIds("playlist");
   const showSaved = show === "saved";
   const playlists = showSaved
-    ? data.sharedPlaylists.filter((playlist) => savedIds.has(playlist.id))
-    : data.sharedPlaylists;
+    ? data.staticPlaylists.filter((playlist) => savedIds.has(playlist.id))
+    : data.staticPlaylists;
 
   const toolbar = useMemo(
     () => (
@@ -65,14 +65,13 @@ function LibraryPlaylistsContent() {
     "Couldn't refresh playlists",
   );
 
-  const { sharedPlaylistStats, retryCyclePausedByPlaylist } = data;
+  const { staticPlaylistStats } = data;
   const renderItem = useCallback(
     ({ item: playlist }: { item: SharedPlaylist }) => (
       <View style={styles.cardWrap}>
         <PlaylistCard
           playlist={playlist}
-          stats={sharedPlaylistStats?.[playlist.id]}
-          retryPaused={!!retryCyclePausedByPlaylist?.[playlist.id]}
+          stats={staticPlaylistStats?.[playlist.id]}
           onPress={() =>
             router.push({
               pathname: "/playlist/[id]",
@@ -82,7 +81,7 @@ function LibraryPlaylistsContent() {
         />
       </View>
     ),
-    [sharedPlaylistStats, retryCyclePausedByPlaylist, router],
+    [staticPlaylistStats, router],
   );
 
   return (

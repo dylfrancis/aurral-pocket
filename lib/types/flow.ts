@@ -173,24 +173,16 @@ export type FlowStatusSnapshot = {
   slskd: SlskdStatus;
   stats: PlaylistStats;
   flowStats: Record<string, PlaylistStats>;
-  sharedStats: PlaylistStats;
-  sharedPlaylistStats: Record<string, PlaylistStats>;
+  staticStats: PlaylistStats;
+  staticPlaylistStats: Record<string, PlaylistStats>;
   flows: Flow[];
-  sharedPlaylists: SharedPlaylist[];
-  retryCyclePausedByPlaylist: Record<string, boolean>;
+  staticPlaylists: SharedPlaylist[];
   operationQueue: OperationQueueStatus;
   hint: StatusHint;
 };
 
-export type ExistingFileMode = "download" | "reuse";
-
 export type WorkerSettings = {
   concurrency: 1 | 2 | 3;
-  /**
-   * "reuse" matches tracks against existing Aurral/Lidarr files before
-   * downloading; "download" always fetches fresh.
-   */
-  existingFileMode: ExistingFileMode;
 };
 
 export type FlowFormValues = {
@@ -220,14 +212,15 @@ export const DEFAULT_MIX: MixPercent = {
 
 export const DEFAULT_FLOW_SIZE = 30;
 
-export const createDefaultFlowForm = (autoDownload = true): FlowFormValues => ({
+export const createDefaultFlowForm = (): FlowFormValues => ({
   name: "Discover",
   size: DEFAULT_FLOW_SIZE,
   mix: DEFAULT_MIX,
   deepDive: false,
   recentListening: false,
   recordHistory: true,
-  autoDownload,
+  // Safe without a download source: a run then saves its picks for later.
+  autoDownload: true,
   yearFrom: null,
   yearTo: null,
   tags: [],
