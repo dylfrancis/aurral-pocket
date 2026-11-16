@@ -2,8 +2,8 @@ jest.mock("@/hooks/library/use-library-albums", () => ({
   useLibraryAlbums: jest.fn(),
 }));
 
-jest.mock("@/hooks/library/use-artist-details-stream", () => ({
-  useArtistDetailsStream: jest.fn(),
+jest.mock("@/hooks/library/use-artist-details", () => ({
+  useArtistDetails: jest.fn(),
 }));
 
 jest.mock("@/components/library/CoverArtImage", () => ({
@@ -28,12 +28,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderRouter, screen } from "expo-router/testing-library";
 import LibraryLayout from "@/app/(app)/(tabs)/(library)/_layout";
 import ReleasesRoute from "@/app/(app)/(tabs)/(library)/artist/releases";
-import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
+import { useArtistDetails } from "@/hooks/library/use-artist-details";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { IS_IOS } from "@/constants/platform";
 import type { ReleaseGroup, SecondaryReleaseType } from "@/lib/types/library";
 
-const mockUseArtistDetailsStream = useArtistDetailsStream as jest.Mock;
+const mockUseArtistDetails = useArtistDetails as jest.Mock;
 const mockUseLibraryAlbums = useLibraryAlbums as jest.Mock;
 
 function album(
@@ -67,8 +67,10 @@ const shownTitles = () =>
 const OtherRoute = () => null;
 
 async function openRow(albumType: string, { loading = false } = {}) {
-  mockUseArtistDetailsStream.mockReturnValue({
-    data: loading ? undefined : { releaseGroups: RELEASES, isComplete: true },
+  mockUseArtistDetails.mockReturnValue({
+    data: loading
+      ? undefined
+      : { "release-groups": RELEASES, "release-stats-pending": false },
     isLoading: loading,
   });
   mockUseLibraryAlbums.mockReturnValue({

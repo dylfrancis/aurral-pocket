@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useArtistDetailsStream } from "@/hooks/library/use-artist-details-stream";
+import { useArtistDetails } from "@/hooks/library/use-artist-details";
 import type {
   Album,
   PrimaryReleaseType,
@@ -10,10 +10,7 @@ import type {
 type Options = {
   /**
    * Release groups to use for enrichment. When provided, the hook skips its
-   * internal `useArtistDetailsStream` fetch. ArtistDetailLayout feeds these in
-   * from the SSE stream so every library album gets a correct `primary-type`,
-   * not the hardcoded "Album" that the REST `/artists/:mbid` endpoint returns
-   * for Lidarr-tracked artists.
+   * own `useArtistDetails` read.
    */
   releaseGroups?: ReleaseGroup[];
 };
@@ -22,8 +19,7 @@ type Options = {
  * Enriches library albums with primary type and secondary types. Prefers the
  * Lidarr-sourced `albumType` / `secondaryTypes` already on the album. Falls
  * back to matching against release groups — supplied via `options` if the
- * consumer already has them, otherwise fetched lazily via
- * `useArtistDetailsStream`.
+ * consumer already has them, otherwise read with `useArtistDetails`.
  */
 export function useAlbumsWithTypes(
   mbid: string | undefined,
@@ -31,10 +27,10 @@ export function useAlbumsWithTypes(
   options: Options = {},
 ) {
   const hasOverride = options.releaseGroups !== undefined;
-  const streamQuery = useArtistDetailsStream(hasOverride ? undefined : mbid);
+  const detailsQuery = useArtistDetails(hasOverride ? undefined : mbid);
   const releaseGroups =
-    options.releaseGroups ?? streamQuery.data?.releaseGroups;
-  const isLoadingTypes = hasOverride ? false : streamQuery.isLoading;
+    options.releaseGroups ?? detailsQuery.data?.["release-groups"];
+  const isLoadingTypes = hasOverride ? false : detailsQuery.isLoading;
 
   const enriched = useMemo(() => {
     if (!albums) return undefined;

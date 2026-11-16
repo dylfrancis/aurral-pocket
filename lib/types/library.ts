@@ -80,6 +80,19 @@ export type ReleaseGroup = {
   listenerCount?: number;
 };
 
+/** The fields pocket reads from `GET /artists/:mbid`. */
+export type ArtistDetails = {
+  tags: ArtistTag[];
+  /** Absent when the metadata provider has no overview for the artist. */
+  bio?: string;
+  "release-groups": ReleaseGroup[];
+  /**
+   * ListenBrainz hadn't answered within the server's wait, so release dates
+   * and listener counts may be missing. A later read fills them in.
+   */
+  "release-stats-pending": boolean;
+};
+
 export type Album = {
   id: string;
   artistId: string;
