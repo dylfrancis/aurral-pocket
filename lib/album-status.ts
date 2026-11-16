@@ -11,9 +11,8 @@ const AURRAL_ACTIVE_STATUSES: ReadonlySet<string> = new Set([
  * release date, so polling stops at them, as on the web.
  */
 export function hasActiveAurralStatus(statuses: DownloadStatusMap | undefined) {
-  return Object.entries(statuses ?? {}).some(
-    ([key, entry]) =>
-      key.startsWith("aurral:") && AURRAL_ACTIVE_STATUSES.has(entry.status),
+  return Object.values(statuses ?? {}).some((entry) =>
+    AURRAL_ACTIVE_STATUSES.has(entry.status),
   );
 }
 

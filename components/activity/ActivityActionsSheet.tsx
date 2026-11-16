@@ -16,7 +16,6 @@ import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useActivityJobControls } from "@/hooks/activity/use-activity-job-controls";
 import { useCancelAurralAlbum } from "@/hooks/activity/use-cancel-aurral-album";
 import { useDeleteAlbumRequest } from "@/hooks/activity/use-delete-album-request";
-import { useResearchAlbum } from "@/hooks/activity/use-research-album";
 import {
   confirmStopDownload,
   useRetryTrackDownload,
@@ -48,7 +47,6 @@ export function ActivityActionsSheet({
   const hasPermission = useHasPermission();
   const deleteMutation = useDeleteAlbumRequest();
   const cancelMutation = useCancelAurralAlbum();
-  const researchMutation = useResearchAlbum();
   const stopTrackMutation = useStopTrackDownload();
   const retryTrackMutation = useRetryTrackDownload();
   const jobControlsFor = useActivityJobControls();
@@ -63,9 +61,6 @@ export function ActivityActionsSheet({
       !!lidarrRequest.albumId &&
       hasPermission("deleteAlbum");
   const isStopping = deleteMutation.isPending || cancelMutation.isPending;
-  const isFailed =
-    downloadStatus === "failed" || lidarrRequest?.status === "failed";
-  const canResearch = !!lidarrRequest?.albumId && isFailed;
 
   const close = () => sheetRef.current?.dismiss();
 
@@ -106,14 +101,6 @@ export function ActivityActionsSheet({
     );
   };
 
-  const handleResearch = () => {
-    if (!lidarrRequest?.albumId) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    researchMutation.mutate(String(lidarrRequest.albumId), {
-      onSettled: close,
-    });
-  };
-
   return (
     <AppSheet ref={sheetRef} enablePanDownToClose enableDynamicSizing>
       <BottomSheetView
@@ -132,16 +119,6 @@ export function ActivityActionsSheet({
               {request.artistName}
             </Text>
           </View>
-        )}
-
-        {canResearch && (
-          <SheetAction
-            icon="refresh"
-            label="Re-search"
-            color={colors.brand}
-            pending={researchMutation.isPending}
-            onPress={handleResearch}
-          />
         )}
 
         {canStop && (

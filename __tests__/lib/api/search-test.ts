@@ -204,12 +204,12 @@ describe("addArtist", () => {
     const result = await addArtist({
       foreignArtistId: "abc-123",
       artistName: "Radiohead",
-      monitorOption: "all",
+      monitoring: { monitored: true, useDefault: true },
     });
     expect(mockApi.post).toHaveBeenCalledWith("/library/artists", {
       foreignArtistId: "abc-123",
       artistName: "Radiohead",
-      monitorOption: "all",
+      monitoring: { monitored: true, useDefault: true },
     });
     expect(result).toEqual(response);
   });
@@ -217,7 +217,11 @@ describe("addArtist", () => {
   it("propagates errors", async () => {
     mockApi.post.mockRejectedValue(new Error("Conflict"));
     await expect(
-      addArtist({ foreignArtistId: "abc", artistName: "Test" }),
+      addArtist({
+        foreignArtistId: "abc",
+        artistName: "Test",
+        monitoring: { monitored: false },
+      }),
     ).rejects.toThrow("Conflict");
   });
 });

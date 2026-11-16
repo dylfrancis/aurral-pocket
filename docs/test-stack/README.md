@@ -1,35 +1,28 @@
 # Aurral Pocket — Test Stack
 
-A throwaway Aurral + Lidarr stack for testing the mobile app against. Runs locally on a dev machine or on a shared box for reviewers.
+A throwaway Aurral server for testing the mobile app against. Runs locally on a dev machine or on a shared box for reviewers.
 
 ## Prerequisites
 
 - Docker (Docker Desktop on macOS / Windows, or Docker Engine + Compose on Linux)
-- Ports `3001` (Aurral) and `8686` (Lidarr) free on the host — or override them via `.env` if you already run an Aurral / Lidarr stack on this machine (see [Running alongside another stack](#running-alongside-another-stack))
+- Port `3001` free on the host — or override it via `.env` if you already run Aurral on this machine (see [Running alongside another stack](#running-alongside-another-stack))
 
 ## First run
 
 ```bash
 cp .env.example .env
-# edit .env if you want a non-default TZ / PUID / PGID
+# edit .env if you want a non-default PUID / PGID
 docker compose up -d
 ```
 
-Then set Aurral up and connect it to Lidarr:
+Aurral keeps its database and settings in `./data/config`, mounted at `/config`, and music in `./data/music`, mounted at `/data`.
 
-1. Open `http://localhost:3001` and run the onboarding: create an admin account, then set **Library folder** to `/app/downloads`, which the compose file mounts from `./data/aurral/downloads`.
-2. Open `http://localhost:8686`, finish Lidarr's setup wizard, and copy the **API Key** from Lidarr → Settings → General.
-3. In Aurral → Settings → Library → Lidarr, set:
-   - URL: `http://lidarr:8686` (inside the compose network)
-   - API Key: paste from step 2
-4. Recommendations use ListenBrainz out of the box. For closer matches, add a Last.fm API key in Aurral → Settings → Discovery → Last.fm.
+Then set Aurral up:
 
-Aurral can manage a library without Lidarr. The stack includes Lidarr so the app's Lidarr-backed screens and actions have something to talk to.
+1. Open `http://localhost:3001` and run the onboarding: create an admin account, then set **Library folder** to `/data/downloads/aurral`. On the host that's `./data/music/downloads/aurral`.
+2. Recommendations use ListenBrainz out of the box. For closer matches, add a Last.fm API key in Aurral → Settings → Discovery → Last.fm.
 
-Optional but useful for meaningful testing:
-
-- In Lidarr, add a Root Folder (`/music` works, even empty).
-- Add at least one Indexer and one Download Client so request flows have somewhere to land. A disabled / dummy client is fine — the app just needs the state machine populated.
+The built-in yt-dlp source needs no setup, so adding a monitored artist or requesting an album downloads real tracks into the Library folder. Cancel what you don't need from Activity.
 
 ## Pointing Aurral Pocket at this stack
 
@@ -46,7 +39,7 @@ If a physical device can't connect, check the host firewall isn't blocking the p
 
 The whole stack lives under `./data/` (gitignored). Two patterns:
 
-**Full wipe** — destroys all Lidarr and Aurral state:
+**Full wipe** — destroys all Aurral state:
 
 ```bash
 docker compose down
@@ -57,7 +50,7 @@ docker compose up -d
 **Snapshot + restore** — keep a curated "good" state to roll back to:
 
 ```bash
-# After seeding Lidarr/Aurral the way you want reviewers to find it:
+# After seeding Aurral the way you want reviewers to find it:
 docker compose down
 tar czf fixtures/seed.tar.gz data/
 
@@ -68,31 +61,29 @@ tar xzf fixtures/seed.tar.gz
 docker compose up -d
 ```
 
-Snapshots in `fixtures/` are intentionally **not** gitignored — commit the tarball if you want reviewers cloning the repo to get a known-good baseline. Don't commit one if it contains secrets (Lidarr API keys live in `data/lidarr/config/config.xml`).
+Snapshots in `fixtures/` are intentionally **not** gitignored — commit the tarball if you want reviewers cloning the repo to get a known-good baseline. Don't commit one if it contains secrets, such as API keys saved in Aurral's settings, which live in `data/config/aurral.db`.
 
 ## Running alongside another stack
 
-This stack is safe to run next to your real Aurral / Lidarr on the same host except for one thing: **host port conflicts**. Container names, volumes (`./data/`), and the internal compose network are all scoped to this folder, so nothing else collides.
+This stack is safe to run next to your real Aurral on the same host except for one thing: **host port conflicts**. Container names, volumes (`./data/`), and the internal compose network are all scoped to this folder, so nothing else collides.
 
-If your existing stack already binds `3001` / `8686`, override the host ports in `.env`:
+If your existing Aurral already binds `3001`, override the host port in `.env`:
 
 ```env
 AURRAL_PORT=3101
-LIDARR_PORT=8786
 ```
 
-Then `docker compose up -d` again. Update the URLs you point the app at accordingly (`http://localhost:3101`, etc.). The compose file falls back to the defaults (`3001` / `8686`) when these are unset.
+Then `docker compose up -d` again. Update the URL you point the app at accordingly (`http://localhost:3101`). The compose file falls back to `3001` when it is unset.
 
 ## Pinning image versions
 
-The compose file uses `:latest` for ease of first setup. Once the stack works for you, pin both images to specific tags so reviewers don't get silently upgraded mid-review:
+The compose file uses `:latest` for ease of first setup. Once the stack works for you, pin the image to a specific tag so reviewers don't get silently upgraded mid-review:
 
 ```yaml
-image: lscr.io/linuxserver/lidarr:2.x.x # check Lidarr releases
 image: ghcr.io/lklynet/aurral:X.Y.Z # tags have no "v" prefix
 ```
 
-To test against the Aurral version the app is built for, use the one in [`.aurral-version`](../../.aurral-version).
+To test against the Aurral version the app is built for, use the one in [`.aurral-version`](../../.aurral-version). The `nightly` image is published for amd64 only, so on Apple silicon also add `platform: linux/amd64` under the `aurral` service.
 
 ## Tearing down
 

@@ -7,7 +7,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { useAddArtist } from "@/hooks/search/use-add-artist";
 import { Fonts } from "@/constants/theme";
-import type { MonitorOption } from "@/lib/types/search";
+import {
+  DEFAULT_ARTIST_MONITORING,
+  type ArtistMonitoring,
+} from "@/lib/types/search";
 import { useColors } from "@/hooks/use-colors";
 
 type AddArtistSheetProps = {
@@ -18,28 +21,20 @@ type AddArtistSheetProps = {
 };
 
 const MONITOR_OPTIONS: {
-  value: MonitorOption;
+  value: ArtistMonitoring;
   label: string;
   description: string;
 }[] = [
   {
-    value: "none",
-    label: "None",
-    description: "Artist only, no albums monitored",
-  },
-  { value: "all", label: "All Albums", description: "Monitor all albums" },
-  { value: "future", label: "Future Albums", description: "Only new releases" },
-  {
-    value: "missing",
-    label: "Missing Albums",
-    description: "Albums not yet downloaded",
+    value: DEFAULT_ARTIST_MONITORING,
+    label: "Monitored",
+    description: "Downloads what your default monitoring rules pick",
   },
   {
-    value: "latest",
-    label: "Latest Album",
-    description: "Only the latest album",
+    value: { monitored: false },
+    label: "Not Monitored",
+    description: "Artist only, nothing downloads",
   },
-  { value: "first", label: "First Album", description: "Only the first album" },
 ];
 
 export function AddArtistSheet({
@@ -50,7 +45,7 @@ export function AddArtistSheet({
 }: AddArtistSheetProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [selectedOption, setSelectedOption] = useState<MonitorOption>("all");
+  const [selectedOption, setSelectedOption] = useState(MONITOR_OPTIONS[0]);
 
   const addArtist = useAddArtist(() => {
     sheetRef.current?.dismiss();
@@ -61,7 +56,7 @@ export function AddArtistSheet({
     addArtist.mutate({
       foreignArtistId: mbid,
       artistName,
-      monitorOption: selectedOption,
+      monitoring: selectedOption.value,
     });
   }, [addArtist, mbid, artistName, selectedOption]);
 
@@ -93,14 +88,14 @@ export function AddArtistSheet({
             variant="caption"
             style={[styles.sectionLabel, { color: colors.subtle }]}
           >
-            Monitor Option
+            Monitoring
           </Text>
           {MONITOR_OPTIONS.map((option) => {
-            const isSelected = selectedOption === option.value;
+            const isSelected = selectedOption === option;
             return (
               <Pressable
-                key={option.value}
-                onPress={() => setSelectedOption(option.value)}
+                key={option.label}
+                onPress={() => setSelectedOption(option)}
                 style={({ pressed }) => [
                   styles.optionRow,
                   {

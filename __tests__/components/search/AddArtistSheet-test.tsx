@@ -63,22 +63,6 @@ beforeEach(() => {
 });
 
 describe("AddArtistSheet", () => {
-  it("renders all monitor option labels", async () => {
-    const { getByText } = await render(
-      <AddArtistSheet
-        mbid="abc-123"
-        artistName="Radiohead"
-        sheetRef={sheetRef}
-      />,
-    );
-    expect(getByText("None")).toBeTruthy();
-    expect(getByText("All Albums")).toBeTruthy();
-    expect(getByText("Future Albums")).toBeTruthy();
-    expect(getByText("Missing Albums")).toBeTruthy();
-    expect(getByText("Latest Album")).toBeTruthy();
-    expect(getByText("First Album")).toBeTruthy();
-  });
-
   it("renders artist name", async () => {
     const { getByText } = await render(
       <AddArtistSheet
@@ -90,7 +74,7 @@ describe("AddArtistSheet", () => {
     expect(getByText("Radiohead")).toBeTruthy();
   });
 
-  it("calls mutate with correct params when add button is pressed", async () => {
+  it("monitors the artist with the default rules unless told otherwise", async () => {
     const { getAllByText } = await render(
       <AddArtistSheet
         mbid="abc-123"
@@ -104,11 +88,11 @@ describe("AddArtistSheet", () => {
     expect(mockMutate).toHaveBeenCalledWith({
       foreignArtistId: "abc-123",
       artistName: "Radiohead",
-      monitorOption: "all",
+      monitoring: { monitored: true, useDefault: true },
     });
   });
 
-  it("allows changing monitor option before adding", async () => {
+  it("adds the artist unmonitored when asked to", async () => {
     const { getByText, getAllByText } = await render(
       <AddArtistSheet
         mbid="abc-123"
@@ -116,13 +100,13 @@ describe("AddArtistSheet", () => {
         sheetRef={sheetRef}
       />,
     );
-    await fireEvent.press(getByText("Future Albums"));
+    await fireEvent.press(getByText("Not Monitored"));
     const elements = getAllByText("Add to Library");
     await fireEvent.press(elements[elements.length - 1]);
     expect(mockMutate).toHaveBeenCalledWith({
       foreignArtistId: "abc-123",
       artistName: "Radiohead",
-      monitorOption: "future",
+      monitoring: { monitored: false },
     });
   });
 

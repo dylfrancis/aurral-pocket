@@ -99,7 +99,7 @@ npm run android
 
 `ios/` and `android/` are generated from `app.json` and the config plugins, and are git-ignored. Once a development build is installed, `npm run start` is enough for JavaScript-only changes.
 
-Need a server to point the app at? [`docs/test-stack`](./docs/test-stack/README.md) runs a throwaway Aurral + Lidarr stack in Docker.
+Need a server to point the app at? [`docs/test-stack`](./docs/test-stack/README.md) runs a throwaway Aurral server in Docker.
 
 ### Android ShazamKit
 

@@ -52,17 +52,11 @@ import { canResearchAurralAlbum, isUnreleased } from "@/lib/album-status";
 import { formatBytes, saveStatusLine } from "@/lib/offline/format";
 import { useIsOffline } from "@/lib/offline/network";
 import { canPlayNow, saveAlbum } from "@/lib/offline/saved-library";
-import {
-  deleteAlbum,
-  deleteAurralAlbum,
-  researchAurralAlbum,
-  triggerAlbumSearch,
-} from "@/lib/api/library";
+import { deleteAurralAlbum, researchAurralAlbum } from "@/lib/api/library";
 import {
   albumDownloadStatus,
-  albumManager,
-  albumStatusKey,
   libraryAlbumsRef,
+  managedAlbumId,
 } from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
@@ -85,7 +79,6 @@ const HERO_FADE_STOPS = [0.35, 1] as const;
 
 type AlbumRouteParams = {
   ref: string;
-  lidarrAlbumId?: string;
   downloadStatus?: string;
   albumMbid?: string;
   canonicalAlbumId?: string;
@@ -149,13 +142,9 @@ export function AlbumDetailScreen() {
   const title = album?.albumName || params.title || "";
   const artistName = params.artistName || album?.artistName || "";
   const artistMbid = params.artistMbid || album?.artistMbid || "";
-  // `ref` is a canonical id, which Lidarr would read as some other album.
-  // Until the record loads, the row that opened the page names Lidarr's id;
-  // only the record says Aurral manages an album.
-  const ownership = album ?? { lidarrId: params.lidarrAlbumId };
-  const manager = albumManager(ownership);
-  const statusKey = albumStatusKey(ownership);
-  const aurralAlbum = manager?.name === "aurral" ? album : undefined;
+  // Only the record says Aurral manages an album, so the actions wait for it.
+  const albumId = album ? managedAlbumId(album) : undefined;
+  const aurralAlbum = albumId ? album : undefined;
 
   // For the player, when the server has no cover to give it.
   const { url: artworkUrl } = useCoverArtUrl({
@@ -209,11 +198,7 @@ export function AlbumDetailScreen() {
     (aurralAlbum.monitored
       ? hasPermission("addAlbum") && !!artistMbid && !!artistName
       : hasPermission("changeMonitoring"));
-  const showResearch =
-    !isComplete &&
-    (manager?.name === "aurral"
-      ? canResearchAurral
-      : !!manager && (!downloadStatus || downloadStatus === "failed"));
+  const showResearch = !isComplete && canResearchAurral;
   // Monitoring an album that isn't out yet only schedules its download.
   const researchLabel =
     aurralAlbum &&
@@ -221,41 +206,31 @@ export function AlbumDetailScreen() {
     isUnreleased(aurralAlbum.releaseDate)
       ? "Download When It's Out"
       : "Re-search";
-  const showDelete =
-    manager?.name === "aurral" ? hasPermission("deleteAlbum") : !!manager;
+  const showDelete = !!albumId && hasPermission("deleteAlbum");
 
   const setCachedStatus = (entry: DownloadStatusMap[string]) => {
-    if (!statusKey) return;
+    if (!albumId) return;
     queryClient.setQueriesData<DownloadStatusMap>(
       { queryKey: libraryKeys.downloadStatusesAll() },
-      (old) => ({ ...(old ?? {}), [statusKey]: entry }),
+      (old) => ({ ...(old ?? {}), [albumId]: entry }),
     );
   };
 
   const searchMutation = useMutation({
     mutationFn: async () => {
-      if (manager?.name === "lidarr") {
-        await triggerAlbumSearch(manager.albumId);
-        return null;
-      }
-      if (manager?.name !== "aurral" || !aurralAlbum) return null;
+      if (!albumId || !aurralAlbum) return null;
       return researchAurralAlbum(
-        { ...aurralAlbum, canonicalId: manager.albumId },
+        { ...aurralAlbum, canonicalId: albumId },
         { mbid: artistMbid, name: artistName },
       );
-    },
-    onMutate: () => {
-      if (manager?.name === "lidarr") setCachedStatus({ status: "searching" });
     },
     // Aurral's answer can be a release date to wait for, which a guess here
     // would have shown as Queued.
     onSuccess: (albumStatus) => {
       if (albumStatus) setCachedStatus(albumStatus);
     },
-    // Settled, not success: a rejected search left the optimistic "searching"
-    // standing for good, because nothing refetched it. The row that launched
-    // this page polls on its own and would move on to the real status, so the
-    // two disagreed until the page was closed.
+    // Settled, not success: the server can monitor the album and still answer
+    // an error when queueing its tracks fails.
     onSettled: () => {
       void queryClient.invalidateQueries({
         queryKey: libraryKeys.downloadStatusesAll(),
@@ -284,12 +259,9 @@ export function AlbumDetailScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (manager?.name === "aurral") {
-        // Kept files would bring the album back on the next full scan.
-        await deleteAurralAlbum(manager.albumId, true);
-      } else if (manager) {
-        await deleteAlbum(manager.albumId);
-      }
+      if (!albumId) return;
+      // Kept files would bring the album back on the next full scan.
+      await deleteAurralAlbum(albumId, true);
     },
     onSuccess: () => {
       invalidateArtistAlbums();
@@ -299,7 +271,7 @@ export function AlbumDetailScreen() {
         queryKey: libraryKeys.albumsAllViews(),
       });
       void queryClient.invalidateQueries({ queryKey: libraryKeys.genres() });
-      // Aurral removes an artist along with its last album.
+      // An artist Aurral doesn't manage goes with its last album.
       void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
       // The album this page is about is gone, so the page cannot stay.
       router.back();
@@ -315,10 +287,7 @@ export function AlbumDetailScreen() {
 
   const handleDelete = useCallback(() => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    const message =
-      manager?.name === "aurral"
-        ? `Delete "${title}" and its files? Aurral won't download it again.`
-        : `Remove "${title}" from your library?`;
+    const message = `Delete "${title}" and its files? Aurral won't download it again.`;
     Alert.alert("Delete Album", message, [
       { text: "Cancel", style: "cancel" },
       {
@@ -327,7 +296,7 @@ export function AlbumDetailScreen() {
         onPress: () => deleteMutation.mutate(),
       },
     ]);
-  }, [title, manager?.name, deleteMutation]);
+  }, [title, deleteMutation]);
 
   const openArtistPage = useOpenArtist();
   const openArtist = useCallback(
@@ -359,7 +328,7 @@ export function AlbumDetailScreen() {
                 artistMbid,
                 albumMbid,
                 coverUrl: coverUrl ?? "",
-                lidarrAlbumId: params.lidarrAlbumId ?? "",
+                lidarrAlbumId: "",
                 canonicalAlbumId: params.canonicalAlbumId ?? "",
                 artistId: params.artistId || album?.artistId || "",
               },

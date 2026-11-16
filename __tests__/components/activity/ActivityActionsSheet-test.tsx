@@ -1,6 +1,5 @@
 jest.mock("@/lib/api/library", () => ({
   cancelAurralAlbum: jest.fn(() => Promise.resolve({ cancelledJobIds: [] })),
-  triggerAlbumSearch: jest.fn(() => Promise.resolve({})),
 }));
 
 jest.mock("@/lib/api/activity", () => ({
