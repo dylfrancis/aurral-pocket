@@ -20,7 +20,6 @@ import { useNavigateToTab } from "@/hooks/use-navigate-to-tab";
 import { isActiveAurralStatus } from "@/lib/album-status";
 import {
   activityArtistMbid,
-  activityStatusKey,
   aurralRequestAlbumId,
   historyPlaylistId,
   isAlbumRequest,
@@ -78,8 +77,8 @@ export function ActivityList({ view }: ActivityListProps) {
   const counts = getActivityCounts(items);
   const downloadEntryFor = useCallback(
     (item: ActivityItem) => {
-      const key = activityStatusKey(item);
-      return key ? downloadStatuses?.[key] : undefined;
+      const albumId = aurralRequestAlbumId(item);
+      return albumId ? downloadStatuses?.[albumId] : undefined;
     },
     [downloadStatuses],
   );
@@ -101,14 +100,14 @@ export function ActivityList({ view }: ActivityListProps) {
   const rowHasActions = useCallback(
     (item: ActivityItem) => {
       if (jobControlsFor(item)) return true;
-      const albumStatus = downloadEntryFor(item)?.status;
       if (aurralRequestAlbumId(item)) {
-        return isActiveAurralStatus(albumStatus) && hasPermission("addAlbum");
+        return (
+          isActiveAurralStatus(downloadEntryFor(item)?.status) &&
+          hasPermission("addAlbum")
+        );
       }
       if (!isAlbumRequest(item) || !item.albumId) return false;
-      const isFailed = albumStatus === "failed" || item.status === "failed";
-      const canStop = item.inQueue && hasPermission("deleteAlbum");
-      return canStop || isFailed;
+      return item.inQueue && hasPermission("deleteAlbum");
     },
     [jobControlsFor, downloadEntryFor, hasPermission],
   );

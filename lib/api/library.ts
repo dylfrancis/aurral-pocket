@@ -20,7 +20,6 @@ import type {
   CanonicalTrackItem,
   LibraryFavorites,
   LibraryFavoritesWire,
-  LibraryOwner,
   LibraryScanJob,
   LibraryScanStatus,
 } from "@/lib/types/library";
@@ -85,7 +84,7 @@ function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
   return {
     id: String(item.id),
     canonicalId: String(item.id),
-    managedBy: item.managed ? "aurral" : null,
+    managed: item.managed === true,
     artistId: item.artistId != null ? String(item.artistId) : "",
     artistName: item.albumArtist ?? "",
     // A row scanned from tagged files keeps its release's id in `mbid`. Release
@@ -512,19 +511,9 @@ export async function getAlbumCover(
   return r.data;
 }
 
-export async function getDownloadStatuses(statusKeys: string[]) {
+export async function getDownloadStatuses(albumIds: string[]) {
   const r = await api.get<DownloadStatusMap>("/library/downloads/status", {
-    params: { albumIds: statusKeys.join(",") },
-  });
-  return r.data;
-}
-
-// The album routes below are Lidarr's. Each takes Lidarr album ids
-// (Album.lidarrId), never a canonical id.
-
-export async function triggerAlbumSearch(lidarrAlbumId: string) {
-  const r = await api.post("/library/downloads/album/search", {
-    albumId: lidarrAlbumId,
+    params: { albumIds: albumIds.join(",") },
   });
   return r.data;
 }
@@ -542,11 +531,6 @@ export async function getArtistPreviewTracks(
   return r.data.tracks;
 }
 
-export async function refreshLibraryArtist(mbid: string) {
-  const r = await api.post(`/library/artists/${mbid}/refresh`);
-  return r.data;
-}
-
 export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {
   const r = await api.delete(`/library/artists/${mbid}`, {
     params: { deleteFiles },
@@ -554,25 +538,8 @@ export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {
   return r.data;
 }
 
-/** The server honors only `monitored`; it ignores every other key. */
-export async function updateLibraryAlbum(
-  lidarrAlbumId: string,
-  data: Partial<Album>,
-) {
-  const r = await api.put<Album>(`/library/albums/${lidarrAlbumId}`, data);
-  return r.data;
-}
-
-export async function deleteAlbum(lidarrAlbumId: string, deleteFiles = false) {
-  const r = await api.delete(`/library/albums/${lidarrAlbumId}`, {
-    params: { deleteFiles },
-  });
-  return r.data;
-}
-
-// The album routes below are Aurral's. Each takes a canonical id
-// (Album.canonicalId), and answers 409 album_owner_conflict for an album
-// Aurral does not manage.
+// The album routes below take a Library album id (Album.canonicalId), and
+// answer 409 album_owner_conflict for an album Aurral does not manage.
 
 /** Only the keys pocket reads are declared. */
 export type AurralMonitoringResponse = {
@@ -581,11 +548,11 @@ export type AurralMonitoringResponse = {
 
 /** Monitoring an album queues its missing tracks; unmonitoring cancels them. */
 export async function setAurralAlbumMonitored(
-  canonicalId: string,
+  albumId: string,
   monitored: boolean,
 ) {
   const r = await api.put<AurralMonitoringResponse>(
-    `/library/albums/aurral/${canonicalId}`,
+    `/library/albums/${albumId}`,
     { monitored },
   );
   return r.data;
@@ -595,20 +562,17 @@ export async function setAurralAlbumMonitored(
  * Without its files, a deleted album comes back on the next full scan. Either
  * way Aurral stops monitoring the release, so it is not downloaded again.
  */
-export async function deleteAurralAlbum(
-  canonicalId: string,
-  deleteFiles: boolean,
-) {
+export async function deleteAurralAlbum(albumId: string, deleteFiles: boolean) {
   const r = await api.delete<{ success: boolean; excluded: boolean }>(
-    `/library/albums/aurral/${canonicalId}`,
+    `/library/albums/${albumId}`,
     { params: { deleteFiles } },
   );
   return r.data;
 }
 
-export async function cancelAurralAlbum(canonicalId: string) {
+export async function cancelAurralAlbum(albumId: string) {
   const r = await api.post<{ cancelledJobIds: string[] }>(
-    `/library/albums/aurral/${canonicalId}/cancel`,
+    `/library/albums/${albumId}/cancel`,
   );
   return r.data;
 }
@@ -627,7 +591,6 @@ export async function researchAurralAlbum(
     albumName: album.title,
     artistMbid: artist.mbid,
     artistName: artist.name,
-    managedBy: "aurral",
   });
   return requested.albumStatus ?? null;
 }
@@ -786,9 +749,6 @@ export type RequestAlbumPayload = {
   albumName: string;
   artistMbid: string;
   artistName: string;
-  triggerSearch?: boolean;
-  /** Keeps an album Aurral already manages with Aurral when Lidarr is connected. */
-  managedBy?: LibraryOwner;
 };
 
 /**

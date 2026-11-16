@@ -66,7 +66,7 @@ describe("useAddArtist", () => {
     const result = await config.mutationFn({
       foreignArtistId: "abc-123",
       artistName: "Radiohead",
-      monitorOption: "all",
+      monitoring: { monitored: true, useDefault: true },
     });
     expect(mockAddArtist).toHaveBeenCalled();
     expect(result).toEqual(response);

@@ -132,26 +132,6 @@ const MAX_RELOGINS = 2;
  */
 const KNOWN_DRIFT = new Map([
   [
-    "PUT /library/albums/aurral/${canonicalId}",
-    "API v2 moved it to /library/albums/:albumId",
-  ],
-  [
-    "DELETE /library/albums/aurral/${canonicalId}",
-    "API v2 moved it to /library/albums/:albumId",
-  ],
-  [
-    "POST /library/albums/aurral/${canonicalId}/cancel",
-    "API v2 moved it to /library/albums/:albumId/cancel",
-  ],
-  [
-    "POST /library/downloads/album/search",
-    "Aurral 3.0 removed it with Lidarr mode",
-  ],
-  [
-    "POST /library/artists/${mbid}/refresh",
-    "Aurral 3.0 removed it with Lidarr mode",
-  ],
-  [
     "DELETE /requests/album/${albumId}",
     "Aurral 3.0 removed it with Lidarr mode",
   ],

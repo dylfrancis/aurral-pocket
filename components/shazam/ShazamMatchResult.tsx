@@ -25,7 +25,10 @@ import {
   librarySongTrack,
   type MatchAlbum,
 } from "@/lib/shazam/match-details";
-import type { SearchArtist } from "@/lib/types/search";
+import {
+  DEFAULT_ARTIST_MONITORING,
+  type SearchArtist,
+} from "@/lib/types/search";
 import type { ShazamMatch } from "@/modules/shazam";
 import { Ionicons } from "@expo/vector-icons";
 import * as Burnt from "burnt";
@@ -90,7 +93,7 @@ export function ShazamMatchResult({
         {
           foreignArtistId: artist.id,
           artistName: artist.name,
-          monitorOption: "all",
+          monitoring: DEFAULT_ARTIST_MONITORING,
         },
         {
           onSuccess: () => {
