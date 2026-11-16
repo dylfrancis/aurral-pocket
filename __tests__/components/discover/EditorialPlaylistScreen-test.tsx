@@ -112,8 +112,11 @@ function track(overrides: Partial<EditorialTrack> = {}): EditorialTrack {
   };
 }
 
-function playlist(overrides: Partial<EditorialPlaylist> = {}) {
+function playlist(
+  overrides: Partial<EditorialPlaylist> = {},
+): EditorialPlaylist {
   return {
+    provider: "deezer",
     id: "878",
     name: "90s Hits",
     description: "The hits of the 90s.",
@@ -157,7 +160,7 @@ beforeEach(() => {
   mockAdd.mockReset();
   mockGetLinks.mockReset();
   mockUser = { role: "user", permissions: { accessPlaylists: true } };
-  mockParams = { id: "878" };
+  mockParams = { provider: "deezer", id: "878" };
   mockFocused = true;
   mockStatus = {};
 });
@@ -170,7 +173,12 @@ afterEach(() => {
 
 describe("the page itself", () => {
   it("paints the card's name while the playlist loads", async () => {
-    mockParams = { id: "878", name: "From the card", trackCount: "12" };
+    mockParams = {
+      provider: "deezer",
+      id: "878",
+      name: "From the card",
+      trackCount: "12",
+    };
     mockGetPlaylist.mockReturnValue(new Promise(() => {}));
 
     await renderPage();
@@ -197,6 +205,25 @@ describe("the page itself", () => {
       await screen.findByText("Deezer no longer has this playlist"),
     ).toBeTruthy();
     expect(screen.queryByText("Try Again")).toBeNull();
+  });
+
+  it("reads and saves the playlist under the provider it was opened with", async () => {
+    mockParams = { provider: "mix", id: "daily-1" };
+    mockAdd.mockResolvedValue({
+      playlistId: "lib-1",
+      name: "Daily Mix 1",
+      alreadyAdded: false,
+      tracksQueued: 0,
+    });
+    await openPage(
+      playlist({ provider: "mix", id: "daily-1", name: "Daily Mix 1" }),
+    );
+
+    await fireEvent.press(await screen.findByText("Add to Library"));
+
+    await screen.findByText("Open in Library");
+    expect(mockGetPlaylist).toHaveBeenCalledWith("mix", "daily-1");
+    expect(mockAdd).toHaveBeenCalledWith("mix", "daily-1");
   });
 
   it("retries any other failure", async () => {
@@ -330,7 +357,7 @@ describe("Add to Library", () => {
   });
 
   it("can't add before the page knows whether it's already saved", async () => {
-    mockParams = { id: "878", name: "From the card" };
+    mockParams = { provider: "deezer", id: "878", name: "From the card" };
     mockGetPlaylist.mockReturnValue(new Promise(() => {}));
 
     await renderPage();

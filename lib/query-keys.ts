@@ -1,4 +1,5 @@
 import type { LibraryAlbumsParams } from "@/lib/types/library";
+import type { BrowseProvider, EditorialShelfScope } from "@/lib/types/search";
 
 export const playerKeys = {
   coverColor: (imageUri: string) => ["player", "coverColor", imageUri] as const,
@@ -82,9 +83,10 @@ export const discoverKeys = {
   nearbyShowsAll: () => ["discover", "nearbyShows"] as const,
   nearbyShows: (zipCode?: string, limit?: number) =>
     ["discover", "nearbyShows", zipCode ?? "", limit ?? null] as const,
-  editorialShelf: () => ["discover", "editorial", "shelf"] as const,
-  editorialPlaylist: (playlistId: string) =>
-    ["discover", "editorial", "playlist", playlistId] as const,
+  editorialShelf: (scope?: EditorialShelfScope) =>
+    ["discover", "editorial", "shelf", scope ?? "all"] as const,
+  editorialPlaylist: (provider: BrowseProvider, playlistId: string) =>
+    ["discover", "editorial", "playlist", provider, playlistId] as const,
   editorialLinks: (
     artist: string,
     album?: string | null,

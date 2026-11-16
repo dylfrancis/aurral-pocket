@@ -18,11 +18,14 @@ export function EditorialShelf() {
             ...(data.forYou.length > 0
               ? [{ key: "for-you", title: "For You", playlists: data.forYou }]
               : []),
-            ...data.genres.map((genre) => ({
-              key: String(genre.id),
-              title: genre.name,
-              playlists: genre.playlists,
-            })),
+            // Moods and decades need a grouped layout first.
+            ...data.categories
+              .filter((category) => category.group === "genre")
+              .map((category) => ({
+                key: category.id,
+                title: category.name,
+                playlists: category.playlists,
+              })),
           ]
         : [],
     [data],

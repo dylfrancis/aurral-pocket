@@ -24,6 +24,7 @@ import { usePreviewRows } from "@/hooks/discover/use-preview-rows";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { ApiError } from "@/lib/api/client";
 import { formatTrackCount } from "@/lib/discover/format";
+import type { BrowseProvider } from "@/lib/types/search";
 import { EditorialArtwork } from "./EditorialArtwork";
 import {
   EditorialTrackRow,
@@ -32,6 +33,7 @@ import {
 import { useColors } from "@/hooks/use-colors";
 
 type RouteParams = {
+  provider: BrowseProvider;
   id: string;
   name?: string;
   artworkUrl?: string;
@@ -46,15 +48,15 @@ export function EditorialPlaylistScreen() {
   const headerHeight = useHeaderHeight();
   const headerPaddingTop = (IS_IOS ? headerHeight : 0) + 24;
   const params = useLocalSearchParams<RouteParams>();
-  const { id } = params;
+  const { provider, id } = params;
 
   const {
     data: playlist,
     error,
     isPending,
     refetch,
-  } = useEditorialPlaylist(id);
-  const addPlaylist = useAddEditorialPlaylist(id);
+  } = useEditorialPlaylist(provider, id);
+  const addPlaylist = useAddEditorialPlaylist(provider, id);
   const openInLibrary = useOpenPlaylist();
   const hasPlaylistAccess = useHasPermission()("accessPlaylists");
 
