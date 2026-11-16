@@ -15,39 +15,13 @@ import { act, renderHook } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useActivityDownloadStatuses } from "@/hooks/activity/use-activity-download-statuses";
 import { getDownloadStatuses } from "@/lib/api/library";
-import type {
-  ActivityHistoryItem,
-  ActivityItem,
-  AlbumRequest,
-} from "@/lib/types/activity";
+import type { ActivityItem } from "@/lib/types/activity";
 
 const mockGetDownloadStatuses = getDownloadStatuses as jest.Mock;
 
-function lidarrRequest(overrides: Partial<AlbumRequest>): AlbumRequest {
+function historyItem(overrides: Partial<ActivityItem>): ActivityItem {
   return {
-    id: `lidarr-${overrides.albumId}`,
-    type: "album",
-    albumId: null,
-    albumMbid: null,
-    albumName: "Album",
-    artistId: null,
-    artistMbid: null,
-    artistName: "Artist",
-    status: "processing",
-    requestedAt: "2026-11-01T00:00:00.000Z",
-    mbid: null,
-    name: "Album",
-    image: null,
-    inQueue: false,
-    ...overrides,
-  };
-}
-
-function historyItem(
-  overrides: Partial<ActivityHistoryItem>,
-): ActivityHistoryItem {
-  return {
-    id: `history-${overrides.kind}-${overrides.albumId}`,
+    id: `history-${overrides.kind}-${overrides.libraryAlbumId}`,
     type: "activity",
     source: "aurral",
     kind: "album_requested",
@@ -62,19 +36,17 @@ function historyItem(
     trackName: null,
     artistName: "Artist",
     albumName: "Album",
-    albumId: null,
-    canonicalAlbumId: null,
+    libraryAlbumId: null,
     requestedBy: null,
     sourceFilename: null,
     upgrade: null,
     inQueue: false,
-    canReSearch: false,
     ...overrides,
   };
 }
 
 // Aurral writes its request as completed the moment it queues the album.
-const aurralRequest = historyItem({ albumId: "12", canonicalAlbumId: "12" });
+const aurralRequest = historyItem({ libraryAlbumId: "12" });
 
 let client: QueryClient;
 
@@ -102,27 +74,25 @@ afterEach(() => {
 });
 
 describe("useActivityDownloadStatuses", () => {
-  it("asks only for an Aurral request's album, by its Library id", async () => {
+  it("asks only for an album request's album, by its Library id", async () => {
     await renderStatuses([
-      lidarrRequest({ albumId: "301", inQueue: true }),
-      lidarrRequest({ albumId: "302", status: "available" }),
       aurralRequest,
-      // Carries the same Library id in albumId, but is not an album request.
+      // Carries a Library id, but is not an album request.
       historyItem({
         kind: "missing_track_search",
-        albumId: "12",
+        libraryAlbumId: "13",
         statusLabel: "Queued",
       }),
+      // A track's own status says how its download went.
       historyItem({
-        source: "lidarr",
-        albumId: "303",
-        status: "cancelled",
-        statusLabel: "Cancelled",
+        kind: "track_download",
+        status: "processing",
+        statusLabel: "Downloading",
+        libraryAlbumId: "40",
       }),
     ]);
 
     expect(mockGetDownloadStatuses).toHaveBeenCalledTimes(1);
-    // The Lidarr rows' ids would read as some other Library album.
     expect(mockGetDownloadStatuses).toHaveBeenCalledWith(["12"]);
   });
 

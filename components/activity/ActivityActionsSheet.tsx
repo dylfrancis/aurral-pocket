@@ -15,7 +15,6 @@ import { Text } from "@/components/ui/Text";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useActivityJobControls } from "@/hooks/activity/use-activity-job-controls";
 import { useCancelAurralAlbum } from "@/hooks/activity/use-cancel-aurral-album";
-import { useDeleteAlbumRequest } from "@/hooks/activity/use-delete-album-request";
 import {
   confirmStopDownload,
   useRetryTrackDownload,
@@ -24,11 +23,7 @@ import {
 import { Fonts } from "@/constants/theme";
 import { isActiveAurralStatus } from "@/lib/album-status";
 import type { DownloadStatusValue } from "@/lib/types/library";
-import {
-  aurralRequestAlbumId,
-  isAlbumRequest,
-  type ActivityItem,
-} from "@/lib/types/activity";
+import { albumRequestLibraryId, type ActivityItem } from "@/lib/types/activity";
 import { useColors } from "@/hooks/use-colors";
 
 type RequestActionsSheetProps = {
@@ -45,7 +40,6 @@ export function ActivityActionsSheet({
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const hasPermission = useHasPermission();
-  const deleteMutation = useDeleteAlbumRequest();
   const cancelMutation = useCancelAurralAlbum();
   const stopTrackMutation = useStopTrackDownload();
   const retryTrackMutation = useRetryTrackDownload();
@@ -53,37 +47,28 @@ export function ActivityActionsSheet({
 
   const trackJob = request ? jobControlsFor(request) : null;
 
-  const lidarrRequest = request && isAlbumRequest(request) ? request : null;
-  const aurralAlbumId = request ? aurralRequestAlbumId(request) : null;
-  const canStop = aurralAlbumId
-    ? isActiveAurralStatus(downloadStatus) && hasPermission("addAlbum")
-    : !!lidarrRequest?.inQueue &&
-      !!lidarrRequest.albumId &&
-      hasPermission("deleteAlbum");
-  const isStopping = deleteMutation.isPending || cancelMutation.isPending;
+  const libraryAlbumId = request ? albumRequestLibraryId(request) : null;
+  const canStop =
+    !!libraryAlbumId &&
+    isActiveAurralStatus(downloadStatus) &&
+    hasPermission("addAlbum");
 
   const close = () => sheetRef.current?.dismiss();
 
-  const stopDownload = () => {
-    // Dismissing an Aurral request would leave its album downloading.
-    if (aurralAlbumId) {
-      cancelMutation.mutate(aurralAlbumId, { onSettled: close });
-    } else if (lidarrRequest?.albumId) {
-      deleteMutation.mutate(String(lidarrRequest.albumId), {
-        onSettled: close,
-      });
-    }
-  };
-
   const handleStop = () => {
-    if (!request || !canStop) return;
+    if (!request || !libraryAlbumId || !canStop) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       "Stop Download",
       `Stop downloading "${request.albumName ?? "this album"}"?`,
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Stop", style: "destructive", onPress: stopDownload },
+        {
+          text: "Stop",
+          style: "destructive",
+          onPress: () =>
+            cancelMutation.mutate(libraryAlbumId, { onSettled: close }),
+        },
       ],
     );
   };
@@ -126,7 +111,7 @@ export function ActivityActionsSheet({
             icon="close-circle-outline"
             label="Stop Download"
             color={colors.error}
-            pending={isStopping}
+            pending={cancelMutation.isPending}
             onPress={handleStop}
           />
         )}

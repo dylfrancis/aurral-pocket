@@ -130,14 +130,9 @@ export function albumDownloadStatus(
 }
 
 /**
- * Build the route params for the release detail page — the page for an album
- * that is not in the library, reached from search results and from an
- * artist's release groups.
- *
- * Both entry points name the same thing by a release-group MBID, but they
- * hold different records: search knows the album's library status, an artist
- * page knows the Library artist id that can add it. The page takes the union
- * and offers whichever actions its params support.
+ * Build the route params for the release page, the page for an album that is
+ * not in the library. Each entry point passes what it knows of the album, and
+ * the page offers the actions those params support.
  */
 export function releaseRouteParams(release: {
   mbid: string;
@@ -149,7 +144,7 @@ export function releaseRouteParams(release: {
   primaryType?: string | null;
   secondaryTypes?: readonly string[];
   releaseDate?: string | null;
-  /** Search only. Absent means the page treats the album as addable. */
+  /** Absent means the page treats the album as addable. */
   status?: string;
 }) {
   return {

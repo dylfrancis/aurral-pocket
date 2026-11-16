@@ -19,9 +19,7 @@ function useJobDecision(mutationFn: (jobId: string) => Promise<unknown>) {
         activityKeys.list(),
       );
       queryClient.setQueryData<ActivityItem[]>(activityKeys.list(), (old) =>
-        old
-          ? old.filter((item) => item.type === "album" || item.jobId !== jobId)
-          : old,
+        old ? old.filter((item) => item.jobId !== jobId) : old,
       );
       return { prev };
     },

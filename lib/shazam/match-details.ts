@@ -185,7 +185,7 @@ export function librarySongAlbum(
     artworkUrl,
     albumMbid: song.albumMbid,
     artistMbid: song.artistMbid,
-    albumRef: song.albumCanonicalId,
+    albumRef: song.libraryAlbumId,
   };
 }
 

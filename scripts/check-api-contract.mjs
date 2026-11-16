@@ -132,10 +132,6 @@ const MAX_RELOGINS = 2;
  */
 const KNOWN_DRIFT = new Map([
   [
-    "DELETE /requests/album/${albumId}",
-    "Aurral 3.0 removed it with Lidarr mode",
-  ],
-  [
     "GET /discover/editorial",
     "Aurral 3.0 moved editorial playlists to /discover/playlists",
   ],

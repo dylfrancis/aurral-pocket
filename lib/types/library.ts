@@ -439,9 +439,26 @@ export type LibraryScanJob = {
  */
 export type ArtistLibraryLookup = {
   exists: boolean;
-  /** The canonical artist id; null until the canonical library indexes the artist. */
+  /** Null until the Library indexes the artist. */
   libraryArtistId: string | null;
 };
 
 /** Body of `POST /library/lookup/batch`: library membership by artist MBID. */
 export type ArtistLookupBatch = Record<string, boolean>;
+
+/**
+ * One album of `POST /library/albums/lookup/batch`, as far as pocket reads it.
+ * "partial" covers an album that is missing tracks, including one with no
+ * files yet.
+ */
+export type AlbumLibraryLookup = {
+  libraryAlbumId: string;
+  libraryArtistId: string;
+  status: "available" | "partial";
+};
+
+/**
+ * Body of `POST /library/albums/lookup/batch`, keyed by the MBIDs asked
+ * about. An album the Library doesn't have is left out.
+ */
+export type AlbumLookupBatch = Record<string, AlbumLibraryLookup>;

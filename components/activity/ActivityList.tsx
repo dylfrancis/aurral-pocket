@@ -20,9 +20,8 @@ import { useNavigateToTab } from "@/hooks/use-navigate-to-tab";
 import { isActiveAurralStatus } from "@/lib/album-status";
 import {
   activityArtistMbid,
-  aurralRequestAlbumId,
+  albumRequestLibraryId,
   historyPlaylistId,
-  isAlbumRequest,
   type ActivityItem,
 } from "@/lib/types/activity";
 import {
@@ -77,7 +76,7 @@ export function ActivityList({ view }: ActivityListProps) {
   const counts = getActivityCounts(items);
   const downloadEntryFor = useCallback(
     (item: ActivityItem) => {
-      const albumId = aurralRequestAlbumId(item);
+      const albumId = albumRequestLibraryId(item);
       return albumId ? downloadStatuses?.[albumId] : undefined;
     },
     [downloadStatuses],
@@ -94,20 +93,15 @@ export function ActivityList({ view }: ActivityListProps) {
     "Couldn't refresh activity",
   );
 
-  // Other history entries stay read-only: artist_added rows look actionable,
-  // but DELETE /requests/:mbid removes the artist from Lidarr entirely.
   const jobControlsFor = useActivityJobControls();
   const rowHasActions = useCallback(
     (item: ActivityItem) => {
       if (jobControlsFor(item)) return true;
-      if (aurralRequestAlbumId(item)) {
-        return (
-          isActiveAurralStatus(downloadEntryFor(item)?.status) &&
-          hasPermission("addAlbum")
-        );
-      }
-      if (!isAlbumRequest(item) || !item.albumId) return false;
-      return item.inQueue && hasPermission("deleteAlbum");
+      return (
+        !!albumRequestLibraryId(item) &&
+        isActiveAurralStatus(downloadEntryFor(item)?.status) &&
+        hasPermission("addAlbum")
+      );
     },
     [jobControlsFor, downloadEntryFor, hasPermission],
   );
@@ -123,7 +117,7 @@ export function ActivityList({ view }: ActivityListProps) {
       // An artist no longer in the library opens the Browse page, which
       // takes its title from the route.
       if (mbid) return () => openArtist({ mbid, name: item.artistName ?? "" });
-      if (!canOpenPlaylists || isAlbumRequest(item)) return undefined;
+      if (!canOpenPlaylists) return undefined;
       if (item.status === "blocked") return undefined;
       const playlistId = historyPlaylistId(item);
       return playlistId ? () => void openPlaylist(playlistId) : undefined;

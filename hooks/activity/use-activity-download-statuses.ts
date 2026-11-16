@@ -6,7 +6,7 @@ import { hasActiveAurralStatus } from "@/lib/album-status";
 import { getDownloadStatuses } from "@/lib/api/library";
 import { activityKeys } from "@/lib/query-keys";
 import type { DownloadStatusMap } from "@/lib/types/library";
-import { aurralRequestAlbumId, type ActivityItem } from "@/lib/types/activity";
+import { albumRequestLibraryId, type ActivityItem } from "@/lib/types/activity";
 
 const ACTIVE_POLL_MS = 15_000;
 
@@ -20,7 +20,7 @@ export function useActivityDownloadStatuses(items: ActivityItem[] | undefined) {
   const albumIds = useMemo(() => {
     const set = new Set<string>();
     for (const item of items ?? []) {
-      const albumId = aurralRequestAlbumId(item);
+      const albumId = albumRequestLibraryId(item);
       if (albumId) set.add(albumId);
     }
     return [...set].sort();

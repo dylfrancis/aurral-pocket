@@ -174,8 +174,6 @@ describe("searchAlbums", () => {
           secondaryTypes: [],
           coverUrl: null,
           inLibrary: false,
-          libraryAlbumId: null,
-          libraryArtistId: null,
           status: "missing",
         },
       ],

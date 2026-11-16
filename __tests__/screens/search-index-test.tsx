@@ -35,6 +35,13 @@ jest.mock("@/components/shazam", () => ({
   ShazamSheet: () => null,
 }));
 
+jest.mock("@/hooks/search/use-library-album-lookup", () => ({
+  useLibraryAlbumLookup: jest.fn(() => ({
+    statusFor: jest.fn(() => "missing"),
+    openAlbum: jest.fn(),
+  })),
+}));
+
 jest.mock("@/hooks/search/use-library-lookup", () => ({
   useLibraryLookup: jest.fn(() => ({
     isInLibrary: jest.fn(() => false),

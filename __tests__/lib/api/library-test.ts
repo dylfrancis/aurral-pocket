@@ -16,6 +16,7 @@ import {
   getCanonicalAlbumTracks,
   getCanonicalArtist,
   getCanonicalArtistAlbums,
+  lookupLibraryAlbums,
   lookupLibraryArtists,
   refreshCanonicalLibrary,
   getCanonicalLibraryRefresh,
@@ -861,29 +862,29 @@ describe("getCanonicalArtistAlbums", () => {
   });
 });
 
-describe("lookupLibraryArtists", () => {
+describe.each([
+  ["lookupLibraryArtists", lookupLibraryArtists, "/library/lookup/batch"],
+  ["lookupLibraryAlbums", lookupLibraryAlbums, "/library/albums/lookup/batch"],
+] as const)("%s", (_name, lookup, path) => {
   it("splits more than 100 MBIDs into batches the route accepts", async () => {
-    // The batch route answers 400 above 100 unique MBIDs.
+    // The batch routes answer 400 above 100 unique MBIDs.
     const mbids = Array.from({ length: 150 }, (_, i) => `mb-${i}`);
     mockApi.post.mockImplementation(
       async (_path: string, { mbids: batch }: { mbids: string[] }) => ({
-        data: Object.fromEntries(
-          batch.map((mbid) => [mbid, mbid === "mb-120"]),
-        ),
+        data: Object.fromEntries(batch.map((mbid) => [mbid, `answer-${mbid}`])),
       }),
     );
 
-    const result = await lookupLibraryArtists(mbids);
+    const result = await lookup(mbids);
 
     expect(
       mockApi.post.mock.calls.map(([, body]) => body.mbids.length),
     ).toEqual([100, 50]);
-    expect(mockApi.post).toHaveBeenCalledWith("/library/lookup/batch", {
+    expect(mockApi.post).toHaveBeenCalledWith(path, {
       mbids: mbids.slice(100),
     });
     expect(Object.keys(result)).toHaveLength(150);
-    expect(result["mb-120"]).toBe(true);
-    expect(result["mb-5"]).toBe(false);
+    expect(result["mb-120" as keyof typeof result]).toBe("answer-mb-120");
   });
 });
 

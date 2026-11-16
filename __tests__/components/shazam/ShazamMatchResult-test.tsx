@@ -138,7 +138,7 @@ const LIBRARY_BLINDING: LibrarySearchTrack = {
   artistName: "The Weeknd",
   albumTitle: "After Hours",
   albumMbid: "rg-after-hours",
-  albumCanonicalId: "4",
+  libraryAlbumId: "4",
   trackMbid: "rec-blinding",
   artistMbid: "weeknd",
   releaseYear: "2020",
