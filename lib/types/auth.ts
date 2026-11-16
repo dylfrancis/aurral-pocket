@@ -33,7 +33,8 @@ export type ServerFeature =
   | "activityCauses"
   | "librarySorts"
   | "queueCancelAll"
-  | "queuePause";
+  | "queuePause"
+  | "streamTranscoding";
 
 /** The app contract a server implements, from `GET /health/bootstrap`. */
 export type ApiContract = {

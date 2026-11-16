@@ -74,6 +74,10 @@ export function setBaseUrl(url: string) {
   baseURL = url ? `${url}/api` : "";
 }
 
+export function getServerUrl(): string {
+  return baseURL.replace(/\/api\/?$/, "");
+}
+
 /**
  * Headers the user added for a reverse proxy in front of Aurral, such as a
  * Cloudflare Access service token.
@@ -108,7 +112,7 @@ export function imageSource(uri: string): ServerImageSource {
 
 export function absolutizeServerPath(urlOrPath: string): string {
   if (!urlOrPath.startsWith("/")) return urlOrPath;
-  return `${baseURL.replace(/\/api\/?$/, "")}${urlOrPath}`;
+  return `${getServerUrl()}${urlOrPath}`;
 }
 
 export function absolutizeImageUrl(
@@ -169,9 +173,12 @@ export function setAuthToken(token: string | null) {
  * null when the token or the server address is missing, so a caller never
  * hands the engine a URL the server answers with 401.
  */
-export function buildAuthenticatedUrl(path: string): string | null {
+export function buildAuthenticatedUrl(
+  path: string,
+  params?: Record<string, unknown>,
+): string | null {
   if (!authToken || !baseURL) return null;
-  return buildUrl(path, { token: authToken });
+  return buildUrl(path, { ...params, token: authToken });
 }
 
 export function setOnSessionExpired(cb: (() => void) | null) {

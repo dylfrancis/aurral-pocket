@@ -65,19 +65,32 @@ index b1513f4..956a4ee 100644
      return MediaItem
          .Builder()
 diff --git a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerUrlLoader.kt b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerUrlLoader.kt
-index c9b7df3..f689269 100644
 --- a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerUrlLoader.kt
 +++ b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/core/TrackPlayerUrlLoader.kt
-@@ -47,6 +47,9 @@ internal fun TrackPlayerCore.updateTracksOnQueue(tracks: List<TrackItem>) {
+@@ -24,9 +24,10 @@
+         val applicableTracks =
+             tracks.filter { track ->
+                 when {
+-                    // Checked first so an entry without a URL can never win the dedupe below
+-                    // and blank out every copy of a track.
+-                    track.url.isEmpty() -> false
++                    // Pocket can explicitly invalidate a non-current source after a network change.
++                    track.url.isEmpty() ->
++                        track.id != currentTrackId &&
++                            track.extraPayload?.toHashMap()?.get("pocketDeferredUrl") == true
+
+                     // Same URL is a metadata-only edit (a title or artwork refresh): it reaches
+                     // the session without touching the media, so gapless is unaffected.
+@@ -47,6 +48,9 @@
          if (safeTracks.isEmpty()) return@run
          val currentTrackUpdate = currentTrackId?.let { id -> safeTracks.find { it.id == id } }
          safeTracks.forEach { urlRequestedAt.remove(it.id) }
 +        // Upcoming MediaItems whose URL is unchanged are kept as built, so refresh the headers
 +        // registered for their URLs here rather than in makeMediaItem.
 +        safeTracks.forEach { registerTrackHeaders(it, if (isCastingField) it.url else downloadManager.getEffectiveUrl(it)) }
- 
+
          val affectedPlaylists: Map<String, Int> = playlistManager.updateTracks(safeTracks)
- 
+
 diff --git a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt
 index 6202379..c00cf83 100644
 --- a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt
@@ -115,7 +128,7 @@ index 3b99437..a865d41 100644
 --- a/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
 +++ b/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
 @@ -502,7 +502,10 @@ extension TrackPlayerCore {
- 
+
    /// Builds AVURLAsset options, attaching custom HTTP headers for remote (non-local) tracks.
    private func assetOptions(for track: TrackItem, isLocal: Bool) -> [String: Any] {
 -    var options: [String: Any] = [AVURLAssetPreferPreciseDurationAndTimingKey: true]
@@ -142,7 +155,7 @@ index 75b001d..6dd5b47 100644
 @@ -577,7 +577,24 @@ class MediaSessionManager {
      lastArtworkUrl = nil
    }
- 
+
 -  private func loadArtwork(url: String, completion: @escaping (UIImage?) -> Void) {
 +  /// `extraPayload.artworkHeaders`, kept apart from the stream's `headers` because the artwork
 +  /// can live on another host.
@@ -168,7 +181,7 @@ index 75b001d..6dd5b47 100644
 @@ -588,7 +605,9 @@ class MediaSessionManager {
        return
      }
- 
+
 -    URLSession.shared.dataTask(with: imageUrl) { [weak self] data, _, _ in
 +    var request = URLRequest(url: imageUrl)
 +    headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
@@ -176,3 +189,157 @@ index 75b001d..6dd5b47 100644
        guard let data = data, let image = UIImage(data: data) else {
          DispatchQueue.main.async { completion(nil) }
          return
+diff --git a/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift b/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
+--- a/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
++++ b/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
+@@ -10,6 +10,12 @@
+ import Foundation
+
+ extension TrackPlayerCore {
++  // A missing URL is a barrier: AVQueuePlayer must never skip ahead of a
++  // track whose source Pocket is still resolving.
++  func hasPlaybackURL(_ track: TrackItem) -> Bool {
++    !track.url.isEmpty || DownloadManagerCore.shared.isTrackDownloaded(trackId: track.id)
++  }
++
+
+   /// Cancels an item's outstanding asset loading before it is released.
+   ///
+@@ -107,8 +113,7 @@
+     NitroPlayerLogger.log("TrackPlayerCore", "🔄 Removing \(existingPlayer.items().count) old items from player")
+     removeAllItemsCancellingLoads(existingPlayer)
+
+-    // Lazy-load mode if the first track needs a URL. Tracks further in the queue with
+-    // empty URLs are dropped safely by compactMap below and resolved via onTracksNeedUpdate.
++    // Lazy-load mode if the first track needs a URL.
+     let isLazyLoad = tracks.first.map {
+       $0.url.isEmpty && !DownloadManagerCore.shared.isTrackDownloaded(trackId: $0.id)
+     } ?? false
+@@ -118,7 +123,7 @@
+     }
+
+     // Only materialize a window of items — the rest are added as playback advances.
+-    let windowed = tracks.prefix(1 + Constants.queueWindowSize)
++    let windowed = tracks.prefix(1 + Constants.queueWindowSize).prefix(while: hasPlaybackURL)
+     let items = windowed.enumerated().compactMap { (index, track) -> AVPlayerItem? in
+       let isPreload = index < Constants.gaplessPreloadCount
+       return createGaplessPlayerItem(for: track, isPreload: isPreload)
+@@ -241,7 +246,7 @@
+     }
+
+     let windowEnd = min(index + 1 + Constants.queueWindowSize, fullPlaylist.count)
+-    let tracksToPlay = Array(fullPlaylist[index..<windowEnd])
++    let tracksToPlay = fullPlaylist[index..<windowEnd].prefix(while: hasPlaybackURL)
+     NitroPlayerLogger.log("TrackPlayerCore", "   🔄 Creating gapless queue with \(tracksToPlay.count) tracks starting from index \(index)")
+
+     let items = tracksToPlay.enumerated().compactMap { (offset, track) -> AVPlayerItem? in
+@@ -375,6 +380,8 @@
+     if newQueueTracks.count > Constants.queueWindowSize {
+       newQueueTracks.removeSubrange(Constants.queueWindowSize...)
+     }
++
++    newQueueTracks = Array(newQueueTracks.prefix(while: hasPlaybackURL))
+
+     // Collect existing upcoming AVPlayerItems
+     let upcomingItems: [AVPlayerItem]
+diff --git a/node_modules/react-native-nitro-player/ios/core/TrackPlayerUrlLoader.swift b/node_modules/react-native-nitro-player/ios/core/TrackPlayerUrlLoader.swift
+--- a/node_modules/react-native-nitro-player/ios/core/TrackPlayerUrlLoader.swift
++++ b/node_modules/react-native-nitro-player/ios/core/TrackPlayerUrlLoader.swift
+@@ -49,10 +49,9 @@
+     let applicableTracks = tracks.filter { track in
+       switch true {
+       case track.url.isEmpty:
+-        // Checked first so an entry without a URL can never win the dedupe below and
+-        // blank out every copy of a track.
+-        NitroPlayerLogger.log("TrackPlayerCore", "⚠️ Skipping track with empty URL: \(track.id)")
+-        return false
++        // Pocket can explicitly invalidate a non-current source after a network change.
++        return track.id != currentTrackId &&
++          (track.extraPayload?.toDictionary()["pocketDeferredUrl"] as? Bool) == true
+       case track.id == currentTrackId && (currentTrackIsEmpty || currentItemFailed):
+         return true
+       case track.id == currentTrackId && track.url == currentTrack?.url:
+@@ -161,7 +160,7 @@
+         // Window like every other rebuild path — materializing the whole remaining
+         // playlist builds thousands of AVPlayerItems on playerQueue at once.
+         let windowed = self.currentTracks[max(0, self.currentTrackIndex)...]
+-          .prefix(1 + Constants.queueWindowSize)
++          .prefix(1 + Constants.queueWindowSize).prefix(while: hasPlaybackURL)
+         for (offset, track) in windowed.enumerated() {
+           let isPreload = offset < Constants.gaplessPreloadCount
+           if let newItem = self.createGaplessPlayerItem(for: track, isPreload: isPreload) {
+diff --git a/node_modules/react-native-nitro-player/ios/core/TrackPlayerListener.swift b/node_modules/react-native-nitro-player/ios/core/TrackPlayerListener.swift
+--- a/node_modules/react-native-nitro-player/ios/core/TrackPlayerListener.swift
++++ b/node_modules/react-native-nitro-player/ios/core/TrackPlayerListener.swift
+@@ -221,6 +221,13 @@
+       } else if let track = currentTracks.first(where: { $0.id == trackId }) {
+         NitroPlayerLogger.log("TrackPlayerCore", "🏁 Finished original track: \(track.title)")
+       }
++    }
++
++    // An unresolved successor has no AVPlayerItem to advance to.
++    if intendedToPlay, let player = self.player,
++      player.currentItem == nil || player.currentItem === finishedItem,
++      getCurrentTrack()?.id == finishedItem.trackId, advanceToUnresolvedTrack() {
++      return
+     }
+
+     // 3. Normal advance via actionAtItemEnd = .advance
+@@ -411,6 +418,10 @@
+       NitroPlayerLogger.log("TrackPlayerCore", "⚠️ Current item changed to nil")
+       detachMetadataOutput()
+       lastCurrentItemTrackId = nil
++      // Don't report the end of the queue while its current URL is pending,
++      // or while the completion callback is advancing to the next one.
++      if getCurrentTrack().map({ !hasPlaybackURL($0) }) == true ||
++        (intendedToPlay && unresolvedNextIndex() != nil) { return }
+       // Queue exhausted — handle PLAYLIST repeat
+       if currentRepeatMode == .playlist && !currentTracks.isEmpty, let player = self.player {
+         NitroPlayerLogger.log("TrackPlayerCore", "🔁 PLAYLIST repeat — rebuilding original queue and restarting")
+@@ -418,7 +429,7 @@
+         upNextQueue.removeAll()
+         currentTemporaryType = .none
+
+-        let windowed = currentTracks.prefix(1 + Constants.queueWindowSize)
++        let windowed = currentTracks.prefix(1 + Constants.queueWindowSize).prefix(while: hasPlaybackURL)
+         let allItems = windowed.compactMap { createGaplessPlayerItem(for: $0, isPreload: false) }
+         var lastItem: AVPlayerItem? = nil
+         for item in allItems {
+diff --git a/node_modules/react-native-nitro-player/ios/core/TrackPlayerPlayback.swift b/node_modules/react-native-nitro-player/ios/core/TrackPlayerPlayback.swift
+--- a/node_modules/react-native-nitro-player/ios/core/TrackPlayerPlayback.swift
++++ b/node_modules/react-native-nitro-player/ios/core/TrackPlayerPlayback.swift
+@@ -255,6 +255,25 @@
+     }
+   }
+
++  func unresolvedNextIndex() -> Int? {
++    // Pocket manages Play Next by inserting into the playlist itself.
++    guard currentTemporaryType == .none, playNextStack.isEmpty, upNextQueue.isEmpty,
++      !currentTracks.isEmpty else { return nil }
++    let next = currentTrackIndex + 1
++    let index = next < currentTracks.count ? next : (currentRepeatMode == .playlist ? 0 : next)
++    guard currentTracks.indices.contains(index), !hasPlaybackURL(currentTracks[index])
++    else { return nil }
++    return index
++  }
++
++  @discardableResult
++  func advanceToUnresolvedTrack() -> Bool {
++    guard let index = unresolvedNextIndex() else { return false }
++    _ = rebuildQueueFromPlaylistIndex(index: index)
++    checkUpcomingTracksForUrls(lookahead: lookaheadCount)
++    return true
++  }
++
+   func skipToNextInternal() {
+     guard let queuePlayer = self.player else { return }
+
+@@ -293,6 +312,8 @@
+
+     if queuePlayer.items().count > 1 {
+       queuePlayer.advanceToNextItem()
++    } else if advanceToUnresolvedTrack() {
++      return
+     } else if currentRepeatMode == .playlist, !currentTracks.isEmpty {
+       // Manual skip at the last track wraps, matching natural-end behavior
+       _ = skipToIndexInternal(index: 0)

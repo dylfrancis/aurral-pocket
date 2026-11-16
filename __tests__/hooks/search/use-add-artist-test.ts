@@ -7,6 +7,7 @@ const mockSetQueriesData = jest.fn();
 const mockInvalidateQueries = jest.fn();
 
 jest.mock("@tanstack/react-query", () => ({
+  ...jest.requireActual("@tanstack/react-query"),
   useMutation: jest.fn((config: any) => ({
     config,
     mutateAsync: config.mutationFn,

@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { Directory, File, Paths } from "expo-file-system";
 import { buildAuthenticatedUrl, customHeadersFor } from "@/lib/api/client";
+import { fetchTranscodedAudio } from "@/lib/api/transcoding";
 import {
   MAX_ATTEMPTS,
   RETRY_DELAY_MS,
@@ -12,11 +13,17 @@ import {
   httpStatusOf,
   onDownloadHoldChange,
 } from "@/lib/offline/download";
+import { isOffline } from "@/lib/offline/network";
 import {
   getPlaybackSettings,
   onPlaybackSettingsChange,
 } from "@/lib/player/playback-settings";
 import { AppStorage } from "@/lib/storage";
+import {
+  transcodeKey,
+  TRANSCODE_OUTPUT,
+  type TranscodeRequest,
+} from "@/lib/player/transcoding";
 
 /**
  * Tracks fetched to the phone ahead of the queue, so a drop in signal doesn't
@@ -37,6 +44,7 @@ export type PrefetchTrack = {
   streamPath: string;
   /** As the player names it, such as "FLAC", for the file's extension. */
   audioFormat?: string | null;
+  transcode?: TranscodeRequest;
 };
 
 type CachedFile = {
@@ -44,6 +52,8 @@ type CachedFile = {
   bytes: number;
   /** When the track last played, or was fetched, for evicting the oldest. */
   usedAt: number;
+  /** Absent on the server's original stream. */
+  transcode?: TranscodeRequest;
 };
 
 type Snapshot = { files: Record<string, CachedFile> };
@@ -65,9 +75,14 @@ let pumping = false;
 let refused = false;
 let inFlight: {
   trackId: string;
+  quality?: string;
   cancel: () => void;
   cancelled: boolean;
 } | null = null;
+const transcodes = new Map<
+  string,
+  { controller: AbortController; result: Promise<string | null> }
+>();
 const attempts = new Map<string, number>();
 /** The server refused or lost these files. They stream instead. */
 const failed = new Set<string>();
@@ -172,9 +187,120 @@ export function audioCacheReady(): Promise<void> {
 }
 
 /** The path of a fetched track's file, for the player to use in place of its stream. */
-export function cachedFilePath(trackId: string): string | null {
+export function cachedFilePath(
+  trackId: string,
+  quality?: TranscodeRequest,
+): string | null {
   const file = snapshot.files[trackId];
-  return file ? enginePath(fileFor(file.name)) : null;
+  return file && (isOffline() || matchesQuality(file, quality))
+    ? enginePath(fileFor(file.name))
+    : null;
+}
+
+export function cachedTranscode(
+  trackId: string,
+  url: string,
+): TranscodeRequest | undefined {
+  const file = snapshot.files[trackId];
+  return file?.transcode && url === enginePath(fileFor(file.name))
+    ? file.transcode
+    : undefined;
+}
+
+export function cancelTranscodes(): void {
+  transcodes.forEach(({ controller }) => controller.abort());
+}
+
+function matchesQuality(file: CachedFile, quality?: TranscodeRequest): boolean {
+  // An original already on the phone costs no bandwidth to play.
+  return file.transcode
+    ? file.transcode.kbps === quality?.kbps &&
+        file.transcode.format === quality.format
+    : !quality?.required;
+}
+
+/** Wait for a complete file so the native player doesn't need server byte ranges. */
+export function cacheTranscodedTrack(
+  id: string,
+  streamPath: string,
+  quality: TranscodeRequest,
+): Promise<string | null> {
+  const cached = cachedFilePath(id, quality);
+  if (cached || isOffline()) return Promise.resolve(cached);
+  const key = `${id}:${transcodeKey(quality)}`;
+  const pending = transcodes.get(key);
+  if (pending) return pending.result;
+
+  const controller = new AbortController();
+  const result = writeTranscodedTrack(id, streamPath, quality, controller)
+    .catch(() => null)
+    .finally(() => transcodes.delete(key));
+  transcodes.set(key, { controller, result });
+  return result;
+}
+
+async function writeTranscodedTrack(
+  id: string,
+  streamPath: string,
+  quality: TranscodeRequest,
+  controller: AbortController,
+): Promise<string | null> {
+  const { signal } = controller;
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const name = fileName(
+    `${id}_transcoded_${transcodeKey(quality)}`,
+    TRANSCODE_OUTPUT[quality.format].extension,
+    null,
+  );
+  const destination = fileFor(name);
+  let complete = false;
+  try {
+    await load();
+    const body = await fetchTranscodedAudio(streamPath, quality, signal);
+    if (!body) return null;
+    const reader = body.getReader();
+    try {
+      if (signal.aborted) return null;
+      cacheDirectory().create({ intermediates: true, idempotent: true });
+      destination.create({ overwrite: true });
+      const handle = destination.open();
+      let bytes = 0;
+      let ended = false;
+      try {
+        while (!signal.aborted) {
+          const { value, done } = await reader.read();
+          if (done) {
+            ended = true;
+            break;
+          }
+          bytes += value.byteLength;
+          if (bytes > getPlaybackSettings().cacheBytes) return null;
+          await handle.writeBytes(value);
+        }
+      } finally {
+        handle.close();
+      }
+      complete = ended && !signal.aborted && bytes > 0;
+      if (!complete) return null;
+      storeFile(id, { name, bytes, usedAt: Date.now(), transcode: quality });
+      return cachedFilePath(id, quality);
+    } finally {
+      if (!complete) await reader.cancel().catch(() => {});
+    }
+  } finally {
+    clearTimeout(timeout);
+    if (!complete) deleteQuietly(destination);
+  }
+}
+
+function storeFile(id: string, file: CachedFile): void {
+  const previous = snapshot.files[id];
+  if (previous && previous.name !== file.name) {
+    deleteQuietly(fileFor(previous.name));
+  }
+  commit({ files: { ...snapshot.files, [id]: file } });
+  fitInCap();
+  if (snapshot.files[id]) announce([id]);
 }
 
 /**
@@ -190,7 +316,12 @@ export function setPrefetchWindow(
   const sameTracks =
     current === playingId &&
     upcoming.length === wanted.length &&
-    upcoming.every((track, index) => track.id === wanted[index].id);
+    upcoming.every(
+      (track, index) =>
+        track.id === wanted[index].id &&
+        track.transcode?.kbps === wanted[index].transcode?.kbps &&
+        track.transcode?.format === wanted[index].transcode?.format,
+    );
   if (sameTracks && playing === isPlaying) return;
   isPlaying = playing;
   if (sameTracks) {
@@ -201,7 +332,16 @@ export function setPrefetchWindow(
   if (current !== playingId) waitForNextTrack = false;
   playingId = current;
   gaveUp.clear();
-  if (inFlight && !upcoming.some((track) => track.id === inFlight?.trackId)) {
+  if (
+    inFlight &&
+    current !== inFlight.trackId &&
+    !upcoming.some(
+      (track) =>
+        track.id === inFlight?.trackId &&
+        (track.transcode ? transcodeKey(track.transcode) : undefined) ===
+          inFlight.quality,
+    )
+  ) {
     cancelInFlight();
   }
   void fetchWanted();
@@ -251,6 +391,7 @@ export function onCachedFilesChange(
 export function clearAudioCache(): Promise<void> {
   return load().then(() => {
     cancelInFlight();
+    cancelTranscodes();
     waitForNextTrack = true;
     const files: Record<string, CachedFile> = {};
     const removed: string[] = [];
@@ -273,6 +414,7 @@ export function forgetAudioCache(): Promise<void> {
     .catch(() => {})
     .then(() => {
       cancelInFlight();
+      cancelTranscodes();
       wanted = [];
       playingId = null;
       isPlaying = false;
@@ -352,7 +494,7 @@ function nextToFetch(): PrefetchTrack | null {
   let held = playingFile?.bytes ?? 0;
   for (const track of wanted) {
     const file = snapshot.files[track.id];
-    if (file) {
+    if (file && matchesQuality(file, track.transcode)) {
       held += file.bytes;
       continue;
     }
@@ -387,6 +529,27 @@ async function fetchWanted(): Promise<void> {
 }
 
 async function fetchFile(track: PrefetchTrack): Promise<void> {
+  if (track.transcode) {
+    const result = cacheTranscodedTrack(
+      track.id,
+      track.streamPath,
+      track.transcode,
+    );
+    const job = transcodes.get(`${track.id}:${transcodeKey(track.transcode)}`);
+    const download = {
+      trackId: track.id,
+      quality: transcodeKey(track.transcode),
+      cancel: () => job?.controller.abort(),
+      cancelled: false,
+    };
+    inFlight = download;
+    try {
+      if (!(await result) && !download.cancelled) gaveUp.add(track.id);
+    } finally {
+      if (inFlight === download) inFlight = null;
+    }
+    return;
+  }
   const url = buildAuthenticatedUrl(track.streamPath);
   if (!url) {
     refused = true;
@@ -421,15 +584,7 @@ async function fetchFile(track: PrefetchTrack): Promise<void> {
     attempts.delete(track.id);
     const bytes = downloaded.size;
     knownBytes.set(track.id, bytes);
-    commit({
-      files: {
-        ...snapshot.files,
-        [track.id]: { name, bytes, usedAt: Date.now() },
-      },
-    });
-    fitInCap();
-    // Announced only if it stayed: a file that didn't fit went straight back.
-    if (snapshot.files[track.id]) announce([track.id]);
+    storeFile(track.id, { name, bytes, usedAt: Date.now() });
   } catch (error) {
     // Android writes straight into the destination, so a failure can leave
     // part of the file behind.
@@ -525,6 +680,11 @@ function isCachedFile(value: unknown): value is CachedFile {
     isRecord(value) &&
     typeof value.name === "string" &&
     typeof value.bytes === "number" &&
-    typeof value.usedAt === "number"
+    typeof value.usedAt === "number" &&
+    (value.transcode === undefined ||
+      (isRecord(value.transcode) &&
+        typeof value.transcode.format === "string" &&
+        Object.hasOwn(TRANSCODE_OUTPUT, value.transcode.format) &&
+        typeof value.transcode.kbps === "number"))
   );
 }
