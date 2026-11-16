@@ -43,6 +43,8 @@ jest.mock("@/components/settings/SettingsSwitch", () => {
 });
 
 const mockClearAudioCache = jest.fn(() => Promise.resolve());
+const mockPush = jest.fn();
+jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("@/lib/offline/audio-cache", () => ({
   useCachedBytes: () => 84_000_000,
   clearAudioCache: () => mockClearAudioCache(),
@@ -59,6 +61,7 @@ import {
   within,
 } from "@testing-library/react-native";
 import { PlaybackStorageScreen } from "@/components/settings/PlaybackStorageScreen";
+import { TranscodingProfileScreen } from "@/components/settings/TranscodingProfileScreen";
 import {
   DEFAULT_PLAYBACK_SETTINGS,
   getPlaybackSettings,
@@ -80,15 +83,32 @@ describe("PlaybackStorageScreen", () => {
     await choose("Prefetch Ahead", "3 Tracks");
     await choose("Queue Length", "50 Tracks");
     await choose("Cache Size", "2 GB");
-    await fireEvent.press(screen.getByRole("switch"));
+    await fireEvent.press(screen.getAllByRole("switch")[1]);
 
     expect(getPlaybackSettings()).toEqual({
       prefetchAhead: 3,
       queueLimit: 50,
       cacheBytes: 2_000_000_000,
       wifiOnly: true,
+      transcoding: DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
-    expect(screen.getByRole("switch")).toBeChecked();
+    expect(screen.getAllByRole("switch")[1]).toBeChecked();
+  });
+
+  it("sets the cellular format, bitrate and lossless rule independently of Wi-Fi", async () => {
+    await render(<TranscodingProfileScreen network="cellular" />);
+    const choose = (menu: string, choice: string) =>
+      fireEvent.press(
+        within(screen.getByLabelText(menu)).getByLabelText(choice),
+      );
+    await choose("Transcode Format", "AAC");
+    await choose("Bitrate", "96 kbps");
+    await fireEvent.press(screen.getByRole("switch"));
+
+    expect(getPlaybackSettings().transcoding).toEqual({
+      ...DEFAULT_PLAYBACK_SETTINGS.transcoding,
+      cellular: { format: "aac", kbps: 96, losslessOnly: true },
+    });
   });
 
   it("shows what the cache and saves take, and clears the cache", async () => {

@@ -1,5 +1,12 @@
 import { useSyncExternalStore } from "react";
 import { AppStorage } from "@/lib/storage";
+import {
+  DEFAULT_TRANSCODING,
+  TRANSCODE_BITRATES,
+  TRANSCODE_FORMATS,
+  type TranscodeProfile,
+  type TranscodingSettings,
+} from "@/lib/player/transcoding";
 
 /**
  * How much audio pocket fetches ahead and keeps, from Settings › Playback and
@@ -15,6 +22,7 @@ export type PlaybackSettings = {
   cacheBytes: number;
   /** Fetching ahead and offline saves wait out cellular data. */
   wifiOnly: boolean;
+  transcoding: TranscodingSettings;
 };
 
 export const PREFETCH_OPTIONS: readonly number[] = [0, 1, 3, 5, 10];
@@ -30,6 +38,7 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   queueLimit: 0,
   cacheBytes: 1_000_000_000,
   wifiOnly: false,
+  transcoding: DEFAULT_TRANSCODING,
 };
 
 let settings: PlaybackSettings = DEFAULT_PLAYBACK_SETTINGS;
@@ -125,10 +134,36 @@ function parse(raw: string | null): PlaybackSettings {
         typeof value.wifiOnly === "boolean"
           ? value.wifiOnly
           : DEFAULT_PLAYBACK_SETTINGS.wifiOnly,
+      transcoding: parseTranscoding(value.transcoding),
     };
   } catch {
     return DEFAULT_PLAYBACK_SETTINGS;
   }
+}
+
+function parseTranscoding(raw: unknown): TranscodingSettings {
+  if (typeof raw !== "object" || raw === null) return DEFAULT_TRANSCODING;
+  const value = raw as Record<string, unknown>;
+  return {
+    cellular: parseProfile(value.cellular),
+    wifi: parseProfile(value.wifi),
+    preferLosslessOnWifi: value.preferLosslessOnWifi === true,
+    fallbackFormat: parseFormat(value.fallbackFormat),
+  };
+}
+
+function parseFormat(raw: unknown) {
+  return TRANSCODE_FORMATS.find((format) => format === raw) ?? null;
+}
+
+function parseProfile(raw: unknown): TranscodeProfile {
+  if (typeof raw !== "object" || raw === null) return DEFAULT_TRANSCODING.wifi;
+  const value = raw as Record<string, unknown>;
+  return {
+    format: parseFormat(value.format),
+    kbps: oneOf(value.kbps, TRANSCODE_BITRATES, DEFAULT_TRANSCODING.wifi.kbps),
+    losslessOnly: value.losslessOnly === true,
+  };
 }
 
 function oneOf(

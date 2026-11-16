@@ -65,6 +65,7 @@ Each release is built and tested against one Aurral version, pinned in [`.aurral
 - **Flows** - scheduled, auto-generated playlists that mix discovery, trending, tags, and related artists; start from a template, preview picks before they download, and stop or retry single tracks
 - **Player** - stream your library, flows, and playlists with background playback, a queue (play next, add to queue), and a full-screen now playing sheet
 - **Offline** - save albums, playlists, and songs to the device; Settings → Playback and Storage sets prefetching and the cache size
+- **Transcoding** - set separate Cellular and Wi-Fi profiles in Settings → Playback and Storage. Both start at Server Default. When Aurral advertises stream transcoding, Pocket uses the existing session to request MP3 or AAC (also Opus on Android). Profile or connection changes apply from the next track. Offline saves keep the original audio.
 - **Activity** - follow requests and downloads in Queue, Review, and History, filter by status, and spot quality upgrades
 - **Listening** - plays are reported to Aurral and your scrobblers; connect ListenBrainz or Koito from Settings → Listening
 - **Shazam** - identify songs playing around you with ShazamKit, then open the album or any credited artist, play the song if you own it, or add it to a playlist

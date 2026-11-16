@@ -22,10 +22,18 @@ jest.mock("@/lib/offline/saved-library", () => ({
 }));
 // The cache's files, the windows it's given, and its change listeners.
 const mockCachedFiles = new Map<string, string>();
+const mockCacheTranscode = jest.fn<
+  Promise<string | null>,
+  [string, string, unknown]
+>();
 const mockSetPrefetchWindow = jest.fn();
 const mockCacheListeners: ((trackIds: string[]) => void)[] = [];
 jest.mock("@/lib/offline/audio-cache", () => ({
   cachedFilePath: (id: string) => mockCachedFiles.get(id) ?? null,
+  cacheTranscodedTrack: (id: string, streamPath: string, request: unknown) =>
+    mockCacheTranscode(id, streamPath, request),
+  cachedTranscode: () => undefined,
+  cancelTranscodes: () => {},
   audioCacheReady: () => Promise.resolve(),
   markPlayed: () => {},
   setPrefetchWindow: (...args: unknown[]) => mockSetPrefetchWindow(...args),
@@ -35,8 +43,15 @@ jest.mock("@/lib/offline/audio-cache", () => ({
   },
 }));
 const mockNetworkListeners: ((offline: boolean) => void)[] = [];
+const mockMeteredListeners: (() => void)[] = [];
+let mockMetered = false;
 jest.mock("@/lib/offline/network", () => ({
   isOffline: () => mockOffline,
+  isMetered: () => mockMetered,
+  onMeteredChange: (listener: () => void) => {
+    mockMeteredListeners.push(listener);
+    return () => {};
+  },
   networkKnown: () => Promise.resolve(),
   onNetworkChange: (listener: (offline: boolean) => void) => {
     mockNetworkListeners.push(listener);
@@ -170,6 +185,39 @@ describe("playAlbumFromTrack", () => {
     expect(player.play).toHaveBeenCalledTimes(1);
   });
 
+  it("uses the Wi-Fi profile for the tapped track and keeps unplayed tracks available on demand", async () => {
+    setPlaybackSettings({
+      transcoding: {
+        ...DEFAULT_PLAYBACK_SETTINGS.transcoding,
+        wifi: { format: "mp3", kbps: 96, losslessOnly: true },
+      },
+    });
+    const first = track({
+      streamPath: "/library/stream/12/77",
+      bitrateKbps: 700,
+    });
+    const second = track({
+      id: "78",
+      identityKey: "recording:next",
+      bitrateKbps: 900,
+    });
+    mockCacheTranscode.mockResolvedValueOnce("/caches/77.mp3");
+
+    try {
+      await playAlbumFromTrack([first, second], first, album);
+      expect(mockCacheTranscode).toHaveBeenCalledWith(
+        "77",
+        "/library/stream/12/77",
+        { format: "mp3", kbps: 96 },
+      );
+      expect(queue.addTracksToPlaylist).toHaveBeenLastCalledWith("playlist-1", [
+        expect.objectContaining({ url: "/caches/77.mp3" }),
+        expect.objectContaining({ url: "" }),
+      ]);
+    } finally {
+      setPlaybackSettings(DEFAULT_PLAYBACK_SETTINGS);
+    }
+  });
   it("keeps tracks without a file out of the queue", async () => {
     const albumTracks = [
       track({ id: "71", trackNumber: 1, streamPath: "/stream/12/71" }),
@@ -604,6 +652,46 @@ describe("playback events", () => {
       progress: manager.subscribeToPlaybackProgressChange.mock.calls[0][0],
       stateChange: manager.subscribeToPlaybackState.mock.calls[0][0],
     };
+  });
+
+  it("selects a new source for later tracks when the connection becomes metered", async () => {
+    const { unmount } = await renderHook(() => useCurrentTrack());
+    await act(async () =>
+      setPlaybackSettings({
+        transcoding: {
+          ...DEFAULT_PLAYBACK_SETTINGS.transcoding,
+          cellular: { format: "aac", kbps: 64, losslessOnly: false },
+        },
+      }),
+    );
+    const first = track({ identityKey: "recording:one", bitrateKbps: 700 });
+    const second = track({
+      id: "78",
+      identityKey: "recording:two",
+      bitrateKbps: 900,
+    });
+    try {
+      await act(async () => {
+        await playAlbumFromTrack([first, second], first, album);
+      });
+      await act(async () => {
+        mockMetered = true;
+        mockMeteredListeners.forEach((listener) => listener());
+      });
+      expect(player.updateTracks).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          id: "78",
+          url: "",
+          extraPayload: expect.objectContaining({ pocketDeferredUrl: true }),
+        }),
+      ]);
+    } finally {
+      await act(async () => {
+        mockMetered = false;
+        setPlaybackSettings(DEFAULT_PLAYBACK_SETTINGS);
+      });
+      await unmount();
+    }
   });
 
   describe("when a new token replaces the queue's URLs", () => {
