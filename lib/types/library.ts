@@ -148,6 +148,31 @@ export type Track = {
   userFavorite?: boolean;
 };
 
+/**
+ * A Library track ready for the play queue, in the shape Aurral's radio
+ * returns. `streamPath` is server-relative and takes the session token.
+ */
+export type LibraryQueueTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  streamPath: string;
+  streamFormat: string | null;
+  quality: string | null;
+  durationMs: number | null;
+  artistMbid: string | null;
+  /** The release group's MBID when the album has one, else the release's. */
+  albumMbid: string | null;
+  trackMbid: string | null;
+  libraryTrackId: number;
+  libraryAlbumId: number;
+  libraryArtistId: number | null;
+  /** Server-relative: the track's own artwork, else its album cover. */
+  artworkUrl: string | null;
+  artworkSource: "track" | "album";
+};
+
 export type PreviewTrack = {
   id: string;
   title: string;

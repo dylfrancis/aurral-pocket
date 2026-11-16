@@ -11,11 +11,13 @@ import type {
   TagSearchScope,
   AddArtistRequest,
   AddArtistResponse,
+  BrowseProvider,
   DiscoveryResponse,
   EditorialLibraryAddResponse,
   EditorialLinks,
   EditorialPlaylist,
   EditorialShelfResponse,
+  EditorialShelfScope,
   RecentlyAddedResponse,
   RecentReleasesResponse,
   NearbyShowsResponse,
@@ -114,21 +116,29 @@ export async function getRecentReleases() {
   return r.data;
 }
 
-export async function getEditorialShelf() {
-  const r = await api.get<EditorialShelfResponse>("/discover/editorial");
+export async function getEditorialShelf(scope?: EditorialShelfScope) {
+  const r = await api.get<EditorialShelfResponse>("/discover/playlists", {
+    params: scope ? { scope } : undefined,
+  });
   return r.data;
 }
 
-export async function getEditorialPlaylist(playlistId: string) {
+export async function getEditorialPlaylist(
+  provider: BrowseProvider,
+  playlistId: string,
+) {
   const r = await api.get<EditorialPlaylist>(
-    `/discover/editorial/${encodeURIComponent(playlistId)}`,
+    `/discover/playlists/${encodeURIComponent(provider)}/${encodeURIComponent(playlistId)}`,
   );
   return r.data;
 }
 
-export async function addEditorialPlaylistToLibrary(playlistId: string) {
+export async function addEditorialPlaylistToLibrary(
+  provider: BrowseProvider,
+  playlistId: string,
+) {
   const r = await api.post<EditorialLibraryAddResponse>(
-    `/discover/editorial/${encodeURIComponent(playlistId)}/library`,
+    `/discover/playlists/${encodeURIComponent(provider)}/${encodeURIComponent(playlistId)}/library`,
   );
   return r.data;
 }
@@ -138,7 +148,7 @@ export async function getEditorialLinks(params: {
   album?: string | null;
   albumId?: string | null;
 }) {
-  const r = await api.get<EditorialLinks>("/discover/editorial/links", {
+  const r = await api.get<EditorialLinks>("/discover/playlists/links", {
     params,
   });
   return r.data;

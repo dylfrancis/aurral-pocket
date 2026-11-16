@@ -12,8 +12,10 @@ import {
 import { releaseRouteParams } from "@/lib/library-read";
 import { discoverKeys, flowKeys } from "@/lib/query-keys";
 import type {
+  BrowseProvider,
   EditorialPlaylist,
   EditorialPlaylistSummary,
+  EditorialShelfScope,
   EditorialTrack,
   TrendingChartsResponse,
 } from "@/lib/types/search";
@@ -28,19 +30,22 @@ const SHELF_STALE_MS = 60 * 60 * 1000;
 const PLAYLIST_STALE_MS = 5 * 60 * 1000;
 const LINK_STALE_MS = 5 * 60 * 1000;
 
-export function useEditorialShelf() {
+export function useEditorialShelf(scope?: EditorialShelfScope) {
   return useQuery({
-    queryKey: discoverKeys.editorialShelf(),
-    queryFn: () => getEditorialShelf(),
+    queryKey: discoverKeys.editorialShelf(scope),
+    queryFn: () => getEditorialShelf(scope),
     staleTime: SHELF_STALE_MS,
     gcTime: 2 * SHELF_STALE_MS,
   });
 }
 
-export function useEditorialPlaylist(playlistId: string) {
+export function useEditorialPlaylist(
+  provider: BrowseProvider,
+  playlistId: string,
+) {
   return useQuery({
-    queryKey: discoverKeys.editorialPlaylist(playlistId),
-    queryFn: () => getEditorialPlaylist(playlistId),
+    queryKey: discoverKeys.editorialPlaylist(provider, playlistId),
+    queryFn: () => getEditorialPlaylist(provider, playlistId),
     staleTime: PLAYLIST_STALE_MS,
   });
 }
@@ -52,8 +57,9 @@ export function useOpenEditorialPlaylist() {
   return useCallback(
     (playlist: EditorialPlaylistSummary) => {
       router.push({
-        pathname: "/(app)/(tabs)/(discover)/editorial/[id]",
+        pathname: "/(app)/(tabs)/(discover)/editorial/[provider]/[id]",
         params: {
+          provider: playlist.provider,
           id: playlist.id,
           name: playlist.name,
           artworkUrl: playlist.artworkUrl ?? "",
@@ -65,17 +71,20 @@ export function useOpenEditorialPlaylist() {
   );
 }
 
-export function useAddEditorialPlaylist(playlistId: string) {
+export function useAddEditorialPlaylist(
+  provider: BrowseProvider,
+  playlistId: string,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => addEditorialPlaylistToLibrary(playlistId),
+    mutationFn: () => addEditorialPlaylistToLibrary(provider, playlistId),
     onSuccess: (saved) => {
       // Set here, not refetched: the server queues the save, so a read right
       // now can still say it isn't saved, and adding from that state makes a
       // second copy.
       queryClient.setQueryData<EditorialPlaylist>(
-        discoverKeys.editorialPlaylist(playlistId),
+        discoverKeys.editorialPlaylist(provider, playlistId),
         (cached) =>
           cached && { ...cached, libraryPlaylistId: saved.playlistId },
       );
@@ -83,7 +92,7 @@ export function useAddEditorialPlaylist(playlistId: string) {
       queryClient.setQueryData<TrendingChartsResponse>(
         discoverKeys.trending(),
         (cached) =>
-          cached?.songs?.playlistId === playlistId
+          provider === "deezer" && cached?.songs?.playlistId === playlistId
             ? {
                 ...cached,
                 songs: { ...cached.songs, libraryPlaylistId: saved.playlistId },

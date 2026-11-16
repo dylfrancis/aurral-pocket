@@ -130,31 +130,14 @@ const MAX_RELOGINS = 2;
  * Keep this list short. Every entry is a call pocket makes that 404s in
  * production.
  */
-const KNOWN_DRIFT = new Map([
-  [
-    "GET /discover/editorial",
-    "Aurral 3.0 moved editorial playlists to /discover/playlists",
-  ],
-  [
-    "GET /discover/editorial/links",
-    "Aurral 3.0 moved editorial playlists to /discover/playlists",
-  ],
-  [
-    "GET /discover/editorial/${encodeURIComponent(playlistId)}",
-    "Aurral 3.0 moved editorial playlists to /discover/playlists",
-  ],
-  [
-    "POST /discover/editorial/${encodeURIComponent(playlistId)}/library",
-    "Aurral 3.0 moved editorial playlists to /discover/playlists",
-  ],
-]);
+const KNOWN_DRIFT = new Map([]);
 
 /**
  * GET routes whose body comes straight from a third party. When Deezer is down
  * these answer 502, which says nothing about Aurral, so a run that can't read
  * one skips its shape instead of failing. A 200 still has to match the baseline.
  */
-const THIRD_PARTY_ROUTES = new Set(["GET /discover/editorial"]);
+const THIRD_PARTY_ROUTES = new Set(["GET /discover/playlists"]);
 
 /**
  * Aurral's app contract, version 2, as docs/src/content/docs/api/app-contract.mdx

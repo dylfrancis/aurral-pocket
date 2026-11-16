@@ -27,6 +27,7 @@ jest.mock("@/lib/player/player", () => ({
   pause: jest.fn(),
   pauseClip: jest.fn(),
   playItem: jest.fn(() => Promise.resolve()),
+  playQueueFrom: jest.fn(() => Promise.resolve(true)),
   resume: jest.fn(),
   useCurrentTrack: () => null,
   usePlaybackState: () => "stopped",
@@ -86,14 +87,15 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { EditorialPlaylistScreen } from "@/components/discover/EditorialPlaylistScreen";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
   addEditorialPlaylistToLibrary,
   getEditorialLinks,
   getEditorialPlaylist,
 } from "@/lib/api/search";
-import { pauseClip, playItem } from "@/lib/player/player";
+import { pause, pauseClip, playItem, playQueueFrom } from "@/lib/player/player";
 import { flowKeys } from "@/lib/query-keys";
+import type { LibraryQueueTrack } from "@/lib/types/library";
 import type { EditorialPlaylist, EditorialTrack } from "@/lib/types/search";
 
 const mockGetPlaylist = getEditorialPlaylist as jest.Mock;
@@ -112,8 +114,11 @@ function track(overrides: Partial<EditorialTrack> = {}): EditorialTrack {
   };
 }
 
-function playlist(overrides: Partial<EditorialPlaylist> = {}) {
+function playlist(
+  overrides: Partial<EditorialPlaylist> = {},
+): EditorialPlaylist {
   return {
+    provider: "deezer",
     id: "878",
     name: "90s Hits",
     description: "The hits of the 90s.",
@@ -157,7 +162,7 @@ beforeEach(() => {
   mockAdd.mockReset();
   mockGetLinks.mockReset();
   mockUser = { role: "user", permissions: { accessPlaylists: true } };
-  mockParams = { id: "878" };
+  mockParams = { provider: "deezer", id: "878" };
   mockFocused = true;
   mockStatus = {};
 });
@@ -170,7 +175,12 @@ afterEach(() => {
 
 describe("the page itself", () => {
   it("paints the card's name while the playlist loads", async () => {
-    mockParams = { id: "878", name: "From the card", trackCount: "12" };
+    mockParams = {
+      provider: "deezer",
+      id: "878",
+      name: "From the card",
+      trackCount: "12",
+    };
     mockGetPlaylist.mockReturnValue(new Promise(() => {}));
 
     await renderPage();
@@ -197,6 +207,25 @@ describe("the page itself", () => {
       await screen.findByText("Deezer no longer has this playlist"),
     ).toBeTruthy();
     expect(screen.queryByText("Try Again")).toBeNull();
+  });
+
+  it("reads and saves the playlist under the provider it was opened with", async () => {
+    mockParams = { provider: "mix", id: "daily-1" };
+    mockAdd.mockResolvedValue({
+      playlistId: "lib-1",
+      name: "Daily Mix 1",
+      alreadyAdded: false,
+      tracksQueued: 0,
+    });
+    await openPage(
+      playlist({ provider: "mix", id: "daily-1", name: "Daily Mix 1" }),
+    );
+
+    await fireEvent.press(await screen.findByText("Add to Library"));
+
+    await screen.findByText("Open in Library");
+    expect(mockGetPlaylist).toHaveBeenCalledWith("mix", "daily-1");
+    expect(mockAdd).toHaveBeenCalledWith("mix", "daily-1");
   });
 
   it("retries any other failure", async () => {
@@ -270,6 +299,69 @@ describe("previews", () => {
   });
 });
 
+describe("tracks in the Library", () => {
+  const owned: LibraryQueueTrack = {
+    id: "42",
+    title: "Lithium",
+    artist: "Nirvana",
+    album: "Nevermind",
+    streamPath: "/library/stream/7/42",
+    streamFormat: "flac",
+    quality: "FLAC",
+    durationMs: 257000,
+    artistMbid: "artist-mbid",
+    albumMbid: "album-mbid",
+    trackMbid: "track-mbid",
+    libraryTrackId: 42,
+    libraryAlbumId: 7,
+    libraryArtistId: 3,
+    artworkUrl: "/api/library/artwork/album/7",
+    artworkSource: "album",
+  };
+
+  beforeEach(() => {
+    setBaseUrl("http://server");
+    setAuthToken("token");
+  });
+
+  afterEach(() => {
+    setBaseUrl("");
+    setAuthToken(null);
+  });
+
+  it("plays the Library's file instead of the clip", async () => {
+    await openPage(playlist({ tracks: [track({ owned })] }));
+
+    await fireEvent.press(await screen.findByLabelText("Play Lithium"));
+
+    await waitFor(() =>
+      expect(playQueueFrom).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            id: "42",
+            streamPath: "/library/stream/7/42",
+            url: "http://server/api/library/stream/7/42?token=token",
+            trackMbid: "track-mbid",
+          }),
+        ],
+        "42",
+        expect.objectContaining({ albumTitle: "Nevermind", albumRef: "7" }),
+      ),
+    );
+    expect(playItem).not.toHaveBeenCalled();
+  });
+
+  it("pauses the Library track when it's already playing", async () => {
+    mockStatus = { currentId: "42", isPlaying: true, progress: 0.5 };
+    await openPage(playlist({ tracks: [track({ owned })] }));
+
+    await fireEvent.press(await screen.findByLabelText("Pause Lithium"));
+
+    await waitFor(() => expect(pause).toHaveBeenCalled());
+    expect(playQueueFrom).not.toHaveBeenCalled();
+  });
+});
+
 describe("Add to Library", () => {
   it("saves the playlist and switches the page over without rereading it", async () => {
     mockAdd.mockResolvedValue({
@@ -330,7 +422,7 @@ describe("Add to Library", () => {
   });
 
   it("can't add before the page knows whether it's already saved", async () => {
-    mockParams = { id: "878", name: "From the card" };
+    mockParams = { provider: "deezer", id: "878", name: "From the card" };
     mockGetPlaylist.mockReturnValue(new Promise(() => {}));
 
     await renderPage();

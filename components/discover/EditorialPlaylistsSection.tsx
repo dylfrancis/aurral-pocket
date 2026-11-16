@@ -8,13 +8,13 @@ type Props = {
 
 /** As on the web, someone with no taste data yet gets the first genre's row. */
 export function EditorialPlaylistsSection({ onViewAll }: Props) {
-  const { data, isLoading } = useEditorialShelf();
+  const { data, isLoading } = useEditorialShelf("featured");
 
   if (isLoading) return <AlbumCategorySkeleton />;
 
   const forYou = data?.forYou ?? [];
   const playlists =
-    forYou.length > 0 ? forYou : (data?.genres[0]?.playlists ?? []);
+    forYou.length > 0 ? forYou : (data?.categories[0]?.playlists ?? []);
 
   if (playlists.length === 0) return null;
 

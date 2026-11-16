@@ -20,10 +20,11 @@ import {
   useAddEditorialPlaylist,
   useEditorialPlaylist,
 } from "@/hooks/discover/use-editorial-playlists";
-import { usePreviewRows } from "@/hooks/discover/use-preview-rows";
+import { rowPlayerId, usePreviewRows } from "@/hooks/discover/use-preview-rows";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { ApiError } from "@/lib/api/client";
 import { formatTrackCount } from "@/lib/discover/format";
+import type { BrowseProvider } from "@/lib/types/search";
 import { EditorialArtwork } from "./EditorialArtwork";
 import {
   EditorialTrackRow,
@@ -32,13 +33,17 @@ import {
 import { useColors } from "@/hooks/use-colors";
 
 type RouteParams = {
+  provider: BrowseProvider;
   id: string;
   name?: string;
   artworkUrl?: string;
   trackCount?: string;
 };
 
-/** Its tracks are preview clips, not library files, so there's no queue to play. */
+/**
+ * Each row plays on its own: its preview clip, or the Library's file when the
+ * Library has the track.
+ */
 export function EditorialPlaylistScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -46,15 +51,15 @@ export function EditorialPlaylistScreen() {
   const headerHeight = useHeaderHeight();
   const headerPaddingTop = (IS_IOS ? headerHeight : 0) + 24;
   const params = useLocalSearchParams<RouteParams>();
-  const { id } = params;
+  const { provider, id } = params;
 
   const {
     data: playlist,
     error,
     isPending,
     refetch,
-  } = useEditorialPlaylist(id);
-  const addPlaylist = useAddEditorialPlaylist(id);
+  } = useEditorialPlaylist(provider, id);
+  const addPlaylist = useAddEditorialPlaylist(provider, id);
   const openInLibrary = useOpenPlaylist();
   const hasPlaylistAccess = useHasPermission()("accessPlaylists");
 
@@ -79,18 +84,21 @@ export function EditorialPlaylistScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: EditorialTrackItem }) => (
-      <EditorialTrackRow
-        item={item}
-        isPlaying={playingId === item.id}
-        isLoading={loadingId === item.id}
-        progress={playingId === item.id ? progress : 0}
-        isLookingUpLink={lookupRowId === item.id}
-        onTogglePreview={togglePreview}
-        onOpenArtist={openRowArtist}
-        onOpenAlbum={openRowAlbum}
-      />
-    ),
+    ({ item }: { item: EditorialTrackItem }) => {
+      const playerId = rowPlayerId(item);
+      return (
+        <EditorialTrackRow
+          item={item}
+          isPlaying={playingId === playerId}
+          isLoading={loadingId === playerId}
+          progress={playingId === playerId ? progress : 0}
+          isLookingUpLink={lookupRowId === item.id}
+          onTogglePreview={togglePreview}
+          onOpenArtist={openRowArtist}
+          onOpenAlbum={openRowAlbum}
+        />
+      );
+    },
     [
       playingId,
       loadingId,
