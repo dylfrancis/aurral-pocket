@@ -32,20 +32,12 @@ jobs:
 
       - name: Read pinned Aurral version
         id: pin
-        env:
-          # The nightly tag moves with every upstream merge. Hold the check on
-          # the build the 3.0 work is verified against, nightly.1005+883cd11.
-          NIGHTLY_DIGEST: sha256:241936a25ffb56a2179c034307635b776bfe1db4d7137db6522a488a21183154
-        run: |
-          version="$(tr -d '[:space:]' < .aurral-version)"
-          image="ghcr.io/lklynet/aurral:$version"
-          if [ "$version" = nightly ]; then image="$image@$NIGHTLY_DIGEST"; fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "image=$image" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(tr -d '[:space:]' < .aurral-version)" >> "$GITHUB_OUTPUT"
 
       - name: Start Aurral ${{ steps.pin.outputs.version }}
         run: |
-          docker run -d --name aurral -p 3001:3001 "${{ steps.pin.outputs.image }}"
+          docker run -d --name aurral -p 3001:3001 \
+            ghcr.io/lklynet/aurral:${{ steps.pin.outputs.version }}
 
           for i in $(seq 1 60); do
             if curl -fsS http://localhost:3001/api/health/live >/dev/null 2>&1; then
