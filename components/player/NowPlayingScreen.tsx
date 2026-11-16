@@ -33,6 +33,7 @@ import {
   useAddToPlaylist,
 } from "@/components/flow/AddToPlaylistSheet";
 import { CoverTintBackdrop } from "@/components/player/CoverTintBackdrop";
+import { LyricsView } from "@/components/player/LyricsView";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import {
   ARTWORK_SHADOW,
@@ -49,6 +50,7 @@ import { MarqueeText } from "@/components/ui/MarqueeText";
 import { Text } from "@/components/ui/Text";
 import { IS_ANDROID } from "@/constants/platform";
 import { Fonts } from "@/constants/theme";
+import { useLyricsOpen } from "@/contexts/now-playing-context";
 import {
   useIsFavoriteTrack,
   useToggleFavorite,
@@ -57,6 +59,7 @@ import { toastNotSaved } from "@/hooks/offline/toast-not-saved";
 import { useSongSave } from "@/hooks/offline/use-song-save";
 import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useDragToClose } from "@/hooks/player/use-drag-to-close";
+import { useTrackLyrics } from "@/hooks/player/use-track-lyrics";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { TrackFavorite } from "@/lib/api/library";
 import { useCanPlayNow } from "@/lib/offline/saved-library";
@@ -118,11 +121,19 @@ export function NowPlayingScreen() {
   const colors = PlayerColors[useColorScheme()];
   const tint = useCoverTint(track);
   const [showQueue, setShowQueue] = useState(false);
+  // Opening the queue turns lyrics off, so the two are never both open.
+  const [lyricsOpen, setLyricsOpen] = useLyricsOpen();
+  const lyrics = useTrackLyrics(track);
   const art = useArtFrame();
+  // Left on, the lyrics panel gives way to the art for a track without lyrics
+  // and comes back for the next one that has them.
+  const showLyrics = lyricsOpen && lyrics.available;
+  // The queue and the lyrics both shrink the art into the header row.
+  const compact = showQueue || showLyrics;
 
   const close = useCallback(() => router.back(), [router]);
   const drag = useDragToClose(close);
-  // Two drag areas, so the Up Next list between them can scroll.
+  // Two drag areas, so the list between them can scroll.
   const topPan = usePanGesture(drag.panConfig);
   const controlsPan = usePanGesture(drag.panConfig);
 
@@ -243,7 +254,7 @@ export function NowPlayingScreen() {
               <View
                 style={[
                   styles.top,
-                  (!track || !showQueue) && styles.topFill,
+                  (!track || !compact) && styles.topFill,
                   { paddingTop: insets.top },
                 ]}
               >
@@ -254,7 +265,7 @@ export function NowPlayingScreen() {
                       Nothing is playing.
                     </Text>
                   </View>
-                ) : showQueue ? (
+                ) : compact ? (
                   <Animated.View
                     entering={SWAP_FADE}
                     style={styles.thumbRow}
@@ -313,6 +324,17 @@ export function NowPlayingScreen() {
                       Nothing up next.
                     </Text>
                   }
+                />
+              </Animated.View>
+            )}
+
+            {track && showLyrics && (
+              <Animated.View entering={SWAP_FADE} style={styles.lyrics}>
+                <LyricsView
+                  // Each track measures and scrolls its own lines.
+                  key={track.id}
+                  trackId={track.id}
+                  lyrics={lyrics.lyrics}
                 />
               </Animated.View>
             )}
@@ -419,7 +441,40 @@ export function NowPlayingScreen() {
                   </View>
                   <View style={styles.toolbar}>
                     <Pressable
-                      onPress={() => setShowQueue((shown) => !shown)}
+                      onPress={() => {
+                        setShowQueue(false);
+                        setLyricsOpen(!lyricsOpen);
+                      }}
+                      disabled={!lyrics.available}
+                      hitSlop={4}
+                      accessibilityRole="button"
+                      accessibilityState={{
+                        selected: showLyrics,
+                        disabled: !lyrics.available,
+                      }}
+                      accessibilityLabel="Lyrics"
+                      style={[
+                        styles.toolbarButton,
+                        showLyrics && { backgroundColor: colors.selectedFill },
+                      ]}
+                    >
+                      <MaterialIcons
+                        name="lyrics"
+                        size={24}
+                        color={
+                          !lyrics.available
+                            ? colors.faint
+                            : showLyrics
+                              ? tint
+                              : colors.text
+                        }
+                      />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setLyricsOpen(false);
+                        setShowQueue((shown) => !shown);
+                      }}
                       hitSlop={4}
                       accessibilityRole="button"
                       accessibilityState={{ selected: showQueue }}
@@ -868,6 +923,9 @@ const styles = StyleSheet.create({
   queueList: {
     flex: 1,
   },
+  lyrics: {
+    flex: 1,
+  },
   queueContent: {
     paddingBottom: 8,
   },
@@ -919,6 +977,7 @@ const styles = StyleSheet.create({
   toolbar: {
     flexDirection: "row",
     justifyContent: "flex-end",
+    gap: 8,
   },
   toolbarButton: {
     width: 44,
