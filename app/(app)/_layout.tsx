@@ -4,6 +4,7 @@ import { useReducedMotion } from "react-native-reanimated";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { IS_ANDROID } from "@/constants/platform";
 import { useAuth } from "@/contexts/auth-context";
+import { NowPlayingProvider } from "@/contexts/now-playing-context";
 import { useLiveSocketFollowsSession } from "@/hooks/live/use-live-socket-follows-session";
 import { useSavedLibraryFollowsSession } from "@/hooks/offline/use-saved-library-follows-session";
 import { useQueueFollowsSession } from "@/hooks/player/use-queue-follows-session";
@@ -32,25 +33,27 @@ export default function AppLayout() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      {/* Activity and Settings are tabs on iOS. Android's bar has no room for
+    <NowPlayingProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        {/* Activity and Settings are tabs on iOS. Android's bar has no room for
           them, so the same routes open here, above the tabs, from each tab's
           overflow menu. */}
-      <Stack.Protected guard={IS_ANDROID}>
-        <Stack.Screen name="(activity)" />
-        <Stack.Screen name="(settings)" />
-      </Stack.Protected>
-      {/* A native sheet stops short of the top edge, so the full player is a
+        <Stack.Protected guard={IS_ANDROID}>
+          <Stack.Screen name="(activity)" />
+          <Stack.Screen name="(settings)" />
+        </Stack.Protected>
+        {/* A native sheet stops short of the top edge, so the full player is a
           transparent modal that draws its own sheet and drag-to-close. */}
-      <Stack.Screen
-        name="now-playing"
-        options={{
-          presentation: "transparentModal",
-          animation: reduceMotion ? "fade" : "slide_from_bottom",
-        }}
-      />
-    </Stack>
+        <Stack.Screen
+          name="now-playing"
+          options={{
+            presentation: "transparentModal",
+            animation: reduceMotion ? "fade" : "slide_from_bottom",
+          }}
+        />
+      </Stack>
+    </NowPlayingProvider>
   );
 }
 

@@ -104,6 +104,8 @@ function expectLeftFor(href: unknown) {
   }
 }
 
+jest.mock("@/lib/api/lyrics", () => ({ getLyrics: jest.fn() }));
+
 jest.mock("@/lib/api/library", () => ({
   ...jest.requireActual("@/lib/api/library"),
   getLibraryFavorites: jest.fn(),
@@ -125,8 +127,10 @@ import { act, fireEvent, render } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NowPlayingScreen } from "@/components/player/NowPlayingScreen";
 import { IS_ANDROID } from "@/constants/platform";
+import { NowPlayingProvider } from "@/contexts/now-playing-context";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { getLibraryFavorites, updateLibraryFavorites } from "@/lib/api/library";
+import { getLyrics } from "@/lib/api/lyrics";
 import {
   onTrackStarted,
   playAlbumFromTrack,
@@ -148,6 +152,7 @@ const player = TrackPlayer as jest.Mocked<typeof TrackPlayer>;
 const manager = callbackManager as jest.Mocked<typeof callbackManager>;
 const mockGetLibraryFavorites = getLibraryFavorites as jest.Mock;
 const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
+const mockGetLyrics = getLyrics as jest.Mock;
 
 function track(id: string, name: string): Track {
   return {
@@ -208,22 +213,32 @@ beforeEach(() => {
   queue.createPlaylist.mockResolvedValue("playlist-1");
   mockGetLibraryFavorites.mockResolvedValue(favoritesWith());
   mockUpdateLibraryFavorites.mockResolvedValue({ changedIds: [] });
+  mockGetLyrics.mockResolvedValue(null);
 });
 
 // The player keeps its track between tests, so even a first render can show the
-// favorite button, which needs a query client.
-function renderScreen() {
+// favorite button, which needs a query client. The providers outlive the
+// player, as the app's do, so it can close and reopen.
+async function renderScreen() {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Infinity },
       mutations: { retry: false, gcTime: 0 },
     },
   });
-  return render(
+  const app = (playerOpen: boolean) => (
     <QueryClientProvider client={client}>
-      <NowPlayingScreen />
-    </QueryClientProvider>,
+      <NowPlayingProvider>
+        {playerOpen ? <NowPlayingScreen /> : null}
+      </NowPlayingProvider>
+    </QueryClientProvider>
   );
+  const utils = await render(app(true));
+  return {
+    ...utils,
+    closePlayer: () => utils.rerender(app(false)),
+    reopenPlayer: () => utils.rerender(app(true)),
+  };
 }
 
 async function renderPlaying() {
@@ -689,5 +704,186 @@ describe("NowPlayingScreen", () => {
 
     await fireEvent.press(getByLabelText("Pause"));
     expect(player.pause).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("NowPlayingScreen lyrics", () => {
+  const syncedLyrics = {
+    synced: true,
+    lines: [
+      { start: 10_000, value: "Everything" },
+      { start: 15_000, value: "" },
+      { start: 20_000, value: "In its right place" },
+    ],
+  };
+
+  function engineTrack(item: Track) {
+    return {
+      id: item.id,
+      title: item.title,
+      artist: "Radiohead",
+      album: "Kid A",
+      duration: 0,
+      url: `https://test.example/${item.id}`,
+      artwork: null,
+    };
+  }
+
+  async function playTrack(item: Track) {
+    await act(async () => {
+      engine.trackChange(engineTrack(item), "skip");
+    });
+  }
+
+  async function playAt(seconds: number) {
+    await act(async () => {
+      engine.progress(seconds, 240, false);
+    });
+  }
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("shows synced lyrics behind the lyrics button and marks the line being sung", async () => {
+    mockGetLyrics.mockResolvedValue(syncedLyrics);
+    const { getByLabelText, findByLabelText, getByRole } =
+      await renderPlaying();
+    await playTrack(albumTracks[0]);
+    await playAt(12);
+
+    await fireEvent.press(await findByLabelText("Lyrics"));
+
+    expect(getByLabelText("Lyrics")).toBeSelected();
+    expect(getByRole("button", { name: "Everything" })).toBeSelected();
+    expect(
+      getByRole("button", { name: "In its right place" }),
+    ).not.toBeSelected();
+
+    await playAt(21);
+
+    expect(getByRole("button", { name: "Everything" })).not.toBeSelected();
+    expect(getByRole("button", { name: "In its right place" })).toBeSelected();
+  });
+
+  it("moves the line on between the engine's once-a-second reports, and holds it on pause", async () => {
+    mockGetLyrics.mockResolvedValue(syncedLyrics);
+    const { findByLabelText, getByRole } = await renderPlaying();
+    await playTrack(albumTracks[0]);
+    await fireEvent.press(await findByLabelText("Lyrics"));
+    // Paused first, whatever an earlier test left, so the clock starts again
+    // on the fake timers.
+    await act(async () => {
+      engine.stateChange("paused", undefined);
+    });
+
+    jest.useFakeTimers({ now: Date.now() });
+    await act(async () => {
+      engine.stateChange("playing", undefined);
+    });
+    await playAt(9.5);
+    expect(getByRole("button", { name: "Everything" })).not.toBeSelected();
+
+    await act(async () => {
+      jest.advanceTimersByTime(750);
+    });
+    expect(getByRole("button", { name: "Everything" })).toBeSelected();
+
+    await act(async () => {
+      engine.stateChange("paused", undefined);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(15_000);
+    });
+    expect(getByRole("button", { name: "Everything" })).toBeSelected();
+    expect(
+      getByRole("button", { name: "In its right place" }),
+    ).not.toBeSelected();
+  });
+
+  it("reopens on the lyrics if they were open when the player closed, and on the art if not", async () => {
+    mockGetLyrics.mockResolvedValue(syncedLyrics);
+    const {
+      closePlayer,
+      reopenPlayer,
+      findByLabelText,
+      findByText,
+      getByLabelText,
+      queryByText,
+    } = await renderPlaying();
+    await playTrack(albumTracks[0]);
+    await fireEvent.press(await findByLabelText("Lyrics"));
+
+    await closePlayer();
+    await reopenPlayer();
+
+    expect(await findByText("Everything")).toBeTruthy();
+    expect(getByLabelText("Lyrics")).toBeSelected();
+
+    await fireEvent.press(getByLabelText("Lyrics"));
+    await closePlayer();
+    await reopenPlayer();
+
+    expect(await findByLabelText("Lyrics")).not.toBeSelected();
+    expect(queryByText("Everything")).toBeNull();
+  });
+
+  it("plays from a tapped line", async () => {
+    mockGetLyrics.mockResolvedValue(syncedLyrics);
+    const { findByLabelText, findByRole } = await renderPlaying();
+    await playTrack(albumTracks[0]);
+    await fireEvent.press(await findByLabelText("Lyrics"));
+
+    await fireEvent.press(
+      await findByRole("button", { name: "In its right place" }),
+    );
+
+    expect(player.seek).toHaveBeenCalledWith(20);
+  });
+
+  it("shows plain lyrics as text", async () => {
+    mockGetLyrics.mockResolvedValue({
+      synced: false,
+      lines: [{ value: "Kid A" }, { value: "" }, { value: "Kid A again" }],
+    });
+    const { findByLabelText, getByText } = await renderPlaying();
+    await playTrack(albumTracks[0]);
+
+    await fireEvent.press(await findByLabelText("Lyrics"));
+
+    expect(getByText("Kid A\n\nKid A again")).toBeTruthy();
+  });
+
+  it("dims the lyrics button for a track without lyrics, and opens nothing", async () => {
+    const { findByLabelText, getByLabelText, queryByLabelText } =
+      await renderPlaying();
+    await playTrack(albumTracks[0]);
+
+    expect(await findByLabelText("Lyrics")).toBeDisabled();
+    await fireEvent.press(getByLabelText("Lyrics"));
+
+    expect(getByLabelText("Lyrics")).not.toBeSelected();
+    expect(queryByLabelText("Loading lyrics")).toBeNull();
+  });
+
+  it("gives way to the art for a track without lyrics, and comes back for the next that has them", async () => {
+    mockGetLyrics.mockImplementation(async ({ title }) =>
+      title === "Kid A" ? null : syncedLyrics,
+    );
+    const { findByLabelText, findByText, queryByLabelText, queryByText } =
+      await renderPlaying();
+    await playTrack(albumTracks[0]);
+    await fireEvent.press(await findByLabelText("Lyrics"));
+    expect(await findByText("Everything")).toBeTruthy();
+
+    await playTrack(albumTracks[1]);
+
+    expect(await findByLabelText("Lyrics")).toBeDisabled();
+    expect(queryByText("Everything")).toBeNull();
+    expect(queryByLabelText("Loading lyrics")).toBeNull();
+
+    await playTrack(albumTracks[2]);
+
+    expect(await findByText("Everything")).toBeTruthy();
   });
 });

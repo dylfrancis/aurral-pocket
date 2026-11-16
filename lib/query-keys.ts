@@ -1,8 +1,10 @@
 import type { LibraryAlbumsParams } from "@/lib/types/library";
+import type { LyricsLookup } from "@/lib/types/lyrics";
 import type { BrowseProvider, EditorialShelfScope } from "@/lib/types/search";
 
 export const playerKeys = {
   coverColor: (imageUri: string) => ["player", "coverColor", imageUri] as const,
+  lyrics: (lookup: LyricsLookup) => ["player", "lyrics", lookup] as const,
 };
 
 export const authKeys = {
