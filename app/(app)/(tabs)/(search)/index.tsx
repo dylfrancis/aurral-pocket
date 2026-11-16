@@ -26,14 +26,14 @@ import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { useLibraryAlbumLookup } from "@/hooks/search/use-library-album-lookup";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { searchBarColors } from "@/constants/navigation";
 import { Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
-import { releaseRouteParams } from "@/lib/library-read";
-import type { SearchAlbum, SearchArtist } from "@/lib/types/search";
+import type { SearchArtist } from "@/lib/types/search";
 import { useOpenArtist } from "@/hooks/use-open-artist";
 import { useColors } from "@/hooks/use-colors";
 
@@ -164,26 +164,8 @@ export default function SearchScreen() {
 
   const noTagResults = hasQuery && isTagSearch && previewTags.length === 0;
 
-  // A bare path, so expo-router resolves it inside the search group.
-  const handleAlbumPress = useCallback(
-    (album: SearchAlbum) => {
-      router.push({
-        pathname: "/release/[mbid]",
-        params: releaseRouteParams({
-          mbid: album.id,
-          title: album.title,
-          artistName: album.artistName,
-          artistMbid: album.artistMbid,
-          artistId: album.libraryArtistId,
-          primaryType: album.primaryType,
-          secondaryTypes: album.secondaryTypes,
-          releaseDate: album.releaseDate,
-          status: album.status,
-        }),
-      });
-    },
-    [router],
-  );
+  const { statusFor: albumStatusFor, openAlbum } =
+    useLibraryAlbumLookup(previewAlbums);
 
   const shazamSheetRef = useRef<BottomSheetModal | null>(null);
   const handleShazamArtist = useCallback(
@@ -262,7 +244,8 @@ export default function SearchScreen() {
                   <SearchAlbumRow
                     key={`album-${album.id}`}
                     album={album}
-                    onPress={() => handleAlbumPress(album)}
+                    status={albumStatusFor(album)}
+                    onPress={() => void openAlbum(album)}
                   />
                 ))}
                 {hasMoreAlbums && (

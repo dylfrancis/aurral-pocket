@@ -2,10 +2,11 @@ import React from "react";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { AlbumSearchStatusBadge } from "./AlbumSearchStatusBadge";
 import { releaseYear } from "@/lib/date-time";
-import type { SearchAlbum } from "@/lib/types/search";
+import type { AlbumStatus, SearchAlbum } from "@/lib/types/search";
 
 type SearchAlbumRowProps = {
   album: SearchAlbum;
+  status: AlbumStatus;
   onPress: () => void;
 };
 
@@ -20,6 +21,7 @@ function formatMeta(album: SearchAlbum) {
 
 export const SearchAlbumRow = React.memo(function SearchAlbumRow({
   album,
+  status,
   onPress,
 }: SearchAlbumRowProps) {
   return (
@@ -29,7 +31,7 @@ export const SearchAlbumRow = React.memo(function SearchAlbumRow({
       title={album.title}
       subtitle={album.artistName}
       detail={formatMeta(album)}
-      trailing={<AlbumSearchStatusBadge status={album.status} />}
+      trailing={<AlbumSearchStatusBadge status={status} />}
       onPress={onPress}
     />
   );

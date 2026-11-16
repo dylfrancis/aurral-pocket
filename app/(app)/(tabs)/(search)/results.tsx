@@ -5,7 +5,6 @@ import {
   Stack,
   useLocalSearchParams,
   useNavigation,
-  useRouter,
   type ErrorBoundaryProps,
 } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
@@ -31,8 +30,8 @@ import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { useLibraryAlbumLookup } from "@/hooks/search/use-library-album-lookup";
 import { useGridListView } from "@/hooks/use-grid-list-view";
-import { releaseRouteParams } from "@/lib/library-read";
 import { Fonts } from "@/constants/theme";
 import type {
   SearchAlbum,
@@ -71,7 +70,6 @@ export default function SearchResultsScreen() {
     q: string;
     scope?: ResultScope;
   }>();
-  const router = useRouter();
   const openArtist = useOpenArtist();
   const colors = useColors();
 
@@ -156,25 +154,8 @@ export default function SearchResultsScreen() {
     [openArtist],
   );
 
-  // A bare path, so expo-router resolves it inside the search group.
-  const handleAlbumPress = useCallback(
-    (album: SearchAlbum) => {
-      router.push({
-        pathname: "/release/[mbid]",
-        params: releaseRouteParams({
-          mbid: album.id,
-          title: album.title,
-          artistName: album.artistName,
-          artistMbid: album.artistMbid,
-          artistId: album.libraryArtistId,
-          primaryType: album.primaryType,
-          secondaryTypes: album.secondaryTypes,
-          releaseDate: album.releaseDate,
-          status: album.status,
-        }),
-      });
-    },
-    [router],
+  const { statusFor: albumStatusFor, openAlbum } = useLibraryAlbumLookup(
+    albums ?? [],
   );
 
   const renderArtistItem = useCallback(
@@ -190,9 +171,13 @@ export default function SearchResultsScreen() {
 
   const renderAlbumItem = useCallback(
     ({ item }: { item: SearchAlbum }) => (
-      <SearchAlbumRow album={item} onPress={() => handleAlbumPress(item)} />
+      <SearchAlbumRow
+        album={item}
+        status={albumStatusFor(item)}
+        onPress={() => void openAlbum(item)}
+      />
     ),
-    [handleAlbumPress],
+    [albumStatusFor, openAlbum],
   );
 
   const renderTagArtistItem = useCallback(
@@ -224,10 +209,10 @@ export default function SearchResultsScreen() {
   const renderAlbumGridItem = useCallback(
     ({ item }: { item: SearchAlbum }) => (
       <GridCell>
-        <SearchAlbumCard album={item} onPress={() => handleAlbumPress(item)} />
+        <SearchAlbumCard album={item} onPress={() => void openAlbum(item)} />
       </GridCell>
     ),
-    [handleAlbumPress],
+    [openAlbum],
   );
 
   const tagScopeLabel = tagScope === "recommended" ? "Recommended" : "All";

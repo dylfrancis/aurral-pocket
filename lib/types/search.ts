@@ -32,7 +32,7 @@ export type SearchArtistsWire = {
  * come back, and `streamPath` plays that file.
  */
 export type LibrarySearchTrack = {
-  /** The canonical track id, the same id an album's track list carries. */
+  /** The Library track id, the same id an album's track list carries. */
   id: string;
   title: string;
   /** The album's artist, which may differ from the credit on the song. */
@@ -40,7 +40,7 @@ export type LibrarySearchTrack = {
   albumTitle: string | null;
   /** Release-group MBID. */
   albumMbid: string | null;
-  albumCanonicalId: string | null;
+  libraryAlbumId: string | null;
   /** Recording MBID. */
   trackMbid: string | null;
   artistMbid: string | null;
@@ -78,8 +78,13 @@ export type AlbumStatus =
   | "processing"
   | "missing";
 
+/**
+ * A release group from `GET /search?scope=album`. Its `inLibrary` and `status`
+ * never reflect the Library, so screens ask the album lookup.
+ */
 export type SearchAlbum = {
   type: "album";
+  /** Release-group MBID. */
   id: string;
   title: string;
   artistName: string;
@@ -88,10 +93,6 @@ export type SearchAlbum = {
   primaryType: string | null;
   secondaryTypes: string[];
   coverUrl: string | null;
-  inLibrary: boolean;
-  libraryAlbumId: string | null;
-  libraryArtistId: string | null;
-  status: AlbumStatus;
 };
 
 export type SearchAlbumsResponse = {

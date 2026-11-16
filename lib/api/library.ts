@@ -4,6 +4,7 @@ import type {
   Artist,
   ArtistDetails,
   ArtistLibraryLookup,
+  AlbumLookupBatch,
   ArtistLookupBatch,
   Album,
   AurralAlbumStatus,
@@ -235,8 +236,16 @@ export async function getLibraryArtistId(mbid: string): Promise<string | null> {
   return r.data.libraryArtistId;
 }
 
-/** `POST /library/lookup/batch` answers 400 above 100 unique MBIDs. */
-const ARTIST_LOOKUP_BATCH_MAX = 100;
+/** Both batch lookups answer 400 above 100 unique MBIDs. */
+const LOOKUP_BATCH_MAX = 100;
+
+function lookupBatches(mbids: string[]) {
+  const batches: string[][] = [];
+  for (let i = 0; i < mbids.length; i += LOOKUP_BATCH_MAX) {
+    batches.push(mbids.slice(i, i + LOOKUP_BATCH_MAX));
+  }
+  return batches;
+}
 
 /**
  * Library membership for artist MBIDs, from the app contract's batch lookup.
@@ -245,14 +254,29 @@ const ARTIST_LOOKUP_BATCH_MAX = 100;
 export async function lookupLibraryArtists(
   mbids: string[],
 ): Promise<ArtistLookupBatch> {
-  const batches: string[][] = [];
-  for (let i = 0; i < mbids.length; i += ARTIST_LOOKUP_BATCH_MAX) {
-    batches.push(mbids.slice(i, i + ARTIST_LOOKUP_BATCH_MAX));
-  }
   const results = await Promise.all(
-    batches.map((batch) =>
+    lookupBatches(mbids).map((batch) =>
       api
         .post<ArtistLookupBatch>("/library/lookup/batch", { mbids: batch })
+        .then((r) => r.data),
+    ),
+  );
+  return Object.assign({}, ...results);
+}
+
+/**
+ * The Library albums behind release-group MBIDs, from the app contract's album
+ * lookup. Larger lists go out in batches the route accepts.
+ */
+export async function lookupLibraryAlbums(
+  mbids: string[],
+): Promise<AlbumLookupBatch> {
+  const results = await Promise.all(
+    lookupBatches(mbids).map((batch) =>
+      api
+        .post<AlbumLookupBatch>("/library/albums/lookup/batch", {
+          mbids: batch,
+        })
         .then((r) => r.data),
     ),
   );
