@@ -102,7 +102,7 @@ export default function DiscoverScreen() {
           queryKey: discoverKeys.nearbyShowsAll(),
         }),
         queryClient.invalidateQueries({
-          queryKey: discoverKeys.editorialShelf(),
+          queryKey: discoverKeys.editorialShelf("featured"),
         }),
       ]),
     [

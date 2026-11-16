@@ -320,7 +320,7 @@ describe("Save as Playlist", () => {
 
     await fireEvent.press(await screen.findByText("Save as Playlist"));
 
-    expect(mockAdd).toHaveBeenCalledWith("1313621735");
+    expect(mockAdd).toHaveBeenCalledWith("deezer", "1313621735");
     // Taken from the save, not a reread that could still say unsaved.
     expect(await screen.findByText("Open in Library")).toBeTruthy();
     expect(mockGetCharts).toHaveBeenCalledTimes(1);

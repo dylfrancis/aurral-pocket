@@ -19,12 +19,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EditorialShelf } from "@/components/discover/EditorialShelf";
 import { ApiError } from "@/lib/api/client";
 import { getEditorialShelf } from "@/lib/api/search";
-import type { EditorialPlaylistSummary } from "@/lib/types/search";
+import type {
+  EditorialCategory,
+  EditorialPlaylistSummary,
+} from "@/lib/types/search";
 
 const mockGetShelf = getEditorialShelf as jest.Mock;
 
 function playlistSummary(id: string, name: string): EditorialPlaylistSummary {
   return {
+    provider: "deezer",
     id,
     name,
     description: null,
@@ -34,15 +38,23 @@ function playlistSummary(id: string, name: string): EditorialPlaylistSummary {
   };
 }
 
-const POP = {
-  id: 132,
+const POP: EditorialCategory = {
+  id: "genre-132",
   name: "Pop",
+  group: "genre",
   playlists: [playlistSummary("2", "Pop Hits")],
 };
-const ROCK = {
-  id: 152,
+const ROCK: EditorialCategory = {
+  id: "genre-152",
   name: "Rock",
+  group: "genre",
   playlists: [playlistSummary("3", "Rock Hits")],
+};
+const CHILL: EditorialCategory = {
+  id: "mood-chill",
+  name: "Chill",
+  group: "mood",
+  playlists: [playlistSummary("4", "Chill Hits")],
 };
 
 const clients: QueryClient[] = [];
@@ -73,7 +85,7 @@ describe("EditorialShelf", () => {
   it("lists the user's row, then a shelf per genre", async () => {
     mockGetShelf.mockResolvedValue({
       forYou: [playlistSummary("1", "For Your Taste")],
-      genres: [POP, ROCK],
+      categories: [POP, CHILL, ROCK],
     });
 
     await renderScreen();
@@ -84,18 +96,20 @@ describe("EditorialShelf", () => {
     expect(screen.getByText("Pop Hits")).toBeTruthy();
     expect(screen.getByText("Rock")).toBeTruthy();
     expect(screen.getByText("Rock Hits")).toBeTruthy();
+    expect(screen.queryByText("Chill")).toBeNull();
     expect(screen.queryByText("View All")).toBeNull();
   });
 
   it("adds the rails below the first few after the tab opens", async () => {
-    const genres = ["Pop", "Rock", "Jazz", "Soul", "Metal"].map(
-      (name, index) => ({
-        id: index + 1,
+    const categories = ["Pop", "Rock", "Jazz", "Soul", "Metal"].map(
+      (name, index): EditorialCategory => ({
+        id: `genre-${index + 1}`,
         name,
+        group: "genre",
         playlists: [playlistSummary(String(index + 10), `${name} Hits`)],
       }),
     );
-    mockGetShelf.mockResolvedValue({ forYou: [], genres });
+    mockGetShelf.mockResolvedValue({ forYou: [], categories });
 
     await renderScreen();
 
@@ -104,7 +118,7 @@ describe("EditorialShelf", () => {
   });
 
   it("leaves out an empty For You", async () => {
-    mockGetShelf.mockResolvedValue({ forYou: [], genres: [POP] });
+    mockGetShelf.mockResolvedValue({ forYou: [], categories: [POP] });
 
     await renderScreen();
 
@@ -113,7 +127,7 @@ describe("EditorialShelf", () => {
   });
 
   it("says so when there are no playlists at all", async () => {
-    mockGetShelf.mockResolvedValue({ forYou: [], genres: [] });
+    mockGetShelf.mockResolvedValue({ forYou: [], categories: [] });
 
     await renderScreen();
 
@@ -126,7 +140,7 @@ describe("EditorialShelf", () => {
     await renderScreen();
     expect(await screen.findByText("Playlists didn't load")).toBeTruthy();
 
-    mockGetShelf.mockResolvedValue({ forYou: [], genres: [POP] });
+    mockGetShelf.mockResolvedValue({ forYou: [], categories: [POP] });
     await fireEvent.press(screen.getByText("Try Again"));
 
     expect(await screen.findByText("Pop")).toBeTruthy();

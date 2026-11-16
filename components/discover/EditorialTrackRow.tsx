@@ -48,12 +48,12 @@ export const EditorialTrackRow = React.memo(function EditorialTrackRow({
         <ChartRank position={rank} movement={movement} />
       ) : null}
       <View style={styles.playSlot}>
-        {track.preview_url ? (
+        {track.preview_url || track.owned ? (
           <Pressable
             onPress={() => onTogglePreview(item)}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={`${isPlaying ? "Pause" : "Preview"} ${track.trackName}`}
+            accessibilityLabel={`${isPlaying ? "Pause" : track.owned ? "Play" : "Preview"} ${track.trackName}`}
             style={({ pressed }) => [
               styles.playButton,
               {

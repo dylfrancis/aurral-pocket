@@ -1,3 +1,5 @@
+import type { LibraryQueueTrack } from "@/lib/types/library";
+
 /**
  * An artist result from the app contract's `GET /search?scope=artist`.
  *
@@ -201,7 +203,11 @@ export type BasedOnArtist = {
   source?: string;
 };
 
+/** Where a Browse playlist comes from. Its id is only unique within one. */
+export type BrowseProvider = "deezer" | "mix" | "discovery";
+
 export type EditorialPlaylistSummary = {
+  provider: BrowseProvider;
   id: string;
   name: string;
   description: string | null;
@@ -210,15 +216,23 @@ export type EditorialPlaylistSummary = {
   curator: string | null;
 };
 
-export type EditorialGenre = {
-  id: number;
+export type EditorialCategory = {
+  /** Such as `genre-0` or `mood-chill`. */
+  id: string;
   name: string;
+  group: "genre" | "mood" | "decade";
   playlists: EditorialPlaylistSummary[];
 };
 
+/**
+ * `featured` loads only the first genre's category; with no scope the server
+ * loads all of them.
+ */
+export type EditorialShelfScope = "featured";
+
 export type EditorialShelfResponse = {
   forYou: EditorialPlaylistSummary[];
-  genres: EditorialGenre[];
+  categories: EditorialCategory[];
 };
 
 export type EditorialTrack = {
@@ -229,9 +243,12 @@ export type EditorialTrack = {
   preview_url: string | null;
   artworkUrl: string | null;
   deezerAlbumId: string | null;
+  /** Browse playlist tracks only. Set when the Library has the track. */
+  owned?: LibraryQueueTrack | null;
 };
 
 export type EditorialPlaylist = {
+  provider: BrowseProvider;
   id: string;
   name: string;
   description: string | null;
@@ -279,7 +296,7 @@ export type TrendingSpotlight = {
 };
 
 export type TrendingSongsChart = {
-  /** A Deezer playlist id, which the editorial save route takes. */
+  /** A Deezer playlist id, which the Browse playlist save route takes. */
   playlistId: string;
   playlistName: string;
   libraryPlaylistId: string | null;

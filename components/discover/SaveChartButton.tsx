@@ -11,7 +11,7 @@ type Props = {
 
 export function SaveChartButton({ songs, onLeave }: Props) {
   const hasPlaylistAccess = useHasPermission()("accessPlaylists");
-  const save = useAddEditorialPlaylist(songs.playlistId);
+  const save = useAddEditorialPlaylist("deezer", songs.playlistId);
   const openPlaylist = useOpenPlaylist();
 
   if (!hasPlaylistAccess) return null;

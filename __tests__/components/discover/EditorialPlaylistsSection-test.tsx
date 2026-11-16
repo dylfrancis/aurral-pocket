@@ -21,12 +21,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EditorialPlaylistsSection } from "@/components/discover/EditorialPlaylistsSection";
 import { ApiError } from "@/lib/api/client";
 import { getEditorialShelf } from "@/lib/api/search";
-import type { EditorialPlaylistSummary } from "@/lib/types/search";
+import type {
+  EditorialCategory,
+  EditorialPlaylistSummary,
+} from "@/lib/types/search";
 
 const mockGetShelf = getEditorialShelf as jest.Mock;
 
 function playlistSummary(id: string, name: string): EditorialPlaylistSummary {
   return {
+    provider: "deezer",
     id,
     name,
     description: null,
@@ -36,14 +40,16 @@ function playlistSummary(id: string, name: string): EditorialPlaylistSummary {
   };
 }
 
-const POP = {
-  id: 132,
+const POP: EditorialCategory = {
+  id: "genre-132",
   name: "Pop",
+  group: "genre",
   playlists: [playlistSummary("2", "Pop Hits")],
 };
-const ROCK = {
-  id: 152,
+const ROCK: EditorialCategory = {
+  id: "genre-152",
   name: "Rock",
+  group: "genre",
   playlists: [playlistSummary("3", "Rock Hits")],
 };
 
@@ -77,17 +83,19 @@ describe("EditorialPlaylistsSection", () => {
   it("shows the user's own row when there is one", async () => {
     mockGetShelf.mockResolvedValue({
       forYou: [playlistSummary("1", "For Your Taste")],
-      genres: [POP],
+      categories: [POP],
     });
 
     await renderSection();
 
+    // The full shelf loads every category, which the row doesn't need.
+    expect(mockGetShelf).toHaveBeenCalledWith("featured");
     expect(screen.getByText("For Your Taste")).toBeTruthy();
     expect(screen.queryByText("Pop Hits")).toBeNull();
   });
 
   it("falls back to the first genre only", async () => {
-    mockGetShelf.mockResolvedValue({ forYou: [], genres: [POP, ROCK] });
+    mockGetShelf.mockResolvedValue({ forYou: [], categories: [POP, ROCK] });
 
     await renderSection();
 
@@ -98,7 +106,7 @@ describe("EditorialPlaylistsSection", () => {
   it.each([
     [
       "nothing to show",
-      () => mockGetShelf.mockResolvedValue({ forYou: [], genres: [] }),
+      () => mockGetShelf.mockResolvedValue({ forYou: [], categories: [] }),
     ],
     [
       "a failed load",
@@ -113,14 +121,15 @@ describe("EditorialPlaylistsSection", () => {
   });
 
   it("opens a playlist with what its page paints first", async () => {
-    mockGetShelf.mockResolvedValue({ forYou: [], genres: [POP] });
+    mockGetShelf.mockResolvedValue({ forYou: [], categories: [POP] });
 
     await renderSection();
     await fireEvent.press(screen.getByLabelText("Open Pop Hits"));
 
     expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/(app)/(tabs)/(discover)/editorial/[id]",
+      pathname: "/(app)/(tabs)/(discover)/editorial/[provider]/[id]",
       params: {
+        provider: "deezer",
         id: "2",
         name: "Pop Hits",
         artworkUrl: "https://cdn.example/2.jpg",
@@ -130,7 +139,7 @@ describe("EditorialPlaylistsSection", () => {
   });
 
   it("reaches View All from the header and the end of the row", async () => {
-    mockGetShelf.mockResolvedValue({ forYou: [], genres: [POP] });
+    mockGetShelf.mockResolvedValue({ forYou: [], categories: [POP] });
 
     await renderSection();
     await fireEvent.press(screen.getByText("Playlists"));

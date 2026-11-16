@@ -400,26 +400,28 @@ describe("getNearbyShows", () => {
   });
 });
 
-describe("editorial playlists", () => {
-  it("reads the shelf and a playlist by its Deezer id", async () => {
+describe("Browse playlists", () => {
+  it("reads the shelf, its featured scope, and a playlist by provider and id", async () => {
     mockApi.get.mockResolvedValue({ data: {} });
 
     await getEditorialShelf();
-    await getEditorialPlaylist("878989033");
+    await getEditorialShelf("featured");
+    await getEditorialPlaylist("deezer", "878989033");
 
-    expect(mockApi.get.mock.calls.map(([path]) => path)).toEqual([
-      "/discover/editorial",
-      "/discover/editorial/878989033",
+    expect(mockApi.get.mock.calls).toEqual([
+      ["/discover/playlists", { params: undefined }],
+      ["/discover/playlists", { params: { scope: "featured" } }],
+      ["/discover/playlists/deezer/878989033"],
     ]);
   });
 
   it("saves a playlist through its library route", async () => {
     mockApi.post.mockResolvedValue({ data: {} });
 
-    await addEditorialPlaylistToLibrary("878989033");
+    await addEditorialPlaylistToLibrary("deezer", "878989033");
 
     expect(mockApi.post).toHaveBeenCalledWith(
-      "/discover/editorial/878989033/library",
+      "/discover/playlists/deezer/878989033/library",
     );
   });
 
@@ -429,7 +431,7 @@ describe("editorial playlists", () => {
 
     await getEditorialLinks(params);
 
-    expect(mockApi.get).toHaveBeenCalledWith("/discover/editorial/links", {
+    expect(mockApi.get).toHaveBeenCalledWith("/discover/playlists/links", {
       params,
     });
   });

@@ -68,6 +68,27 @@
       "location": "null",
       "shows": []
     },
+    "GET /discover/playlists": {
+      "categories": [
+        {
+          "group": "string",
+          "id": "string",
+          "name": "string",
+          "playlists": [
+            {
+              "artworkUrl": "string",
+              "curator": "string",
+              "description": "null",
+              "id": "string",
+              "name": "string",
+              "provider": "string",
+              "trackCount": "number"
+            }
+          ]
+        }
+      ],
+      "forYou": []
+    },
     "GET /discover/tags": {
       "tags": ["string"]
     },

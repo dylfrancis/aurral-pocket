@@ -30,7 +30,10 @@ export default function DiscoverLayout() {
             headerBackButtonDisplayMode: "minimal",
           }}
         />
-        <Stack.Screen name="editorial/[id]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen
+          name="editorial/[provider]/[id]"
+          options={DETAIL_SCREEN_OPTIONS}
+        />
         <Stack.Screen
           name="trending/[chart]"
           options={({ route }) => {
