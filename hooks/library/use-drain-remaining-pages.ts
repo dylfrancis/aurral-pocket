@@ -12,7 +12,7 @@ import { useEffect } from "react";
  * an artist count stays in the hundreds where an album or track count does
  * not. A whole-library screen must page as the user scrolls instead, and push
  * search and sort to the server, which supports both (`query`, `sort`,
- * `direction` on /library/canonical) — that is what Aurral's own web library
+ * `direction` on GET /library) — that is what Aurral's own web library
  * does.
  *
  * `cancelRefetch: false` lets two mounted consumers of this query share one

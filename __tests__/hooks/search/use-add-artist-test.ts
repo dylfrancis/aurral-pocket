@@ -33,7 +33,6 @@ const mockArtist = {
   foreignArtistId: "abc-123",
   artistName: "Radiohead",
   monitored: true,
-  monitorOption: "all",
   addedAt: "2024-01-01",
   statistics: { albumCount: 0, trackCount: 0, sizeOnDisk: 0 },
 };

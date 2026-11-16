@@ -21,7 +21,6 @@ function toArtist(data: AddArtistResponse): Artist {
     foreignArtistId: data.foreignArtistId,
     artistName: data.artistName,
     monitored: true,
-    monitorOption: "all",
     addedAt: new Date().toISOString(),
     statistics: { albumCount: 0, trackCount: 0, sizeOnDisk: 0 },
   };

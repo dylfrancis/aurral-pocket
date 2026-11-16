@@ -44,7 +44,6 @@ function makeArtist(id: string, overrides: Partial<Artist> = {}): Artist {
     foreignArtistId: `f-${id}`,
     artistName: `Artist ${id}`,
     monitored: false,
-    monitorOption: "none",
     addedAt: null,
     statistics: { albumCount: 1, trackCount: 10, sizeOnDisk: 0 },
     ...overrides,
