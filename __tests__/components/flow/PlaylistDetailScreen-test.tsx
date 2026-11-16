@@ -11,7 +11,7 @@ jest.mock("@/lib/offline/network", () => ({
   onMeteredChange: () => () => {},
 }));
 
-let mockUser: { role: string; permissions: { accessFlow: boolean } };
+let mockUser: { role: string; permissions: { accessPlaylists: boolean } };
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => ({
     serverUrl: "http://server",
@@ -29,7 +29,6 @@ jest.mock("@/lib/api/flow", () => ({
   getPlaylistJobs: jest.fn(),
   researchFlowTrack: jest.fn(() => Promise.resolve()),
   researchSharedPlaylistTrack: jest.fn(() => Promise.resolve()),
-  setRetryCyclePaused: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock("@/lib/api/library", () => ({
@@ -183,7 +182,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
@@ -196,7 +194,6 @@ import {
   getPlaylistJobs,
   researchFlowTrack,
   researchSharedPlaylistTrack,
-  setRetryCyclePaused,
 } from "@/lib/api/flow";
 import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { getAlbumCover } from "@/lib/api/library";
@@ -244,14 +241,12 @@ const PLAYLIST = {
 
 function serve({
   jobs = [job("a"), job("b", { status: "downloading" }), job("c")],
-  paused = false,
   stats = { done: 2, total: 3 },
-}: { jobs?: FlowJob[]; paused?: boolean; stats?: object } = {}) {
+}: { jobs?: FlowJob[]; stats?: object } = {}) {
   (getFlowStatus as jest.Mock).mockResolvedValue({
     flows: [],
-    sharedPlaylists: [PLAYLIST],
-    sharedPlaylistStats: { "pl-1": stats },
-    retryCyclePausedByPlaylist: { "pl-1": paused },
+    staticPlaylists: [PLAYLIST],
+    staticPlaylistStats: { "pl-1": stats },
   } as unknown as FlowStatusSnapshot);
   (getPlaylistJobs as jest.Mock).mockResolvedValue(jobs);
 }
@@ -304,7 +299,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   setBaseUrl("http://server");
   setAuthToken("token");
-  mockUser = { role: "user", permissions: { accessFlow: true } };
+  mockUser = { role: "user", permissions: { accessPlaylists: true } };
   mockCurrentTrackId = null;
   jest.spyOn(Alert, "alert").mockImplementation(() => {});
   serve();
@@ -317,8 +312,8 @@ afterEach(() => {
 });
 
 describe("PlaylistDetailScreen", () => {
-  it("refuses a deep link without accessFlow, requesting nothing", async () => {
-    mockUser = { role: "user", permissions: { accessFlow: false } };
+  it("refuses a deep link without accessPlaylists, requesting nothing", async () => {
+    mockUser = { role: "user", permissions: { accessPlaylists: false } };
 
     await renderPage();
 
@@ -330,7 +325,7 @@ describe("PlaylistDetailScreen", () => {
   it("says so when the playlist no longer exists", async () => {
     (getFlowStatus as jest.Mock).mockResolvedValue({
       flows: [],
-      sharedPlaylists: [],
+      staticPlaylists: [],
     });
 
     await renderPage();
@@ -375,7 +370,7 @@ describe("PlaylistDetailScreen", () => {
   it("claims no ready count when the server sent no stats", async () => {
     (getFlowStatus as jest.Mock).mockResolvedValue({
       flows: [],
-      sharedPlaylists: [PLAYLIST],
+      staticPlaylists: [PLAYLIST],
     });
 
     await open();
@@ -777,32 +772,13 @@ describe("PlaylistDetailScreen", () => {
   });
 
   describe("the toolbar menu", () => {
-    it.each([
-      [false, "Pause Retry", true],
-      [true, "Resume Retry", false],
-    ])("when paused is %s, offers %s", async (paused, label, nextPaused) => {
-      serve({ paused });
-      await open();
-
-      await fireEvent.press(screen.getByText(label));
-
-      await waitFor(() =>
-        expect(setRetryCyclePaused).toHaveBeenCalledWith("pl-1", nextPaused),
-      );
-    });
-
-    it("shows that retries are paused", async () => {
-      serve({ paused: true });
-
-      await open();
-
-      expect(screen.getByText("Retry paused")).toBeTruthy();
-    });
-
-    it("leaves the page, then deletes, once confirmed", async () => {
+    it("says the tracks stay, then leaves the page and deletes once confirmed", async () => {
       await open();
 
       await fireEvent.press(screen.getByText("Delete Playlist"));
+      expect((Alert.alert as jest.Mock).mock.calls.at(-1)?.[1]).toBe(
+        'Remove "Road Trip"? Its tracks stay in the Library.',
+      );
       expect(deleteSharedPlaylist).not.toHaveBeenCalled();
       expect(mockBack).not.toHaveBeenCalled();
       await confirmAlert("Delete");

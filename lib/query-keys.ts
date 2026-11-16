@@ -7,8 +7,6 @@ export const playerKeys = {
 export const authKeys = {
   me: (serverUrl: string) => ["auth", "me", serverUrl] as const,
   health: (serverUrl: string) => ["auth", "health", serverUrl] as const,
-  signedInHealth: (serverUrl: string) =>
-    ["auth", "health", serverUrl, "signedIn"] as const,
 };
 
 export const libraryKeys = {

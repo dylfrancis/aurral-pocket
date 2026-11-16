@@ -16,10 +16,7 @@ import {
   deleteSharedPlaylist,
   deleteSharedPlaylistTrack,
   downloadSavedFlowTracks,
-  getPlaylistJobs,
-  researchSharedPlaylistTrack,
   setFlowEnabled,
-  setRetryCyclePaused,
   startFlow,
   updateFlow,
   updateSharedPlaylist,
@@ -331,55 +328,5 @@ export function useDeleteSharedPlaylistTrack() {
     }) => deleteSharedPlaylistTrack(playlistId, jobId),
     onSuccess: invalidate,
     onError: (err) => toastError("Couldn't remove track", err),
-  });
-}
-
-/**
- * The server refuses to requeue one track with a 409 (already downloading)
- * or a 404 (the job belongs to another playlist). That track keeps its state.
- */
-function isTrackRefusal(err: unknown) {
-  return err instanceof ApiError && (err.status === 404 || err.status === 409);
-}
-
-/**
- * Resuming clears the pause flag but leaves failed tracks failed, so each one
- * is searched again here. A refused track does not stop the rest; any other
- * failure is reported.
- */
-async function requeueFailedTracks(playlistId: string) {
-  const jobs = await getPlaylistJobs(playlistId);
-  const results = await Promise.allSettled(
-    jobs
-      .filter((job) => job.status === "failed")
-      .map((job) => researchSharedPlaylistTrack(playlistId, job.id)),
-  );
-  const failure = results.find(
-    (result): result is PromiseRejectedResult =>
-      result.status === "rejected" && !isTrackRefusal(result.reason),
-  );
-  if (failure) throw failure.reason;
-}
-
-export function useSetRetryCyclePaused() {
-  const invalidate = useFlowInvalidate();
-  return useMutation({
-    mutationFn: async ({
-      playlistId,
-      paused,
-    }: {
-      playlistId: string;
-      paused: boolean;
-    }) => {
-      await setRetryCyclePaused(playlistId, paused);
-      if (!paused) await requeueFailedTracks(playlistId);
-    },
-    // The pause flag may have changed even when the requeue fails.
-    onSettled: invalidate,
-    onError: (err, { paused }) =>
-      toastError(
-        paused ? "Couldn't pause retries" : "Couldn't resume retries",
-        err,
-      ),
   });
 }

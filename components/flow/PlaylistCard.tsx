@@ -12,7 +12,6 @@ import { useColors } from "@/hooks/use-colors";
 type Props = {
   playlist: SharedPlaylist;
   stats?: PlaylistStats;
-  retryPaused?: boolean;
   onPress: () => void;
 };
 
@@ -25,7 +24,7 @@ function progressLabel(
   return `${done}/${target} ready`;
 }
 
-export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
+export function PlaylistCard({ playlist, stats, onPress }: Props) {
   const colors = useColors();
   const progress = progressLabel(stats, playlist.trackCount);
 
@@ -62,9 +61,6 @@ export function PlaylistCard({ playlist, stats, retryPaused, onPress }: Props) {
               />
               <Text variant="caption">{progress}</Text>
             </View>
-          ) : null}
-          {retryPaused ? (
-            <Chip label="Retry paused" icon="pause" variant="subtle" />
           ) : null}
         </View>
       </View>

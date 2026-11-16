@@ -25,7 +25,7 @@ import { useColors } from "@/hooks/use-colors";
 /**
  * NativeTabs mounts every tab's screen at launch — `hidden` on a Trigger only
  * blanks the tab bar item, it does not stop the screen from rendering. Without
- * this guard, a user without `accessFlow` still fetches `/playlists/status` on
+ * this guard, a user without `accessPlaylists` still fetches `/playlists/status` on
  * cold launch and takes a 403 for a tab they cannot even see.
  */
 export default function FlowScreen() {

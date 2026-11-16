@@ -683,7 +683,7 @@ describe("AuthProvider — user rehydration from /auth/me", () => {
     id: 1,
     username: "alice",
     role: "user" as const,
-    permissions: { accessFlow: true },
+    permissions: { accessPlaylists: true },
   };
 
   it("recovers the user when a token is stored but the cached user is missing", async () => {
@@ -736,6 +736,26 @@ describe("AuthProvider — user rehydration from /auth/me", () => {
       expect(getByTestId("user").props.children).toBe("alice");
     });
     expect(mockGetMe).not.toHaveBeenCalled();
+  });
+
+  it("refreshes a cached user saved before accessPlaylists existed", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+      if (key === "auth_token") return "my-token";
+      if (key === "user_json")
+        return JSON.stringify({ ...alice, permissions: { accessFlow: true } });
+      return null;
+    });
+    mockGetMe.mockResolvedValue({ user: alice, expiresAt: 123 });
+
+    await renderWithProvider();
+
+    await waitFor(() =>
+      expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+        "user_json",
+        JSON.stringify(alice),
+      ),
+    );
   });
 
   it("does not call /auth/me when there is no token", async () => {

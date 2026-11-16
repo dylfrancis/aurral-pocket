@@ -10,11 +10,11 @@ type Props = {
 };
 
 export function SaveChartButton({ songs, onLeave }: Props) {
-  const hasFlowAccess = useHasPermission()("accessFlow");
+  const hasPlaylistAccess = useHasPermission()("accessPlaylists");
   const save = useAddEditorialPlaylist(songs.playlistId);
   const openPlaylist = useOpenPlaylist();
 
-  if (!hasFlowAccess) return null;
+  if (!hasPlaylistAccess) return null;
 
   const { libraryPlaylistId } = songs;
   if (libraryPlaylistId) {

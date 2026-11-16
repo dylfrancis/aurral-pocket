@@ -21,14 +21,9 @@ jest.mock("@/lib/api/flow", () => ({
   updateSharedPlaylist: jest.fn(),
   deleteSharedPlaylist: jest.fn(),
   deleteSharedPlaylistTrack: jest.fn(),
-  setRetryCyclePaused: jest.fn(),
   getWorkerSettings: jest.fn(),
   updateWorkerSettings: jest.fn(),
   getFlowArtworkSource: jest.fn(),
-}));
-
-jest.mock("@/lib/api/health", () => ({
-  getServerHealth: jest.fn(),
 }));
 
 jest.mock("@/contexts/auth-context", () => ({
@@ -86,7 +81,6 @@ import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { createFlow, updateFlow } from "@/lib/api/flow";
-import { getServerHealth } from "@/lib/api/health";
 import { flowKeys } from "@/lib/query-keys";
 import type { Flow, FlowStatusSnapshot } from "@/lib/types/flow";
 import FlowEditScreen from "@/app/(app)/(tabs)/(flow)/flow-edit";
@@ -94,7 +88,6 @@ import FlowEditScreen from "@/app/(app)/(tabs)/(flow)/flow-edit";
 const mockUseLocalSearchParams = useLocalSearchParams as jest.Mock;
 const mockUpdateFlow = updateFlow as jest.Mock;
 const mockCreateFlow = createFlow as jest.Mock;
-const mockGetServerHealth = getServerHealth as jest.Mock;
 
 const flow: Flow = {
   id: "flow-1",
@@ -115,7 +108,7 @@ const flow: Flow = {
 
 const status = {
   flows: [flow],
-  sharedPlaylists: [],
+  staticPlaylists: [],
   jobs: [],
 } as unknown as FlowStatusSnapshot;
 
@@ -147,9 +140,6 @@ async function renderScreen(flowOverrides?: Partial<Flow>) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseLocalSearchParams.mockReturnValue({ id: "flow-1" });
-  mockGetServerHealth.mockResolvedValue({
-    downloadSources: { slskd: { configured: true } },
-  });
 });
 
 describe("FlowEditScreen (editing)", () => {
@@ -499,32 +489,9 @@ describe("FlowEditScreen (creating)", () => {
     expect(payload).toMatchObject({
       recentListening: true,
       excludeTags: ["christmas"],
+      autoDownload: true,
     });
   });
-
-  it.each([
-    ["on when Aurral has a download source", { ytdlp: true }, true],
-    ["off when it has none", { slskd: false, ytdlp: false }, false],
-  ])(
-    "starts with downloads %s, as Aurral would",
-    async (_case, sources, expected) => {
-      mockGetServerHealth.mockResolvedValue({
-        downloadSources: Object.fromEntries(
-          Object.entries(sources).map(([id, configured]) => [
-            id,
-            { configured },
-          ]),
-        ),
-      });
-      mockCreateFlow.mockResolvedValue(flow);
-      const { findByText } = await renderScreen();
-
-      await fireEvent.press(await findByText("Create Flow"));
-
-      await waitFor(() => expect(mockCreateFlow).toHaveBeenCalled());
-      expect(mockCreateFlow.mock.calls[0][0].autoDownload).toBe(expected);
-    },
-  );
 
   it("moves a tag typed with a leading minus to the excluded tags", async () => {
     mockCreateFlow.mockResolvedValue(flow);

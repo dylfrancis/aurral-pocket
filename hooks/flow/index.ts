@@ -11,7 +11,6 @@ export {
   useDownloadSavedFlowTracks,
   useSetFlowAutoDownload,
   useSetFlowEnabled,
-  useSetRetryCyclePaused,
   useStartFlow,
   useUpdateFlow,
   useUpdateSharedPlaylist,

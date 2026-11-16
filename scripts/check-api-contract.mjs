@@ -136,34 +136,6 @@ const KNOWN_DRIFT = new Map([
     "Aurral 3.0 removed it with Lidarr mode",
   ],
   [
-    "POST /playlists/shared-playlists",
-    "API v2 renamed it /playlists/static-playlists",
-  ],
-  [
-    "PUT /playlists/shared-playlists/${playlistId}",
-    "API v2 renamed it /playlists/static-playlists",
-  ],
-  [
-    "DELETE /playlists/shared-playlists/${playlistId}",
-    "API v2 renamed it /playlists/static-playlists",
-  ],
-  [
-    "POST /playlists/shared-playlists/${playlistId}/tracks",
-    "API v2 renamed it /playlists/static-playlists",
-  ],
-  [
-    "DELETE /playlists/shared-playlists/${playlistId}/tracks/${jobId}",
-    "API v2 renamed it /playlists/static-playlists",
-  ],
-  [
-    "POST /playlists/shared-playlists/${playlistId}/tracks/${jobId}/research",
-    "API v2 renamed it /playlists/static-playlists",
-  ],
-  [
-    "PUT /playlists/playlists/${playlistId}/retry-cycle",
-    "Aurral 3.0 removed it; static playlists no longer own downloads",
-  ],
-  [
     "GET /discover/editorial",
     "Aurral 3.0 moved editorial playlists to /discover/playlists",
   ],
