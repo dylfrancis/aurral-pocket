@@ -276,7 +276,7 @@ describe("AlbumDetailScreen", () => {
       expect(await screen.findByText("Download When It's Out")).toBeTruthy();
     });
 
-    it("asks again whether the artist is in the library, since its last album takes it along", async () => {
+    it("asks again whether the artist is in the library, since its last album can take it along", async () => {
       const queryClient = await openAlbumPage(album);
       const membership = libraryKeys.artistLookup("artist-mb");
       queryClient.setQueryData(membership, { "artist-mb": true });

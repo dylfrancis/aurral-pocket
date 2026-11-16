@@ -271,7 +271,7 @@ export function AlbumDetailScreen() {
         queryKey: libraryKeys.albumsAllViews(),
       });
       void queryClient.invalidateQueries({ queryKey: libraryKeys.genres() });
-      // Aurral removes an artist along with its last album.
+      // An artist Aurral doesn't manage goes with its last album.
       void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
       // The album this page is about is gone, so the page cannot stay.
       router.back();
