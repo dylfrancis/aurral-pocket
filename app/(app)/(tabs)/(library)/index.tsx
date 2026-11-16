@@ -12,7 +12,7 @@ type Category = {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   route: Href;
-  requiresFlowAccess?: boolean;
+  requiresPlaylistAccess?: boolean;
 };
 
 /**
@@ -29,7 +29,7 @@ const CATEGORIES: Category[] = [
     icon: "list-outline",
     label: "Playlists",
     route: "/playlists",
-    requiresFlowAccess: true,
+    requiresPlaylistAccess: true,
   },
   // Reads only the phone, so it's the way in with no connection.
   { icon: "arrow-down-circle-outline", label: "Offline", route: "/offline" },
@@ -41,7 +41,8 @@ export default function LibraryScreen() {
   const router = useRouter();
   const hasPermission = useHasPermission();
   const categories = CATEGORIES.filter(
-    (category) => !category.requiresFlowAccess || hasPermission("accessFlow"),
+    (category) =>
+      !category.requiresPlaylistAccess || hasPermission("accessPlaylists"),
   );
 
   return (

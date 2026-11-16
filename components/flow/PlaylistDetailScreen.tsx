@@ -4,12 +4,9 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
-import PauseIcon from "@expo/material-symbols/pause.xml";
-import PlayArrow from "@expo/material-symbols/play_arrow.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
 
 import { EmptyState } from "@/components/library/EmptyState";
-import { Chip } from "@/components/ui/Chip";
 import { CircleButton } from "@/components/ui/CircleButton";
 import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
@@ -27,7 +24,6 @@ import {
   useDeleteSharedPlaylistTrack,
   useFlowStatusSuspense,
   usePlaylistJobs,
-  useSetRetryCyclePaused,
   useTrackJobMenu,
 } from "@/hooks/flow";
 import { usePlaylistPlayback } from "@/hooks/flow/use-playlist-playback";
@@ -61,7 +57,7 @@ export function PlaylistDetailScreen() {
       {/* The lookup suspends on the server, which can't answer offline. A
           saved playlist opens from what the phone kept. */}
       {isOffline && saved?.kind === "playlist" ? (
-        <PlaylistPage playlist={saved.playlist} retryPaused={false} />
+        <PlaylistPage playlist={saved.playlist} />
       ) : (
         <PlaylistLookup id={id} />
       )}
@@ -71,7 +67,7 @@ export function PlaylistDetailScreen() {
 
 function PlaylistLookup({ id }: { id: string }) {
   const { data } = useFlowStatusSuspense();
-  const playlist = data.sharedPlaylists.find((entry) => entry.id === id);
+  const playlist = data.staticPlaylists.find((entry) => entry.id === id);
 
   if (!playlist) {
     return (
@@ -85,22 +81,16 @@ function PlaylistLookup({ id }: { id: string }) {
   }
 
   return (
-    <PlaylistPage
-      playlist={playlist}
-      stats={data.sharedPlaylistStats?.[id]}
-      retryPaused={!!data.retryCyclePausedByPlaylist?.[id]}
-    />
+    <PlaylistPage playlist={playlist} stats={data.staticPlaylistStats?.[id]} />
   );
 }
 
 function PlaylistPage({
   playlist,
   stats,
-  retryPaused,
 }: {
   playlist: SharedPlaylist;
   stats?: PlaylistStats;
-  retryPaused: boolean;
 }) {
   const colors = useColors();
   const router = useRouter();
@@ -135,14 +125,13 @@ function PlaylistPage({
 
   const deletePlaylist = useDeleteSharedPlaylist();
   const deleteTrack = useDeleteSharedPlaylistTrack();
-  const setRetryPaused = useSetRetryCyclePaused();
 
   const deleteMutate = deletePlaylist.mutate;
   const handleDelete = useCallback(() => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       "Delete Playlist",
-      `Remove "${playlist.name}"? Its files will be cleaned up.`,
+      `Remove "${playlist.name}"? Its tracks stay in the Library.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -224,8 +213,6 @@ function PlaylistPage({
     ],
   );
 
-  const isRetryPending = setRetryPaused.isPending;
-  const setRetryMutate = setRetryPaused.mutate;
   const toolbar = useMemo(
     () => (
       <Stack.Toolbar placement="right">
@@ -242,26 +229,6 @@ function PlaylistPage({
           accessibilityLabel="More actions"
         >
           <Stack.Toolbar.MenuAction
-            icon={
-              retryPaused
-                ? IS_IOS
-                  ? "play"
-                  : PlayArrow
-                : IS_IOS
-                  ? "pause"
-                  : PauseIcon
-            }
-            disabled={isRetryPending}
-            onPress={() =>
-              setRetryMutate({
-                playlistId: playlist.id,
-                paused: !retryPaused,
-              })
-            }
-          >
-            {retryPaused ? "Resume Retry" : "Pause Retry"}
-          </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "trash" : DeleteIcon}
             destructive
             onPress={handleDelete}
@@ -272,10 +239,6 @@ function PlaylistPage({
       </Stack.Toolbar>
     ),
     [
-      retryPaused,
-      isRetryPending,
-      setRetryMutate,
-      playlist.id,
       handleDelete,
       saveOffline.icon,
       saveOffline.label,
@@ -327,9 +290,6 @@ function PlaylistPage({
                 <Text variant="caption" style={{ color: colors.subtle }}>
                   {saveLine}
                 </Text>
-              ) : null}
-              {retryPaused ? (
-                <Chip label="Retry paused" icon="pause" variant="subtle" />
               ) : null}
             </CollectionHero>
             <PlayRow

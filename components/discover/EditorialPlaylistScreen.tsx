@@ -56,7 +56,7 @@ export function EditorialPlaylistScreen() {
   } = useEditorialPlaylist(id);
   const addPlaylist = useAddEditorialPlaylist(id);
   const openInLibrary = useOpenPlaylist();
-  const hasFlowAccess = useHasPermission()("accessFlow");
+  const hasPlaylistAccess = useHasPermission()("accessPlaylists");
 
   const {
     playingId,
@@ -172,7 +172,7 @@ export function EditorialPlaylistScreen() {
               ) : null}
               {metaLine ? <Text variant="caption">{metaLine}</Text> : null}
             </CollectionHero>
-            {hasFlowAccess ? (
+            {hasPlaylistAccess ? (
               <View style={styles.action}>
                 {libraryPlaylistId ? (
                   <Button

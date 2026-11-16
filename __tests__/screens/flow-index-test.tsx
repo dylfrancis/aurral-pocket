@@ -123,13 +123,13 @@ beforeEach(() => {
   mockCreateFromTemplate.mockReset();
   jest.spyOn(Alert, "alert").mockImplementation(() => {});
   mockUseFlowStatusSuspense.mockReturnValue({
-    data: { flows: [], sharedPlaylists: [], flowStats: {} },
+    data: { flows: [], staticPlaylists: [], flowStats: {} },
     refetch: jest.fn(),
   });
 });
 
 describe("FlowScreen permission gate", () => {
-  it("does not fetch flow status when the user lacks accessFlow", async () => {
+  it("does not fetch flow status when the user lacks accessPlaylists", async () => {
     grantPermission(false);
 
     await render(<FlowScreen />);
@@ -147,7 +147,7 @@ describe("FlowScreen permission gate", () => {
     expect(getByText("You don't have access to Flows")).toBeTruthy();
   });
 
-  it("fetches flow status once the user has accessFlow", async () => {
+  it("fetches flow status once the user has accessPlaylists", async () => {
     grantPermission(true);
 
     await render(<FlowScreen />);
@@ -163,7 +163,7 @@ describe("FlowScreen list", () => {
     mockUseFlowStatusSuspense.mockReturnValue({
       data: {
         flows: [{ id: "flow-1", name: "Chill" }],
-        sharedPlaylists: [{ id: "pl-1", name: "Road Trip" }],
+        staticPlaylists: [{ id: "pl-1", name: "Road Trip" }],
         flowStats: {},
       },
       refetch: jest.fn(),
@@ -179,7 +179,7 @@ describe("FlowScreen list", () => {
     mockUseFlowStatusSuspense.mockReturnValue({
       data: {
         flows: [{ id: "flow-1", name: "Chill" }],
-        sharedPlaylists: [],
+        staticPlaylists: [],
         flowStats: {},
       },
       refetch: jest.fn(),
@@ -198,7 +198,7 @@ describe("FlowScreen list", () => {
     mockUseFlowStatusSuspense.mockReturnValue({
       data: {
         flows: [],
-        sharedPlaylists: [{ id: "pl-1", name: "Road Trip" }],
+        staticPlaylists: [{ id: "pl-1", name: "Road Trip" }],
         flowStats: {},
       },
       refetch: jest.fn(),

@@ -1,6 +1,6 @@
 jest.mock("burnt", () => ({ toast: jest.fn() }));
 
-let mockUser: { role: string; permissions: { accessFlow: boolean } };
+let mockUser: { role: string; permissions: { accessPlaylists: boolean } };
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => ({
     serverUrl: "http://server",
@@ -176,12 +176,12 @@ function serve({
   flow = FLOW as Record<string, unknown>,
   jobs = [job("a"), job("b", { status: "downloading" })],
   stats = { done: 1, total: 3 } as object | undefined,
-  sharedPlaylists = [] as { name: string }[],
+  staticPlaylists = [] as { name: string }[],
   hint = { phase: "idle", message: "Idle" },
 } = {}) {
   (getFlowStatus as jest.Mock).mockResolvedValue({
     flows: [flow],
-    sharedPlaylists,
+    staticPlaylists,
     flowStats: stats ? { "flow-1": stats } : {},
     hint,
   });
@@ -224,7 +224,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   setBaseUrl("http://server");
   setAuthToken("token");
-  mockUser = { role: "user", permissions: { accessFlow: true } };
+  mockUser = { role: "user", permissions: { accessPlaylists: true } };
   jest.spyOn(Alert, "alert").mockImplementation(() => {});
   serve();
 });
@@ -236,8 +236,8 @@ afterEach(() => {
 });
 
 describe("FlowDetailScreen", () => {
-  it("refuses a deep link without accessFlow, requesting nothing", async () => {
-    mockUser = { role: "user", permissions: { accessFlow: false } };
+  it("refuses a deep link without accessPlaylists, requesting nothing", async () => {
+    mockUser = { role: "user", permissions: { accessPlaylists: false } };
 
     await renderPage();
 
@@ -249,7 +249,7 @@ describe("FlowDetailScreen", () => {
   it("says so when the flow no longer exists", async () => {
     (getFlowStatus as jest.Mock).mockResolvedValue({
       flows: [],
-      sharedPlaylists: [],
+      staticPlaylists: [],
     });
 
     await renderPage();
@@ -445,7 +445,7 @@ describe("FlowDetailScreen", () => {
         "Chill Static 3",
       ],
     ])("converts under a free name when %s", async (_case, taken, expected) => {
-      serve({ sharedPlaylists: taken.map((name) => ({ name })) });
+      serve({ staticPlaylists: taken.map((name) => ({ name })) });
       await open();
 
       await fireEvent.press(screen.getByText("Convert to Static"));

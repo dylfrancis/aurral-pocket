@@ -51,7 +51,7 @@ describe("activityJobControls", () => {
     canReSearch: false,
     ...overrides,
   });
-  const flowUser: ActivityJobAccess = { userId: 7, hasAccessFlow: true };
+  const flowUser: ActivityJobAccess = { userId: 7, hasPlaylistAccess: true };
 
   it.each([
     ["pending", { canStop: true, restarts: true }],
@@ -73,8 +73,11 @@ describe("activityJobControls", () => {
     expect(activityJobControls(download({ jobId: null }), flowUser)).toBeNull();
   });
 
-  describe("without accessFlow", () => {
-    const libraryUser: ActivityJobAccess = { userId: 7, hasAccessFlow: false };
+  describe("without accessPlaylists", () => {
+    const libraryUser: ActivityJobAccess = {
+      userId: 7,
+      hasPlaylistAccess: false,
+    };
 
     it("controls the user's own album-track download", () => {
       expect(activityJobControls(download(), libraryUser)).not.toBeNull();

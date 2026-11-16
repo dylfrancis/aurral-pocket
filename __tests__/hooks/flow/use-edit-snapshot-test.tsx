@@ -43,7 +43,7 @@ const flow: Flow = {
 
 const status = {
   flows: [flow],
-  sharedPlaylists: [],
+  staticPlaylists: [],
   jobs: [],
 } as unknown as FlowStatusSnapshot;
 

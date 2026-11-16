@@ -43,13 +43,13 @@ export type ActivityJobControls = TrackJobControls & {
 
 export type ActivityJobAccess = {
   userId: number | null;
-  hasAccessFlow: boolean;
+  hasPlaylistAccess: boolean;
 };
 
 /**
  * The statuses the web offers. The feed reports a downloading or stopping
  * job as "processing", so a stopping one still offers Stop here, which the
- * server accepts. Without accessFlow, Aurral lets a user control only the
+ * server accepts. Without accessPlaylists, Aurral lets a user control only the
  * album-track downloads they requested.
  */
 export function activityJobControls(
@@ -73,7 +73,7 @@ export function activityJobControls(
 }
 
 function canControl(item: ActivityHistoryItem, access: ActivityJobAccess) {
-  if (access.hasAccessFlow) return true;
+  if (access.hasPlaylistAccess) return true;
   return (
     item.playlistId === "library" &&
     access.userId != null &&

@@ -58,7 +58,10 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(flow)" hidden={!hasPermission("accessFlow")}>
+      <NativeTabs.Trigger
+        name="(flow)"
+        hidden={!hasPermission("accessPlaylists")}
+      >
         <NativeTabs.Trigger.Icon sf="waveform" md="graphic_eq" />
         <NativeTabs.Trigger.Label>Flows</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>

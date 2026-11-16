@@ -219,7 +219,7 @@ function playlistSheetTrack() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockPermissions = { accessFlow: true, addArtist: true };
+  mockPermissions = { accessPlaylists: true, addArtist: true };
   mockLookupRecordings.mockResolvedValue([BLINDING_RECORDING]);
   mockResolveLink.mockResolvedValue(BLINDING_LINK);
   mockSearchLibrary.mockResolvedValue([]);

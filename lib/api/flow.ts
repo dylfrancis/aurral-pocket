@@ -26,7 +26,7 @@ export async function getFlowStatus(): Promise<FlowStatusSnapshot> {
 /**
  * Per-playlist track jobs. The status snapshot stopped carrying a `jobs`
  * array in Aurral cc9dc1d5; this endpoint is the only source for a flow's
- * tracks. It also serves shared playlists, ordered by their track order.
+ * tracks. It also serves static playlists, ordered by their track order.
  */
 export async function getPlaylistJobs(playlistId: string): Promise<FlowJob[]> {
   const r = await api.get<FlowJob[]>(
@@ -128,7 +128,7 @@ export async function convertFlowToStaticPlaylist(
 }
 
 /**
- * Shared-playlist creation and track appends run on the server's operation
+ * Static-playlist creation and track appends run on the server's operation
  * queue. The response carries ids only; the new state arrives through the
  * status poll once the operation completes.
  */
@@ -146,7 +146,7 @@ export async function createSharedPlaylist(payload: {
     playlistId: string;
     queued: boolean;
     operationId: string;
-  }>(`${FLOW}/shared-playlists`, payload);
+  }>(`${FLOW}/static-playlists`, payload);
   return { playlistId: r.data.playlistId, operationId: r.data.operationId };
 }
 
@@ -160,7 +160,7 @@ export async function addSharedPlaylistTracks(
     playlistId: string;
     queued: boolean;
     operationId: string;
-  }>(`${FLOW}/shared-playlists/${playlistId}/tracks`, { tracks });
+  }>(`${FLOW}/static-playlists/${playlistId}/tracks`, { tracks });
   return { playlistId: r.data.playlistId, operationId: r.data.operationId };
 }
 
@@ -169,21 +169,21 @@ export async function updateSharedPlaylist(
   payload: { name?: string; tracks?: SharedPlaylistTrack[] },
 ): Promise<SharedPlaylist> {
   const r = await api.put<{ success: boolean; playlist: SharedPlaylist }>(
-    `${FLOW}/shared-playlists/${playlistId}`,
+    `${FLOW}/static-playlists/${playlistId}`,
     payload,
   );
   return r.data.playlist;
 }
 
 export async function deleteSharedPlaylist(playlistId: string): Promise<void> {
-  await api.delete(`${FLOW}/shared-playlists/${playlistId}`);
+  await api.delete(`${FLOW}/static-playlists/${playlistId}`);
 }
 
 export async function deleteSharedPlaylistTrack(
   playlistId: string,
   jobId: string,
 ): Promise<void> {
-  await api.delete(`${FLOW}/shared-playlists/${playlistId}/tracks/${jobId}`);
+  await api.delete(`${FLOW}/static-playlists/${playlistId}/tracks/${jobId}`);
 }
 
 /** The server answers 409 while the track is pending or downloading. */
@@ -192,19 +192,8 @@ export async function researchSharedPlaylistTrack(
   jobId: string,
 ): Promise<void> {
   await api.post(
-    `${FLOW}/shared-playlists/${playlistId}/tracks/${jobId}/research`,
+    `${FLOW}/static-playlists/${playlistId}/tracks/${jobId}/research`,
   );
-}
-
-/** Static playlists only: the server answers 404 for a flow id. */
-export async function setRetryCyclePaused(
-  playlistId: string,
-  paused: boolean,
-): Promise<void> {
-  // The doubled segment is real: upstream registers this as
-  // `/playlists/:playlistId/retry-cycle` on a router already mounted at
-  // /api/playlists, so the served path is /api/playlists/playlists/:id/...
-  await api.put(`${FLOW}/playlists/${playlistId}/retry-cycle`, { paused });
 }
 
 export type FlowAuthedSource = {

@@ -211,10 +211,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // swallows corrupt JSON, so recover the user from the server rather than
   // trusting the cache. Deliberately outside the restore block: it must not
   // delay `isRestoring` and keep the splash screen up on every launch.
+  // A user cached before API version 2 is refreshed too: it holds the old
+  // `accessFlow` key, so its playlist checks would fail closed the same way.
   const rehydratedUser = useRef(false);
   useEffect(() => {
     if (isRestoring || rehydratedUser.current) return;
-    if (!token || user) return;
+    if (!token) return;
+    if (user?.permissions && "accessPlaylists" in user.permissions) return;
     rehydratedUser.current = true;
     (async () => {
       try {
