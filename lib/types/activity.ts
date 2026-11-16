@@ -1,9 +1,6 @@
-export type RequestStatus = "processing" | "available" | "failed";
-
 /**
- * Where Aurral sourced an activity entry. Only history items carry this. A
- * track download names its download client, or "unknown" when the job never
- * recorded one.
+ * Where Aurral sourced an activity entry. A track download names its download
+ * client, or "unknown" when the job never recorded one or a plugin fetched it.
  */
 export type ActivitySource =
   | "lidarr"
@@ -14,6 +11,7 @@ export type ActivitySource =
   | "tidarr"
   | "ytdlp"
   | "deemix"
+  | "qbittorrent"
   | "share"
   | "unknown";
 
@@ -21,49 +19,24 @@ export type ActivitySource =
 export type ActivityUpgrade = { fromQuality: string | null };
 
 /**
- * A Lidarr-backed album request. Aurral builds these from Lidarr's queue and
- * history rather than its own history table, so they arrive tagged
- * `type: "album"` and never carry a `kind`.
- */
-export type AlbumRequest = {
-  id: string;
-  type: "album";
-  albumId: string | null;
-  albumMbid: string | null;
-  albumName: string;
-  artistId: string | null;
-  artistMbid: string | null;
-  artistName: string;
-  status: RequestStatus;
-  statusLabel?: string | null;
-  requestedAt: string;
-  mbid: string | null;
-  name: string;
-  image: string | null;
-  inQueue: boolean;
-};
-
-/**
- * Kinds that actually reach a client. Aurral drops `discovery_refresh`,
- * `flow_generating`, `playlist_tracks_added` and `track_reused_aurral` from the
- * feed server-side (ACTIVITY_HIDDEN_KINDS), so they are deliberately absent
- * here. `activity` is the server's fallback for an entry saved without an
- * explicit kind.
+ * Kinds that actually reach a client. Aurral drops `album_grab`,
+ * `discovery_refresh`, `flow_generating`, `playlist_tracks_added` and
+ * `track_reused_aurral` from the feed server-side (ACTIVITY_HIDDEN_KINDS), so
+ * they are deliberately absent here. `activity` is the server's fallback for
+ * an entry saved without an explicit kind.
  */
 export type ActivityKind =
   | "album_requested"
   | "artist_added"
   | "track_download"
-  | "track_reused_lidarr"
   | "missing_track_search"
   | "activity";
 
 /**
  * An entry from Aurral's history feed. The server pre-renders title, subtitle
  * and statusLabel, so Pocket displays them rather than deriving its own copy.
- * `requestedAt` is an ISO string here, matching AlbumRequest.
  */
-export type ActivityHistoryItem = {
+export type ActivityItem = {
   id: string;
   type: "activity";
   source: ActivitySource;
@@ -80,64 +53,46 @@ export type ActivityHistoryItem = {
   artistName: string | null;
   albumName: string | null;
   /**
-   * Lidarr's album id on a Lidarr request. A request for an album Aurral
-   * manages, and a missing-track search, carry the canonical id here.
+   * The Library album an album request or a track download belongs to, when
+   * the Library has it.
    */
-  albumId: string | null;
-  /** Set on requests for albums Aurral manages and on library track downloads. */
-  canonicalAlbumId: string | null;
+  libraryAlbumId: string | null;
+  /**
+   * The raw source that fetched a track of an album download: a client id
+   * such as "usenet", or "plugin:<id>".
+   */
+  actualDownloadSource?: string | null;
   requestedBy: { id: number | string; username: string | null } | null;
   sourceFilename: string | null;
   upgrade: ActivityUpgrade | null;
   inQueue: boolean;
-  canReSearch: boolean;
 };
 
-export type ActivityItem = AlbumRequest | ActivityHistoryItem;
-
-export function isAlbumRequest(item: ActivityItem): item is AlbumRequest {
-  return item.type === "album";
-}
-
-export function isHistoryItem(item: ActivityItem): item is ActivityHistoryItem {
-  return item.type === "activity";
-}
-
 /**
- * History entries flatten their metadata away, so an artist_added row's MBID
+ * Aurral flattens an entry's metadata away, so an artist_added row's MBID
  * survives only inside its href ("/artist/<mbid>"). Returns null for any other
  * shape rather than guessing.
  */
-export function historyArtistMbid(item: ActivityHistoryItem): string | null {
+export function activityArtistMbid(item: ActivityItem): string | null {
   const match = /^\/artist\/([^/?#]+)/.exec(item.href ?? "");
   const mbid = match?.[1]?.trim();
   if (!mbid || mbid === "null" || mbid === "undefined") return null;
   return mbid;
 }
 
-/** Album requests carry an artist MBID directly, history entries only via their href. */
-export function activityArtistMbid(item: ActivityItem): string | null {
-  if (!isAlbumRequest(item)) return historyArtistMbid(item);
-  const mbid = item.artistMbid;
-  if (!mbid || mbid === "null" || mbid === "undefined") return null;
-  return mbid;
-}
-
 /**
- * The Library album id of a request for an album Aurral manages. It also keys
- * the row in the download status map.
+ * The Library album id of an album request. It also keys the row in the
+ * download status map.
  */
-export function aurralRequestAlbumId(item: ActivityItem): string | null {
-  return isHistoryItem(item) && item.kind === "album_requested"
-    ? item.canonicalAlbumId
-    : null;
+export function albumRequestLibraryId(item: ActivityItem): string | null {
+  return item.kind === "album_requested" ? item.libraryAlbumId : null;
 }
 
 /**
  * Album downloads file their jobs under the reserved id "library", which is
  * neither a flow nor a playlist.
  */
-export function historyPlaylistId(item: ActivityHistoryItem): string | null {
+export function historyPlaylistId(item: ActivityItem): string | null {
   const id = item.playlistId;
   return id && id !== "library" ? id : null;
 }

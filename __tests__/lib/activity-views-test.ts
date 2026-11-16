@@ -1,40 +1,13 @@
 import {
-  canReSearch,
   compareActivityItems,
   getActivityStatus,
   isQueueItem,
   matchesActivityType,
   matchesActivityView,
 } from "@/lib/activity-views";
-import type {
-  ActivityHistoryItem,
-  ActivityItem,
-  AlbumRequest,
-} from "@/lib/types/activity";
+import type { ActivityItem } from "@/lib/types/activity";
 
-function album(overrides: Partial<AlbumRequest> = {}): AlbumRequest {
-  return {
-    id: "album-1",
-    type: "album",
-    albumId: "1",
-    albumMbid: null,
-    albumName: "An Album",
-    artistId: null,
-    artistMbid: null,
-    artistName: "An Artist",
-    status: "processing",
-    requestedAt: "2026-08-01T00:00:00.000Z",
-    mbid: null,
-    name: "An Album",
-    image: null,
-    inQueue: true,
-    ...overrides,
-  };
-}
-
-function history(
-  overrides: Partial<ActivityHistoryItem> = {},
-): ActivityHistoryItem {
+function history(overrides: Partial<ActivityItem> = {}): ActivityItem {
   return {
     id: "hist-1",
     type: "activity",
@@ -51,13 +24,11 @@ function history(
     trackName: null,
     artistName: null,
     albumName: null,
-    albumId: null,
-    canonicalAlbumId: null,
+    libraryAlbumId: null,
     requestedBy: null,
     sourceFilename: null,
     upgrade: null,
     inQueue: false,
-    canReSearch: false,
     ...overrides,
   };
 }
@@ -70,9 +41,7 @@ describe("isQueueItem", () => {
   });
 
   it("includes inQueue, processing and pending", () => {
-    expect(isQueueItem(album({ inQueue: true, status: "available" }))).toBe(
-      true,
-    );
+    expect(isQueueItem(history({ inQueue: true }))).toBe(true);
     expect(isQueueItem(history({ status: "processing" }))).toBe(true);
     expect(isQueueItem(history({ status: "pending" }))).toBe(true);
   });
@@ -109,39 +78,8 @@ describe("matchesActivityView", () => {
   });
 });
 
-describe("canReSearch", () => {
-  it("uses the server flag for history entries", () => {
-    expect(canReSearch(history({ canReSearch: true }))).toBe(true);
-    expect(canReSearch(history({ canReSearch: false, status: "failed" }))).toBe(
-      false,
-    );
-  });
-
-  it("derives the equivalent condition for album requests", () => {
-    expect(canReSearch(album({ status: "failed", albumId: "1" }))).toBe(true);
-    expect(canReSearch(album({ status: "failed", albumId: null }))).toBe(false);
-    expect(canReSearch(album({ status: "processing" }))).toBe(false);
-  });
-});
-
 describe("compareActivityItems", () => {
-  it("floats re-searchable failures above newer entries", () => {
-    const older = history({
-      id: "older",
-      canReSearch: true,
-      requestedAt: "2026-07-01T00:00:00.000Z",
-    });
-    const newer = history({
-      id: "newer",
-      requestedAt: "2026-08-05T00:00:00.000Z",
-    });
-    expect([newer, older].sort(compareActivityItems).map((i) => i.id)).toEqual([
-      "older",
-      "newer",
-    ]);
-  });
-
-  it("otherwise sorts newest first", () => {
+  it("sorts newest first", () => {
     const a = history({ id: "a", requestedAt: "2026-08-05T00:00:00.000Z" });
     const b = history({ id: "b", requestedAt: "2026-07-01T00:00:00.000Z" });
     expect([b, a].sort(compareActivityItems).map((i) => i.id)).toEqual([
@@ -157,8 +95,9 @@ describe("matchesActivityType", () => {
   });
 
   it("counts album requests as requests", () => {
-    expect(matchesActivityType(album(), "requests")).toBe(true);
-    expect(matchesActivityType(album(), "downloads")).toBe(false);
+    const request = history({ kind: "album_requested" });
+    expect(matchesActivityType(request, "requests")).toBe(true);
+    expect(matchesActivityType(request, "downloads")).toBe(false);
   });
 
   it("groups both track kinds under downloads", () => {
@@ -167,7 +106,7 @@ describe("matchesActivityType", () => {
     ).toBe(true);
     expect(
       matchesActivityType(
-        history({ kind: "track_reused_lidarr" }),
+        history({ kind: "missing_track_search" }),
         "downloads",
       ),
     ).toBe(true);
@@ -185,8 +124,8 @@ describe("getActivityStatus", () => {
   it.each([
     ["a pending job", history({ status: "pending" }), "queued"],
     [
-      "a Lidarr download",
-      album({ status: "processing", statusLabel: "Downloading" }),
+      "a download",
+      history({ status: "processing", statusLabel: "Downloading" }),
       "downloading",
     ],
     [
@@ -219,7 +158,11 @@ describe("getActivityStatus", () => {
       history({ kind: "artist_added", statusLabel: "Added" }),
       null,
     ],
-    ["a failed Lidarr request", album({ status: "failed" }), "failed"],
+    [
+      "a failed request",
+      history({ kind: "album_requested", status: "failed" }),
+      "failed",
+    ],
     ["a cancelled job", history({ status: "cancelled" }), "cancelled"],
     ["a blocked job", history({ status: "blocked" }), null],
   ])("files %s", (_name, item, expected) => {

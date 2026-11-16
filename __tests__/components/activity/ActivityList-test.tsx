@@ -167,7 +167,7 @@ import { useActivityDownloadStatuses } from "@/hooks/activity/use-activity-downl
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { getFlowStatus } from "@/lib/api/flow";
 import { flowKeys } from "@/lib/query-keys";
-import type { ActivityHistoryItem, AlbumRequest } from "@/lib/types/activity";
+import type { ActivityItem } from "@/lib/types/activity";
 
 const mockUseActivitySuspense = useActivitySuspense as jest.Mock;
 const mockUseActivityDownloadStatuses =
@@ -203,35 +203,14 @@ function renderWithClient(
 }
 
 const defaultHook = {
-  data: [] as AlbumRequest[],
+  data: [] as ActivityItem[],
   refetch: jest.fn().mockResolvedValue({ isError: false }),
   isRefetching: false,
 };
 
-function makeRequest(
-  overrides: Partial<AlbumRequest> & { id: string },
-): AlbumRequest {
-  return {
-    type: "album",
-    albumId: `album-${overrides.id}`,
-    albumMbid: `album-mbid-${overrides.id}`,
-    albumName: `Album ${overrides.id}`,
-    artistId: `artist-${overrides.id}`,
-    artistMbid: `artist-mbid-${overrides.id}`,
-    artistName: `Artist ${overrides.id}`,
-    status: "processing",
-    requestedAt: "2026-04-01T00:00:00.000Z",
-    mbid: null,
-    name: `Request ${overrides.id}`,
-    image: null,
-    inQueue: false,
-    ...overrides,
-  };
-}
-
 function makeHistoryItem(
-  overrides: Partial<ActivityHistoryItem> & { id: string },
-): ActivityHistoryItem {
+  overrides: Partial<ActivityItem> & { id: string },
+): ActivityItem {
   return {
     type: "activity",
     source: "lidarr",
@@ -247,13 +226,11 @@ function makeHistoryItem(
     trackName: null,
     artistName: `Artist ${overrides.id}`,
     albumName: null,
-    albumId: null,
-    canonicalAlbumId: null,
+    libraryAlbumId: null,
     requestedBy: null,
     sourceFilename: null,
     upgrade: null,
     inQueue: false,
-    canReSearch: false,
     ...overrides,
   };
 }
@@ -269,7 +246,7 @@ describe("ActivityList", () => {
     mockUseActivitySuspense.mockReturnValue({
       ...defaultHook,
       data: [
-        makeRequest({ id: "1" }),
+        makeHistoryItem({ id: "1", kind: "track_download", status: "pending" }),
         makeHistoryItem({ id: "2", status: "blocked", jobId: "job-2" }),
         makeHistoryItem({ id: "3", status: "completed" }),
       ],
@@ -330,18 +307,6 @@ describe("ActivityList", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/(app)/(tabs)/(discover)");
   });
 
-  it("renders album requests when data is loaded", async () => {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
-        makeRequest({ id: "1", albumName: "First Album" }),
-        makeRequest({ id: "2", albumName: "Second Album" }),
-      ],
-    });
-    const { getByText } = await renderWithClient(<ActivityList view="queue" />);
-    expect(getByText("First Album")).toBeTruthy();
-    expect(getByText("Second Album")).toBeTruthy();
-  });
   it("shows an Aurral request its album's status over its own", async () => {
     mockUseActivityDownloadStatuses.mockReturnValue({
       data: { "12": { status: "queued" } },
@@ -355,8 +320,7 @@ describe("ActivityList", () => {
           source: "aurral",
           title: "Requested Kid A",
           statusLabel: "Requested",
-          albumId: "12",
-          canonicalAlbumId: "12",
+          libraryAlbumId: "12",
         }),
       ],
     });
@@ -378,8 +342,7 @@ describe("ActivityList", () => {
       source: "aurral",
       title: "Requested Kid A",
       albumName: "Kid A",
-      albumId: "12",
-      canonicalAlbumId: "12",
+      libraryAlbumId: "12",
     });
     mockUseActivitySuspense.mockReturnValue({
       ...defaultHook,
@@ -428,7 +391,13 @@ describe("ActivityList", () => {
     mockUseActivitySuspense.mockReturnValue({
       ...defaultHook,
       data: [
-        makeRequest({ id: "1", albumName: "First Album" }),
+        makeHistoryItem({
+          id: "1",
+          kind: "track_download",
+          title: "Queued First Track",
+          status: "pending",
+          href: null,
+        }),
         // Settled: belongs to History, not Queue.
         makeHistoryItem({ id: "2" }),
         makeHistoryItem({
@@ -445,7 +414,7 @@ describe("ActivityList", () => {
     const { getByText, queryByText } = await renderWithClient(
       <ActivityList view="queue" />,
     );
-    expect(getByText("First Album")).toBeTruthy();
+    expect(getByText("Queued First Track")).toBeTruthy();
     expect(getByText("Downloading Some Track")).toBeTruthy();
     expect(queryByText("Added Artist 2 to library")).toBeNull();
   });
@@ -505,10 +474,7 @@ describe("ActivityList playlist rows", () => {
   };
   const TITLE = "Downloading Some Track";
 
-  function showRow(
-    playlistId: string,
-    overrides: Partial<ActivityHistoryItem> = {},
-  ) {
+  function showRow(playlistId: string, overrides: Partial<ActivityItem> = {}) {
     mockUseActivitySuspense.mockReturnValue({
       ...defaultHook,
       data: [
@@ -659,8 +625,8 @@ describe("ActivityList playlist rows", () => {
 describe("ActivityList status filters", () => {
   function track(
     id: string,
-    overrides: Partial<ActivityHistoryItem> = {},
-  ): ActivityHistoryItem {
+    overrides: Partial<ActivityItem> = {},
+  ): ActivityItem {
     return makeHistoryItem({
       id,
       kind: "track_download",
@@ -710,7 +676,13 @@ describe("ActivityList status filters", () => {
       ...defaultHook,
       data: [
         track("failed-track", { status: "failed", statusLabel: "Failed" }),
-        makeRequest({ id: "failed-request", status: "failed" }),
+        makeHistoryItem({
+          id: "failed-request",
+          kind: "album_requested",
+          status: "failed",
+          statusLabel: "Failed",
+          href: null,
+        }),
       ],
     });
     const { getAllByRole, getByLabelText } = await renderWithClient(
@@ -733,10 +705,9 @@ describe("ActivityList status filters", () => {
       ...defaultHook,
       data: [
         track("searching", { status: "processing", statusLabel: "Searching" }),
-        makeRequest({
-          id: "lidarr",
+        track("downloading", {
+          status: "processing",
           statusLabel: "Downloading",
-          inQueue: true,
         }),
       ],
     });
@@ -774,6 +745,13 @@ describe("ActivityList status filters", () => {
           upgrade: { fromQuality: "MP3 320" },
         }),
         track("share", { source: "share" }),
+        track("qbittorrent", { source: "qbittorrent" }),
+        // Aurral reads a plugin download as "unknown"; only a track of an
+        // album download keeps the plugin's id.
+        track("plugin", {
+          source: "unknown",
+          actualDownloadSource: "plugin:bandcamp",
+        }),
         track("unknown", { source: "unknown", upgrade: { fromQuality: null } }),
       ],
     });
@@ -784,7 +762,9 @@ describe("ActivityList status filters", () => {
     expect(getByText("Quality upgrade")).toBeTruthy();
     expect(getByText(/ · Tidarr$/)).toBeTruthy();
     expect(getByText(/ · Aurral share$/)).toBeTruthy();
-    expect(getAllByText(/ · /)).toHaveLength(2);
+    expect(getByText(/ · qBittorrent$/)).toBeTruthy();
+    expect(getByText(/ · bandcamp plugin$/)).toBeTruthy();
+    expect(getAllByText(/ · /)).toHaveLength(4);
   });
 });
 

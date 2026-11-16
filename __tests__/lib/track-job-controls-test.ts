@@ -3,7 +3,7 @@ import {
   flowJobControls,
   type ActivityJobAccess,
 } from "@/lib/track-job-controls";
-import type { ActivityHistoryItem } from "@/lib/types/activity";
+import type { ActivityItem } from "@/lib/types/activity";
 import type { FlowJobStatus } from "@/lib/types/flow";
 
 describe("flowJobControls", () => {
@@ -24,9 +24,7 @@ describe("flowJobControls", () => {
 });
 
 describe("activityJobControls", () => {
-  const download = (
-    overrides: Partial<ActivityHistoryItem> = {},
-  ): ActivityHistoryItem => ({
+  const download = (overrides: Partial<ActivityItem> = {}): ActivityItem => ({
     id: "aurral-track_download-j1",
     type: "activity",
     source: "aurral",
@@ -42,13 +40,11 @@ describe("activityJobControls", () => {
     trackName: "Idioteque",
     artistName: "Radiohead",
     albumName: "Kid A",
-    albumId: null,
-    canonicalAlbumId: null,
+    libraryAlbumId: null,
     requestedBy: { id: 7, username: "me" },
     sourceFilename: null,
     upgrade: null,
     inQueue: false,
-    canReSearch: false,
     ...overrides,
   });
   const flowUser: ActivityJobAccess = { userId: 7, hasPlaylistAccess: true };
