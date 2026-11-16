@@ -111,26 +111,27 @@ index 6202379..c00cf83 100644
              .build()
  
 diff --git a/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift b/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
-index 3b99437..a865d41 100644
+index bfe632b..cf6157c 100644
 --- a/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
 +++ b/node_modules/react-native-nitro-player/ios/core/TrackPlayerQueueBuild.swift
-@@ -502,7 +502,10 @@ extension TrackPlayerCore {
+@@ -504,7 +504,11 @@ extension TrackPlayerCore {
  
    /// Builds AVURLAsset options, attaching custom HTTP headers for remote (non-local) tracks.
    private func assetOptions(for track: TrackItem, isLocal: Bool) -> [String: Any] {
 -    var options: [String: Any] = [AVURLAssetPreferPreciseDurationAndTimingKey: true]
 +    // Precise timing makes AVFoundation read a whole remote file before it can start. Past
 +    // about 60 MB that outlasts mediaplaybackd's RPC watchdog, which kills the daemon and
-+    // leaves this AVQueuePlayer failed until the app restarts.
++    // fails the player. The engine's replacement player loads the same asset, so it would
++    // fail again until the retries run out.
 +    var options: [String: Any] = [AVURLAssetPreferPreciseDurationAndTimingKey: isLocal]
      if !isLocal, let headers = httpHeaders(for: track) {
        // AVURLAssetHTTPHeaderFieldsKey is the de-facto mechanism for per-asset request
        // headers (also used by react-native-track-player). Applies to non-DRM HTTP(S).
 diff --git a/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift b/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift
-index 75b001d..6dd5b47 100644
+index e224d7d..3fc0c91 100644
 --- a/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift
 +++ b/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift
-@@ -300,7 +300,7 @@ class MediaSessionManager {
+@@ -354,7 +354,7 @@ class MediaSessionManager {
        } else {
          // Write info first without artwork, then patch it in when loaded
          MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
@@ -139,7 +140,7 @@ index 75b001d..6dd5b47 100644
            guard let self = self, let image = image else { return }
            guard self.lastArtworkUrl == artworkUrl else { return }
            var updated = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-@@ -577,7 +577,24 @@ class MediaSessionManager {
+@@ -631,7 +631,24 @@ class MediaSessionManager {
      lastArtworkUrl = nil
    }
  
@@ -165,7 +166,7 @@ index 75b001d..6dd5b47 100644
      if let cached = artworkCache.object(forKey: url as NSString) {
        completion(cached)
        return
-@@ -588,7 +605,9 @@ class MediaSessionManager {
+@@ -642,7 +659,9 @@ class MediaSessionManager {
        return
      }
  
