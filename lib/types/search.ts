@@ -1,3 +1,5 @@
+import type { LibraryQueueTrack } from "@/lib/types/library";
+
 /**
  * An artist result from the app contract's `GET /search?scope=artist`.
  *
@@ -241,6 +243,8 @@ export type EditorialTrack = {
   preview_url: string | null;
   artworkUrl: string | null;
   deezerAlbumId: string | null;
+  /** Browse playlist tracks only. Set when the Library has the track. */
+  owned?: LibraryQueueTrack | null;
 };
 
 export type EditorialPlaylist = {

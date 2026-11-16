@@ -20,7 +20,7 @@ import {
   useAddEditorialPlaylist,
   useEditorialPlaylist,
 } from "@/hooks/discover/use-editorial-playlists";
-import { usePreviewRows } from "@/hooks/discover/use-preview-rows";
+import { rowPlayerId, usePreviewRows } from "@/hooks/discover/use-preview-rows";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { ApiError } from "@/lib/api/client";
 import { formatTrackCount } from "@/lib/discover/format";
@@ -40,7 +40,10 @@ type RouteParams = {
   trackCount?: string;
 };
 
-/** Its tracks are preview clips, not library files, so there's no queue to play. */
+/**
+ * Each row plays on its own: its preview clip, or the Library's file when the
+ * Library has the track.
+ */
 export function EditorialPlaylistScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -81,18 +84,21 @@ export function EditorialPlaylistScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: EditorialTrackItem }) => (
-      <EditorialTrackRow
-        item={item}
-        isPlaying={playingId === item.id}
-        isLoading={loadingId === item.id}
-        progress={playingId === item.id ? progress : 0}
-        isLookingUpLink={lookupRowId === item.id}
-        onTogglePreview={togglePreview}
-        onOpenArtist={openRowArtist}
-        onOpenAlbum={openRowAlbum}
-      />
-    ),
+    ({ item }: { item: EditorialTrackItem }) => {
+      const playerId = rowPlayerId(item);
+      return (
+        <EditorialTrackRow
+          item={item}
+          isPlaying={playingId === playerId}
+          isLoading={loadingId === playerId}
+          progress={playingId === playerId ? progress : 0}
+          isLookingUpLink={lookupRowId === item.id}
+          onTogglePreview={togglePreview}
+          onOpenArtist={openRowArtist}
+          onOpenAlbum={openRowAlbum}
+        />
+      );
+    },
     [
       playingId,
       loadingId,

@@ -3,7 +3,7 @@ import { getFlowArtworkPath, getFlowStreamPath } from "@/lib/api/flow";
 import type { TrackFavorite } from "@/lib/api/library";
 import { audioFormatLabel } from "@/lib/player/audio-format";
 import type { FlowJob } from "@/lib/types/flow";
-import type { Track } from "@/lib/types/library";
+import type { LibraryQueueTrack, Track } from "@/lib/types/library";
 
 /**
  * One sound as the audio engine takes it.
@@ -103,6 +103,53 @@ export function toPlayerTrack(
     albumRef: album.albumRef ?? null,
     audioFormat: audioFormatLabel(track.quality, track.streamFormat),
     bitrateKbps: track.bitrateKbps ?? null,
+  };
+}
+
+/**
+ * A Library track Aurral sent ready for the queue; `artworkUrl` stands in for a
+ * server cover that won't load. Null when the session token is gone.
+ */
+export function queueTrackToPlayerTrack(
+  track: LibraryQueueTrack,
+  artworkUrl: string | null,
+): PlayerTrack | null {
+  const url = buildAuthenticatedUrl(track.streamPath);
+  if (!url) return null;
+
+  return {
+    id: track.id,
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    duration: 0,
+    url,
+    artwork: artworkUrl,
+    streamPath: track.streamPath,
+    coverPath: track.artworkUrl,
+    trackMbid: track.trackMbid,
+    artistMbid: track.artistMbid,
+    albumMbid: track.albumMbid,
+    // The favorites API needs the track's identity key, which this shape
+    // doesn't carry.
+    favorite: null,
+    albumRef: String(track.libraryAlbumId),
+    audioFormat: audioFormatLabel(track.quality, track.streamFormat),
+  };
+}
+
+export function queueTrackContext(
+  track: LibraryQueueTrack,
+  artworkUrl: string | null,
+): PlayerAlbumContext {
+  return {
+    albumTitle: track.album,
+    artistName: track.artist,
+    coverPath: track.artworkUrl,
+    artworkUrl,
+    albumMbid: track.albumMbid,
+    artistMbid: track.artistMbid,
+    albumRef: String(track.libraryAlbumId),
   };
 }
 

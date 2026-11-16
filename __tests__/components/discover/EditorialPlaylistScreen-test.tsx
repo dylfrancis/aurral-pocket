@@ -27,6 +27,7 @@ jest.mock("@/lib/player/player", () => ({
   pause: jest.fn(),
   pauseClip: jest.fn(),
   playItem: jest.fn(() => Promise.resolve()),
+  playQueueFrom: jest.fn(() => Promise.resolve(true)),
   resume: jest.fn(),
   useCurrentTrack: () => null,
   usePlaybackState: () => "stopped",
@@ -86,14 +87,15 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { EditorialPlaylistScreen } from "@/components/discover/EditorialPlaylistScreen";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
   addEditorialPlaylistToLibrary,
   getEditorialLinks,
   getEditorialPlaylist,
 } from "@/lib/api/search";
-import { pauseClip, playItem } from "@/lib/player/player";
+import { pause, pauseClip, playItem, playQueueFrom } from "@/lib/player/player";
 import { flowKeys } from "@/lib/query-keys";
+import type { LibraryQueueTrack } from "@/lib/types/library";
 import type { EditorialPlaylist, EditorialTrack } from "@/lib/types/search";
 
 const mockGetPlaylist = getEditorialPlaylist as jest.Mock;
@@ -294,6 +296,69 @@ describe("previews", () => {
     await view.unmount();
 
     expect(pauseClip).toHaveBeenCalled();
+  });
+});
+
+describe("tracks in the Library", () => {
+  const owned: LibraryQueueTrack = {
+    id: "42",
+    title: "Lithium",
+    artist: "Nirvana",
+    album: "Nevermind",
+    streamPath: "/library/stream/7/42",
+    streamFormat: "flac",
+    quality: "FLAC",
+    durationMs: 257000,
+    artistMbid: "artist-mbid",
+    albumMbid: "album-mbid",
+    trackMbid: "track-mbid",
+    libraryTrackId: 42,
+    libraryAlbumId: 7,
+    libraryArtistId: 3,
+    artworkUrl: "/api/library/artwork/album/7",
+    artworkSource: "album",
+  };
+
+  beforeEach(() => {
+    setBaseUrl("http://server");
+    setAuthToken("token");
+  });
+
+  afterEach(() => {
+    setBaseUrl("");
+    setAuthToken(null);
+  });
+
+  it("plays the Library's file instead of the clip", async () => {
+    await openPage(playlist({ tracks: [track({ owned })] }));
+
+    await fireEvent.press(await screen.findByLabelText("Play Lithium"));
+
+    await waitFor(() =>
+      expect(playQueueFrom).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            id: "42",
+            streamPath: "/library/stream/7/42",
+            url: "http://server/api/library/stream/7/42?token=token",
+            trackMbid: "track-mbid",
+          }),
+        ],
+        "42",
+        expect.objectContaining({ albumTitle: "Nevermind", albumRef: "7" }),
+      ),
+    );
+    expect(playItem).not.toHaveBeenCalled();
+  });
+
+  it("pauses the Library track when it's already playing", async () => {
+    mockStatus = { currentId: "42", isPlaying: true, progress: 0.5 };
+    await openPage(playlist({ tracks: [track({ owned })] }));
+
+    await fireEvent.press(await screen.findByLabelText("Pause Lithium"));
+
+    await waitFor(() => expect(pause).toHaveBeenCalled());
+    expect(playQueueFrom).not.toHaveBeenCalled();
   });
 });
 
