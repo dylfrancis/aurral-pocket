@@ -32,7 +32,7 @@ async function settle() {
 }
 
 describe("playback settings", () => {
-  it("start at one track ahead, a gigabyte of cache, no queue limit, Wi-Fi Only off and Autoplay on", async () => {
+  it("start at one track ahead, a gigabyte of cache, no queue limit, Wi-Fi Only off, and Autoplay and levelling on", async () => {
     await start();
 
     expect(settings.getPlaybackSettings()).toEqual({
@@ -41,6 +41,7 @@ describe("playback settings", () => {
       cacheBytes: 1_000_000_000,
       wifiOnly: false,
       autoplay: true,
+      levelLoudTracks: true,
       transcoding: settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
   });
@@ -51,6 +52,7 @@ describe("playback settings", () => {
       prefetchAhead: 3,
       wifiOnly: true,
       autoplay: false,
+      levelLoudTracks: false,
     });
     const transcoding = {
       ...settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
@@ -70,6 +72,7 @@ describe("playback settings", () => {
       cacheBytes: 5_000_000_000,
       wifiOnly: true,
       autoplay: false,
+      levelLoudTracks: false,
       transcoding,
     });
   });
@@ -94,13 +97,15 @@ describe("playback settings", () => {
       JSON.stringify({ prefetchAhead: 7, queueLimit: 100, cacheBytes: 3 }),
     );
 
-    // A record from before Autoplay existed turns it on, as for a new install.
+    // A record from before Autoplay and levelling existed turns them on, as for
+    // a new install.
     expect(settings.getPlaybackSettings()).toEqual({
       prefetchAhead: 1,
       queueLimit: 100,
       cacheBytes: 1_000_000_000,
       wifiOnly: false,
       autoplay: true,
+      levelLoudTracks: true,
       transcoding: settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
   });

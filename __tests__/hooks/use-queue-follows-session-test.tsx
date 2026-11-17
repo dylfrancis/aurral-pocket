@@ -14,6 +14,7 @@ import { callbackManager } from "react-native-nitro-player/src/hooks/callbackMan
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { useQueueFollowsSession } from "@/hooks/player/use-queue-follows-session";
 import { api, setAuthToken } from "@/lib/api/client";
+import { setPlaybackSettings } from "@/lib/player/playback-settings";
 import { forgetQueue, onProgress, playQueueFrom } from "@/lib/player/player";
 import type { PlayerTrack } from "@/lib/player/track-item";
 
@@ -145,6 +146,8 @@ beforeEach(async () => {
   mockFetch.mockReset();
   await AsyncStorage.clear();
   setAuthToken(null);
+  // These count the session's own requests, so levelling asks for no loudness.
+  setPlaybackSettings({ levelLoudTracks: false });
 });
 
 describe("useQueueFollowsSession", () => {

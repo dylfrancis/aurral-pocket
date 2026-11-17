@@ -46,6 +46,7 @@ jest.mock("@/lib/offline/network", () => ({
 }));
 jest.mock("@/lib/offline/saved-library", () => ({
   savedFilePath: () => null,
+  savedLoudness: () => undefined,
   canPlayNow: () => true,
   savedLibraryReady: () => Promise.resolve(),
 }));
