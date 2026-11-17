@@ -39,6 +39,11 @@ jest.mock("@/hooks/library/use-queue-actions", () => ({
   })),
 }));
 
+const mockStartRadio = jest.fn();
+jest.mock("@/hooks/player/use-start-radio", () => ({
+  useStartRadio: () => mockStartRadio,
+}));
+
 jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
@@ -553,6 +558,65 @@ describe("AlbumDetailScreen", () => {
     await fireEvent.press(screen.getByLabelText("Shuffle In Rainbows"));
 
     expect(mockShuffleAlbum).toHaveBeenCalledWith(tracks, expect.anything());
+  });
+
+  describe("radio", () => {
+    it("starts the album's station by its Library id", async () => {
+      await openAlbumPage(album);
+
+      await fireEvent.press(screen.getByText("Start Radio"));
+
+      expect(mockStartRadio).toHaveBeenCalledWith({
+        seed: { albumIds: ["14"] },
+        label: "In Rainbows",
+      });
+    });
+
+    it("waits for the Library record, which names the album", async () => {
+      const queryClient = await openAlbumPage(album);
+      mockUseLibraryAlbum.mockReturnValue({ data: undefined, isPending: true });
+      await screen.rerender(
+        <QueryClientProvider client={queryClient}>
+          <AlbumDetailScreen />
+        </QueryClientProvider>,
+      );
+
+      expect(screen.queryByText("Start Radio")).toBeNull();
+    });
+
+    it("starts a track's station from its three dots, playing the track first", async () => {
+      // The track plays from a stream URL, which takes the session.
+      setBaseUrl("https://test.example");
+      setAuthToken("test-token");
+      mockUseLibraryTracks.mockReturnValue({
+        data: [
+          {
+            id: "100",
+            mbid: "",
+            trackName: "Nude",
+            title: "Nude",
+            trackNumber: 3,
+            hasFile: true,
+            size: 1,
+            quality: null,
+            streamPath: "/library/stream/14/100",
+          },
+        ],
+        isLoading: false,
+      });
+      await openAlbumPage(album);
+      await fireEvent.press(screen.getByLabelText("More actions for Nude"));
+
+      // The sheet's row, not the album menu's action of the same name.
+      await fireEvent.press(
+        screen.getByRole("button", { name: "Start Radio" }),
+      );
+
+      expect(mockStartRadio).toHaveBeenCalledWith(
+        { seed: { trackIds: ["100"], artists: [] }, label: "Nude" },
+        expect.objectContaining({ id: "100", title: "Nude" }),
+      );
+    });
   });
 
   it("hides the album actions for an album Aurral doesn't manage", async () => {

@@ -667,6 +667,39 @@ describe("restoring the queue", () => {
     );
   });
 
+  it("keeps a station and the tracks Autoplay queued through a restart", async () => {
+    const station = {
+      seed: {
+        trackIds: [],
+        albumIds: ["12"],
+        artists: [{ id: "3", mbid: "artist-mb-1", name: null }],
+      },
+      label: "Kid A",
+    };
+    mockStorage.getItem.mockResolvedValue(
+      JSON.stringify({
+        ...JSON.parse(savedRecord()),
+        items: albumTracks.map((item) => ({
+          id: item.id,
+          streamPath: item.streamPath,
+          ...(item.id === "73" ? { autoplay: true } : {}),
+        })),
+        station,
+      }),
+    );
+    const player = await freshFacade();
+
+    await player.restoreSavedQueue();
+    await flush();
+
+    expect(lastSavedQueue().station).toEqual(station);
+    expect(lastSavedQueue().items).toEqual([
+      expect.objectContaining({ id: "71", autoplay: false }),
+      expect.objectContaining({ id: "72", autoplay: false }),
+      expect.objectContaining({ id: "73", autoplay: true }),
+    ]);
+  });
+
   it("reads a favorite from a queue saved with only the library identity key", async () => {
     mockStorage.getItem.mockResolvedValue(
       JSON.stringify({

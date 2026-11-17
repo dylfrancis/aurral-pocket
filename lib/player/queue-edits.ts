@@ -44,3 +44,18 @@ export function insertedAt(
 ): PlayerTrack[] {
   return [...order.slice(0, index), ...items, ...order.slice(index)];
 }
+
+/**
+ * Where a track added to the end of the queue goes: before the tracks
+ * Autoplay queued after the current one, so the listener's own play first.
+ */
+export function endIndexBeforeAutoplay(
+  order: PlayerTrack[],
+  currentId: string | null,
+): number {
+  const after = insertIndexAfter(order, currentId);
+  const autoplayAt = order.findIndex(
+    (item, index) => index >= after && item.autoplay,
+  );
+  return autoplayAt < 0 ? order.length : autoplayAt;
+}

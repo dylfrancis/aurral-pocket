@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
 import PlaylistPlay from "@expo/material-symbols/playlist_play.xml";
 import QueueMusic from "@expo/material-symbols/queue_music.xml";
+import Sensors from "@expo/material-symbols/sensors.xml";
 import SearchIcon from "@expo/material-symbols/search.xml";
 import OpenInNew from "@expo/material-symbols/open_in_new.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
@@ -47,6 +48,7 @@ import { useSaveOffline } from "@/hooks/offline/use-save-offline";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useCoverTint } from "@/hooks/player/use-cover-color";
+import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { canResearchAurralAlbum, isUnreleased } from "@/lib/album-status";
 import { formatBytes, saveStatusLine } from "@/lib/offline/format";
@@ -166,6 +168,7 @@ export function AlbumDetailScreen() {
 
   const play = usePlayTrack();
   const { playNext, addToQueue, playAlbum, shuffleAlbum } = useQueueActions();
+  const startRadio = useStartRadio();
 
   const trackActions = useTrackActions();
   const toggleFavorite = useToggleFavorite();
@@ -384,6 +387,17 @@ export function AlbumDetailScreen() {
             onPress={() => void addToQueue(albumTracks, playContext)}
           >
             Add to Queue
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction
+            icon={IS_IOS ? "dot.radiowaves.left.and.right" : Sensors}
+            // Seeded by the Library album, so it waits for the record.
+            hidden={!album}
+            onPress={() => {
+              if (!album) return;
+              void startRadio({ seed: { albumIds: [album.id] }, label: title });
+            }}
+          >
+            Start Radio
           </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "magnifyingglass" : SearchIcon}

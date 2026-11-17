@@ -17,6 +17,8 @@ import {
 import type { TrackFavorite } from "@/lib/api/library";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useSongSave } from "@/hooks/offline/use-song-save";
+import { useStartRadio } from "@/hooks/player/use-start-radio";
+import { hasRadioSeed, radioSeedFor } from "@/lib/player/radio";
 import { Fonts } from "@/constants/theme";
 import {
   toPlayerTrack,
@@ -142,6 +144,7 @@ function TrackActionsContent({
   const sheetRef = useRef<BottomSheetModal>(null);
   const queue = useQueueActions();
   const songSave = useSongSave();
+  const startRadio = useStartRadio();
   const options: ItemOptions = "item" in target ? target : {};
   const item = "item" in target ? target.item : null;
   const track = "track" in target ? target.track : null;
@@ -163,6 +166,16 @@ function TrackActionsContent({
     item
       ? queue.addItemsToQueue([item], album)
       : track && queue.addToQueue([track], album);
+  const radioSeed = playerTrack ? radioSeedFor([playerTrack]) : null;
+  // A preview is only a cut of the song, so its station doesn't start with it.
+  const startTrackRadio =
+    playerTrack && radioSeed && hasRadioSeed(radioSeed)
+      ? () =>
+          startRadio(
+            { seed: radioSeed, label: title },
+            playerTrack.isPreview ? null : playerTrack,
+          )
+      : null;
   // A playlist track needs an artist name, so the permission alone is not
   // enough to offer the action.
   const playlistTrack: SharedPlaylistTrack | null = item
@@ -236,6 +249,13 @@ function TrackActionsContent({
               label="Add to Queue"
               onPress={closeThen(() => void addToQueue())}
             />
+            {startTrackRadio && (
+              <SheetAction
+                icon="radio-outline"
+                label="Start Radio"
+                onPress={closeThen(() => void startTrackRadio())}
+              />
+            )}
           </>
         ) : null}
         {canAddToPlaylist && playlistTrack && (

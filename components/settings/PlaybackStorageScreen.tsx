@@ -136,11 +136,21 @@ export function PlaybackStorageScreen() {
               />
             ),
           })}
+          {row({
+            label: "Autoplay",
+            trailing: (
+              <SettingsSwitch
+                value={settings.autoplay}
+                onChange={(autoplay) => setPlaybackSettings({ autoplay })}
+              />
+            ),
+          })}
           <FieldGroup.SectionFooter>
             <SettingsNote>
               Prefetch keeps the next tracks on your phone while one plays, so a
               drop in signal doesn’t stop the music. With Wi-Fi Only, prefetch
-              and offline saves wait for Wi-Fi.
+              and offline saves wait for Wi-Fi. When the queue ends, Autoplay
+              keeps playing similar music from your Library.
             </SettingsNote>
           </FieldGroup.SectionFooter>
         </FieldGroup.Section>

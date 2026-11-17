@@ -1,24 +1,11 @@
-import type { PlayerTrack } from "@/lib/player/track-item";
+import { libraryIdsOf, type PlayerTrack } from "@/lib/player/track-item";
 import type { LyricLine, LyricsLookup } from "@/lib/types/lyrics";
-
-const LIBRARY_STREAM_PATH = /^\/library\/stream\/([^/?#]+)\/([^/?#]+)/;
-
-/**
- * The Library album and track a stream path names. The lyrics route finds the
- * file from the same pair as the stream route, so the path is the source.
- */
-function libraryFileOf(streamPath: string) {
-  const match = LIBRARY_STREAM_PATH.exec(streamPath);
-  if (!match) return null;
-  return {
-    libraryAlbumId: decodeURIComponent(match[1]),
-    libraryTrackId: decodeURIComponent(match[2]),
-  };
-}
 
 /**
  * What GET /lyrics is asked for a track. Null for a preview: it is a cut of
- * the song, so synced lines would land at the wrong times.
+ * the song, so synced lines would land at the wrong times. The lyrics route
+ * finds the file from the same Library pair as the stream route, so the
+ * stream path is the source.
  */
 export function lyricsLookupFor(track: PlayerTrack): LyricsLookup | null {
   if (!track.streamPath || track.isPreview) return null;
@@ -27,7 +14,7 @@ export function lyricsLookupFor(track: PlayerTrack): LyricsLookup | null {
     artist: track.artist,
     title: track.title,
     ...(track.album && { album: track.album }),
-    ...libraryFileOf(track.streamPath),
+    ...libraryIdsOf(track.streamPath),
   };
 }
 
