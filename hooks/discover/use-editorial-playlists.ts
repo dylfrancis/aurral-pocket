@@ -14,6 +14,7 @@ import { releaseRouteParams } from "@/lib/library-read";
 import { discoverKeys, flowKeys } from "@/lib/query-keys";
 import type {
   BrowseProvider,
+  EditorialCategory,
   EditorialPlaylist,
   EditorialPlaylistSummary,
   EditorialShelfScope,
@@ -82,6 +83,24 @@ export function useOpenEditorialPlaylist() {
           name: playlist.name,
           artworkUrl: playlist.artworkUrl ?? "",
           trackCount: String(playlist.trackCount),
+        },
+      });
+    },
+    [router],
+  );
+}
+
+export function useOpenEditorialCategory() {
+  const router = useRouter();
+
+  return useCallback(
+    (category: Pick<EditorialCategory, "id" | "group" | "name">) => {
+      router.push({
+        pathname: "/(app)/(tabs)/(discover)/browse/[group]",
+        params: {
+          group: category.group,
+          category: category.id,
+          name: category.name,
         },
       });
     },

@@ -3,8 +3,9 @@ jest.mock("@/lib/api/search", () => ({
   getMadeForYou: jest.fn(),
 }));
 
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 jest.mock("@/components/ui/Skeleton", () => ({ Skeleton: () => null }));
@@ -60,8 +61,29 @@ const CHILL: EditorialCategory = {
   id: "mood-chill",
   name: "Chill",
   group: "mood",
-  playlists: [playlistSummary("4", "Chill Hits")],
+  playlists: [
+    playlistSummary("4", "Chill Hits"),
+    playlistSummary("5", "Lofi Chill"),
+  ],
 };
+const SIXTIES: EditorialCategory = {
+  id: "decade-60s",
+  name: "60s",
+  group: "decade",
+  playlists: [playlistSummary("6", "60s Hits")],
+};
+
+const RAIL_TITLES = /^(Made for You|Your Genres|Moods|Decades|Genres)$/;
+
+/** The rail titles, top to bottom. */
+function railTitles() {
+  return screen
+    .getAllByText(RAIL_TITLES)
+    .map((node) =>
+      [node.props.children].flat().filter((part) => typeof part === "string"),
+    )
+    .flat();
+}
 
 const clients: QueryClient[] = [];
 
@@ -89,48 +111,79 @@ afterEach(() => {
 });
 
 describe("EditorialShelf", () => {
-  it("lists the user's row, then a shelf per genre", async () => {
+  it("lists Made for You and Your Genres, then a rail of categories per group", async () => {
+    mockGetMadeForYou.mockResolvedValue({
+      discovery: [playlistSummary("new-to-you", "New to You", "discovery")],
+      mixes: [],
+    });
     mockGetShelf.mockResolvedValue({
       forYou: [playlistSummary("1", "For Your Taste")],
-      categories: [POP, CHILL, ROCK],
+      categories: [POP, CHILL, ROCK, SIXTIES],
     });
 
     await renderScreen();
 
-    expect(await screen.findByText("For You")).toBeTruthy();
+    // The last rail is built a frame later.
+    await screen.findByText("Genres");
+    expect(railTitles()).toEqual([
+      "Made for You",
+      "Your Genres",
+      "Moods",
+      "Decades",
+      "Genres",
+    ]);
+    expect(screen.getByText("New to You")).toBeTruthy();
     expect(screen.getByText("For Your Taste")).toBeTruthy();
-    expect(screen.getByText("Pop")).toBeTruthy();
-    expect(screen.getByText("Pop Hits")).toBeTruthy();
-    expect(screen.getByText("Rock")).toBeTruthy();
-    expect(screen.getByText("Rock Hits")).toBeTruthy();
-    expect(screen.queryByText("Chill")).toBeNull();
-    expect(screen.queryByText("View All")).toBeNull();
+    // The group rails hold categories, not their playlists.
+    expect(screen.getByLabelText("Open Chill")).toBeTruthy();
+    expect(screen.getByText("2 playlists")).toBeTruthy();
+    expect(screen.getByLabelText("Open 60s")).toBeTruthy();
+    expect(screen.getByLabelText("Open Rock")).toBeTruthy();
+    expect(screen.queryByText("Chill Hits")).toBeNull();
+  });
+
+  it("opens a category from its card, and its group's first from the title", async () => {
+    mockGetShelf.mockResolvedValue({ forYou: [], categories: [POP, ROCK] });
+
+    await renderScreen();
+    await fireEvent.press(await screen.findByLabelText("Open Rock"));
+    await fireEvent.press(screen.getByText("Genres"));
+
+    expect(mockPush.mock.calls).toEqual([
+      [
+        {
+          pathname: "/(app)/(tabs)/(discover)/browse/[group]",
+          params: { group: "genre", category: "genre-152", name: "Rock" },
+        },
+      ],
+      [
+        {
+          pathname: "/(app)/(tabs)/(discover)/browse/[group]",
+          params: { group: "genre", category: "genre-132", name: "Pop" },
+        },
+      ],
+    ]);
   });
 
   it("adds the rails below the first few after the tab opens", async () => {
-    const categories = ["Pop", "Rock", "Jazz", "Soul", "Metal"].map(
-      (name, index): EditorialCategory => ({
-        id: `genre-${index + 1}`,
-        name,
-        group: "genre",
-        playlists: [playlistSummary(String(index + 10), `${name} Hits`)],
-      }),
-    );
-    mockGetShelf.mockResolvedValue({ forYou: [], categories });
+    mockGetShelf.mockResolvedValue({
+      forYou: [playlistSummary("1", "For Your Taste")],
+      categories: [CHILL, SIXTIES, POP],
+    });
 
     await renderScreen();
 
-    expect(await screen.findByText("Metal Hits")).toBeTruthy();
-    expect(screen.getByText("Pop Hits")).toBeTruthy();
+    expect(await screen.findByLabelText("Open Pop")).toBeTruthy();
+    expect(screen.getByText("For Your Taste")).toBeTruthy();
   });
 
-  it("leaves out an empty For You", async () => {
+  it("leaves out an empty Your Genres", async () => {
     mockGetShelf.mockResolvedValue({ forYou: [], categories: [POP] });
 
     await renderScreen();
 
-    await screen.findByText("Pop");
-    expect(screen.queryByText("For You")).toBeNull();
+    await screen.findByText("Genres");
+    expect(screen.queryByText("Your Genres")).toBeNull();
   });
 
   it("says so when there are no playlists at all", async () => {
@@ -155,6 +208,6 @@ describe("EditorialShelf", () => {
     mockGetShelf.mockResolvedValue({ forYou: [], categories: [POP] });
     await fireEvent.press(screen.getByText("Try Again"));
 
-    expect(await screen.findByText("Pop")).toBeTruthy();
+    expect(await screen.findByLabelText("Open Pop")).toBeTruthy();
   });
 });

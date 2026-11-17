@@ -6,35 +6,38 @@ import {
   useEditorialShelf,
   useMadeForYou,
 } from "@/hooks/discover/use-editorial-playlists";
+import { BROWSE_GROUPS, categoriesInGroup } from "@/lib/discover/browse";
+import type {
+  EditorialCategory,
+  EditorialPlaylistSummary,
+} from "@/lib/types/search";
+import { EditorialCategoryRail } from "./EditorialCategoryRail";
 import { EditorialPlaylistRail } from "./EditorialPlaylistRail";
 import { MadeForYouSection } from "./MadeForYouSection";
 
 const SHELVES_ON_SCREEN = 3;
+
+type Shelf =
+  | { key: string; title: string; playlists: EditorialPlaylistSummary[] }
+  | { key: string; title: string; categories: EditorialCategory[] };
 
 /** Not a FlatList: it sits inside Discover's scroll view. */
 export function EditorialShelf() {
   const madeForYou = useMadeForYou();
   const { data, isLoading, refetch } = useEditorialShelf();
 
-  const shelves = useMemo(
-    () =>
-      data
-        ? [
-            ...(data.forYou.length > 0
-              ? [{ key: "for-you", title: "For You", playlists: data.forYou }]
-              : []),
-            // Moods and decades need a grouped layout first.
-            ...data.categories
-              .filter((category) => category.group === "genre")
-              .map((category) => ({
-                key: category.id,
-                title: category.name,
-                playlists: category.playlists,
-              })),
-          ]
-        : [],
-    [data],
-  );
+  const shelves = useMemo<Shelf[]>(() => {
+    if (!data) return [];
+    return [
+      ...(data.forYou.length > 0
+        ? [{ key: "for-you", title: "Your Genres", playlists: data.forYou }]
+        : []),
+      ...BROWSE_GROUPS.flatMap(({ group, title }) => {
+        const categories = categoriesInGroup(data.categories, group);
+        return categories.length > 0 ? [{ key: group, title, categories }] : [];
+      }),
+    ];
+  }, [data]);
 
   // Building every rail's covers at once stalls the UI thread, so the rails
   // below the fold follow one per frame.
@@ -86,13 +89,23 @@ export function EditorialShelf() {
   return (
     <View style={styles.shelves}>
       <MadeForYouSection />
-      {shelves.slice(0, builtShelfCount).map((shelf) => (
-        <EditorialPlaylistRail
-          key={shelf.key}
-          title={shelf.title}
-          playlists={shelf.playlists}
-        />
-      ))}
+      {shelves
+        .slice(0, builtShelfCount)
+        .map((shelf) =>
+          "playlists" in shelf ? (
+            <EditorialPlaylistRail
+              key={shelf.key}
+              title={shelf.title}
+              playlists={shelf.playlists}
+            />
+          ) : (
+            <EditorialCategoryRail
+              key={shelf.key}
+              title={shelf.title}
+              categories={shelf.categories}
+            />
+          ),
+        )}
     </View>
   );
 }

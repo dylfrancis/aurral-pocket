@@ -35,6 +35,14 @@ export default function DiscoverLayout() {
           options={DETAIL_SCREEN_OPTIONS}
         />
         <Stack.Screen
+          name="browse/[group]"
+          options={({ route }) => ({
+            title: (route.params as { name?: string })?.name ?? "Playlists",
+            headerLargeTitleEnabled: false,
+            headerBackButtonDisplayMode: "minimal",
+          })}
+        />
+        <Stack.Screen
           name="trending/[chart]"
           options={({ route }) => {
             const { chart, name } = (route.params ?? {}) as {

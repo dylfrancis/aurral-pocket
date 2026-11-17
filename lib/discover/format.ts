@@ -19,6 +19,11 @@ export function formatTrackCount(count: number): string {
   return `${count} track${count === 1 ? "" : "s"}`;
 }
 
+export function formatPlaylistCount(count: number): string {
+  if (count <= 0) return "";
+  return `${count} playlist${count === 1 ? "" : "s"}`;
+}
+
 export type GenreSection = {
   genre: string;
   artists: DiscoveryArtist[];
