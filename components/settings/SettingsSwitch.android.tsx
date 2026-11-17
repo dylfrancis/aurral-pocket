@@ -1,17 +1,27 @@
-import { Switch } from "@expo/ui";
+import { Switch } from "@expo/ui/jetpack-compose";
 import { semantics } from "@expo/ui/jetpack-compose/modifiers";
 import type { SettingsSwitchProps } from "@/components/settings/settings-controls";
+import { useColors } from "@/hooks/use-colors";
 
-/** A label on the universal switch would draw it, so TalkBack gets it alone. */
+/**
+ * Compose's switch, since the universal one draws a label it's given; TalkBack
+ * gets the label alone. Compose's default colors ignore the app's theme.
+ */
 export function SettingsSwitch({
   value,
   onChange,
   accessibilityLabel,
 }: SettingsSwitchProps) {
+  const colors = useColors();
   return (
     <Switch
       value={value}
-      onValueChange={onChange}
+      onCheckedChange={onChange}
+      colors={{
+        checkedTrackColor: colors.brand,
+        checkedBorderColor: colors.brand,
+        checkedThumbColor: colors.switchThumb,
+      }}
       modifiers={
         accessibilityLabel
           ? [semantics({ contentDescription: accessibilityLabel })]
