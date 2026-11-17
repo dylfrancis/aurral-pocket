@@ -22,6 +22,8 @@ export type PlaybackSettings = {
   cacheBytes: number;
   /** Fetching ahead and offline saves wait out cellular data. */
   wifiOnly: boolean;
+  /** When the queue ends, keep playing similar music from the Library. */
+  autoplay: boolean;
   transcoding: TranscodingSettings;
 };
 
@@ -32,12 +34,16 @@ export const CACHE_SIZE_OPTIONS: readonly number[] = [
   500_000_000, 1_000_000_000, 2_000_000_000, 5_000_000_000,
 ];
 
-/** One track ahead and a gigabyte, so a short drop doesn't stop the music. */
+/**
+ * One track ahead and a gigabyte, so a short drop doesn't stop the music.
+ * Autoplay starts on, as it does on the web.
+ */
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   prefetchAhead: 1,
   queueLimit: 0,
   cacheBytes: 1_000_000_000,
   wifiOnly: false,
+  autoplay: true,
   transcoding: DEFAULT_TRANSCODING,
 };
 
@@ -134,6 +140,10 @@ function parse(raw: string | null): PlaybackSettings {
         typeof value.wifiOnly === "boolean"
           ? value.wifiOnly
           : DEFAULT_PLAYBACK_SETTINGS.wifiOnly,
+      autoplay:
+        typeof value.autoplay === "boolean"
+          ? value.autoplay
+          : DEFAULT_PLAYBACK_SETTINGS.autoplay,
       transcoding: parseTranscoding(value.transcoding),
     };
   } catch {

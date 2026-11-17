@@ -106,6 +106,28 @@ function expectLeftFor(href: unknown) {
 
 jest.mock("@/lib/api/lyrics", () => ({ getLyrics: jest.fn() }));
 
+const mockGetLibraryRadio = jest.fn((..._args: unknown[]) =>
+  Promise.resolve<LibraryQueueTrack[]>([]),
+);
+jest.mock("@/lib/api/radio", () => ({
+  getLibraryRadio: (...args: unknown[]) => mockGetLibraryRadio(...args),
+}));
+
+// The switch is SwiftUI or Compose; it stands in as a pressable switch.
+jest.mock("@/components/settings/SettingsSwitch", () => {
+  const React = require("react");
+  const { Pressable } = require("react-native");
+  return {
+    SettingsSwitch: ({ value, onChange, accessibilityLabel }: any) =>
+      React.createElement(Pressable, {
+        accessibilityRole: "switch",
+        accessibilityLabel,
+        accessibilityState: { checked: value },
+        onPress: () => onChange(!value),
+      }),
+  };
+});
+
 jest.mock("@/lib/api/library", () => ({
   ...jest.requireActual("@/lib/api/library"),
   getLibraryFavorites: jest.fn(),
@@ -135,9 +157,15 @@ import {
   onTrackStarted,
   playAlbumFromTrack,
   playQueueFrom,
+  setRepeatMode,
+  setShuffle,
 } from "@/lib/player/player";
+import {
+  DEFAULT_PLAYBACK_SETTINGS,
+  setPlaybackSettings,
+} from "@/lib/player/playback-settings";
 import type { PlayerTrack } from "@/lib/player/track-item";
-import type { Track } from "@/lib/types/library";
+import type { LibraryQueueTrack, Track } from "@/lib/types/library";
 import * as Burnt from "burnt";
 import {
   forgetSavedLibrary,
@@ -704,6 +732,72 @@ describe("NowPlayingScreen", () => {
 
     await fireEvent.press(getByLabelText("Pause"));
     expect(player.pause).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("NowPlayingScreen autoplay", () => {
+  const teardrop: LibraryQueueTrack = {
+    id: "91",
+    title: "Teardrop",
+    artist: "Massive Attack",
+    album: "Mezzanine",
+    streamPath: "/library/stream/30/91",
+    streamFormat: "flac",
+    quality: "FLAC",
+    durationMs: 330_000,
+    artistMbid: "mb-massive",
+    albumMbid: "mb-mezzanine",
+    trackMbid: null,
+    libraryTrackId: 91,
+    libraryAlbumId: 30,
+    libraryArtistId: 5,
+    artworkUrl: "/library/artwork/30",
+    artworkSource: "album",
+  };
+
+  afterEach(async () => {
+    await act(async () => setPlaybackSettings(DEFAULT_PLAYBACK_SETTINGS));
+  });
+
+  it("lists Autoplay's tracks under its own heading, and its switch takes them back", async () => {
+    mockGetLibraryRadio.mockResolvedValue([teardrop]);
+    // Earlier tests leave the shared player shuffled and on repeat, which would
+    // keep Autoplay from asking.
+    await act(async () => {
+      await setShuffle(false);
+      await setRepeatMode("off");
+    });
+    const { getByText, getByLabelText, getByRole, queryByLabelText } =
+      await renderPlaying();
+    await act(async () => {
+      engine.stateChange("playing", undefined);
+      engine.trackChange(
+        {
+          id: "3",
+          title: "The National Anthem",
+          artist: "Radiohead",
+          album: "Kid A",
+          duration: 0,
+          url: "",
+          artwork: null,
+        },
+        "user_action",
+      );
+    });
+    await fireEvent.press(getByLabelText("Queue"));
+
+    // The album is on its last track, so Up Next is empty and Autoplay's
+    // track sits under its own heading.
+    expect(getByText("Nothing up next.")).toBeTruthy();
+    expect(getByText("Autoplay")).toBeTruthy();
+    expect(getByLabelText("Play Teardrop by Massive Attack")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(getByRole("switch", { name: "Autoplay" }));
+    });
+
+    expect(queryByLabelText("Play Teardrop by Massive Attack")).toBeNull();
+    expect(getByRole("switch", { name: "Autoplay" })).not.toBeChecked();
   });
 });
 

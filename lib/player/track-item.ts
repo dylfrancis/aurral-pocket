@@ -49,7 +49,24 @@ export type PlayerTrack = PlayerClip & {
   /** A saved playlist job may only have a short remote preview. */
   isPreview?: boolean;
   recordHistory?: boolean;
+  /** Queued by Autoplay after the listener's own tracks, not by the listener. */
+  autoplay?: boolean;
 };
+
+const LIBRARY_STREAM_PATH = /^\/library\/stream\/([^/?#]+)\/([^/?#]+)/;
+
+/**
+ * The Library album and track a stream path names. Null for any other stream,
+ * such as a playlist job's.
+ */
+export function libraryIdsOf(streamPath: string | null) {
+  const match = streamPath ? LIBRARY_STREAM_PATH.exec(streamPath) : null;
+  if (!match) return null;
+  return {
+    libraryAlbumId: decodeURIComponent(match[1]),
+    libraryTrackId: decodeURIComponent(match[2]),
+  };
+}
 
 /** The album a track is played from. The engine shows this on the lock screen. */
 export type PlayerAlbumContext = {

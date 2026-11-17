@@ -6,6 +6,7 @@ import {
   toSavedTrack,
 } from "@/lib/player/saved-queue";
 import {
+  endIndexBeforeAutoplay,
   insertedAt,
   insertIndexAfter,
   withoutQueuedIds,
@@ -57,7 +58,16 @@ import {
   type TranscodingSettings,
 } from "@/lib/player/transcoding";
 import { limitQueue } from "@/lib/player/queue-limit";
-import type { Track } from "@/lib/types/library";
+import { getLibraryRadio } from "@/lib/api/radio";
+import {
+  hasRadioSeed,
+  radioContext,
+  radioExclude,
+  radioSeedFor,
+  radioTracks,
+  type RadioStation,
+} from "@/lib/player/radio";
+import type { LibraryQueueTrack, Track } from "@/lib/types/library";
 import { useSyncExternalStore } from "react";
 import {
   PlayerQueue,
@@ -107,6 +117,14 @@ let originalOrder: PlayerTrack[] = [];
 let shuffleOn = false;
 /** Repeat lives in the engine; this mirror is what the UI reads. */
 let repeatMode: RepeatMode = "off";
+/** The station the queue plays. Null for any other queue. */
+let queueStation: RadioStation | null = null;
+/**
+ * Counts every replacement of the queue as soon as it's known: a tap counts
+ * when it's made, not when it runs. A station's first batch that lands after
+ * one stays out.
+ */
+let queueClaims = 0;
 
 function configureEngine(): Promise<void> {
   configureOnce ??= TrackPlayer.configure({
@@ -166,6 +184,7 @@ export function playItem(item: PlayerClip): Promise<void> {
     albumMbid: null,
     favorite: null,
   };
+  queueClaims++;
   const run = lastPlay.then(async () => {
     await replaceAndPlay([track], track.id, null);
   });
@@ -204,6 +223,7 @@ export async function playAlbumFromTrack(
     ? items
     : [startItem];
 
+  queueClaims++;
   const run = lastPlay.then(() => replaceAndPlay(queued, startItem.id, album));
   lastPlay = run.then(
     () => {},
@@ -218,6 +238,7 @@ async function replaceAndPlay(
   tracks: PlayerTrack[],
   startId: string,
   album: PlayerAlbumContext | null,
+  station: RadioStation | null = null,
 ): Promise<number> {
   await Promise.all([
     configureEngine(),
@@ -240,6 +261,8 @@ async function replaceAndPlay(
   queueOrder = items;
   originalOrder = original;
   queueAlbumContext = album;
+  queueStation = station;
+  lastTopUpKey = null;
   // Show the started track now, not on the engine's track-change event, so
   // the mini player appears with the tap. The engine's event re-delivers
   // the same object, which listeners compare away.
@@ -373,6 +396,7 @@ export async function playQueueFrom(
 ): Promise<boolean> {
   const playable = playableNow(items);
   if (!playable.some((item) => item.id === startId)) return false;
+  queueClaims++;
   const run = lastPlay.then(() => replaceAndPlay(playable, startId, context));
   lastPlay = run.then(
     () => {},
@@ -380,6 +404,178 @@ export async function playQueueFrom(
   );
   await run;
   return true;
+}
+
+/** How a station start went, for the caller to report. */
+export type RadioStart = "started" | "empty" | "offline";
+
+/**
+ * A first track plays at once and the station follows; without one nothing
+ * changes until Aurral answers, and a later tap wins. Resolves "offline" or
+ * "empty" (even with the track playing); rejects when the request fails.
+ */
+export async function startRadio(
+  station: RadioStation,
+  first: PlayerTrack | null = null,
+): Promise<RadioStart> {
+  if (isOffline()) return "offline";
+  const claim = ++queueClaims;
+  if (first) {
+    const answer = getLibraryRadio(station.seed, radioExclude([first]));
+    // Awaited below, once the track plays; until then a failure must not
+    // count as unhandled.
+    answer.catch(() => {});
+    const run = lastPlay.then(async () => {
+      await replaceAndPlay([first], first.id, radioContext(station), station);
+      // The first batch is already on its way.
+      lastTopUpKey = topUpKey();
+      return currentPlaylistId;
+    });
+    lastPlay = run.then(
+      () => {},
+      () => {},
+    );
+    const playlistId = await run;
+    const key = lastTopUpKey;
+    let tracks: LibraryQueueTrack[];
+    try {
+      tracks = await answer;
+    } catch (error) {
+      // The station asks again at the next resume or track change.
+      if (lastTopUpKey === key) lastTopUpKey = null;
+      throw error;
+    }
+    if (tracks.length === 0) return "empty";
+    if (playlistId) await appendRadioTracks(tracks, playlistId, false);
+    return "started";
+  }
+
+  const items = radioTracks(await getLibraryRadio(station.seed));
+  if (items.length === 0) return "empty";
+  const run = lastPlay.then(async () => {
+    if (claim !== queueClaims) return;
+    await replaceAndPlay(items, items[0].id, radioContext(station), station);
+  });
+  lastPlay = run.then(
+    () => {},
+    () => {},
+  );
+  await run;
+  return "started";
+}
+
+const TOP_UP_TRACKS_LEFT = 2;
+/** Autoplay builds on the last few tracks played, as the web's does. */
+const AUTOPLAY_SEED_TRACKS = 5;
+
+/** The queue and track the last top-up was for, so each asks once. */
+let lastTopUpKey: string | null = null;
+
+function topUpKey(): string {
+  return `${currentPlaylistId}:${displayedTrack?.id}:${queueOrder.length}`;
+}
+
+/**
+ * Ask for more as the queue runs low: a station's next batch, or Autoplay's
+ * once the listener's own tracks are on their last. Only while playing and not
+ * under repeat; a failure is asked again at the next track change, resume or
+ * reconnect.
+ */
+function topUpQueue(): void {
+  const playlistId = currentPlaylistId;
+  const current = displayedTrack;
+  if (!playlistId || !current || !queueAlbumContext) return;
+  if (repeatMode !== "off" || isOffline()) return;
+  const playing = playbackState === "playing" || playbackState === "buffering";
+  if (!playing) return;
+
+  const index = queueOrder.findIndex((item) => item.id === current.id);
+  if (index < 0) return;
+  const upcoming = queueOrder.slice(index + 1);
+  if (upcoming.length > TOP_UP_TRACKS_LEFT) return;
+  const station = queueStation;
+  const autoplay =
+    !station &&
+    getPlaybackSettings().autoplay &&
+    upcoming.every((item) => item.autoplay);
+  if (!station && !autoplay) return;
+
+  const key = topUpKey();
+  if (key === lastTopUpKey) return;
+  lastTopUpKey = key;
+
+  const played = queueOrder
+    .slice(Math.max(0, index - AUTOPLAY_SEED_TRACKS + 1), index + 1)
+    .filter((item) => !item.isPreview)
+    .reverse();
+  const seed = station?.seed ?? radioSeedFor(played);
+  if (!hasRadioSeed(seed)) return;
+  getLibraryRadio(seed, radioExclude(queueOrder)).then(
+    (tracks) => void appendRadioTracks(tracks, playlistId, autoplay),
+    () => {
+      if (lastTopUpKey === key) lastTopUpKey = null;
+    },
+  );
+}
+
+/**
+ * Append a batch to the queue it was asked for. Batches are asked for only
+ * while playing, so a queue that ended while Aurral answered carries on into
+ * them.
+ */
+function appendRadioTracks(
+  tracks: LibraryQueueTrack[],
+  playlistId: string,
+  autoplay: boolean,
+): Promise<void> {
+  const run = lastPlay.then(async () => {
+    if (playlistId !== currentPlaylistId) return;
+    if (autoplay && (queueStation || !getPlaybackSettings().autoplay)) return;
+    const items = withoutQueuedIds(radioTracks(tracks), queueOrder).map(
+      (item) => (autoplay ? { ...item, autoplay: true } : item),
+    );
+    if (items.length === 0) return;
+
+    const ranOut = endedAtQueueEnd;
+    await PlayerQueue.addTracksToPlaylist(playlistId, items.map(toEngineTrack));
+    queueOrder = [...queueOrder, ...items];
+    originalOrder = [...originalOrder, ...items];
+    refreshQueueSnapshot();
+    if (ranOut) {
+      endedAtQueueEnd = false;
+      pendingRestoreSeek = null;
+      resetProgress();
+      setDisplayedTrack(items[0]);
+      await TrackPlayer.playSong(items[0].id, playlistId);
+      await TrackPlayer.play();
+    }
+  });
+  lastPlay = run.catch(() => {});
+  return run;
+}
+
+/** Turning Autoplay off takes back the tracks it queued and hasn't played. */
+function dropAutoplayTracks(): void {
+  const run = lastPlay.then(async () => {
+    const playlistId = currentPlaylistId;
+    if (!playlistId) return;
+    const currentIndex = queueOrder.findIndex(
+      (item) => item.id === displayedTrack?.id,
+    );
+    const dropped = new Set(
+      queueOrder
+        .filter((item, index) => item.autoplay && index > currentIndex)
+        .map((item) => item.id),
+    );
+    if (dropped.size === 0) return;
+    await PlayerQueue.removeTracksFromPlaylist(playlistId, [...dropped]);
+    queueOrder = queueOrder.filter((item) => !dropped.has(item.id));
+    originalOrder = originalOrder.filter((item) => !dropped.has(item.id));
+    // Back at a length it already asked at; turned on again, it must ask again.
+    lastTopUpKey = null;
+    refreshQueueSnapshot();
+  });
+  lastPlay = run.catch(() => {});
 }
 
 /**
@@ -573,7 +769,7 @@ function toPlayerTracks(
  * carries its own title, artist, album, and artwork, so the mini player and
  * the lock screen stay honest in a mixed-album queue. A queue that already
  * played out stays stopped; the next tap on "next" walks into the new
- * tracks.
+ * tracks. Added to the end, tracks still play before Autoplay's.
  */
 function editQueue(
   // Built when the edit runs, so the URLs carry the token of that moment.
@@ -593,6 +789,7 @@ function editQueue(
       !currentPlaylistId ||
       queueAlbumContext === null
     ) {
+      queueClaims++;
       return replaceAndPlay(items, items[0].id, album);
     }
 
@@ -600,7 +797,7 @@ function editQueue(
     const insertAt =
       position === "afterCurrent"
         ? insertIndexAfter(queueOrder, currentId)
-        : queueOrder.length;
+        : endIndexBeforeAutoplay(queueOrder, currentId);
     const engineItems = items.map(toEngineTrack);
     if (insertAt === queueOrder.length) {
       await PlayerQueue.addTracksToPlaylist(currentPlaylistId, engineItems);
@@ -614,14 +811,13 @@ function editQueue(
     queueOrder = insertedAt(queueOrder, items, insertAt);
     // Unshuffle keeps an insertion: it lands after the same track in the
     // original order, or at the end for a plain append.
-    originalOrder =
+    originalOrder = insertedAt(
+      originalOrder,
+      items,
       position === "afterCurrent"
-        ? insertedAt(
-            originalOrder,
-            items,
-            insertIndexAfter(originalOrder, currentId),
-          )
-        : [...originalOrder, ...items];
+        ? insertIndexAfter(originalOrder, currentId)
+        : endIndexBeforeAutoplay(originalOrder, currentId),
+    );
     refreshQueueSnapshot();
     return items.length;
   });
@@ -826,6 +1022,7 @@ function persistQueue(position?: number): void {
     album,
     shuffle: shuffleOn,
     repeat: repeatMode,
+    station: queueStation,
   };
   lastSave = lastSave.then(() => saveQueue(record)).catch(() => {});
 }
@@ -899,6 +1096,7 @@ async function restoreNow(): Promise<boolean> {
   const position = resumed ? saved.positionSeconds : 0;
   const duration = resumed ? saved.durationSeconds : 0;
 
+  queueClaims++;
   restoringQueue = true;
   try {
     await configureEngine();
@@ -907,6 +1105,8 @@ async function restoreNow(): Promise<boolean> {
     queueOrder = items;
     originalOrder = inSavedOrder(items, saved.originalIds);
     queueAlbumContext = saved.album;
+    queueStation = saved.station ?? null;
+    lastTopUpKey = null;
     shuffleOn = saved.shuffle;
     repeatMode = saved.repeat;
     endedAtQueueEnd = false;
@@ -1044,10 +1244,12 @@ export function refreshQueueHeaders(): Promise<void> {
  */
 export function forgetQueue(): Promise<void> {
   cancelTranscodes();
+  queueClaims++;
   const run = lastPlay.then(async () => {
     queueOrder = [];
     originalOrder = [];
     queueAlbumContext = null;
+    queueStation = null;
     pendingRestoreSeek = null;
     endedAtQueueEnd = false;
     shuffleOn = false;
@@ -1109,14 +1311,20 @@ function wireEngineEvents(): void {
 
   onNetworkChange((offline) => {
     if (offline) switchToLocalFiles();
+    else topUpQueue();
   });
   onMeteredChange(refreshTranscoding);
   onCachedFilesChange(followCachedFiles);
   // Read early, so an offline start knows which tracks are on the phone.
   void audioCacheReady();
-  onPlaybackSettingsChange(() => {
+  let autoplayOn = getPlaybackSettings().autoplay;
+  onPlaybackSettingsChange((next) => {
     refreshTranscoding();
     updatePrefetchWindow();
+    if (next.autoplay === autoplayOn) return;
+    autoplayOn = next.autoplay;
+    if (autoplayOn) topUpQueue();
+    else dropAutoplayTracks();
   });
 
   callbackManager.subscribeToTrackChange(
@@ -1161,6 +1369,7 @@ function wireEngineEvents(): void {
       if (!restored?.position) {
         trackStartedListeners.forEach((listener) => listener(started));
       }
+      if (!restored) topUpQueue();
     },
   );
   callbackManager.subscribeToPlaybackProgressChange(
@@ -1209,6 +1418,7 @@ function wireEngineEvents(): void {
       playbackState = state;
       playbackStateListeners.forEach((listener) => listener());
       updatePrefetchWindow();
+      if (state === "playing") topUpQueue();
       if (state === "stopped" && reason === "error") {
         // A streamed track can play out its buffer after the connection goes.
         if (currentEventTrack && isUnplayableNow(currentEventTrack.id)) {
@@ -1333,10 +1543,13 @@ async function shuffleUpcomingAfter(
   // Everything through the current track stays put; -1 (unknown) shuffles all.
   const upcomingStart =
     queueOrder.findIndex((item) => item.id === currentId) + 1;
+  // Autoplay's tracks stay after the listener's own, where the queue shows them.
+  const upcoming = queueOrder.slice(upcomingStart);
 
   await applyOrder(playlistId, [
     ...queueOrder.slice(0, upcomingStart),
-    ...shuffled(queueOrder.slice(upcomingStart)),
+    ...shuffled(upcoming.filter((item) => !item.autoplay)),
+    ...upcoming.filter((item) => item.autoplay),
   ]);
 }
 
@@ -1391,6 +1604,8 @@ export async function setRepeatMode(mode: RepeatMode): Promise<void> {
   repeatMode = mode;
   notifyModesChanged();
   await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[mode]);
+  // Repeat kept the queue going; without it a queue near its end needs more.
+  if (mode === "off") topUpQueue();
 }
 
 export async function previous(): Promise<void> {
