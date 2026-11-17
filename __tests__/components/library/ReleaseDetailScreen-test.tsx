@@ -1,9 +1,12 @@
 jest.mock("@/lib/api/library", () => ({
   addLibraryAlbum: jest.fn(),
   getLibraryArtistId: jest.fn(() => Promise.resolve(null)),
+  getAlbumEditions: jest.fn(() =>
+    Promise.resolve({ editions: [], library: null }),
+  ),
   getReleaseGroupTracks: jest.fn(() => Promise.resolve([])),
+  getReleaseGroupPreviews: jest.fn(() => Promise.resolve({})),
   requestAlbumFromSearch: jest.fn(),
-  searchDeezerAlbum: jest.fn(() => Promise.resolve(null)),
 }));
 
 jest.mock("burnt", () => ({ toast: jest.fn() }));
@@ -111,9 +114,17 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { ReleaseDetailScreen } from "@/components/library/ReleaseDetailScreen";
-import { addLibraryAlbum } from "@/lib/api/library";
+import {
+  addLibraryAlbum,
+  getAlbumEditions,
+  getReleaseGroupTracks,
+  requestAlbumFromSearch,
+} from "@/lib/api/library";
 
 const mockAddLibraryAlbum = addLibraryAlbum as jest.Mock;
+const mockGetAlbumEditions = getAlbumEditions as jest.Mock;
+const mockGetReleaseGroupTracks = getReleaseGroupTracks as jest.Mock;
+const mockRequestAlbumFromSearch = requestAlbumFromSearch as jest.Mock;
 const mockToast = Burnt.toast as jest.Mock;
 
 let client: QueryClient;
@@ -158,5 +169,42 @@ describe("ReleaseDetailScreen", () => {
     expect(mockToast).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Downloads Mar 5, 2027" }),
     );
+  });
+  it("lists a picked edition's tracks and requests that edition", async () => {
+    // The artist is in the Library, which would otherwise add the album
+    // without naming an edition.
+    mockParams = {
+      mbid: "rg-9",
+      title: "Kid A",
+      artistName: "Radiohead",
+      artistMbid: "artist-mb",
+      artistId: "7",
+    };
+    mockGetAlbumEditions.mockResolvedValue({
+      editions: [
+        { id: "rel-std", name: "Standard", date: "2000-10-02", trackCount: 10 },
+        { id: "rel-mn", name: "Mnesia", date: "2021-11-05", trackCount: 34 },
+      ],
+      library: null,
+    });
+    mockRequestAlbumFromSearch.mockResolvedValue({ createdArtist: false });
+    await render(
+      <QueryClientProvider client={client}>
+        <ReleaseDetailScreen />
+      </QueryClientProvider>,
+    );
+
+    await fireEvent.press(await screen.findByLabelText("Mnesia"));
+    await fireEvent.press(screen.getByText("Add Album"));
+
+    expect(mockGetReleaseGroupTracks).toHaveBeenCalledWith("rg-9", "rel-mn");
+    expect(mockRequestAlbumFromSearch).toHaveBeenCalledWith({
+      albumMbid: "rg-9",
+      albumName: "Kid A",
+      artistMbid: "artist-mb",
+      artistName: "Radiohead",
+      releaseMbid: "rel-mn",
+    });
+    expect(mockAddLibraryAlbum).not.toHaveBeenCalled();
   });
 });

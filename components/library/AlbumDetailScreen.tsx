@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,7 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import * as Burnt from "burnt";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
 import PlaylistPlay from "@expo/material-symbols/playlist_play.xml";
 import QueueMusic from "@expo/material-symbols/queue_music.xml";
@@ -33,12 +34,21 @@ import {
 } from "@/components/player/player-colors";
 import { CircleButton } from "@/components/ui/CircleButton";
 import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Text } from "@/components/ui/Text";
 import { AlbumStatusBadge } from "./AlbumStatusBadge";
 import { CoverArtImage } from "./CoverArtImage";
+import { EditionClipRow } from "./EditionClipRow";
+import { EditionPicker } from "./EditionPicker";
 import { TrackActionsSheet, useTrackActions } from "./TrackActionsSheet";
 import { TrackRow } from "./TrackRow";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import {
+  invalidateEditionReads,
+  useAlbumEditions,
+} from "@/hooks/library/use-album-editions";
+import { stopPreviewClip } from "@/hooks/library/use-audio-preview";
+import { useEditionTracks } from "@/hooks/library/use-edition-tracks";
 import { useCoverArtUrl } from "@/hooks/library/use-cover-art-url";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
@@ -54,7 +64,14 @@ import { canResearchAurralAlbum, isUnreleased } from "@/lib/album-status";
 import { formatBytes, saveStatusLine } from "@/lib/offline/format";
 import { useIsOffline } from "@/lib/offline/network";
 import { canPlayNow, saveAlbum } from "@/lib/offline/saved-library";
-import { deleteAurralAlbum, researchAurralAlbum } from "@/lib/api/library";
+import {
+  deleteAurralAlbum,
+  researchAurralAlbum,
+  setAlbumEdition,
+} from "@/lib/api/library";
+import { ApiError } from "@/lib/api/client";
+import { formatTrackCount } from "@/lib/discover/format";
+import { editionLabel, editionRows } from "@/lib/editions";
 import {
   albumDownloadStatus,
   libraryAlbumsRef,
@@ -71,6 +88,7 @@ import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import type {
   DownloadStatusMap,
   DownloadStatusValue,
+  Track,
 } from "@/lib/types/library";
 import { releaseYear } from "@/lib/date-time";
 import { useOpenArtist } from "@/hooks/use-open-artist";
@@ -340,7 +358,10 @@ export function AlbumDetailScreen() {
   // A saved album still lists and plays its tracks with no connection.
   const savedItem = saveOffline.status?.item;
   const savedTracks = savedItem?.kind === "album" ? savedItem.tracks : null;
-  const albumTracks = tracks ?? savedTracks ?? [];
+  const albumTracks = useMemo(
+    () => tracks ?? savedTracks ?? [],
+    [tracks, savedTracks],
+  );
   const showTracksLoading = tracksLoading && !savedTracks;
   // Before saving, the files' size on the server.
   const albumBytes = albumTracks
@@ -348,6 +369,89 @@ export function AlbumDetailScreen() {
     .reduce((sum, track) => sum + (track.size > 0 ? track.size : 0), 0);
   const saveLine = saveStatusLine(saveOffline.status);
   const shownTrackCount = trackCount || albumTracks.length;
+
+  const editions = useAlbumEditions(albumMbid || undefined, {
+    inLibrary: true,
+  });
+  const previewRelease = editions.previewRelease;
+  const {
+    tracks: editionTracks,
+    isLoading: editionTracksLoading,
+    isError: editionTracksFailed,
+  } = useEditionTracks(albumMbid || undefined, {
+    release: previewRelease,
+    artistMbid: artistMbid || undefined,
+    enabled: !!previewRelease,
+  });
+  const preview = useMemo(
+    () =>
+      previewRelease && editionTracks
+        ? editionRows(editionTracks, albumTracks)
+        : null,
+    [previewRelease, editionTracks, albumTracks],
+  );
+  // Play follows the list as shown, so nothing plays until the edition's list
+  // is in.
+  const listTracks = useMemo<Track[]>(() => {
+    if (!previewRelease) return albumTracks;
+    if (!preview) return [];
+    return [
+      ...preview.rows.flatMap((row) =>
+        row.libraryTrack?.streamPath ? [row.libraryTrack] : [],
+      ),
+      ...preview.extras,
+    ];
+  }, [previewRelease, preview, albumTracks]);
+
+  // Leaving the page must not leave a clip playing behind it.
+  useEffect(() => () => stopPreviewClip(), []);
+
+  const canSwitchEdition = !!album && hasPermission("addAlbum");
+  const switchEdition = useMutation({
+    mutationFn: async (releaseMbid: string) => {
+      if (album) await setAlbumEdition(album.id, releaseMbid);
+    },
+    onSuccess: async (_data, releaseMbid) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Awaited, so the preview ends on the new edition's tracks, not the old
+      // ones.
+      await Promise.all([
+        invalidateEditionReads(queryClient, albumMbid),
+        queryClient.invalidateQueries({
+          queryKey: libraryKeys.tracks(params.ref),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: libraryKeys.album(params.ref),
+        }),
+      ]);
+      // An edition picked while the switch was saving stays picked.
+      editions.view((picked) => (picked === releaseMbid ? null : picked));
+      invalidateArtistAlbums();
+      invalidateLibraryLists(queryClient);
+    },
+    onError: (error) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Burnt.toast({
+        title: "Couldn't change the edition",
+        message: error instanceof ApiError ? error.message : undefined,
+        preset: "error",
+      });
+    },
+  });
+
+  /** A Library track's row. `number` is its place in a previewed edition. */
+  const renderTrack = (track: Track, number?: number) => (
+    <TrackRow
+      key={track.id}
+      track={number === undefined ? track : { ...track, trackNumber: number }}
+      unavailable={!canPlayNow(track.id)}
+      // A saved album's toolbar already says its tracks are on the phone.
+      markSaved={saveOffline.status?.state !== "saved"}
+      onPress={() => void play(listTracks, track, playContext)}
+      onLongPress={() => trackActions.open(track, playContext)}
+      onMenuPress={() => trackActions.open(track, playContext)}
+    />
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -471,13 +575,17 @@ export function AlbumDetailScreen() {
             </Text>
           </Pressable>
           <Text variant="caption" style={{ color: heroColors.subtle }}>
-            {[
-              year,
-              shownTrackCount
-                ? `${shownTrackCount} track${shownTrackCount === 1 ? "" : "s"}`
-                : null,
-              albumBytes > 0 ? formatBytes(albumBytes) : null,
-            ]
+            {(previewRelease && editions.viewing
+              ? [
+                  releaseYear(editions.viewing.date),
+                  formatTrackCount(editions.viewing.trackCount),
+                ]
+              : [
+                  year,
+                  formatTrackCount(shownTrackCount),
+                  albumBytes > 0 ? formatBytes(albumBytes) : null,
+                ]
+            )
               .filter(Boolean)
               .join(" · ")}
           </Text>
@@ -486,6 +594,61 @@ export function AlbumDetailScreen() {
               {saveLine}
             </Text>
           ) : null}
+          {editions.visible && editions.viewing ? (
+            <EditionPicker
+              editions={editions.editions}
+              selectedId={editions.viewing.id}
+              libraryId={editions.library}
+              onSelect={(id) => {
+                stopPreviewClip();
+                editions.view(id);
+              }}
+              triggerColor={heroColors.text}
+            />
+          ) : null}
+          {previewRelease && editions.libraryEdition ? (
+            <View style={styles.editionNote}>
+              <Text
+                variant="caption"
+                style={[styles.centered, { color: heroColors.subtle }]}
+              >
+                Your Library has the{" "}
+                {editionLabel(editions.libraryEdition.name)}.
+              </Text>
+              {canSwitchEdition ? (
+                <Pressable
+                  onPress={() => {
+                    void Haptics.impactAsync(
+                      Haptics.ImpactFeedbackStyle.Medium,
+                    );
+                    switchEdition.mutate(previewRelease);
+                  }}
+                  disabled={switchEdition.isPending}
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  style={({ pressed }) => [
+                    styles.editionAction,
+                    {
+                      borderColor: heroColors.faint,
+                      opacity: pressed || switchEdition.isPending ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  <Text
+                    variant="caption"
+                    style={[
+                      styles.editionActionLabel,
+                      { color: heroColors.text },
+                    ]}
+                  >
+                    {switchEdition.isPending
+                      ? "Switching…"
+                      : "Use This Edition"}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
           {album && (
             <AlbumStatusBadge album={album} downloadStatus={downloadStatus} />
           )}
@@ -493,9 +656,9 @@ export function AlbumDetailScreen() {
 
         <PlayRow
           title={title}
-          disabled={albumTracks.length === 0}
-          onPlay={() => void playAlbum(albumTracks, playContext)}
-          onShuffle={() => void shuffleAlbum(albumTracks, playContext)}
+          disabled={listTracks.length === 0}
+          onPlay={() => void playAlbum(listTracks, playContext)}
+          onShuffle={() => void shuffleAlbum(listTracks, playContext)}
         >
           {/* Shows while the album loads, so the heart doesn't pop in. The
               spacer keeps Play centered when the album can't be favorited. */}
@@ -515,22 +678,36 @@ export function AlbumDetailScreen() {
           )}
         </PlayRow>
 
-        {showTracksLoading ? (
+        {showTracksLoading || (previewRelease && editionTracksLoading) ? (
           <ActivityIndicator style={styles.loader} color={colors.brand} />
+        ) : previewRelease && editionTracksFailed ? (
+          <Text variant="caption" style={styles.emptyText}>
+            Couldn&apos;t load this edition&apos;s tracks
+          </Text>
+        ) : preview ? (
+          <>
+            {preview.rows.map((row) =>
+              row.libraryTrack?.streamPath ? (
+                renderTrack(row.libraryTrack, row.editionTrack.trackNumber)
+              ) : (
+                <EditionClipRow
+                  key={row.key}
+                  track={row.editionTrack}
+                  artistName={artistName}
+                  albumTitle={title}
+                  artwork={artworkUrl}
+                />
+              ),
+            )}
+            {preview.extras.length > 0 ? (
+              <SectionLabel style={styles.extrasLabel}>
+                From Other Editions
+              </SectionLabel>
+            ) : null}
+            {preview.extras.map((track) => renderTrack(track))}
+          </>
         ) : albumTracks.length > 0 ? (
-          albumTracks.map((track) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              unavailable={!canPlayNow(track.id)}
-              // A saved album's toolbar already says its tracks are on the
-              // phone.
-              markSaved={saveOffline.status?.state !== "saved"}
-              onPress={() => void play(albumTracks, track, playContext)}
-              onLongPress={() => trackActions.open(track, playContext)}
-              onMenuPress={() => trackActions.open(track, playContext)}
-            />
-          ))
+          albumTracks.map((track) => renderTrack(track))
         ) : (
           <Text variant="caption" style={styles.emptyText}>
             No tracks available
@@ -577,5 +754,25 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: "center",
     paddingVertical: 32,
+  },
+  centered: {
+    textAlign: "center",
+  },
+  editionNote: {
+    alignItems: "center",
+    gap: 8,
+  },
+  editionAction: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  editionActionLabel: {
+    ...Fonts.semiBold,
+  },
+  extrasLabel: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
   },
 });

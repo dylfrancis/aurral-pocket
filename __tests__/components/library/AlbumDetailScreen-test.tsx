@@ -4,6 +4,12 @@ jest.mock("@/lib/api/library", () => ({
   getDownloadStatuses: jest.fn(() => Promise.resolve({})),
   updateLibraryFavorites: jest.fn(() => Promise.resolve({})),
   favoriteEntityId: jest.requireActual("@/lib/api/library").favoriteEntityId,
+  getAlbumEditions: jest.fn(() =>
+    Promise.resolve({ editions: [], library: null }),
+  ),
+  getReleaseGroupTracks: jest.fn(() => Promise.resolve([])),
+  getReleaseGroupPreviews: jest.fn(() => Promise.resolve({})),
+  setAlbumEdition: jest.fn(() => Promise.resolve()),
 }));
 
 const mockHasPermission = jest.fn((_permission: string) => true);
@@ -163,7 +169,13 @@ jest.mock("@gorhom/bottom-sheet", () => {
 
 import React from "react";
 import { Alert } from "react-native";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlbumDetailScreen } from "@/components/library/AlbumDetailScreen";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
@@ -171,8 +183,12 @@ import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import {
   deleteAurralAlbum,
+  getAlbumEditions,
   getDownloadStatuses,
+  getReleaseGroupPreviews,
+  getReleaseGroupTracks,
   researchAurralAlbum,
+  setAlbumEdition,
   updateLibraryFavorites,
 } from "@/lib/api/library";
 import { albumRouteParams } from "@/lib/library-read";
@@ -192,6 +208,10 @@ const mockResearchAurralAlbum = researchAurralAlbum as jest.Mock;
 const mockGetDownloadStatuses = getDownloadStatuses as jest.Mock;
 const mockCoverArtImage = CoverArtImage as unknown as jest.Mock;
 const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
+const mockGetAlbumEditions = getAlbumEditions as jest.Mock;
+const mockGetReleaseGroupTracks = getReleaseGroupTracks as jest.Mock;
+const mockGetReleaseGroupPreviews = getReleaseGroupPreviews as jest.Mock;
+const mockSetAlbumEdition = setAlbumEdition as jest.Mock;
 
 const album: Album = {
   id: "14",
@@ -792,6 +812,112 @@ describe("AlbumDetailScreen", () => {
         ],
         expect.anything(),
       );
+    });
+  });
+  describe("editions", () => {
+    const editions = [
+      { id: "rel-std", name: "Standard", date: "1997-05-21", trackCount: 12 },
+      {
+        id: "rel-cx",
+        name: "Collector's edition",
+        date: "2009-03-23",
+        trackCount: 4,
+      },
+    ];
+    const libraryTrack = (
+      id: string,
+      mbid: string,
+      trackName: string,
+      trackNumber: number,
+    ) =>
+      ({
+        id,
+        mbid,
+        trackName,
+        title: trackName,
+        trackNumber,
+        hasFile: true,
+        streamPath: `/library/stream/14/${id}`,
+      }) as Track;
+    const airbag = libraryTrack("101", "rec-1", "Airbag", 1);
+    const paranoid = libraryTrack("102", "rec-2", "Paranoid Android", 2);
+    // Scanned without a recording tag, so only its title and place match.
+    const alien = libraryTrack("103", "", "Subterranean Homesick Alien", 3);
+    const bonus = libraryTrack("104", "rec-9", "Polyethylene", 13);
+
+    beforeEach(() => {
+      mockUseLibraryTracks.mockReturnValue({
+        data: [airbag, paranoid, alien, bonus],
+        isLoading: false,
+      });
+      mockGetAlbumEditions.mockResolvedValue({ editions, library: "rel-std" });
+      // The edition runs in another order than the Library's.
+      mockGetReleaseGroupTracks.mockResolvedValue(
+        [
+          ["rec-2", "Paranoid Android"],
+          ["rec-1", "Airbag"],
+          ["rec-3", "Subterranean Homesick Alien"],
+          ["rec-4", "Lull"],
+        ].map(([id, title], index) => ({
+          id,
+          mbid: id,
+          title,
+          trackNumber: index + 1,
+          discNumber: 1,
+          length: null,
+          releaseMbid: "rel-cx",
+        })),
+      );
+      mockGetReleaseGroupPreviews.mockResolvedValue({
+        "rec-4": { preview_url: "/api/deezer/preview/4.mp3" },
+      });
+    });
+
+    async function previewCollectorsEdition() {
+      await openAlbumPage(album);
+      await fireEvent.press(
+        await screen.findByLabelText("Collector's edition"),
+      );
+      await screen.findByText("Your Library has the Standard edition.");
+    }
+
+    it("lists another edition's tracks, and plays the ones the Library has in its order", async () => {
+      await previewCollectorsEdition();
+
+      expect(mockGetReleaseGroupTracks).toHaveBeenCalledWith("rg-1", "rel-cx");
+      // The missing track offers its clip, and a track the Library has never
+      // reads as missing.
+      expect(screen.getByLabelText("Preview Lull")).toBeTruthy();
+      expect(
+        screen.queryByLabelText(
+          "Subterranean Homesick Alien, not in your Library",
+        ),
+      ).toBeNull();
+      // Switching keeps files the edition doesn't list.
+      expect(screen.getByText("From Other Editions")).toBeTruthy();
+
+      await fireEvent.press(screen.getByText("Play"));
+      expect(mockPlayAlbum).toHaveBeenCalledWith(
+        [paranoid, airbag, alien, bonus],
+        expect.anything(),
+      );
+    });
+
+    it("switches the Library album to the previewed edition", async () => {
+      await previewCollectorsEdition();
+      mockGetAlbumEditions.mockResolvedValue({ editions, library: "rel-cx" });
+
+      await fireEvent.press(screen.getByText("Use This Edition"));
+
+      expect(mockSetAlbumEdition).toHaveBeenCalledWith("14", "rel-cx");
+      // The page now reads it as the Library's edition, so it stays on it and
+      // the note goes.
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Your Library has the Standard edition."),
+        ).toBeNull(),
+      );
+      expect(screen.getByLabelText("Collector's edition")).toBeSelected();
     });
   });
 });
