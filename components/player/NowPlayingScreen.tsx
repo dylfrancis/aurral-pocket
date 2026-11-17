@@ -40,6 +40,7 @@ import {
   useAddToPlaylist,
 } from "@/components/flow/AddToPlaylistSheet";
 import { CoverTintBackdrop } from "@/components/player/CoverTintBackdrop";
+import { DevicesButton } from "@/components/player/DevicesButton";
 import { LyricsView } from "@/components/player/LyricsView";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import {
@@ -463,6 +464,11 @@ export function NowPlayingScreen() {
                     </Pressable>
                   </View>
                   <View style={styles.toolbar}>
+                    <DevicesButton
+                      color={colors.text}
+                      activeColor={colors.brand}
+                    />
+                    <View style={styles.toolbarSpacer} />
                     <Pressable
                       onPress={() => {
                         setShowQueue(false);
@@ -1049,6 +1055,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 8,
+  },
+  toolbarSpacer: {
+    flex: 1,
   },
   toolbarButton: {
     width: 44,

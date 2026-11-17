@@ -54,6 +54,29 @@ jest.mock("@/components/player/TrackMenu", () => {
   };
 });
 
+// The devices menu is native too. It stands in the same way: a group labelled
+// like its trigger, holding a plain button for the device to pick up from.
+jest.mock("@/components/player/DevicesMenu", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return {
+    DevicesMenu: ({ device, onPickUp, accessibilityLabel }: any) =>
+      React.createElement(
+        View,
+        { accessibilityLabel },
+        device &&
+          React.createElement(
+            Pressable,
+            { accessibilityLabel: device.name, onPress: onPickUp },
+            React.createElement(Text, null, device.name),
+            React.createElement(Text, null, device.detail),
+          ),
+      ),
+  };
+});
+
 // AsyncStorage has no native module under Jest, and it throws at import time.
 // `lib/storage` reaches many modules indirectly, so install the mock the library
 // ships. Suites that assert on storage calls still mock it themselves.

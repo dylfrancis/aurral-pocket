@@ -104,6 +104,15 @@ function expectLeftFor(href: unknown) {
   }
 }
 
+// The queue another device left, as the sync lists it.
+let mockOtherDevice: unknown = null;
+const mockPickUpQueue = jest.fn(() => Promise.resolve());
+jest.mock("@/lib/player/queue-sync", () => ({
+  useOtherDevice: () => mockOtherDevice,
+  pickUpQueue: () => mockPickUpQueue(),
+  forgetQueueSync: () => Promise.resolve(),
+}));
+
 jest.mock("@/lib/api/lyrics", () => ({ getLyrics: jest.fn() }));
 
 const mockGetLibraryRadio = jest.fn((..._args: unknown[]) =>
@@ -236,6 +245,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockOtherDevice = null;
   setBaseUrl("https://test.example");
   setAuthToken("test-token-123");
   queue.createPlaylist.mockResolvedValue("playlist-1");
@@ -979,5 +989,47 @@ describe("NowPlayingScreen lyrics", () => {
     await playTrack(albumTracks[2]);
 
     expect(await findByText("Everything")).toBeTruthy();
+  });
+});
+
+describe("NowPlayingScreen devices", () => {
+  const web = () => ({
+    name: "Aurral web",
+    track: { ...albumTracks[1], title: "Roads" },
+    positionSeconds: 134,
+    savedAt: Date.now() - 60_000,
+  });
+
+  it("lists another device's queue and plays it here", async () => {
+    mockOtherDevice = web();
+    const { getByText, getByLabelText } = await renderPlaying();
+
+    expect(
+      getByLabelText("Devices. Aurral web has a queue to pick up."),
+    ).toBeTruthy();
+    expect(getByText("Roads · 2:14 · 1 min ago")).toBeTruthy();
+
+    await fireEvent.press(getByLabelText("Aurral web"));
+    expect(mockPickUpQueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("says when its queue won't play here", async () => {
+    mockOtherDevice = web();
+    mockPickUpQueue.mockRejectedValueOnce(new Error("engine"));
+    const { getByLabelText } = await renderPlaying();
+
+    await act(async () => {
+      await fireEvent.press(getByLabelText("Aurral web"));
+    });
+
+    expect(Burnt.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Couldn't play from Aurral web" }),
+    );
+  });
+
+  it("labels the button plainly when there's nothing to pick up", async () => {
+    const { getByLabelText } = await renderPlaying();
+
+    expect(getByLabelText("Devices")).toBeTruthy();
   });
 });
