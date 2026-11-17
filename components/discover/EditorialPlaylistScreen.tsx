@@ -32,6 +32,12 @@ import {
 } from "./EditorialTrackRow";
 import { useColors } from "@/hooks/use-colors";
 
+const GONE_MESSAGE: Record<BrowseProvider, string> = {
+  deezer: "Deezer no longer has this playlist",
+  discovery: "This playlist was replaced by a newer one",
+  mix: "This mix was replaced by a newer one",
+};
+
 type RouteParams = {
   provider: BrowseProvider;
   id: string;
@@ -77,10 +83,10 @@ export function EditorialPlaylistScreen() {
   const trackItems = useMemo<EditorialTrackItem[]>(
     () =>
       (playlist?.tracks ?? []).map((track, index) => ({
-        id: `deezer-${id}-${index}`,
+        id: `${provider}-${id}-${index}`,
         track,
       })),
-    [playlist?.tracks, id],
+    [playlist?.tracks, provider, id],
   );
 
   const renderItem = useCallback(
@@ -127,7 +133,8 @@ export function EditorialPlaylistScreen() {
           icon="alert-circle-outline"
           message={
             notFound
-              ? "Deezer no longer has this playlist"
+              ? (GONE_MESSAGE[provider] ??
+                "This playlist is no longer available")
               : "Couldn't load this playlist"
           }
           actionLabel={notFound ? undefined : "Try Again"}
@@ -163,7 +170,7 @@ export function EditorialPlaylistScreen() {
               artwork={
                 <EditorialArtwork
                   name={name}
-                  uri={playlist?.artworkUrl ?? params.artworkUrl ?? null}
+                  coverUrl={playlist?.artworkUrl ?? params.artworkUrl ?? null}
                   size={COVER_SIZE}
                   radius={12}
                 />

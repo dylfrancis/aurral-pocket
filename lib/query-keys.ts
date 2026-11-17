@@ -87,6 +87,7 @@ export const discoverKeys = {
     ["discover", "nearbyShows", zipCode ?? "", limit ?? null] as const,
   editorialShelf: (scope?: EditorialShelfScope) =>
     ["discover", "editorial", "shelf", scope ?? "all"] as const,
+  madeForYou: () => ["discover", "editorial", "made-for-you"] as const,
   editorialPlaylist: (provider: BrowseProvider, playlistId: string) =>
     ["discover", "editorial", "playlist", provider, playlistId] as const,
   editorialLinks: (

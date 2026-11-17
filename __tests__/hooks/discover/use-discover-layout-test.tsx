@@ -75,6 +75,7 @@ describe("normalizeDiscoverLayout", () => {
     expect(result?.map((s) => s.id)).toEqual([
       "playlists",
       "recentlyAdded",
+      "madeForYou",
       "recommendedShows",
       "recentReleases",
       "news",
@@ -219,6 +220,7 @@ describe("useDiscoverLayout", () => {
         layout: [
           { id: "playlists", enabled: true },
           { id: "recentlyAdded", enabled: true },
+          { id: "madeForYou", enabled: true },
           { id: "recommendedShows", enabled: true },
           { id: "recentReleases", enabled: true },
           { id: "news", enabled: true },
@@ -233,6 +235,7 @@ describe("useDiscoverLayout", () => {
           { id: "playlists", enabled: true },
           { id: "news", enabled: false, style: "square" },
           { id: "recentlyAdded", enabled: true },
+          { id: "madeForYou", enabled: true },
           { id: "recommendedShows", enabled: true, style: "wide" },
           { id: "recentReleases", enabled: true },
           { id: "recommended", enabled: true },
@@ -259,6 +262,7 @@ describe("useDiscoverLayout", () => {
     expect(mockUpdateLayout).toHaveBeenCalledWith([
       { id: "recentlyAdded", enabled: true },
       { id: "news", enabled: false, style: "square" },
+      { id: "madeForYou", enabled: true },
       { id: "recommendedShows", enabled: true, style: "wide" },
       { id: "recentReleases", enabled: true },
       { id: "recommended", enabled: true },

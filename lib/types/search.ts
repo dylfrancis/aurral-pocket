@@ -216,11 +216,13 @@ export type EditorialPlaylistSummary = {
   curator: string | null;
 };
 
+export type EditorialGroup = "genre" | "mood" | "decade";
+
 export type EditorialCategory = {
   /** Such as `genre-0` or `mood-chill`. */
   id: string;
   name: string;
-  group: "genre" | "mood" | "decade";
+  group: EditorialGroup;
   playlists: EditorialPlaylistSummary[];
 };
 
@@ -233,6 +235,15 @@ export type EditorialShelfScope = "featured";
 export type EditorialShelfResponse = {
   forYou: EditorialPlaylistSummary[];
   categories: EditorialCategory[];
+};
+
+/**
+ * Aurral's own playlists for the user. `mixes` stays empty until the user has
+ * plays; their covers are server-relative.
+ */
+export type MadeForYouResponse = {
+  discovery: EditorialPlaylistSummary[];
+  mixes: EditorialPlaylistSummary[];
 };
 
 export type EditorialTrack = {

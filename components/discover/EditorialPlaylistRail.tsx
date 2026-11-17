@@ -40,7 +40,7 @@ export function EditorialPlaylistRail({ title, playlists, onViewAll }: Props) {
           >
             <EditorialArtwork
               name={playlist.name}
-              uri={playlist.artworkUrl}
+              coverUrl={playlist.artworkUrl}
               size={CARD_SIZE}
               radius={10}
             />

@@ -24,6 +24,7 @@ export type ChangePasswordPayload = {
 /** Every section in Aurral's Discover layout (`lib/discoverLayout.ts`). */
 export type DiscoverLayoutSectionId =
   | "recentlyAdded"
+  | "madeForYou"
   | "playlists"
   | "recommendedShows"
   | "recentReleases"

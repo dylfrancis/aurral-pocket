@@ -74,6 +74,7 @@ jest.mock("@/components/discover", () => {
     GlobalTrendingSection: stub("globalTop"),
     GenreSectionsPanel: stub("genreSections"),
     EditorialPlaylistsSection: viewAllStub("playlists"),
+    MadeForYouSection: viewAllStub("madeForYou"),
   };
 });
 
@@ -275,14 +276,25 @@ describe("DiscoverScreen tabs", () => {
     expect(mockShelfBuilds).toBe(1);
   });
 
-  it("opens the Playlists tab from the Playlists row's View All", async () => {
-    await render(<DiscoverScreen />);
+  it.each([
+    ["playlists", "Playlists"],
+    ["madeForYou", "Made for You"],
+  ] as const)(
+    "opens the Playlists tab from the %s row's View All",
+    async (id, label) => {
+      mockUseDiscoverLayout.mockReturnValue({
+        sections: [{ id, label, enabled: true }],
+        hydrated: true,
+        saveLayout: jest.fn(),
+      });
+      await render(<DiscoverScreen />);
 
-    await fireEvent.press(screen.getByTestId("section-playlists"));
+      await fireEvent.press(screen.getByTestId(`section-${id}`));
 
-    expect(screen.getByTestId("tab-playlists")).toBeTruthy();
-    expect(screen.queryByTestId("section-header")).toBeNull();
-  });
+      expect(screen.getByTestId("tab-playlists")).toBeTruthy();
+      expect(screen.queryByTestId("section-header")).toBeNull();
+    },
+  );
 
   it("opens the Recommended tab from the Recommended row's View All", async () => {
     mockUseDiscoverLayout.mockReturnValue({
@@ -327,6 +339,19 @@ describe("DiscoverScreen tabs", () => {
       queryKey: discoverKeys.trending(),
     });
     expect(mockRefetchDiscovery).not.toHaveBeenCalled();
+  });
+
+  it("reloads the shelf and Made for You on pull to refresh in Playlists", async () => {
+    await render(<DiscoverScreen />);
+    await fireEvent.press(screen.getByText("Playlists"));
+
+    const { RefreshControl } = require("react-native");
+    await act(() => RefreshControl.latestRef.props.onRefresh());
+
+    expect(mockInvalidateQueries.mock.calls).toEqual([
+      [{ queryKey: discoverKeys.editorialShelf() }],
+      [{ queryKey: discoverKeys.madeForYou() }],
+    ]);
   });
 
   it("reloads recommendations on pull to refresh in Recommended", async () => {

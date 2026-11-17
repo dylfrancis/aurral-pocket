@@ -1,5 +1,6 @@
 jest.mock("@/lib/api/search", () => ({
   getEditorialShelf: jest.fn(),
+  getMadeForYou: jest.fn(),
 }));
 
 jest.mock("expo-router", () => ({
@@ -18,17 +19,22 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EditorialShelf } from "@/components/discover/EditorialShelf";
 import { ApiError } from "@/lib/api/client";
-import { getEditorialShelf } from "@/lib/api/search";
+import { getEditorialShelf, getMadeForYou } from "@/lib/api/search";
 import type {
   EditorialCategory,
   EditorialPlaylistSummary,
 } from "@/lib/types/search";
 
 const mockGetShelf = getEditorialShelf as jest.Mock;
+const mockGetMadeForYou = getMadeForYou as jest.Mock;
 
-function playlistSummary(id: string, name: string): EditorialPlaylistSummary {
+function playlistSummary(
+  id: string,
+  name: string,
+  provider: EditorialPlaylistSummary["provider"] = "deezer",
+): EditorialPlaylistSummary {
   return {
-    provider: "deezer",
+    provider,
     id,
     name,
     description: null,
@@ -73,6 +79,7 @@ async function renderScreen() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockGetMadeForYou.mockResolvedValue({ discovery: [], mixes: [] });
 });
 
 afterEach(() => {
@@ -134,11 +141,16 @@ describe("EditorialShelf", () => {
     expect(await screen.findByText("No playlists right now")).toBeTruthy();
   });
 
-  it("offers a retry when the shelf fails to load", async () => {
+  it("keeps Made for You and offers a retry when the shelf fails to load", async () => {
+    mockGetMadeForYou.mockResolvedValue({
+      discovery: [],
+      mixes: [playlistSummary("daily-1", "Daily Mix 1", "mix")],
+    });
     mockGetShelf.mockRejectedValueOnce(new ApiError(502, "Deezer is down"));
 
     await renderScreen();
     expect(await screen.findByText("Playlists didn't load")).toBeTruthy();
+    expect(screen.getByText("Daily Mix 1")).toBeTruthy();
 
     mockGetShelf.mockResolvedValue({ forYou: [], categories: [POP] });
     await fireEvent.press(screen.getByText("Try Again"));

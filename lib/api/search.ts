@@ -18,6 +18,7 @@ import type {
   EditorialPlaylist,
   EditorialShelfResponse,
   EditorialShelfScope,
+  MadeForYouResponse,
   RecentlyAddedResponse,
   RecentReleasesResponse,
   NearbyShowsResponse,
@@ -120,6 +121,13 @@ export async function getEditorialShelf(scope?: EditorialShelfScope) {
   const r = await api.get<EditorialShelfResponse>("/discover/playlists", {
     params: scope ? { scope } : undefined,
   });
+  return r.data;
+}
+
+export async function getMadeForYou() {
+  const r = await api.get<MadeForYouResponse>(
+    "/discover/playlists/made-for-you",
+  );
   return r.data;
 }
 

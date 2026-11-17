@@ -198,16 +198,22 @@ describe("the page itself", () => {
     expect(screen.getByText("Deezer Pop Editor · 2 tracks")).toBeTruthy();
   });
 
-  it("explains a playlist Deezer no longer has, with nothing to retry", async () => {
-    mockGetPlaylist.mockRejectedValue(new ApiError(404, "gone"));
+  it.each([
+    ["deezer", "Deezer no longer has this playlist"],
+    ["discovery", "This playlist was replaced by a newer one"],
+    ["mix", "This mix was replaced by a newer one"],
+  ] as const)(
+    "explains a %s playlist that's gone, with nothing to retry",
+    async (provider, message) => {
+      mockParams = { provider, id: "878" };
+      mockGetPlaylist.mockRejectedValue(new ApiError(404, "gone"));
 
-    await renderPage();
+      await renderPage();
 
-    expect(
-      await screen.findByText("Deezer no longer has this playlist"),
-    ).toBeTruthy();
-    expect(screen.queryByText("Try Again")).toBeNull();
-  });
+      expect(await screen.findByText(message)).toBeTruthy();
+      expect(screen.queryByText("Try Again")).toBeNull();
+    },
+  );
 
   it("reads and saves the playlist under the provider it was opened with", async () => {
     mockParams = { provider: "mix", id: "daily-1" };
@@ -226,6 +232,10 @@ describe("the page itself", () => {
     await screen.findByText("Open in Library");
     expect(mockGetPlaylist).toHaveBeenCalledWith("mix", "daily-1");
     expect(mockAdd).toHaveBeenCalledWith("mix", "daily-1");
+    // A mix syncs with Aurral, not Deezer.
+    expect(Burnt.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Syncs daily" }),
+    );
   });
 
   it("retries any other failure", async () => {

@@ -13,6 +13,7 @@ const STORAGE_KEY_PREFIX = "discoverLayout";
 
 export const DEFAULT_DISCOVER_SECTIONS: readonly DiscoverSection[] = [
   { id: "recentlyAdded", label: "Recently Added", enabled: true },
+  { id: "madeForYou", label: "Made for You", enabled: true },
   { id: "playlists", label: "Playlists", enabled: true },
   { id: "recommendedShows", label: "Shows Near You", enabled: true },
   { id: "recentReleases", label: "Recent Releases", enabled: true },
@@ -25,6 +26,7 @@ export const DEFAULT_DISCOVER_SECTIONS: readonly DiscoverSection[] = [
 // row styles, and the sections that take one.
 const LAYOUT_SECTION_IDS: readonly DiscoverLayoutSectionId[] = [
   "recentlyAdded",
+  "madeForYou",
   "playlists",
   "recommendedShows",
   "recentReleases",

@@ -89,6 +89,20 @@
       ],
       "forYou": []
     },
+    "GET /discover/playlists/made-for-you": {
+      "discovery": [
+        {
+          "artworkUrl": "string",
+          "curator": "string",
+          "description": "string",
+          "id": "string",
+          "name": "string",
+          "provider": "string",
+          "trackCount": "number"
+        }
+      ],
+      "mixes": []
+    },
     "GET /discover/tags": {
       "tags": ["string"]
     },

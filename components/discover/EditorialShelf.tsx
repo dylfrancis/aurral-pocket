@@ -2,13 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
 import { EmptyState } from "@/components/library/EmptyState";
-import { useEditorialShelf } from "@/hooks/discover/use-editorial-playlists";
+import {
+  useEditorialShelf,
+  useMadeForYou,
+} from "@/hooks/discover/use-editorial-playlists";
 import { EditorialPlaylistRail } from "./EditorialPlaylistRail";
+import { MadeForYouSection } from "./MadeForYouSection";
 
 const SHELVES_ON_SCREEN = 3;
 
 /** Not a FlatList: it sits inside Discover's scroll view. */
 export function EditorialShelf() {
+  const madeForYou = useMadeForYou();
   const { data, isLoading, refetch } = useEditorialShelf();
 
   const shelves = useMemo(
@@ -42,10 +47,11 @@ export function EditorialShelf() {
     return () => cancelAnimationFrame(frame);
   }, [builtShelfCount, shelves.length]);
 
+  // Aurral builds Made for You itself, so it doesn't wait on Deezer.
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <AlbumCategorySkeleton />
+        <MadeForYouSection />
         <AlbumCategorySkeleton />
       </View>
     );
@@ -53,18 +59,23 @@ export function EditorialShelf() {
 
   if (!data) {
     return (
-      <View style={styles.message}>
-        <EmptyState
-          icon="cloud-offline-outline"
-          message="Playlists didn't load"
-          actionLabel="Try Again"
-          onAction={() => void refetch()}
-        />
+      <View style={styles.shelves}>
+        <MadeForYouSection />
+        <View style={styles.message}>
+          <EmptyState
+            icon="cloud-offline-outline"
+            message="Playlists didn't load"
+            actionLabel="Try Again"
+            onAction={() => void refetch()}
+          />
+        </View>
       </View>
     );
   }
 
-  if (shelves.length === 0) {
+  const noMadeForYou =
+    !madeForYou.isLoading && (madeForYou.data?.length ?? 0) === 0;
+  if (shelves.length === 0 && noMadeForYou) {
     return (
       <View style={styles.message}>
         <EmptyState icon="list-outline" message="No playlists right now" />
@@ -74,6 +85,7 @@ export function EditorialShelf() {
 
   return (
     <View style={styles.shelves}>
+      <MadeForYouSection />
       {shelves.slice(0, builtShelfCount).map((shelf) => (
         <EditorialPlaylistRail
           key={shelf.key}
