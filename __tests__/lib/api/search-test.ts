@@ -13,6 +13,7 @@ import {
   getEditorialLinks,
   getEditorialPlaylist,
   getEditorialShelf,
+  getMadeForYou,
   searchArtists,
   searchAlbums,
   searchLibraryTracks,
@@ -401,16 +402,18 @@ describe("getNearbyShows", () => {
 });
 
 describe("Browse playlists", () => {
-  it("reads the shelf, its featured scope, and a playlist by provider and id", async () => {
+  it("reads the shelf, its featured scope, Made for You, and a playlist by provider and id", async () => {
     mockApi.get.mockResolvedValue({ data: {} });
 
     await getEditorialShelf();
     await getEditorialShelf("featured");
+    await getMadeForYou();
     await getEditorialPlaylist("deezer", "878989033");
 
     expect(mockApi.get.mock.calls).toEqual([
       ["/discover/playlists", { params: undefined }],
       ["/discover/playlists", { params: { scope: "featured" } }],
+      ["/discover/playlists/made-for-you"],
       ["/discover/playlists/deezer/878989033"],
     ]);
   });

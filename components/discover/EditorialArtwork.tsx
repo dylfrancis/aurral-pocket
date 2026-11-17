@@ -2,11 +2,12 @@ import { memo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { FlowArtwork } from "@/components/flow/FlowArtwork";
+import { serverImageSource } from "@/lib/api/client";
 import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   name: string;
-  uri: string | null;
+  coverUrl: string | null;
   size: number;
   radius: number;
 };
@@ -18,13 +19,14 @@ type Props = {
  */
 export const EditorialArtwork = memo(function EditorialArtwork({
   name,
-  uri,
+  coverUrl,
   size,
   radius,
 }: Props) {
   const colors = useColors();
-  const [failedUri, setFailedUri] = useState<string | null>(null);
-  const showCover = !!uri && failedUri !== uri;
+  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
+  const source =
+    failedCoverUrl === coverUrl ? null : serverImageSource(coverUrl);
 
   return (
     <View
@@ -39,14 +41,14 @@ export const EditorialArtwork = memo(function EditorialArtwork({
         },
       ]}
     >
-      {showCover ? (
+      {source ? (
         <Image
-          source={{ uri }}
+          source={source}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={150}
           cachePolicy="memory-disk"
-          onError={() => setFailedUri(uri)}
+          onError={() => setFailedCoverUrl(coverUrl)}
         />
       ) : (
         <FlowArtwork name={name} kind="playlist" size={size} radius={radius} />

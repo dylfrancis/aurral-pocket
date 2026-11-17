@@ -8,14 +8,17 @@ import {
   getEditorialLinks,
   getEditorialPlaylist,
   getEditorialShelf,
+  getMadeForYou,
 } from "@/lib/api/search";
 import { releaseRouteParams } from "@/lib/library-read";
 import { discoverKeys, flowKeys } from "@/lib/query-keys";
 import type {
   BrowseProvider,
+  EditorialCategory,
   EditorialPlaylist,
   EditorialPlaylistSummary,
   EditorialShelfScope,
+  MadeForYouResponse,
   EditorialTrack,
   TrendingChartsResponse,
 } from "@/lib/types/search";
@@ -27,6 +30,7 @@ export type TrackLinkTarget = Pick<
 >;
 
 const SHELF_STALE_MS = 60 * 60 * 1000;
+const MADE_FOR_YOU_STALE_MS = 10 * 60 * 1000;
 const PLAYLIST_STALE_MS = 5 * 60 * 1000;
 const LINK_STALE_MS = 5 * 60 * 1000;
 
@@ -36,6 +40,21 @@ export function useEditorialShelf(scope?: EditorialShelfScope) {
     queryFn: () => getEditorialShelf(scope),
     staleTime: SHELF_STALE_MS,
     gcTime: 2 * SHELF_STALE_MS,
+  });
+}
+
+const madeForYouPlaylists = ({ discovery, mixes }: MadeForYouResponse) => [
+  ...discovery,
+  ...mixes,
+];
+
+/** Discovery playlists first, then the mixes, as the web lists them. */
+export function useMadeForYou() {
+  return useQuery({
+    queryKey: discoverKeys.madeForYou(),
+    queryFn: getMadeForYou,
+    select: madeForYouPlaylists,
+    staleTime: MADE_FOR_YOU_STALE_MS,
   });
 }
 
@@ -70,6 +89,30 @@ export function useOpenEditorialPlaylist() {
     [router],
   );
 }
+
+export function useOpenEditorialCategory() {
+  const router = useRouter();
+
+  return useCallback(
+    (category: Pick<EditorialCategory, "id" | "group" | "name">) => {
+      router.push({
+        pathname: "/(app)/(tabs)/(discover)/browse/[group]",
+        params: {
+          group: category.group,
+          category: category.id,
+          name: category.name,
+        },
+      });
+    },
+    [router],
+  );
+}
+
+const ADDED_MESSAGE: Record<BrowseProvider, string> = {
+  deezer: "Syncs with Deezer daily",
+  discovery: "Downloads missing songs",
+  mix: "Syncs daily",
+};
 
 export function useAddEditorialPlaylist(
   provider: BrowseProvider,
@@ -109,7 +152,7 @@ export function useAddEditorialPlaylist(
             }
           : {
               title: "Added to your playlists",
-              message: "Syncs with Deezer daily",
+              message: ADDED_MESSAGE[provider],
               preset: "done",
             },
       );
