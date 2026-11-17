@@ -84,7 +84,7 @@ export function Scrubber() {
 }
 
 /** Seconds as m:ss, or h:mm:ss past the hour. */
-function formatTime(totalSeconds: number): string {
+export function formatTime(totalSeconds: number): string {
   const whole = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(whole / 3600);
   const minutes = Math.floor((whole % 3600) / 60);
