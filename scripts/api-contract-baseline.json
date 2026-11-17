@@ -197,6 +197,9 @@
     },
     "GET /library/recent": [],
     "GET /library/recent-releases": [],
+    "GET /play-queue": {
+      "queue": "null"
+    },
     "GET /playlists/flow-templates": {
       "templates": [
         {
