@@ -9,9 +9,8 @@ import {
 } from "@/lib/player/transcoding";
 
 /**
- * How much audio pocket fetches ahead and keeps, from Settings › Playback and
- * Storage. Kept on the phone, for every account: they're about the phone's
- * data plan and space, not the server.
+ * Settings › Playback and Storage, kept on the phone for every account, not on
+ * the server.
  */
 export type PlaybackSettings = {
   /** Upcoming tracks fetched to disk while one plays. Zero turns it off. */
@@ -24,6 +23,8 @@ export type PlaybackSettings = {
   wifiOnly: boolean;
   /** When the queue ends, keep playing similar music from the Library. */
   autoplay: boolean;
+  /** Turn down tracks Aurral measures as loud. Quiet ones stay as they are. */
+  levelLoudTracks: boolean;
   transcoding: TranscodingSettings;
 };
 
@@ -36,7 +37,7 @@ export const CACHE_SIZE_OPTIONS: readonly number[] = [
 
 /**
  * One track ahead and a gigabyte, so a short drop doesn't stop the music.
- * Autoplay starts on, as it does on the web.
+ * Autoplay and levelling start on, as they do on the web.
  */
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   prefetchAhead: 1,
@@ -44,6 +45,7 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   cacheBytes: 1_000_000_000,
   wifiOnly: false,
   autoplay: true,
+  levelLoudTracks: true,
   transcoding: DEFAULT_TRANSCODING,
 };
 
@@ -144,6 +146,10 @@ function parse(raw: string | null): PlaybackSettings {
         typeof value.autoplay === "boolean"
           ? value.autoplay
           : DEFAULT_PLAYBACK_SETTINGS.autoplay,
+      levelLoudTracks:
+        typeof value.levelLoudTracks === "boolean"
+          ? value.levelLoudTracks
+          : DEFAULT_PLAYBACK_SETTINGS.levelLoudTracks,
       transcoding: parseTranscoding(value.transcoding),
     };
   } catch {

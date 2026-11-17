@@ -2,6 +2,7 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { Directory, File, Paths } from "expo-file-system";
 import { buildAuthenticatedUrl, customHeadersFor } from "@/lib/api/client";
 import { getFlowStreamPath } from "@/lib/api/flow";
+import { getStreamLoudness } from "@/lib/api/loudness";
 import { cachedFilePath, useIsTrackCached } from "@/lib/offline/audio-cache";
 import {
   MAX_ATTEMPTS,
@@ -15,6 +16,8 @@ import {
   onDownloadHoldChange,
 } from "@/lib/offline/download";
 import { isOffline, useIsOffline } from "@/lib/offline/network";
+import { knownLoudness, onLoudnessMeasured } from "@/lib/player/loudness";
+import { getPlaybackSettings } from "@/lib/player/playback-settings";
 import {
   toSavedTrack,
   upgradeStreamPath,
@@ -114,6 +117,8 @@ type SavedFile = {
   bytes: number | null;
   /** The server refused or lost the file. Try Again clears it. */
   failed: boolean;
+  /** Aurral's measurement in LUFS, for levelling the file offline. */
+  loudness?: number;
 };
 
 export type SaveState = "saving" | "waiting" | "saved" | "incomplete";
@@ -214,6 +219,7 @@ function load(): Promise<void> {
       { persist: false },
     );
     write();
+    onLoudnessMeasured(rememberLoudness);
     onDownloadHoldChange((hold) => {
       if (hold === null) {
         if (snapshot.blocked === "network") resumeSaving();
@@ -314,6 +320,11 @@ export function savedFilePath(trackId: string): string | null {
   // The app's folder can move on an update, so the path is built fresh
   // rather than stored.
   return enginePath(fileFor(file.name));
+}
+
+/** Undefined until Aurral has measured the file. */
+export function savedLoudness(trackId: string): number | undefined {
+  return snapshot.files[trackId]?.loudness;
 }
 
 /**
@@ -593,6 +604,12 @@ async function saveFile(trackId: string, file: SavedFile): Promise<void> {
     if (download.cancelled || !saved) return;
     attempts.delete(trackId);
     setFile(trackId, { bytes: saved.size || file.expectedBytes });
+    if (
+      getPlaybackSettings().levelLoudTracks &&
+      snapshot.files[trackId]?.loudness === undefined
+    ) {
+      measureSavedFile(file.streamPath);
+    }
   } catch (error) {
     // Android writes straight into the destination, so a failure can leave
     // part of the file behind.
@@ -633,6 +650,31 @@ async function afterFailure(
     return;
   }
   setFile(trackId, { failed: true });
+}
+
+/** Starts a request in the background; a failure leaves the file unmeasured. */
+function measureSavedFile(streamPath: string): void {
+  const known = knownLoudness(streamPath);
+  if (known !== undefined) {
+    if (known !== null) rememberLoudness(streamPath, known);
+    return;
+  }
+  getStreamLoudness(streamPath).then(
+    (lufs) => {
+      if (lufs !== null) rememberLoudness(streamPath, lufs);
+    },
+    () => {},
+  );
+}
+
+function rememberLoudness(streamPath: string, lufs: number): void {
+  let files: Record<string, SavedFile> | null = null;
+  for (const [id, file] of Object.entries(snapshot.files)) {
+    if (file.streamPath !== streamPath || file.loudness === lufs) continue;
+    files ??= { ...snapshot.files };
+    files[id] = { ...file, loudness: lufs };
+  }
+  if (files) commit({ files });
 }
 
 function setFile(trackId: string, change: Partial<SavedFile>): void {
@@ -817,9 +859,11 @@ function parseRecord(raw: string | null): {
     if (isRecord(parsed.files)) {
       for (const [id, file] of Object.entries(parsed.files)) {
         if (isSavedFile(file)) {
+          const { loudness, ...rest } = file;
           files[id] = {
-            ...file,
+            ...rest,
             streamPath: upgradeStreamPath(file.streamPath),
+            ...(Number.isFinite(loudness) ? { loudness } : {}),
           };
         }
       }

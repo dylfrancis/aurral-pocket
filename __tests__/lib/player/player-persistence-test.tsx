@@ -21,6 +21,7 @@ jest.mock("expo/fetch", () => ({ fetch: mockFetch }));
 const mockPhone = { saved: new Map<string, string>(), offline: false };
 jest.mock("@/lib/offline/saved-library", () => ({
   savedFilePath: (id: string) => mockPhone.saved.get(id) ?? null,
+  savedLoudness: () => undefined,
   canPlayNow: (id: string) => !mockPhone.offline || mockPhone.saved.has(id),
   savedLibraryReady: () => Promise.resolve(),
 }));
@@ -49,6 +50,7 @@ const mockPlayer = {
   skipToPrevious: jest.fn(() => Promise.resolve()),
   seek: jest.fn(() => Promise.resolve()),
   setRepeatMode: jest.fn(() => Promise.resolve()),
+  setVolume: jest.fn(() => Promise.resolve()),
   updateTracks: jest.fn(() => Promise.resolve()),
   onTracksNeedUpdate: jest.fn(),
   getState: jest.fn(() => Promise.resolve({ currentPosition: 0 })),

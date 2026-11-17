@@ -145,12 +145,25 @@ export function PlaybackStorageScreen() {
               />
             ),
           })}
+          {row({
+            label: "Level Loud Tracks",
+            trailing: (
+              <SettingsSwitch
+                value={settings.levelLoudTracks}
+                onChange={(levelLoudTracks) =>
+                  setPlaybackSettings({ levelLoudTracks })
+                }
+              />
+            ),
+          })}
           <FieldGroup.SectionFooter>
             <SettingsNote>
               Prefetch keeps the next tracks on your phone while one plays, so a
               drop in signal doesn’t stop the music. With Wi-Fi Only, prefetch
               and offline saves wait for Wi-Fi. When the queue ends, Autoplay
-              keeps playing similar music from your Library.
+              keeps playing similar music from your Library. Level Loud Tracks
+              turns down tracks Aurral measures as loud, and never turns a quiet
+              one up.
             </SettingsNote>
           </FieldGroup.SectionFooter>
         </FieldGroup.Section>
