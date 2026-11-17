@@ -64,6 +64,7 @@ import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet
 import { retryTrackJob } from "@/lib/api/flow";
 import { cancelAurralAlbum } from "@/lib/api/library";
 import type { ActivityItem } from "@/lib/types/activity";
+import type { DownloadStatusValue } from "@/lib/types/library";
 
 const mockCancelAurralAlbum = cancelAurralAlbum as jest.Mock;
 
@@ -108,9 +109,23 @@ const failedDownload: ActivityItem = {
   libraryAlbumId: null,
 };
 
+// Aurral's paged feed merges an album's track downloads into one row whose
+// own status is live, and which the download status map doesn't cover.
+const albumDownload: ActivityItem = {
+  ...aurralRequest,
+  id: "grab-1",
+  kind: "album_download",
+  title: "Kid A",
+  status: "processing",
+  statusLabel: "Downloading album",
+  inQueue: true,
+  progressLabel: "3 of 10 tracks ready",
+};
+
 async function openSheet(
   request: ActivityItem = aurralRequest,
   sheetRef = React.createRef<BottomSheetModal>(),
+  downloadStatus: DownloadStatusValue | undefined = "downloading",
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false, gcTime: 0 } },
@@ -120,7 +135,7 @@ async function openSheet(
       <ActivityActionsSheet
         sheetRef={sheetRef}
         request={request}
-        downloadStatus="downloading"
+        downloadStatus={downloadStatus}
       />
     </QueryClientProvider>,
   );
@@ -146,6 +161,26 @@ describe("ActivityActionsSheet", () => {
       fireEvent.press(screen.getByText("Stop Download"));
     });
 
+    expect(mockCancelAurralAlbum).toHaveBeenCalledWith("12");
+  });
+
+  it.each([
+    ["while it downloads", albumDownload, true],
+    [
+      "not once it settles",
+      { ...albumDownload, status: "completed", inQueue: false },
+      false,
+    ],
+  ])("offers Stop on an album download %s", async (_name, item, offered) => {
+    await openSheet(item, undefined, undefined);
+
+    if (!offered) {
+      expect(screen.queryByText("Stop Download")).toBeNull();
+      return;
+    }
+    await act(async () => {
+      fireEvent.press(screen.getByText("Stop Download"));
+    });
     expect(mockCancelAurralAlbum).toHaveBeenCalledWith("12");
   });
 

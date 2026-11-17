@@ -23,6 +23,7 @@ const KIND_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   artist_added: "person-add-outline",
   track_download: "cloud-download-outline",
   album_requested: "musical-notes-outline",
+  album_download: "albums-outline",
   missing_track_search: "search-outline",
 };
 
@@ -35,6 +36,15 @@ function secondaryText(item: ActivityItem): string | null {
   // needs in order to decide whether to approve it.
   if (item.status === "blocked" && item.sourceFilename) {
     return item.sourceFilename;
+  }
+  // An album download carries its first track's subtitle, so it gets its own.
+  if (item.kind === "album_download") {
+    const tracks = item.children?.length ?? 0;
+    const progress =
+      item.status === "completed" && tracks > 0
+        ? `${tracks} ${tracks === 1 ? "track" : "tracks"}`
+        : item.progressLabel;
+    return [item.artistName, progress].filter(Boolean).join(" · ") || null;
   }
   return item.subtitle;
 }
