@@ -21,9 +21,9 @@ import {
   useStopTrackDownload,
 } from "@/hooks/flow/use-track-job-controls";
 import { Fonts } from "@/constants/theme";
-import { isActiveAurralStatus } from "@/lib/album-status";
+import { stoppableAlbumId } from "@/lib/activity-views";
 import type { DownloadStatusValue } from "@/lib/types/library";
-import { albumRequestLibraryId, type ActivityItem } from "@/lib/types/activity";
+import type { ActivityItem } from "@/lib/types/activity";
 import { useColors } from "@/hooks/use-colors";
 
 type RequestActionsSheetProps = {
@@ -47,11 +47,10 @@ export function ActivityActionsSheet({
 
   const trackJob = request ? jobControlsFor(request) : null;
 
-  const libraryAlbumId = request ? albumRequestLibraryId(request) : null;
-  const canStop =
-    !!libraryAlbumId &&
-    isActiveAurralStatus(downloadStatus) &&
-    hasPermission("addAlbum");
+  const libraryAlbumId = request
+    ? stoppableAlbumId(request, downloadStatus)
+    : null;
+  const canStop = !!libraryAlbumId && hasPermission("addAlbum");
 
   const close = () => sheetRef.current?.dismiss();
 

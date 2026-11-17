@@ -103,12 +103,15 @@ const SYNTHETIC = {
 
 /**
  * Query strings for routes that reject a bare probe. GET /library answers 400
- * without `kind` and `pageSize`, so a bare probe would drop the route out of
- * shape coverage and out of the app contract's field check. The values mirror
- * what the client always sends, so the recorded shape is the envelope pocket
- * actually reads.
+ * without `kind` and `pageSize`, and GET /requests/page without `view`, so a
+ * bare probe would drop the route out of shape coverage and out of the app
+ * contract's field check. The values mirror what the client always sends, so
+ * the recorded shape is the envelope pocket actually reads.
  */
-const REQUIRED_QUERY = new Map([["GET /library", "kind=artists&pageSize=100"]]);
+const REQUIRED_QUERY = new Map([
+  ["GET /library", "kind=artists&pageSize=100"],
+  ["GET /requests/page", "view=queue"],
+]);
 
 /**
  * Probed last, for two reasons:
@@ -234,6 +237,22 @@ const CONTRACT = new Map([
   ],
   ["GET /playlists/jobs", null],
   ["GET /requests", "array"],
+  [
+    "GET /requests/page",
+    {
+      view: "string",
+      items: "array",
+      causes: "array",
+      cause: "string?",
+      total: "number",
+      matching: "number",
+      filters: "array",
+      cancelable: "number",
+      paused: "boolean",
+    },
+  ],
+  ["POST /playlists/jobs/cancel", null],
+  ["PUT /playlists/worker/settings", null],
   ["POST /playlists/jobs/:jobId/approve", null],
   ["POST /playlists/jobs/:jobId/deny", null],
 ]);

@@ -99,7 +99,7 @@ function useTrackJobControl(
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: flowKeys.jobsAll() });
       void queryClient.invalidateQueries({ queryKey: flowKeys.status() });
-      void queryClient.invalidateQueries({ queryKey: activityKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: activityKeys.feedAll() });
     },
   });
 }
@@ -138,7 +138,7 @@ export function useDownloadSavedTrack(kind: "flow" | "shared") {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: flowKeys.status() });
-      void queryClient.invalidateQueries({ queryKey: activityKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: activityKeys.feedAll() });
     },
     onError: (err, job) => {
       setCachedJobStatus(queryClient, job.id, "saved");

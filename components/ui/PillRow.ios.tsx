@@ -77,7 +77,13 @@ export function PillRow<Id extends string>({
                 modifiers={modifiers}
               />
             ) : (
-              <Button key={item.id} onPress={handlePress} modifiers={modifiers}>
+              // Keyed by the count too: the label's nested Text doesn't redraw
+              // when only the count changes, so the pill remounts instead.
+              <Button
+                key={`${item.id}:${item.count}`}
+                onPress={handlePress}
+                modifiers={modifiers}
+              >
                 <Text>
                   {`${item.label} `}
                   <Text

@@ -111,7 +111,22 @@ export const shazamKeys = {
 };
 
 export const activityKeys = {
-  list: () => ["activity", "list"] as const,
+  feedAll: () => ["activity", "list"] as const,
+  pagesAll: () => ["activity", "list", "pages"] as const,
+  pages: (filter: {
+    view: string;
+    status: string | null;
+    cause: string | null;
+  }) =>
+    [
+      "activity",
+      "list",
+      "pages",
+      filter.view,
+      filter.status,
+      filter.cause,
+    ] as const,
+  counts: () => ["activity", "list", "counts"] as const,
   downloadStatusesAll: () => ["activity", "downloadStatuses"] as const,
   downloadStatuses: (albumIds: string) =>
     ["activity", "downloadStatuses", albumIds] as const,

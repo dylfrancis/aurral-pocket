@@ -32,7 +32,9 @@ export function PillRow<Id extends string>({
             : colors.text;
           return (
             <FilterChip
-              key={item.id}
+              // Keyed by the count too: the label's nested Text doesn't redraw
+              // when only the count changes, so the chip remounts instead.
+              key={`${item.id}:${item.count ?? ""}`}
               selected={isSelected}
               onClick={() => {
                 if (isSelected) return;

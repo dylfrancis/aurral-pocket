@@ -1,10 +1,16 @@
-import type { ActivityItem } from "@/lib/types/activity";
+import { formatDate, formatTime } from "@/lib/date-time";
+import { isActiveAurralStatus } from "@/lib/album-status";
+import type { DownloadStatusValue } from "@/lib/types/library";
+import type {
+  ActivityCauseGroup,
+  ActivityItem,
+  ActivityStatus,
+} from "@/lib/types/activity";
+import { albumRequestLibraryId } from "@/lib/types/activity";
 
 /**
- * Mirrors Aurral's own activity segmentation (navigation/activityNavConfig.ts)
- * so Pocket and the web UI put the same item in the same bucket. Pocket keeps
- * blocked jobs in a Review view of their own, where the web lists them in
- * Queue.
+ * Aurral's Queue and History, plus a Review view of its own for the tracks
+ * awaiting review, which the web lists only under Queue's Review filter.
  */
 export const ACTIVITY_VIEWS = [
   { id: "queue", label: "Queue" },
@@ -14,107 +20,16 @@ export const ACTIVITY_VIEWS = [
 
 export type ActivityView = (typeof ACTIVITY_VIEWS)[number]["id"];
 
-export function isQueueItem(item: ActivityItem): boolean {
-  if (item.status === "blocked") return false;
-  return (
-    item.inQueue === true ||
-    item.status === "processing" ||
-    item.status === "pending"
-  );
-}
-
-export function matchesActivityView(
-  item: ActivityItem,
-  view: ActivityView,
-): boolean {
-  if (view === "queue") return isQueueItem(item);
-  if (view === "review") return item.status === "blocked";
-  return !isQueueItem(item) && item.status !== "blocked";
-}
-
-/** Newest first, with id as a stable tiebreak. */
-export function compareActivityItems(a: ActivityItem, b: ActivityItem): number {
-  const delta =
-    new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime();
-  if (delta) return delta;
-  return String(b.id ?? "").localeCompare(String(a.id ?? ""));
-}
-
-const ACTIVITY_STATUS_LABELS = {
-  searching: "Searching",
-  downloading: "Downloading",
-  queued: "Queued",
-  downloaded: "Downloaded",
-  upgraded: "Upgraded",
-  failed: "Failed",
-  cancelled: "Cancelled",
-} as const;
-
-export type ActivityStatus = keyof typeof ACTIVITY_STATUS_LABELS;
-
-const VIEW_STATUSES: Partial<Record<ActivityView, readonly ActivityStatus[]>> =
-  {
-    queue: ["searching", "downloading", "queued", "failed"],
-    history: ["downloaded", "upgraded", "failed", "cancelled"],
-  };
-
 /**
- * The web's status buckets, read off the status and its label because the API
- * sends none. A job being cancelled, or an entry that downloaded nothing such
- * as an added artist, falls in none.
+ * The page each view reads. Aurral keeps tracks awaiting review in its queue,
+ * so Review is the queue filtered to them.
  */
-export function getActivityStatus(item: ActivityItem): ActivityStatus | null {
-  const label = item.statusLabel ?? "";
-  switch (item.status) {
-    case "pending":
-      return "queued";
-    case "processing":
-      if (/queued/i.test(label)) return "queued";
-      if (/search|requested/i.test(label)) return "searching";
-      if (/download|waiting|moving|processing/i.test(label)) {
-        return "downloading";
-      }
-      return null;
-    case "completed":
-    case "available":
-      if (item.upgrade) return "upgraded";
-      if (item.kind === "track_download") return "downloaded";
-      return label === "Downloaded" ? "downloaded" : null;
-    case "failed":
-      return "failed";
-    case "cancelled":
-      return "cancelled";
-    default:
-      return null;
-  }
-}
-
-export type ActivityStatusOption = {
-  id: ActivityStatus;
-  label: string;
-  count: number;
-};
-
-export function getActivityStatusOptions(
-  view: ActivityView,
-  items: readonly ActivityItem[],
-  selected: ActivityStatus | null,
-): ActivityStatusOption[] {
-  const counts = new Map<ActivityStatus, number>();
-  for (const item of items) {
-    const status = getActivityStatus(item);
-    if (status) counts.set(status, (counts.get(status) ?? 0) + 1);
-  }
-  return (VIEW_STATUSES[view] ?? [])
-    .map((id) => ({
-      id,
-      label: ACTIVITY_STATUS_LABELS[id],
-      count: counts.get(id) ?? 0,
-    }))
-    .filter(
-      (option) =>
-        view !== "queue" || option.count > 0 || option.id === selected,
-    );
+export function activityPageFilter(view: ActivityView): {
+  view: "queue" | "history";
+  status: ActivityStatus | null;
+} {
+  if (view === "review") return { view: "queue", status: "review" };
+  return { view, status: null };
 }
 
 export function activityUpgradeLabel(item: ActivityItem): string | null {
@@ -158,18 +73,6 @@ export function activitySourceLabel(item: ActivityItem): string | null {
   );
 }
 
-/** Counts per view, from the unfiltered feed, for the tab labels. */
-export function getActivityCounts(
-  items: ActivityItem[] | undefined,
-): Record<ActivityView, number> {
-  const feed = items ?? [];
-  return {
-    queue: feed.filter((item) => matchesActivityView(item, "queue")).length,
-    review: feed.filter((item) => matchesActivityView(item, "review")).length,
-    history: feed.filter((item) => matchesActivityView(item, "history")).length,
-  };
-}
-
 export const ACTIVITY_EMPTY_STATES: Record<
   ActivityView,
   { message: string; hint: string }
@@ -188,31 +91,74 @@ export const ACTIVITY_EMPTY_STATES: Record<
   },
 };
 
-/** Secondary filter, applied within a view. */
-export const ACTIVITY_TYPES = [
-  { id: "all", label: "All" },
-  { id: "requests", label: "Requests" },
-  { id: "downloads", label: "Downloads" },
-  { id: "library", label: "Library" },
-] as const;
-
-export type ActivityTypeFilter = (typeof ACTIVITY_TYPES)[number]["id"];
-
-export function matchesActivityType(
-  item: ActivityItem,
-  filter: ActivityTypeFilter,
-): boolean {
-  if (filter === "all") return true;
-  switch (filter) {
-    case "requests":
-      return item.kind === "album_requested";
-    case "downloads":
-      return (
-        item.kind === "track_download" || item.kind === "missing_track_search"
-      );
-    case "library":
-      return item.kind === "artist_added";
+/** Names a cause group the way the web's Activity does. */
+export function describeActivityCause(group: ActivityCauseGroup): {
+  title: string;
+  why: string | null;
+} {
+  switch (group.kind) {
+    case "upgrade":
+      return { title: "Quality upgrades", why: "below your quality cutoff" };
+    case "flow":
+      return { title: group.name ?? "Flow", why: "flow refresh" };
+    case "playlist":
+      return {
+        title: group.name ?? "Playlist",
+        why: group.syncedFrom
+          ? `synced from ${group.syncedFrom}`
+          : "added to the playlist",
+      };
+    case "missing": {
+      const albums = causeSubjects(group, "album");
+      return {
+        title: "Missing tracks",
+        why: albums && `searching again on ${albums}`,
+      };
+    }
+    case "monitoring": {
+      const artists = causeSubjects(group, "artist");
+      return {
+        title: "Artist monitoring",
+        why: artists && `new music from ${artists}`,
+      };
+    }
+    case "request":
+      return { title: "Requests", why: null };
+    case "share":
+      return { title: "Share links", why: "music shared with you" };
     default:
-      return true;
+      return { title: "Other", why: null };
   }
+}
+
+function causeSubjects(group: ActivityCauseGroup, noun: string) {
+  if (group.subject) return group.subject;
+  return group.subjects && group.subjects > 1
+    ? `${group.subjects} ${noun}s`
+    : null;
+}
+
+/** A time today, a date otherwise. */
+export function formatCauseSince(since: string, now = new Date()) {
+  const date = new Date(since);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toDateString() === now.toDateString()
+    ? formatTime(date, { hour: "numeric", minute: "2-digit" })
+    : formatDate(date, { month: "short", day: "numeric" });
+}
+
+/**
+ * The Library album that Stop Download cancels, while it still downloads.
+ * Aurral marks an album request completed at once, so a request asks the
+ * album's download status; an album download's own status is live.
+ */
+export function stoppableAlbumId(
+  item: ActivityItem,
+  downloadStatus: DownloadStatusValue | undefined,
+): string | null {
+  if (item.kind === "album_download") {
+    return item.inQueue ? item.libraryAlbumId : null;
+  }
+  const albumId = albumRequestLibraryId(item);
+  return albumId && isActiveAurralStatus(downloadStatus) ? albumId : null;
 }

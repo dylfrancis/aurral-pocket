@@ -224,7 +224,7 @@ export function useDownloadSavedFlowTracks() {
         preset: "done",
       });
       void queryClient.invalidateQueries({ queryKey: flowKeys.status() });
-      void queryClient.invalidateQueries({ queryKey: activityKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: activityKeys.feedAll() });
     },
     onError: (err, flowId, context) => {
       if (context) {

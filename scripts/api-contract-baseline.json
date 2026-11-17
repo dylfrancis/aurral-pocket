@@ -292,7 +292,17 @@
       "paused": "boolean",
       "retryPausedPlaylistIds": []
     },
-    "GET /requests": [],
+    "GET /requests/page": {
+      "cancelable": "number",
+      "cause": "null",
+      "causes": [],
+      "filters": [],
+      "items": [],
+      "matching": "number",
+      "paused": "boolean",
+      "total": "number",
+      "view": "string"
+    },
     "GET /scrobbling/status": {
       "koito": {
         "connected": "boolean",
