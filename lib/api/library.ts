@@ -212,6 +212,9 @@ export async function getCanonicalLibraryPage(
   if (params.direction) query.direction = params.direction;
   if (params.artistId) query.artistId = params.artistId;
   if (params.albumId) query.albumId = params.albumId;
+  if (params.status) query.status = params.status;
+  // The server takes only "true".
+  if (params.favorite) query.favorite = "true";
 
   const r = await api.get<CanonicalPageWire>("/library", {
     params: query,
@@ -221,9 +224,20 @@ export async function getCanonicalLibraryPage(
     artists: (r.data.artists ?? []).map(canonicalArtistToArtist),
     albums: (r.data.albums ?? []).map(canonicalAlbumToAlbum),
     tracks: (r.data.tracks ?? []).map((item) =>
-      canonicalTrackToTrack(item, params.albumId),
+      canonicalTrackToTrack(item, params.albumId ?? streamAlbumId(item)),
     ),
   };
+}
+
+/**
+ * The album a track streams from when no album was asked for. A track can sit
+ * on several albums with its file on only one.
+ */
+function streamAlbumId(item: CanonicalTrackItem): string | undefined {
+  const albumId =
+    item.files?.find((file) => file.available && file.albumId != null)
+      ?.albumId ?? item.albums?.[0]?.albumId;
+  return albumId != null ? String(albumId) : undefined;
 }
 
 /**
@@ -459,17 +473,11 @@ export async function getLibraryFavorites(): Promise<LibraryFavorites> {
     tracks: (library.tracks ?? [])
       .filter((item) => keep("song", item.identityKey))
       .map((item) => {
-        // A track can sit on several albums with its file on only one.
-        const streamAlbumId =
-          item.files?.find((file) => file.available && file.albumId != null)
-            ?.albumId ?? item.albums?.[0]?.albumId;
+        const albumId = streamAlbumId(item);
         return {
-          ...canonicalTrackToTrack(
-            item,
-            streamAlbumId != null ? String(streamAlbumId) : undefined,
-          ),
+          ...canonicalTrackToTrack(item, albumId),
           userFavorite: true,
-          album: albumsById.get(String(streamAlbumId)),
+          album: albumId ? albumsById.get(albumId) : undefined,
         };
       }),
     playlistSongIds: (r.data.playlistSongs ?? []).map((song) => song.id),

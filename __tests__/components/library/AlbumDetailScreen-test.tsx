@@ -311,6 +311,8 @@ describe("AlbumDetailScreen", () => {
       query: "",
       sort: "name",
       direction: "asc",
+      status: null,
+      favorite: false,
     });
     queryClient.setQueryData(albumsView, { pages: [], pageParams: [] });
     queryClient.setQueryData(libraryKeys.genres(), []);

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { LibraryAlbumSortMode } from "@/components/library/AlbumSortPicker";
+import type { SavedAlbumSortMode } from "@/components/library/AlbumSortPicker";
 import { useSavedItems, type SavedAlbum } from "@/lib/offline/saved-library";
 import { stripArticle } from "@/lib/strings";
 import type { Album } from "@/lib/types/library";
@@ -12,7 +12,7 @@ import type { Album } from "@/lib/types/library";
  * Each card is keyed by the save, so the page it opens is the one that was
  * saved. "Recently Added" means recently saved here.
  */
-export function useSavedAlbums(query: string, sortMode: LibraryAlbumSortMode) {
+export function useSavedAlbums(query: string, sortMode: SavedAlbumSortMode) {
   const saves = useSavedItems();
   return useMemo(() => {
     const byId = new Map<string, SavedAlbum>();
@@ -75,7 +75,7 @@ function byArtist(a: Album, b: Album): number {
 
 function sorted<T extends { album: Album; savedAt: number }>(
   cards: T[],
-  mode: LibraryAlbumSortMode,
+  mode: SavedAlbumSortMode,
 ): T[] {
   const list = [...cards];
   switch (mode) {

@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { getCanonicalLibraryPage } from "@/lib/api/library";
+import { withPageArtist } from "@/lib/library-read";
 import { libraryKeys } from "@/lib/query-keys";
 import type {
   Album,
@@ -19,7 +20,7 @@ const PAGE_SIZE = 100;
  * Flatten the pages, naming each album's library artist from the page's
  * related artists, as the web's card does, before the album's own credit.
  * Drops an album an earlier page carried: offsets shift when the library
- * changes between two page reads.
+ * changes between two page reads, and Random shuffles again for every page.
  */
 function flattenAlbumPages(data: InfiniteData<CanonicalPage>): Album[] {
   const seenIds = new Set<string>();
@@ -29,12 +30,7 @@ function flattenAlbumPages(data: InfiniteData<CanonicalPage>): Album[] {
     for (const album of page.albums) {
       if (seenIds.has(album.id)) continue;
       seenIds.add(album.id);
-      const artist = artistsById.get(album.artistId);
-      albums.push({
-        ...album,
-        artistName: artist?.artistName || album.artistName,
-        artistMbid: artist?.mbid || undefined,
-      });
+      albums.push(withPageArtist(album, artistsById));
     }
   }
   return albums;
@@ -64,6 +60,8 @@ export function useLibraryAlbumsAll(params: LibraryAlbumsParams) {
         genre: params.genre,
         sort: params.sort,
         direction: params.direction,
+        status: params.status,
+        favorite: params.favorite,
       }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>

@@ -7,7 +7,7 @@
  * invalidate.
  */
 
-import type { DownloadStatusMap } from "@/lib/types/library";
+import type { Album, Artist, DownloadStatusMap } from "@/lib/types/library";
 
 type ArtistReference = {
   /** The Library artist id. */
@@ -158,5 +158,21 @@ export function releaseRouteParams(release: {
     secondaryTypes: (release.secondaryTypes ?? []).join(","),
     releaseDate: release.releaseDate ?? "",
     status: release.status ?? "",
+  };
+}
+
+/**
+ * An album named by its Library artist from the same page, as the web's card
+ * does, before the album's own credit.
+ */
+export function withPageArtist(
+  album: Album,
+  artistsById: ReadonlyMap<string, Artist>,
+): Album {
+  const artist = artistsById.get(album.artistId);
+  return {
+    ...album,
+    artistName: artist?.artistName || album.artistName,
+    artistMbid: artist?.mbid || undefined,
   };
 }

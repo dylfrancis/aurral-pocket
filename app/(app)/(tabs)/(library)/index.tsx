@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter, type Href } from "expo-router";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import { Text } from "@/components/ui/Text";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import { preloadLibraryViews } from "@/hooks/library/use-library-view";
 import { IS_ANDROID } from "@/constants/platform";
 import { Fonts } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
@@ -23,6 +25,7 @@ type Category = {
 const CATEGORIES: Category[] = [
   { icon: "people-outline", label: "Artists", route: "/artists" },
   { icon: "disc-outline", label: "Albums", route: "/albums" },
+  { icon: "musical-notes-outline", label: "Songs", route: "/songs" },
   { icon: "pricetags-outline", label: "Genres", route: "/genres" },
   { icon: "heart-outline", label: "Favorites", route: "/favorites" },
   {
@@ -44,6 +47,7 @@ export default function LibraryScreen() {
     (category) =>
       !category.requiresPlaylistAccess || hasPermission("accessPlaylists"),
   );
+  useEffect(preloadLibraryViews, []);
 
   return (
     <>

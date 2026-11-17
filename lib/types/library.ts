@@ -255,23 +255,61 @@ export type CanonicalPageParams = {
   pageSize?: number;
   query?: string;
   genre?: string;
-  sort?: string;
+  sort?: LibrarySort;
   direction?: "asc" | "desc";
   artistId?: string;
   albumId?: string;
+  status?: LibraryStatus | null;
+  /** Only the signed-in user's favorites. */
+  favorite?: boolean;
 };
 
 /**
- * One view of the whole-library album list. Every field is always set, so
- * equal views share one cache entry.
+ * The orders GET /library takes. `played` and `plays` keep only what the user
+ * has played. `random` shuffles albums only: artists and tracks come back by
+ * name. `favorited` orders nothing without `favorite`.
  */
-export type LibraryAlbumsParams = {
-  /** Empty for every genre. */
-  genre: string;
+export type LibrarySort =
+  | "name"
+  | "artist"
+  | "newest"
+  | "played"
+  | "plays"
+  | "released"
+  | "random"
+  | "favorited";
+
+/**
+ * The Library's status filter. An artist matches when one of its albums does,
+ * and a track matches by its album. An album Aurral manages that isn't out yet
+ * isn't missing.
+ */
+export type LibraryStatus = "monitored" | "unmonitored" | "missing";
+
+/**
+ * One view of the Library's artists. Search runs on the phone over the whole
+ * list, so it isn't part of the view.
+ */
+export type LibraryArtistsParams = {
+  sort: LibrarySort;
+  status: LibraryStatus | null;
+  favorite: boolean;
+};
+
+/**
+ * One view of a list the server pages, searches and sorts. Every field is
+ * always set, so equal views share one cache entry.
+ */
+export type LibraryListParams = LibraryArtistsParams & {
   /** Empty for no search. */
   query: string;
-  sort: "name" | "artist" | "newest";
   direction: "asc" | "desc";
+};
+
+/** One view of the whole-library album list. */
+export type LibraryAlbumsParams = LibraryListParams & {
+  /** Empty for every genre. */
+  genre: string;
 };
 
 // The raw rows below declare only the keys pocket reads. The server sends
@@ -409,8 +447,10 @@ export type LibraryFavoritesWire = {
   };
 };
 
-/** A favorited track, with the album its stream path plays from. */
-export type FavoriteTrack = Track & { album?: Album };
+/** A track, with the album its stream path plays from. */
+export type AlbumTrack = Track & { album?: Album };
+
+export type FavoriteTrack = AlbumTrack;
 
 /** The user's favorites after getLibraryFavorites mapped and filtered them. */
 export type LibraryFavorites = {
