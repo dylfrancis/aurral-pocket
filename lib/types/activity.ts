@@ -23,14 +23,49 @@ export type ActivityUpgrade = { fromQuality: string | null };
  * `discovery_refresh`, `flow_generating`, `playlist_tracks_added` and
  * `track_reused_aurral` from the feed server-side (ACTIVITY_HIDDEN_KINDS), so
  * they are deliberately absent here. `activity` is the server's fallback for
- * an entry saved without an explicit kind.
+ * an entry saved without an explicit kind. `album_download` is the paged
+ * feed's one row for an album's track downloads.
  */
 export type ActivityKind =
   | "album_requested"
+  | "album_download"
   | "artist_added"
   | "track_download"
   | "missing_track_search"
   | "activity";
+
+export type ActivityCauseKind =
+  | "request"
+  | "monitoring"
+  | "missing"
+  | "upgrade"
+  | "flow"
+  | "playlist"
+  | "share";
+
+/**
+ * Why Aurral queued a download. `name` is the flow or playlist's, and
+ * `syncedFrom` the service a synced playlist comes from.
+ */
+export type ActivityCause = {
+  kind: ActivityCauseKind;
+  playlistId: string | null;
+  name: string | null;
+  syncedFrom: string | null;
+};
+
+/**
+ * The queued downloads that share a cause. `since` is the earliest request.
+ * `subject` names the one artist (monitoring) or album (missing) the group is
+ * about, and `subjects` counts them when there are several.
+ */
+export type ActivityCauseGroup = ActivityCause & {
+  key: string;
+  count: number;
+  since: string;
+  subject?: string | null;
+  subjects?: number;
+};
 
 /**
  * An entry from Aurral's history feed. The server pre-renders title, subtitle
@@ -65,7 +100,52 @@ export type ActivityItem = {
   requestedBy: { id: number | string; username: string | null } | null;
   sourceFilename: string | null;
   upgrade: ActivityUpgrade | null;
+  /** Set on track downloads. */
+  cause?: ActivityCause | null;
   inQueue: boolean;
+  /** An album download's tracks. */
+  children?: ActivityItem[];
+  /** An album download's "3 of 10 tracks ready". */
+  progressLabel?: string | null;
+};
+
+/** The server's status filters. */
+export type ActivityStatus =
+  | "searching"
+  | "downloading"
+  | "queued"
+  | "review"
+  | "downloaded"
+  | "upgraded"
+  | "failed"
+  | "cancelled";
+
+export type ActivityStatusFilter = {
+  id: ActivityStatus;
+  label: string;
+  count: number;
+};
+
+/**
+ * One page of `GET /requests/page`. `total` counts the view (within `cause`),
+ * `matching` what the status filter keeps, and `cancelable` the queued
+ * downloads the user may cancel. `causes` is empty outside the queue.
+ */
+export type ActivityPage = {
+  view: "queue" | "history";
+  items: ActivityItem[];
+  causes: ActivityCauseGroup[];
+  cause: string | null;
+  total: number;
+  matching: number;
+  filters: ActivityStatusFilter[];
+  cancelable: number;
+  paused: boolean;
+};
+
+export type CancelDownloadsResult = {
+  cancelled: number;
+  cleanupFailed: boolean;
 };
 
 /**

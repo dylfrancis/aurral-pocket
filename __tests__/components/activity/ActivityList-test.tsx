@@ -12,8 +12,8 @@ jest.mock("@/hooks/use-color-scheme", () => ({
 }));
 
 jest.mock("@/hooks/activity/use-activity", () => ({
-  useActivitySuspense: jest.fn(),
-  useRefreshActivity: jest.fn(() => jest.fn().mockResolvedValue(true)),
+  useActivityPages: jest.fn(),
+  useActivityCounts: jest.fn(),
 }));
 
 jest.mock("@/hooks/activity/use-activity-download-statuses", () => ({
@@ -24,12 +24,18 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: jest.fn(() => () => false),
 }));
 
+const mockUser = { id: 7, role: "user", permissions: {} };
 jest.mock("@/contexts/auth-context", () => ({
-  useAuth: () => ({ user: { id: 7, role: "user", permissions: {} } }),
+  useAuth: () => ({ user: mockUser }),
 }));
 
 jest.mock("@/lib/api/flow", () => ({
   getFlowStatus: jest.fn(),
+  updateWorkerSettings: jest.fn(),
+}));
+
+jest.mock("@/lib/api/activity", () => ({
+  cancelQueuedDownloads: jest.fn(),
 }));
 
 const mockPush = jest.fn();
@@ -162,14 +168,24 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ActivityList } from "@/components/activity/ActivityList";
 import { ActivityErrorBoundary as ErrorBoundary } from "@/components/activity/ActivityErrorBoundary";
-import { useActivitySuspense } from "@/hooks/activity/use-activity";
+import { Alert } from "react-native";
+import {
+  useActivityCounts,
+  useActivityPages,
+} from "@/hooks/activity/use-activity";
 import { useActivityDownloadStatuses } from "@/hooks/activity/use-activity-download-statuses";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import { getFlowStatus } from "@/lib/api/flow";
+import { cancelQueuedDownloads } from "@/lib/api/activity";
+import { getFlowStatus, updateWorkerSettings } from "@/lib/api/flow";
 import { flowKeys } from "@/lib/query-keys";
-import type { ActivityItem } from "@/lib/types/activity";
+import type {
+  ActivityCauseGroup,
+  ActivityItem,
+  ActivityPage,
+} from "@/lib/types/activity";
 
-const mockUseActivitySuspense = useActivitySuspense as jest.Mock;
+const mockUseActivityPages = useActivityPages as jest.Mock;
+const mockUseActivityCounts = useActivityCounts as jest.Mock;
 const mockUseActivityDownloadStatuses =
   useActivityDownloadStatuses as jest.Mock;
 const mockUseHasPermission = useHasPermission as jest.Mock;
@@ -179,7 +195,11 @@ const clients: QueryClient[] = [];
 
 function makeClient() {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    // A settled mutation's five-minute gc timer would hold Jest open.
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false, gcTime: 0 },
+    },
   });
   clients.push(client);
   return client;
@@ -202,11 +222,50 @@ function renderWithClient(
   );
 }
 
-const defaultHook = {
-  data: [] as ActivityItem[],
-  refetch: jest.fn().mockResolvedValue({ isError: false }),
-  isRefetching: false,
-};
+function makePage(
+  items: ActivityItem[],
+  overrides: Partial<ActivityPage> = {},
+): ActivityPage {
+  return {
+    view: "queue",
+    items,
+    causes: [],
+    cause: null,
+    total: items.length,
+    matching: items.length,
+    filters: [],
+    cancelable: 0,
+    paused: false,
+    ...overrides,
+  };
+}
+
+function pagesResult(page: ActivityPage) {
+  return {
+    items: page.items,
+    page,
+    isPending: false,
+    isError: false,
+    isPlaceholderData: false,
+    isFetchingNextPage: false,
+    refetch: jest.fn(),
+    refresh: jest.fn().mockResolvedValue({ isError: false }),
+    loadMore: jest.fn(),
+  };
+}
+
+/** What the server answers for every view and filter. */
+function showPage(
+  items: ActivityItem[] = [],
+  overrides: Partial<ActivityPage> = {},
+) {
+  mockUseActivityPages.mockReturnValue(pagesResult(makePage(items, overrides)));
+}
+
+/** The filters the screen last asked the server for. */
+function lastFilter() {
+  return mockUseActivityPages.mock.lastCall?.[1];
+}
 
 function makeHistoryItem(
   overrides: Partial<ActivityItem> & { id: string },
@@ -237,31 +296,25 @@ function makeHistoryItem(
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockUseActivitySuspense.mockReturnValue({ ...defaultHook });
+  showPage();
+  mockUseActivityCounts.mockReturnValue(undefined);
+  mockUser.role = "user";
   mockUseActivityDownloadStatuses.mockReturnValue({ data: undefined });
 });
 
 describe("ActivityList", () => {
-  it("labels each view option with its count from the unfiltered feed", async () => {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
-        makeHistoryItem({ id: "1", kind: "track_download", status: "pending" }),
-        makeHistoryItem({ id: "2", status: "blocked", jobId: "job-2" }),
-        makeHistoryItem({ id: "3", status: "completed" }),
-      ],
-    });
+  it("labels each view option with its count", async () => {
+    mockUseActivityCounts.mockReturnValue({ queue: 2, review: 1, history: 1 });
     const { getByLabelText, getByTestId } = await renderWithClient(
       <ActivityList view="queue" />,
     );
     expect(getByTestId("menu-View")).toBeTruthy();
-    expect(getByLabelText("option-Queue (1)")).toBeTruthy();
+    expect(getByLabelText("option-Queue (2)")).toBeTruthy();
     expect(getByLabelText("option-Review (1)")).toBeTruthy();
     expect(getByLabelText("option-History (1)")).toBeTruthy();
   });
 
   it("marks the current view as selected", async () => {
-    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
     const { getByLabelText } = await renderWithClient(
       <ActivityList view="review" />,
     );
@@ -274,7 +327,6 @@ describe("ActivityList", () => {
   });
 
   it("replaces the route when a view option is chosen", async () => {
-    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
     const { getByLabelText } = await renderWithClient(
       <ActivityList view="queue" />,
     );
@@ -285,13 +337,11 @@ describe("ActivityList", () => {
   });
 
   it("shows a per-view empty state", async () => {
-    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
     const { getByText } = await renderWithClient(<ActivityList view="queue" />);
     expect(getByText("Queue is empty")).toBeTruthy();
   });
 
   it("offers no discover CTA on the queue empty state", async () => {
-    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
     const { queryByText } = await renderWithClient(
       <ActivityList view="queue" />,
     );
@@ -299,7 +349,6 @@ describe("ActivityList", () => {
   });
 
   it("offers the discover CTA on the history empty state", async () => {
-    mockUseActivitySuspense.mockReturnValue({ ...defaultHook, data: [] });
     const { getByText } = await renderWithClient(
       <ActivityList view="history" />,
     );
@@ -311,19 +360,16 @@ describe("ActivityList", () => {
     mockUseActivityDownloadStatuses.mockReturnValue({
       data: { "12": { status: "queued" } },
     });
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
-        makeHistoryItem({
-          id: "aurral-request",
-          kind: "album_requested",
-          source: "aurral",
-          title: "Requested Kid A",
-          statusLabel: "Requested",
-          libraryAlbumId: "12",
-        }),
-      ],
-    });
+    showPage([
+      makeHistoryItem({
+        id: "aurral-request",
+        kind: "album_requested",
+        source: "aurral",
+        title: "Requested Kid A",
+        statusLabel: "Requested",
+        libraryAlbumId: "12",
+      }),
+    ]);
     const { getByText, queryByText } = await renderWithClient(
       <ActivityList view="history" />,
     );
@@ -344,10 +390,7 @@ describe("ActivityList", () => {
       albumName: "Kid A",
       libraryAlbumId: "12",
     });
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [request],
-    });
+    showPage([request]);
     const { getByText } = await renderWithClient(
       <ActivityList view="history" />,
     );
@@ -372,10 +415,7 @@ describe("ActivityList", () => {
       playlistId: "flow-1",
       trackName: "Track One",
     });
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [download],
-    });
+    showPage([download]);
     const { getByText } = await renderWithClient(
       <ActivityList view="history" />,
     );
@@ -387,42 +427,10 @@ describe("ActivityList", () => {
     );
   });
 
-  it("shows only queue-eligible items in the queue view", async () => {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
-        makeHistoryItem({
-          id: "1",
-          kind: "track_download",
-          title: "Queued First Track",
-          status: "pending",
-          href: null,
-        }),
-        // Settled: belongs to History, not Queue.
-        makeHistoryItem({ id: "2" }),
-        makeHistoryItem({
-          id: "3",
-          kind: "track_download",
-          source: "slskd",
-          title: "Downloading Some Track",
-          statusLabel: "Downloading",
-          status: "processing",
-          href: null,
-        }),
-      ],
-    });
-    const { getByText, queryByText } = await renderWithClient(
-      <ActivityList view="queue" />,
-    );
-    expect(getByText("Queued First Track")).toBeTruthy();
-    expect(getByText("Downloading Some Track")).toBeTruthy();
-    expect(queryByText("Added Artist 2 to library")).toBeNull();
-  });
-
   it("shows a blocked job in Review with its filename and decisions", async () => {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
+    // Review reads the queue, so the server sends the queue's filters too.
+    showPage(
+      [
         makeHistoryItem({
           id: "blocked-1",
           kind: "track_download",
@@ -434,10 +442,11 @@ describe("ActivityList", () => {
           href: null,
         }),
       ],
-    });
-    const { getByText, getByLabelText } = await renderWithClient(
-      <ActivityList view="review" />,
+      { filters: [{ id: "review", label: "Review", count: 1 }] },
     );
+    const { getByText, getByLabelText, queryAllByRole } =
+      await renderWithClient(<ActivityList view="review" />);
+    expect(queryAllByRole("tab")).toHaveLength(0);
     expect(getByText("Review needed for Some Track")).toBeTruthy();
     // The staged filename is what the user judges the download on.
     expect(getByText("Some Track.flac")).toBeTruthy();
@@ -448,10 +457,7 @@ describe("ActivityList", () => {
   it("opens an artist row with the artist's name", async () => {
     // An artist since removed from the library opens the Browse page, whose
     // title comes from the route.
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [makeHistoryItem({ id: "3" })],
-    });
+    showPage([makeHistoryItem({ id: "3" })]);
     const { getByText } = await renderWithClient(
       <ActivityList view="history" />,
     );
@@ -475,21 +481,18 @@ describe("ActivityList playlist rows", () => {
   const TITLE = "Downloading Some Track";
 
   function showRow(playlistId: string, overrides: Partial<ActivityItem> = {}) {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
-        makeHistoryItem({
-          id: "1",
-          kind: "track_download",
-          source: "slskd",
-          title: TITLE,
-          status: "completed",
-          href: `/playlists?selected=${playlistId}`,
-          playlistId,
-          ...overrides,
-        }),
-      ],
-    });
+    showPage([
+      makeHistoryItem({
+        id: "1",
+        kind: "track_download",
+        source: "slskd",
+        title: TITLE,
+        status: "completed",
+        href: `/playlists?selected=${playlistId}`,
+        playlistId,
+        ...overrides,
+      }),
+    ]);
   }
 
   beforeEach(() => {
@@ -640,92 +643,43 @@ describe("ActivityList status filters", () => {
   const pillLabels = (getAllByRole: (role: "tab") => any[]) =>
     getAllByRole("tab").map((pill) => pill.props.accessibilityLabel);
 
-  it("narrows History to the chosen status", async () => {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
-        track("downloaded", { statusLabel: "Downloaded" }),
-        track("upgraded", {
-          statusLabel: "Downloaded",
-          upgrade: { fromQuality: "MP3 320" },
-        }),
-        track("failed", { status: "failed", statusLabel: "Failed" }),
-        makeHistoryItem({ id: "artist" }),
-      ],
+  const HISTORY_FILTERS = [
+    { id: "downloaded" as const, label: "Downloaded", count: 1 },
+    { id: "upgraded" as const, label: "Upgraded", count: 1 },
+    { id: "failed" as const, label: "Failed", count: 0 },
+    { id: "cancelled" as const, label: "Cancelled", count: 0 },
+  ];
+
+  it("offers the server's statuses and asks it for the chosen one", async () => {
+    showPage([track("downloaded"), track("upgraded")], {
+      view: "history",
+      filters: HISTORY_FILTERS,
     });
-    const { getAllByRole, getByText, queryByText } = await renderWithClient(
+    const { getAllByRole, getByText } = await renderWithClient(
       <ActivityList view="history" />,
-    );
-    expect(pillLabels(getAllByRole)).toEqual([
-      "All 4",
-      "Downloaded 1",
-      "Upgraded 1",
-      "Failed 1",
-      "Cancelled 0",
-    ]);
-
-    await fireEvent.press(getByText("Upgraded 1"));
-
-    expect(getByText("Track upgraded")).toBeTruthy();
-    expect(queryByText("Track downloaded")).toBeNull();
-    expect(queryByText("Added Artist artist to library")).toBeNull();
-  });
-
-  it("counts only the rows the type filter keeps", async () => {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
-        track("failed-track", { status: "failed", statusLabel: "Failed" }),
-        makeHistoryItem({
-          id: "failed-request",
-          kind: "album_requested",
-          status: "failed",
-          statusLabel: "Failed",
-          href: null,
-        }),
-      ],
-    });
-    const { getAllByRole, getByLabelText } = await renderWithClient(
-      <ActivityList view="history" />,
-    );
-
-    await fireEvent.press(getByLabelText("option-Downloads"));
-
-    expect(pillLabels(getAllByRole)).toEqual([
-      "All 1",
-      "Downloaded 0",
-      "Upgraded 0",
-      "Failed 1",
-      "Cancelled 0",
-    ]);
-  });
-
-  it("leaves empty statuses out of Queue", async () => {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
-        track("searching", { status: "processing", statusLabel: "Searching" }),
-        track("downloading", {
-          status: "processing",
-          statusLabel: "Downloading",
-        }),
-      ],
-    });
-    const { getAllByRole } = await renderWithClient(
-      <ActivityList view="queue" />,
     );
     expect(pillLabels(getAllByRole)).toEqual([
       "All 2",
-      "Searching 1",
-      "Downloading 1",
+      "Downloaded 1",
+      "Upgraded 1",
+      "Failed 0",
+      "Cancelled 0",
     ]);
+    expect(lastFilter()).toEqual({ status: null, cause: null });
+
+    await fireEvent.press(getByText("Upgraded 1"));
+
+    expect(lastFilter()).toEqual({ status: "upgraded", cause: null });
   });
 
   it("says nothing matches a status with no rows, without the discover CTA", async () => {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [track("downloaded", { statusLabel: "Downloaded" })],
+    const all = makePage([track("downloaded")], {
+      view: "history",
+      filters: HISTORY_FILTERS,
     });
+    mockUseActivityPages.mockImplementation((_view, { status }) =>
+      pagesResult(status ? { ...all, items: [], matching: 0 } : all),
+    );
     const { getByText, queryByText } = await renderWithClient(
       <ActivityList view="history" />,
     );
@@ -737,24 +691,21 @@ describe("ActivityList status filters", () => {
   });
 
   it("marks an upgrade with the quality it replaced, and where tracks came from", async () => {
-    mockUseActivitySuspense.mockReturnValue({
-      ...defaultHook,
-      data: [
-        track("tidarr", {
-          source: "tidarr",
-          upgrade: { fromQuality: "MP3 320" },
-        }),
-        track("share", { source: "share" }),
-        track("qbittorrent", { source: "qbittorrent" }),
-        // Aurral reads a plugin download as "unknown"; only a track of an
-        // album download keeps the plugin's id.
-        track("plugin", {
-          source: "unknown",
-          actualDownloadSource: "plugin:bandcamp",
-        }),
-        track("unknown", { source: "unknown", upgrade: { fromQuality: null } }),
-      ],
-    });
+    showPage([
+      track("tidarr", {
+        source: "tidarr",
+        upgrade: { fromQuality: "MP3 320" },
+      }),
+      track("share", { source: "share" }),
+      track("qbittorrent", { source: "qbittorrent" }),
+      // Aurral reads a plugin download as "unknown"; only a track of an
+      // album download keeps the plugin's id.
+      track("plugin", {
+        source: "unknown",
+        actualDownloadSource: "plugin:bandcamp",
+      }),
+      track("unknown", { source: "unknown", upgrade: { fromQuality: null } }),
+    ]);
     const { getByText, getAllByText } = await renderWithClient(
       <ActivityList view="history" />,
     );
@@ -765,6 +716,247 @@ describe("ActivityList status filters", () => {
     expect(getByText(/ · qBittorrent$/)).toBeTruthy();
     expect(getByText(/ · bandcamp plugin$/)).toBeTruthy();
     expect(getAllByText(/ · /)).toHaveLength(4);
+  });
+});
+
+describe("ActivityList queue", () => {
+  const FLOW_CAUSE: ActivityCauseGroup = {
+    kind: "flow",
+    playlistId: "flow-1",
+    name: "Discover Weekly",
+    syncedFrom: null,
+    key: "flow:flow-1",
+    count: 2,
+    since: "2026-11-15T12:00:00.000Z",
+  };
+  const MONITORING_CAUSE: ActivityCauseGroup = {
+    kind: "monitoring",
+    playlistId: null,
+    name: null,
+    syncedFrom: null,
+    key: "monitoring",
+    count: 1,
+    since: "2026-11-15T12:00:00.000Z",
+    subject: "Radiohead",
+    subjects: 1,
+  };
+  const queued = makeHistoryItem({
+    id: "q1",
+    kind: "track_download",
+    title: "Queued Idioteque",
+    status: "pending",
+    statusLabel: "Queued",
+    jobId: "j1",
+    playlistId: "flow-1",
+    href: null,
+    inQueue: true,
+  });
+
+  /** The server answers with the cause it applied, as Aurral does. */
+  function serveQueue(overrides: Partial<ActivityPage> = {}) {
+    const page = makePage([queued], {
+      causes: [FLOW_CAUSE, MONITORING_CAUSE],
+      cancelable: 3,
+      ...overrides,
+    });
+    mockUseActivityPages.mockImplementation((_view, { cause }) =>
+      pagesResult({
+        ...page,
+        cause,
+        cancelable: cause ? FLOW_CAUSE.count : page.cancelable,
+      }),
+    );
+  }
+
+  const causeCard = (getByLabelText: (label: RegExp) => any, title: string) =>
+    getByLabelText(new RegExp(`^${title}, `));
+
+  // Confirms whatever the alert asks, and keeps what it asked.
+  let alerts: { title: string | null | undefined; message?: string | null }[] =
+    [];
+  beforeEach(() => {
+    alerts = [];
+    jest.spyOn(Alert, "alert").mockImplementation((title, message, buttons) => {
+      alerts.push({ title, message });
+      buttons?.find((button) => button.style === "destructive")?.onPress?.();
+    });
+    (cancelQueuedDownloads as jest.Mock).mockResolvedValue({
+      cancelled: 0,
+      cleanupFailed: false,
+    });
+    (updateWorkerSettings as jest.Mock).mockResolvedValue({
+      concurrency: 1,
+      paused: false,
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("shows why downloads are queued, and filters to one cause", async () => {
+    serveQueue();
+    const { getByLabelText, getByText } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+    expect(getByText("flow refresh")).toBeTruthy();
+    expect(getByText("new music from Radiohead")).toBeTruthy();
+
+    await fireEvent.press(causeCard(getByLabelText, "Discover Weekly"));
+    expect(lastFilter()).toEqual({ status: null, cause: "flow:flow-1" });
+    expect(
+      causeCard(getByLabelText, "Discover Weekly").props.accessibilityState,
+    ).toEqual({ selected: true });
+
+    await fireEvent.press(causeCard(getByLabelText, "Discover Weekly"));
+    expect(lastFilter()).toEqual({ status: null, cause: null });
+  });
+
+  it("clears a cause tapped twice before its page arrives", async () => {
+    // The previous page stays up while the chosen cause's loads.
+    mockUseActivityPages.mockImplementation(() => ({
+      ...pagesResult(makePage([queued], { causes: [FLOW_CAUSE] })),
+      isPlaceholderData: true,
+    }));
+    const { getByLabelText } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+
+    await fireEvent.press(causeCard(getByLabelText, "Discover Weekly"));
+    await fireEvent.press(causeCard(getByLabelText, "Discover Weekly"));
+
+    expect(lastFilter()).toEqual({ status: null, cause: null });
+  });
+
+  it("keeps the screen and offers a retry when a filter fails to load", async () => {
+    const result = { ...pagesResult(makePage([])), isError: true };
+    mockUseActivityPages.mockReturnValue(result);
+    const { getByText } = await renderWithClient(<ActivityList view="queue" />);
+
+    await fireEvent.press(getByText("Try Again"));
+
+    expect(result.refetch).toHaveBeenCalled();
+  });
+
+  it("lets a cause go once Aurral no longer has it queued", async () => {
+    serveQueue();
+    const { getByLabelText } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+    // The group's downloads finished: the server ignores its key.
+    mockUseActivityPages.mockImplementation(() =>
+      pagesResult(makePage([], { causes: [MONITORING_CAUSE] })),
+    );
+
+    await fireEvent.press(causeCard(getByLabelText, "Discover Weekly"));
+
+    expect(lastFilter()).toEqual({ status: null, cause: null });
+  });
+
+  it("leaves the causes to Queue, though Review reads the queue too", async () => {
+    serveQueue();
+    const { queryByText } = await renderWithClient(
+      <ActivityList view="review" />,
+    );
+    expect(queryByText("flow refresh")).toBeNull();
+    expect(queryByText(/^Cancel /)).toBeNull();
+  });
+
+  it("tells everyone the queue is paused, and offers a user nothing to do about it", async () => {
+    serveQueue({ paused: true, cancelable: 0 });
+    const { getByText, queryByLabelText } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+    expect(
+      getByText(
+        "Downloads are paused. Tracks already downloading will finish.",
+      ),
+    ).toBeTruthy();
+    expect(queryByLabelText("option-Resume Queue")).toBeNull();
+    expect(queryByLabelText(/^option-Cancel /)).toBeNull();
+  });
+
+  it.each([
+    [false, "Pause Queue", true],
+    [true, "Resume Queue", false],
+  ])(
+    "lets an admin flip a queue that's paused=%s",
+    async (paused, action, next) => {
+      mockUser.role = "admin";
+      serveQueue({ paused });
+      const { getByLabelText } = await renderWithClient(
+        <ActivityList view="queue" />,
+      );
+
+      await fireEvent.press(getByLabelText(`option-${action}`));
+
+      await waitFor(() =>
+        expect(updateWorkerSettings).toHaveBeenCalledWith({ paused: next }),
+      );
+    },
+  );
+
+  it("cancels every download the user may cancel, once confirmed", async () => {
+    serveQueue();
+    const { getByLabelText } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+
+    await fireEvent.press(getByLabelText("option-Cancel All (3)…"));
+
+    expect(alerts).toEqual([
+      {
+        title: "Cancel all downloads?",
+        message: "3 downloads will stop. You can retry each one from History.",
+      },
+    ]);
+    await waitFor(() =>
+      expect(cancelQueuedDownloads).toHaveBeenCalledWith(null),
+    );
+  });
+
+  it("cancels only the chosen cause's downloads", async () => {
+    serveQueue();
+    const { getByLabelText } = await renderWithClient(
+      <ActivityList view="queue" />,
+    );
+    await fireEvent.press(causeCard(getByLabelText, "Discover Weekly"));
+
+    await fireEvent.press(getByLabelText("option-Cancel Discover Weekly (2)…"));
+
+    expect(alerts[0]?.title).toBe("Cancel Discover Weekly downloads?");
+    await waitFor(() =>
+      expect(cancelQueuedDownloads).toHaveBeenCalledWith("flow:flow-1"),
+    );
+  });
+
+  it("shows an album download as one row with its progress", async () => {
+    mockUseHasPermission.mockReturnValue(() => true);
+    const album = makeHistoryItem({
+      id: "grab-1",
+      kind: "album_download",
+      source: "aurral",
+      title: "Kid A",
+      subtitle: "Radiohead · Everything in Its Right Place",
+      status: "processing",
+      statusLabel: "Downloading album",
+      artistName: "Radiohead",
+      albumName: "Kid A",
+      libraryAlbumId: "12",
+      href: null,
+      inQueue: true,
+      progressLabel: "3 of 10 tracks ready",
+    });
+    showPage([album]);
+    const { getByText } = await renderWithClient(<ActivityList view="queue" />);
+    expect(getByText("Radiohead · 3 of 10 tracks ready")).toBeTruthy();
+
+    await fireEvent(getByText("Kid A"), "longPress");
+
+    expect(mockActivityActionsSheet).toHaveBeenLastCalledWith(
+      expect.objectContaining({ request: album }),
+    );
+    mockUseHasPermission.mockReturnValue(() => false);
   });
 });
 

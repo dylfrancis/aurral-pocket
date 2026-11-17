@@ -13,7 +13,7 @@ export function useCancelAurralAlbum() {
       Burnt.toast({ title: "Couldn't stop the download", preset: "error" });
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: activityKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: activityKeys.feedAll() });
       void queryClient.invalidateQueries({
         queryKey: activityKeys.downloadStatusesAll(),
       });

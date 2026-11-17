@@ -183,6 +183,8 @@ export type FlowStatusSnapshot = {
 
 export type WorkerSettings = {
   concurrency: 1 | 2 | 3;
+  /** Starts no queued download; running ones finish. */
+  paused: boolean;
 };
 
 export type FlowFormValues = {
