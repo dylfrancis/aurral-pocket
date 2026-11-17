@@ -3,6 +3,7 @@ import {
   EditorialPlaylistsSection,
   GenreSectionsPanel,
   GlobalTrendingSection,
+  MadeForYouSection,
   RecentlyAddedSection,
   RecentReleasesSection,
   RecommendedForYouSection,
@@ -104,6 +105,9 @@ export default function DiscoverScreen() {
         queryClient.invalidateQueries({
           queryKey: discoverKeys.editorialShelf("featured"),
         }),
+        queryClient.invalidateQueries({
+          queryKey: discoverKeys.madeForYou(),
+        }),
       ]),
     [
       queryClient,
@@ -118,12 +122,18 @@ export default function DiscoverScreen() {
       await refreshForYou();
     } else if (tab === "recommended") {
       await refetchDiscovery();
+    } else if (tab === "playlists") {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: discoverKeys.editorialShelf(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: discoverKeys.madeForYou(),
+        }),
+      ]);
     } else {
       await queryClient.invalidateQueries({
-        queryKey:
-          tab === "playlists"
-            ? discoverKeys.editorialShelf()
-            : discoverKeys.trending(),
+        queryKey: discoverKeys.trending(),
       });
     }
   }, [queryClient, refetchDiscovery, refreshForYou, tab]);
@@ -326,6 +336,13 @@ export default function DiscoverScreen() {
                               key={section.id}
                               onArtistPress={handleRecentlyAddedPress}
                               onViewAll={handleViewAllRecentlyAdded}
+                            />
+                          );
+                        case "madeForYou":
+                          return (
+                            <MadeForYouSection
+                              key={section.id}
+                              onViewAll={handleViewAllPlaylists}
                             />
                           );
                         case "playlists":

@@ -62,7 +62,7 @@ function CoverMosaic({ name, covers }: { name: string; covers: string[] }) {
     return (
       <EditorialArtwork
         name={name}
-        uri={covers[0] ?? null}
+        coverUrl={covers[0] ?? null}
         size={CARD_SIZE}
         radius={RADIUS}
       />

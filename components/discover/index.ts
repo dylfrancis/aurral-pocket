@@ -4,5 +4,6 @@ export { RecommendedForYouSection } from "./RecommendedForYouSection";
 export { GlobalTrendingSection } from "./GlobalTrendingSection";
 export { GenreSectionsPanel } from "./GenreSectionsPanel";
 export { EditorialPlaylistsSection } from "./EditorialPlaylistsSection";
+export { MadeForYouSection } from "./MadeForYouSection";
 export { RecentReleasesSection } from "./RecentReleasesSection";
 export { ShowsNearYouSection } from "./ShowsNearYouSection";
