@@ -13,6 +13,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 let mockOffline = false;
 jest.mock("@/lib/offline/saved-library", () => ({
   savedFilePath: () => null,
+  savedLoudness: () => undefined,
   canPlayNow: () => !mockOffline,
   savedLibraryReady: () => Promise.resolve(),
 }));

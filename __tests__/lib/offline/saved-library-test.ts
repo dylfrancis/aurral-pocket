@@ -467,6 +467,71 @@ describe("a save from before Aurral 3.0", () => {
   });
 });
 
+describe("loudness", () => {
+  function serveLoudness(lufs: string) {
+    const { fetch } = require("expo/fetch");
+    fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => lufs },
+    });
+  }
+
+  it("keeps Aurral's measurement with a saved file, so it's levelled offline after a restart", async () => {
+    start();
+    serveLoudness("-9.5");
+    lib.setSavedLibraryUser(1);
+    await saveAndFinish("12", [track("71")]);
+    await settle();
+    expect(lib.savedLoudness("71")).toBe(-9.5);
+
+    const record = JSON.parse((await storage.getItem("saved_offline"))!);
+    start({ record, files: { "71.flac": 1_000 }, offline: true });
+    lib.setSavedLibraryUser(1);
+    await settle();
+
+    expect(lib.savedLoudness("71")).toBe(-9.5);
+  });
+
+  it("gives a file saved without a measurement the one the player hears", async () => {
+    start({
+      record: {
+        version: 1,
+        items: [
+          {
+            kind: "album",
+            id: "12",
+            userId: 1,
+            savedAt: 1,
+            route,
+            tracks: [track("71")],
+          },
+        ],
+        files: {
+          "71": {
+            streamPath: "/library/stream/12/71",
+            name: "71.flac",
+            expectedBytes: 1_000,
+            bytes: 1_000,
+            failed: false,
+          },
+        },
+      },
+      files: { "71.flac": 1_000 },
+    });
+    serveLoudness("-7");
+    lib.setSavedLibraryUser(1);
+    await settle();
+
+    require("@/lib/player/loudness").askLoudness(["/library/stream/12/71"]);
+    await settle();
+
+    expect(lib.savedLoudness("71")).toBe(-7);
+    const record = JSON.parse((await storage.getItem("saved_offline"))!);
+    expect(record.files["71"].loudness).toBe(-7);
+  });
+});
+
 describe("forgetting everything", () => {
   it("deletes every account's files and the record", async () => {
     start();

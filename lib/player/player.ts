@@ -45,7 +45,15 @@ import {
   canPlayNow,
   savedFilePath,
   savedLibraryReady,
+  savedLoudness,
 } from "@/lib/offline/saved-library";
+import {
+  askLoudness,
+  forgetLoudness,
+  knownLoudness,
+  levelingGain,
+  onLoudnessMeasured,
+} from "@/lib/player/loudness";
 import {
   getPlaybackSettings,
   onPlaybackSettingsChange,
@@ -711,6 +719,8 @@ export function playQueueItem(id: string): Promise<void> {
     pendingRestoreSeek = null;
     resetProgress();
     setDisplayedTrack(queueOrder.find((item) => item.id === id) ?? null);
+    // The track shown may be the one starting over.
+    levelFromTheTop();
     await TrackPlayer.playSong(id, currentPlaylistId);
     await TrackPlayer.play();
   });
@@ -937,7 +947,9 @@ function setProgress(position: number, duration: number): void {
 
 function setDisplayedTrack(track: PlayerTrack | null): void {
   if (track === displayedTrack) return;
+  const moved = track?.id !== displayedTrack?.id;
   displayedTrack = track;
+  if (moved) levelFromTheTop();
   refreshQueueSnapshot();
   displayedTrackListeners.forEach((listener) => listener());
 }
@@ -951,6 +963,7 @@ function refreshQueueSnapshot(): void {
   queueChangedListeners.forEach((listener) => listener());
   persistQueue();
   updatePrefetchWindow();
+  askQueueLoudness();
 }
 
 function notifyModesChanged(): void {
@@ -958,6 +971,71 @@ function notifyModesChanged(): void {
   modesChangedListeners.forEach((listener) => listener());
   persistQueue();
   updatePrefetchWindow();
+  askQueueLoudness();
+}
+
+/*
+ * Levelling. The engine has one volume for the player, so it's set again at
+ * every track change: full, or lower for a track Aurral measured as loud.
+ */
+
+/** The engine's volume as last set, from 0 to 100. Null until it's set. */
+let engineVolume: number | null = null;
+/**
+ * Once the current track has played, a measurement waits for it to start again
+ * rather than turn it down mid-song, as on the web.
+ */
+let currentTrackHeard = false;
+
+function levelFromTheTop(): void {
+  currentTrackHeard = false;
+  applyVolume();
+}
+
+/** Undefined while Aurral hasn't said; null when there's nothing to level. */
+function loudnessOf(item: PlayerTrack): number | null | undefined {
+  if (!item.streamPath || item.isPreview) return null;
+  return savedLoudness(item.id) ?? knownLoudness(item.streamPath);
+}
+
+function volumeFor(item: PlayerTrack | null): number {
+  const lufs =
+    item && getPlaybackSettings().levelLoudTracks ? loudnessOf(item) : null;
+  return typeof lufs === "number" ? levelingGain(lufs) * 100 : 100;
+}
+
+function applyVolume(): void {
+  const volume = volumeFor(displayedTrack);
+  if (volume === engineVolume) return;
+  engineVolume = volume;
+  TrackPlayer.setVolume(volume).catch(() => {
+    if (engineVolume === volume) engineVolume = null;
+  });
+}
+
+/** The current track's and the next one's, so the next starts level. */
+function askQueueLoudness(): void {
+  const current = displayedTrack;
+  const wanted =
+    current && getPlaybackSettings().levelLoudTracks && !isOffline()
+      ? [current, trackAfter(current)]
+      : [];
+  askLoudness(
+    wanted.flatMap((item) =>
+      item?.streamPath && loudnessOf(item) === undefined
+        ? [item.streamPath]
+        : [],
+    ),
+  );
+}
+
+/** Repeat all wraps around to the top. */
+function trackAfter(current: PlayerTrack): PlayerTrack | null {
+  const index = queueOrder.findIndex((item) => item.id === current.id);
+  if (index < 0) return null;
+  const at =
+    index + 1 < queueOrder.length ? index + 1 : repeatMode === "all" ? 0 : -1;
+  return at >= 0 && at !== index ? queueOrder[at] : null;
 }
 
 /**
@@ -1405,6 +1483,7 @@ export function refreshQueueHeaders(): Promise<void> {
  */
 export function forgetQueue(): Promise<void> {
   cancelTranscodes();
+  forgetLoudness();
   queueClaims++;
   const run = lastPlay.then(async () => {
     queueOrder = [];
@@ -1473,19 +1552,32 @@ function wireEngineEvents(): void {
   onNetworkChange((offline) => {
     if (offline) switchToLocalFiles();
     else topUpQueue();
+    askQueueLoudness();
   });
   onMeteredChange(refreshTranscoding);
   onCachedFilesChange(followCachedFiles);
   // Read early, so an offline start knows which tracks are on the phone.
   void audioCacheReady();
   let autoplayOn = getPlaybackSettings().autoplay;
+  let levelingOn = getPlaybackSettings().levelLoudTracks;
   onPlaybackSettingsChange((next) => {
     refreshTranscoding();
     updatePrefetchWindow();
+    if (next.levelLoudTracks !== levelingOn) {
+      levelingOn = next.levelLoudTracks;
+      applyVolume();
+      askQueueLoudness();
+    }
     if (next.autoplay === autoplayOn) return;
     autoplayOn = next.autoplay;
     if (autoplayOn) topUpQueue();
     else dropAutoplayTracks();
+  });
+
+  onLoudnessMeasured((streamPath) => {
+    if (!currentTrackHeard && displayedTrack?.streamPath === streamPath) {
+      applyVolume();
+    }
   });
 
   callbackManager.subscribeToTrackChange(
@@ -1553,6 +1645,10 @@ function wireEngineEvents(): void {
       const seeked = isManuallySeeked === true;
       // Read before this report replaces the last position.
       const looped = hasLooped(position, seeked);
+      if (looped) levelFromTheTop();
+      if (playbackState === "playing" && track.id === displayedTrack?.id) {
+        currentTrackHeard = true;
+      }
       const progress = { track, position, duration: totalDuration, seeked };
       lastProgress = progress;
       if (looped) {
@@ -1577,6 +1673,10 @@ function wireEngineEvents(): void {
   callbackManager.subscribeToPlaybackState(
     function handleStateChange(state, reason): void {
       playbackState = state;
+      // A tap shows its track before the engine lets go of the last one.
+      if (state === "playing" && currentEventTrack?.id === displayedTrack?.id) {
+        currentTrackHeard = true;
+      }
       playbackStateListeners.forEach((listener) => listener());
       updatePrefetchWindow();
       if (state === "playing") topUpQueue();
@@ -1775,6 +1875,7 @@ export async function previous(): Promise<void> {
   pendingRestoreSeek = null;
   const state = await TrackPlayer.getState();
   if (state.currentPosition >= RESTART_THRESHOLD_SECONDS) {
+    levelFromTheTop();
     await TrackPlayer.seek(0);
     return;
   }

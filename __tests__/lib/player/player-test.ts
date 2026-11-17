@@ -13,9 +13,11 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 // Which tracks are on the phone, and whether there's a connection. Online with
 // nothing saved unless a test says otherwise.
 const mockSavedFiles = new Map<string, string>();
+const mockSavedLoudness = new Map<string, number>();
 let mockOffline = false;
 jest.mock("@/lib/offline/saved-library", () => ({
   savedFilePath: (id: string) => mockSavedFiles.get(id) ?? null,
+  savedLoudness: (id: string) => mockSavedLoudness.get(id),
   canPlayNow: (id: string) =>
     !mockOffline || mockSavedFiles.has(id) || mockCachedFiles.has(id),
   savedLibraryReady: () => Promise.resolve(),
@@ -60,6 +62,7 @@ jest.mock("@/lib/offline/network", () => ({
 }));
 
 import { act, renderHook } from "@testing-library/react-native";
+import { fetch } from "expo/fetch";
 import { setAuthToken, setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import {
   addToQueue,
@@ -93,6 +96,7 @@ import type { Track } from "@/lib/types/library";
 import { PlayerQueue, TrackPlayer } from "react-native-nitro-player";
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
 
+const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 const queue = PlayerQueue as jest.Mocked<typeof PlayerQueue>;
 const player = TrackPlayer as jest.Mocked<typeof TrackPlayer>;
 const manager = callbackManager as jest.Mocked<typeof callbackManager>;
@@ -963,6 +967,143 @@ describe("playback events", () => {
 
     expect(started).toEqual(["42"]);
     unsubscribe();
+  });
+
+  describe("levelling loud tracks", () => {
+    // 6 dB over the -14 LUFS target, so it plays at half amplitude.
+    const LOUD = "-8";
+    const HALF = 50.1;
+    const albumTracks = ["71", "72", "73"].map((id, index) =>
+      track({ id, trackNumber: index + 1, streamPath: `/stream/12/${id}` }),
+    );
+    let engineVolume = 100;
+    const lateAnswers = new Map<string, () => void>();
+
+    const idOf = (url: unknown) => String(url).split("?")[0].split("/").pop()!;
+
+    function headResponse(lufs: string | null): any {
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => lufs },
+      };
+    }
+
+    /** A track left out gets no measurement. */
+    function serveLoudness(
+      lufsByTrackId: Record<string, string>,
+      { late = false } = {},
+    ) {
+      mockFetch.mockImplementation((url, init) => {
+        if (init?.method !== "HEAD") return Promise.reject(new Error("no"));
+        const answer = headResponse(lufsByTrackId[idOf(url)] ?? null);
+        if (!late) return Promise.resolve(answer);
+        return new Promise((resolve) =>
+          lateAnswers.set(idOf(url), () => resolve(answer)),
+        );
+      });
+    }
+
+    function askedIds() {
+      return mockFetch.mock.calls
+        .filter(([, init]) => init?.method === "HEAD")
+        .map(([url]) => idOf(url));
+    }
+
+    async function settle() {
+      for (let i = 0; i < 3; i++) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    }
+
+    beforeEach(async () => {
+      player.setVolume.mockImplementation(async (next) => {
+        engineVolume = next;
+      });
+      await forgetQueue();
+    });
+
+    afterEach(() => {
+      mockFetch.mockReset();
+      lateAnswers.clear();
+      mockOffline = false;
+      mockSavedFiles.clear();
+      mockSavedLoudness.clear();
+      setPlaybackSettings(DEFAULT_PLAYBACK_SETTINGS);
+    });
+
+    it("plays a quiet track at full volume, turns the loud one after it down as it starts, and plays one Aurral can't measure at full volume", async () => {
+      serveLoudness({ "71": "-20", "72": LOUD });
+
+      await playAlbumFromTrack(albumTracks, albumTracks[0], album);
+      await settle();
+      expect(engineVolume).toBe(100);
+
+      engine.trackChange({ ...clip, id: "72" }, "user_action");
+      expect(engineVolume).toBeCloseTo(HALF, 1);
+      await settle();
+
+      engine.trackChange({ ...clip, id: "73" }, "user_action");
+      expect(engineVolume).toBe(100);
+      // Each was asked for while the one before it played, and only once.
+      expect(askedIds()).toEqual(["71", "72", "73"]);
+    });
+
+    it.each([
+      { how: "from the queue", restart: () => playQueueItem("71") },
+      {
+        how: "with Previous",
+        restart: () => {
+          player.getState.mockResolvedValueOnce(
+            playerState({ currentPosition: 30 }),
+          );
+          return previous();
+        },
+      },
+    ])(
+      "leaves a playing track's volume alone when its measurement lands late, and levels it once it's started again $how",
+      async ({ restart }) => {
+        serveLoudness({ "71": LOUD }, { late: true });
+        await playAlbumFromTrack(
+          albumTracks.slice(0, 1),
+          albumTracks[0],
+          album,
+        );
+        engine.trackChange({ ...clip, id: "71" }, "user_action");
+        engine.stateChange("playing", undefined);
+
+        lateAnswers.get("71")!();
+        await settle();
+        expect(engineVolume).toBe(100);
+
+        await restart();
+        expect(engineVolume).toBeCloseTo(HALF, 1);
+      },
+    );
+
+    it("plays every track at full volume from the moment levelling is turned off", async () => {
+      serveLoudness({ "71": LOUD, "72": LOUD });
+      await playAlbumFromTrack(albumTracks.slice(0, 2), albumTracks[0], album);
+      await settle();
+      expect(engineVolume).toBeCloseTo(HALF, 1);
+
+      setPlaybackSettings({ levelLoudTracks: false });
+      expect(engineVolume).toBe(100);
+
+      engine.trackChange({ ...clip, id: "72" }, "user_action");
+      expect(engineVolume).toBe(100);
+    });
+
+    it("offline, levels a saved track by the measurement kept with it", async () => {
+      mockOffline = true;
+      mockSavedFiles.set("71", "/files/71.flac");
+      mockSavedLoudness.set("71", -8);
+
+      await playAlbumFromTrack(albumTracks, albumTracks[0], album);
+
+      expect(engineVolume).toBeCloseTo(HALF, 1);
+      expect(askedIds()).toEqual([]);
+    });
   });
 
   describe("when the connection goes mid-queue", () => {
