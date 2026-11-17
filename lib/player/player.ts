@@ -4,6 +4,7 @@ import {
   restorableTracks,
   saveQueue,
   toSavedTrack,
+  type SavedQueue,
 } from "@/lib/player/saved-queue";
 import {
   endIndexBeforeAutoplay,
@@ -125,6 +126,17 @@ let queueStation: RadioStation | null = null;
  * one stays out.
  */
 let queueClaims = 0;
+/**
+ * Counts the plays the listener starts here. The engine reports playing only
+ * after a play starts, and a check for another device's queue must not take
+ * the place of one in that gap.
+ */
+let listenerPlays = 0;
+
+/** A mark to pass to takeOverQueue's `idleSince`. */
+export function listenerPlayCount(): number {
+  return listenerPlays;
+}
 
 function configureEngine(): Promise<void> {
   configureOnce ??= TrackPlayer.configure({
@@ -240,6 +252,7 @@ async function replaceAndPlay(
   album: PlayerAlbumContext | null,
   station: RadioStation | null = null,
 ): Promise<number> {
+  listenerPlays++;
   await Promise.all([
     configureEngine(),
     playbackSettingsReady(),
@@ -1004,7 +1017,30 @@ let lastSavedPosition = 0;
 let lastSave: Promise<void> = Promise.resolve();
 let restoringQueue = false;
 
-function persistQueue(position?: number): void {
+/** A save of the queue, for keeping the server's copy in step. */
+export type QueueSaved = {
+  queue: SavedQueue;
+  /** Playing or buffering when it was saved. */
+  playing: boolean;
+  /**
+   * The queue as a restore or another device left it, which the listener
+   * hasn't touched here yet.
+   */
+  baseline: boolean;
+};
+
+const queueSavedListeners = new Set<Listener<QueueSaved>>();
+
+/** Hear every save of the queue. Returns unsubscribe. */
+export function onQueueSaved(listener: Listener<QueueSaved>): () => void {
+  wireEngineEvents();
+  queueSavedListeners.add(listener);
+  return function unsubscribe(): void {
+    queueSavedListeners.delete(listener);
+  };
+}
+
+function persistQueue(position?: number, baseline = false): void {
   if (restoringQueue) return;
   const album = queueAlbumContext;
   if (!album || queueOrder.length === 0) return;
@@ -1025,6 +1061,13 @@ function persistQueue(position?: number): void {
     station: queueStation,
   };
   lastSave = lastSave.then(() => saveQueue(record)).catch(() => {});
+  const saved = { queue: record, playing: isPlaybackActive(), baseline };
+  queueSavedListeners.forEach((listener) => listener(saved));
+}
+
+/** Playing, or buffering on the way to it. */
+export function isPlaybackActive(): boolean {
+  return playbackState === "playing" || playbackState === "buffering";
 }
 
 /**
@@ -1094,23 +1137,71 @@ async function restoreNow(): Promise<boolean> {
   const current = items.find((item) => item.id === saved.currentId) ?? items[0];
   const resumed = current.id === saved.currentId;
   const position = resumed ? saved.positionSeconds : 0;
-  const duration = resumed ? saved.durationSeconds : 0;
 
+  await loadQueueAt({
+    items,
+    original: inSavedOrder(items, saved.originalIds),
+    current,
+    position,
+    duration: resumed ? saved.durationSeconds : 0,
+    album: saved.album,
+    station: saved.station ?? null,
+    shuffle: saved.shuffle,
+    repeat: saved.repeat,
+    play: false,
+  });
+  persistQueue(position, true);
+  return true;
+}
+
+type QueueToLoad = {
+  items: PlayerTrack[];
+  original: PlayerTrack[];
+  current: PlayerTrack;
+  position: number;
+  duration: number;
+  album: PlayerAlbumContext;
+  station: RadioStation | null;
+  shuffle: boolean;
+  repeat: RepeatMode;
+  play: boolean;
+};
+
+/**
+ * Replace the queue with one that starts partway through a track: paused
+ * there, as a restore leaves it, or playing on from there.
+ */
+async function loadQueueAt(queue: QueueToLoad): Promise<void> {
+  const { items, current, position, duration, play } = queue;
   queueClaims++;
   restoringQueue = true;
   try {
     await configureEngine();
+    // Cleared first, so a failure below can't leave the next play aiming at a
+    // playlist that's gone.
+    const previousPlaylistId = currentPlaylistId;
+    currentPlaylistId = null;
+    if (previousPlaylistId) {
+      await PlayerQueue.deletePlaylist(previousPlaylistId);
+    }
     const playlistId = await PlayerQueue.createPlaylist(PLAYLIST_NAME);
     currentPlaylistId = playlistId;
     queueOrder = items;
-    originalOrder = inSavedOrder(items, saved.originalIds);
-    queueAlbumContext = saved.album;
-    queueStation = saved.station ?? null;
+    originalOrder = queue.original;
+    queueAlbumContext = queue.album;
+    queueStation = queue.station;
     lastTopUpKey = null;
-    shuffleOn = saved.shuffle;
-    repeatMode = saved.repeat;
+    shuffleOn = queue.shuffle;
+    repeatMode = queue.repeat;
     endedAtQueueEnd = false;
-    pendingRestoreSeek = { trackId: current.id, position, duration };
+    pendingRestoreSeek = {
+      trackId: current.id,
+      position,
+      duration,
+      ...(play ? { resumesPlaying: true } : {}),
+    };
+    // A track cut off near its end must not read as finished.
+    lastProgress = null;
     setProgress(position, duration);
     setDisplayedTrack(current);
     refreshQueueSnapshot();
@@ -1129,12 +1220,82 @@ async function restoreNow(): Promise<boolean> {
     if (position > 0) {
       await TrackPlayer.seek(position);
     }
+    if (play) {
+      await TrackPlayer.play();
+    }
   } finally {
     restoringQueue = false;
   }
+}
 
-  persistQueue(position);
-  return true;
+/** What became of a queue another device saved. */
+export type TakeOver =
+  /** It replaced the queue here. */
+  | "loaded"
+  /** Something is playing here, which only the listener may replace. */
+  | "playing"
+  /** A queue here is paused, which only the listener may replace. */
+  | "kept";
+
+/** A queue another device left, as the player takes it. */
+export type QueueElsewhere = {
+  items: PlayerTrack[];
+  startId: string;
+  positionSeconds: number;
+  /** The start track's length, for the scrubber until the stream reports it. */
+  durationSeconds: number;
+  album: PlayerAlbumContext;
+};
+
+/**
+ * Take over the queue another device left, at its track and position, paused
+ * unless `play`. Played as it comes, so shuffle goes off.
+ *
+ * With `idleSince`, a listenerPlayCount() mark, it loads only where it replaces
+ * nothing: no queue, or a preview clip that isn't playing and wasn't started
+ * since the mark.
+ */
+export function takeOverQueue(
+  { items, startId, positionSeconds, durationSeconds, album }: QueueElsewhere,
+  { play, idleSince }: { play: boolean; idleSince?: number },
+): Promise<TakeOver> {
+  const run = lastPlay.then(async (): Promise<TakeOver> => {
+    if (idleSince !== undefined) {
+      if (isPlaybackActive() || listenerPlays !== idleSince) return "playing";
+      if (queueOrder.length > 0 && queueAlbumContext) return "kept";
+    }
+    await Promise.all([playbackSettingsReady(), networkKnown()]);
+    const { queue, original } = limitQueue(
+      items.map(withCurrentToken),
+      startId,
+      getPlaybackSettings().queueLimit,
+      false,
+    );
+    const current = queue.find((item) => item.id === startId) ?? queue[0];
+    if (!current) return "kept";
+    readQueueQuality();
+    const started = current.id === startId;
+    const position = started ? positionSeconds : 0;
+    await loadQueueAt({
+      items: queue,
+      original,
+      current,
+      position,
+      duration: started ? durationSeconds : 0,
+      album,
+      station: null,
+      shuffle: false,
+      repeat: repeatMode,
+      play,
+    });
+    persistQueue(position, true);
+    return "loaded";
+  });
+  lastPlay = run.then(
+    () => {},
+    () => {},
+  );
+  return run;
 }
 
 function inSavedOrder(items: PlayerTrack[], ids: string[]): PlayerTrack[] {
@@ -1419,6 +1580,8 @@ function wireEngineEvents(): void {
       playbackStateListeners.forEach((listener) => listener());
       updatePrefetchWindow();
       if (state === "playing") topUpQueue();
+      // Other devices pick up from a pause, so it's saved with where it stopped.
+      else if (state !== "buffering") persistQueue();
       if (state === "stopped" && reason === "error") {
         // A streamed track can play out its buffer after the connection goes.
         if (currentEventTrack && isUnplayableNow(currentEventTrack.id)) {

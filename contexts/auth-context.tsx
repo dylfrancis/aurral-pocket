@@ -12,6 +12,7 @@ import {
 import { forgetDateTimeFormat, restoreDateTimeFormat } from "@/lib/date-time";
 import { forgetPlayHistory } from "@/lib/player/play-history";
 import { forgetQueue } from "@/lib/player/player";
+import { forgetQueueSync } from "@/lib/player/queue-sync";
 import { forgetAudioCache } from "@/lib/offline/audio-cache";
 import { forgetSavedLibrary } from "@/lib/offline/saved-library";
 import { AppStorage, SecureStorage } from "@/lib/storage";
@@ -88,9 +89,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 /**
  * Stop the player and forget the queue, then the tracks fetched ahead of it.
  * In that order, so the engine isn't left playing a file that's just gone.
+ * The server's copy of the queue stays for the account's other devices; the
+ * sync stops first, so the emptied queue isn't sent there.
  */
 function forgetPlayback(): Promise<void> {
-  return forgetQueue()
+  return forgetQueueSync()
+    .then(() => forgetQueue())
     .catch(() => {})
     .then(() => forgetAudioCache());
 }
@@ -164,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             SecureStorage.deleteCustomHeaders(),
             AppStorage.deleteOidcSession(),
             AppStorage.deletePlaybackQueue(),
+            AppStorage.deleteQueueSync(),
             AppStorage.deletePlayEventOutbox(),
             forgetAudioCache(),
             forgetSavedLibrary(),

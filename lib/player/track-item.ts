@@ -1,6 +1,7 @@
 import { buildAuthenticatedUrl } from "@/lib/api/client";
 import { getFlowArtworkPath, getFlowStreamPath } from "@/lib/api/flow";
 import type { TrackFavorite } from "@/lib/api/library";
+import type { PlayQueueTrack } from "@/lib/api/play-queue";
 import { audioFormatLabel } from "@/lib/player/audio-format";
 import type { FlowJob } from "@/lib/types/flow";
 import type { LibraryQueueTrack, Track } from "@/lib/types/library";
@@ -124,11 +125,11 @@ export function toPlayerTrack(
 }
 
 /**
- * A Library track Aurral sent ready for the queue; `artworkUrl` stands in for a
- * server cover that won't load. Null when the session token is gone.
+ * A track Aurral sent ready for the queue; `artworkUrl` stands in for a server
+ * cover that won't load. Null when the session token is gone.
  */
 export function queueTrackToPlayerTrack(
-  track: LibraryQueueTrack,
+  track: LibraryQueueTrack | PlayQueueTrack,
   artworkUrl: string | null,
 ): PlayerTrack | null {
   const url = buildAuthenticatedUrl(track.streamPath);
@@ -150,7 +151,9 @@ export function queueTrackToPlayerTrack(
     // The favorites API needs the track's identity key, which this shape
     // doesn't carry.
     favorite: null,
-    albumRef: String(track.libraryAlbumId),
+    // A playlist job in the server's play queue has no Library album.
+    albumRef:
+      track.libraryAlbumId == null ? null : String(track.libraryAlbumId),
     audioFormat: audioFormatLabel(track.quality, track.streamFormat),
   };
 }

@@ -104,6 +104,15 @@ function expectLeftFor(href: unknown) {
   }
 }
 
+// The queue another device left, as the sync lists it.
+let mockOtherDevice: unknown = null;
+const mockPickUpQueue = jest.fn(() => Promise.resolve());
+jest.mock("@/lib/player/queue-sync", () => ({
+  useOtherDevice: () => mockOtherDevice,
+  pickUpQueue: () => mockPickUpQueue(),
+  forgetQueueSync: () => Promise.resolve(),
+}));
+
 jest.mock("@/lib/api/lyrics", () => ({ getLyrics: jest.fn() }));
 
 const mockGetLibraryRadio = jest.fn((..._args: unknown[]) =>
@@ -130,6 +139,7 @@ jest.mock("@/components/settings/SettingsSwitch", () => {
 
 jest.mock("@/lib/api/library", () => ({
   ...jest.requireActual("@/lib/api/library"),
+  getCanonicalAlbumTracks: jest.fn(),
   getLibraryFavorites: jest.fn(),
   updateLibraryFavorites: jest.fn(),
 }));
@@ -151,7 +161,11 @@ import { NowPlayingScreen } from "@/components/player/NowPlayingScreen";
 import { IS_ANDROID } from "@/constants/platform";
 import { NowPlayingProvider } from "@/contexts/now-playing-context";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
-import { getLibraryFavorites, updateLibraryFavorites } from "@/lib/api/library";
+import {
+  getCanonicalAlbumTracks,
+  getLibraryFavorites,
+  updateLibraryFavorites,
+} from "@/lib/api/library";
 import { getLyrics } from "@/lib/api/lyrics";
 import {
   onTrackStarted,
@@ -164,7 +178,10 @@ import {
   DEFAULT_PLAYBACK_SETTINGS,
   setPlaybackSettings,
 } from "@/lib/player/playback-settings";
-import type { PlayerTrack } from "@/lib/player/track-item";
+import {
+  queueTrackToPlayerTrack,
+  type PlayerTrack,
+} from "@/lib/player/track-item";
 import type { LibraryQueueTrack, Track } from "@/lib/types/library";
 import * as Burnt from "burnt";
 import {
@@ -179,6 +196,7 @@ const queue = PlayerQueue as jest.Mocked<typeof PlayerQueue>;
 const player = TrackPlayer as jest.Mocked<typeof TrackPlayer>;
 const manager = callbackManager as jest.Mocked<typeof callbackManager>;
 const mockGetLibraryFavorites = getLibraryFavorites as jest.Mock;
+const mockGetCanonicalAlbumTracks = getCanonicalAlbumTracks as jest.Mock;
 const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
 const mockGetLyrics = getLyrics as jest.Mock;
 
@@ -236,10 +254,12 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockOtherDevice = null;
   setBaseUrl("https://test.example");
   setAuthToken("test-token-123");
   queue.createPlaylist.mockResolvedValue("playlist-1");
   mockGetLibraryFavorites.mockResolvedValue(favoritesWith());
+  mockGetCanonicalAlbumTracks.mockResolvedValue([]);
   mockUpdateLibraryFavorites.mockResolvedValue({ changedIds: [] });
   mockGetLyrics.mockResolvedValue(null);
 });
@@ -979,5 +999,86 @@ describe("NowPlayingScreen lyrics", () => {
     await playTrack(albumTracks[2]);
 
     expect(await findByText("Everything")).toBeTruthy();
+  });
+});
+
+describe("NowPlayingScreen devices", () => {
+  const web = () => ({
+    name: "Aurral web",
+    track: { ...albumTracks[1], title: "Roads" },
+    positionSeconds: 134,
+    savedAt: Date.now() - 60_000,
+  });
+
+  it("lists another device's queue and plays it here", async () => {
+    mockOtherDevice = web();
+    const { getByText, getByLabelText } = await renderPlaying();
+
+    expect(
+      getByLabelText("Devices. Aurral web has a queue to pick up."),
+    ).toBeTruthy();
+    expect(getByText("Roads · 2:14 · 1 min ago")).toBeTruthy();
+
+    await fireEvent.press(getByLabelText("Aurral web"));
+    expect(mockPickUpQueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("says when its queue won't play here", async () => {
+    mockOtherDevice = web();
+    mockPickUpQueue.mockRejectedValueOnce(new Error("engine"));
+    const { getByLabelText } = await renderPlaying();
+
+    await act(async () => {
+      await fireEvent.press(getByLabelText("Aurral web"));
+    });
+
+    expect(Burnt.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Couldn't play from Aurral web" }),
+    );
+  });
+
+  it("labels the button plainly when there's nothing to pick up", async () => {
+    const { getByLabelText } = await renderPlaying();
+
+    expect(getByLabelText("Devices")).toBeTruthy();
+  });
+});
+
+describe("NowPlayingScreen Library details", () => {
+  // As the server's play queue and radio send it: no identity key, no bitrate.
+  const roads: LibraryQueueTrack = {
+    id: "82",
+    title: "Roads",
+    artist: "Portishead",
+    album: "Dummy",
+    streamPath: "/library/stream/30/82",
+    streamFormat: "flac",
+    quality: "FLAC",
+    durationMs: 302_000,
+    artistMbid: "mb-portishead",
+    albumMbid: "mb-dummy",
+    trackMbid: null,
+    libraryTrackId: 82,
+    libraryAlbumId: 30,
+    libraryArtistId: 5,
+    artworkUrl: "/library/artwork/30",
+    artworkSource: "album",
+  };
+
+  it("reads a queued Library track's favorite and bitrate from its album", async () => {
+    mockGetCanonicalAlbumTracks.mockResolvedValue([
+      {
+        ...track("82", "Roads"),
+        identityKey: "recording:roads",
+        bitrateKbps: 1411,
+      },
+    ]);
+    const { findByLabelText, findByText } = await renderScreen();
+    const item = queueTrackToPlayerTrack(roads, null)!;
+    await act(() => playQueueFrom([item], item.id, album));
+
+    expect(await findByLabelText("Add Roads to favorites")).toBeTruthy();
+    expect(await findByText("FLAC · 1411 kbps")).toBeTruthy();
+    expect(mockGetCanonicalAlbumTracks).toHaveBeenCalledWith("30");
   });
 });

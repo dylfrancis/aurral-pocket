@@ -40,6 +40,7 @@ import {
   useAddToPlaylist,
 } from "@/components/flow/AddToPlaylistSheet";
 import { CoverTintBackdrop } from "@/components/player/CoverTintBackdrop";
+import { DevicesButton } from "@/components/player/DevicesButton";
 import { LyricsView } from "@/components/player/LyricsView";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import {
@@ -67,6 +68,7 @@ import { toastNotSaved } from "@/hooks/offline/toast-not-saved";
 import { useSongSave } from "@/hooks/offline/use-song-save";
 import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useDragToClose } from "@/hooks/player/use-drag-to-close";
+import { useLibraryTrackDetails } from "@/hooks/player/use-library-track-details";
 import { useTrackLyrics } from "@/hooks/player/use-track-lyrics";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { TrackFavorite } from "@/lib/api/library";
@@ -144,6 +146,7 @@ export function NowPlayingScreen() {
   // Opening the queue turns lyrics off, so the two are never both open.
   const [lyricsOpen, setLyricsOpen] = useLyricsOpen();
   const lyrics = useTrackLyrics(track);
+  const details = useLibraryTrackDetails(track);
   const art = useArtFrame();
   // Left on, the lyrics panel gives way to the art for a track without lyrics
   // and comes back for the next one that has them.
@@ -254,18 +257,21 @@ export function NowPlayingScreen() {
     return <QueueEmptyRow />;
   }, []);
 
-  const fileQuality = track ? describeFileQuality(track) : null;
+  const fileQuality = track
+    ? describeFileQuality(track.audioFormat, details.bitrateKbps)
+    : null;
 
-  const favorite = track?.favorite ? (
-    <FavoriteButton
-      // Remounts per track, so a toggle still in flight doesn't show on the
-      // next one.
-      key={`${track.favorite.kind}:${track.favorite.key}`}
-      favorite={track.favorite}
-      trackMbid={track.trackMbid}
-      trackTitle={track.title}
-    />
-  ) : null;
+  const favorite =
+    track && details.favorite ? (
+      <FavoriteButton
+        // Remounts per track, so a toggle still in flight doesn't show on the
+        // next one.
+        key={`${details.favorite.kind}:${details.favorite.key}`}
+        favorite={details.favorite}
+        trackMbid={track.trackMbid}
+        trackTitle={track.title}
+      />
+    ) : null;
 
   return (
     // A native modal sits outside the app root's gesture and sheet hosts, so
@@ -463,6 +469,11 @@ export function NowPlayingScreen() {
                     </Pressable>
                   </View>
                   <View style={styles.toolbar}>
+                    <DevicesButton
+                      color={colors.text}
+                      activeColor={colors.brand}
+                    />
+                    <View style={styles.toolbarSpacer} />
                     <Pressable
                       onPress={() => {
                         setShowQueue(false);
@@ -549,8 +560,10 @@ export function NowPlayingScreen() {
   );
 }
 
-function describeFileQuality(track: PlayerTrack) {
-  const { audioFormat, bitrateKbps } = track;
+function describeFileQuality(
+  audioFormat: string | null | undefined,
+  bitrateKbps: number | null,
+) {
   if (!audioFormat && !bitrateKbps) return null;
   const rate = bitrateKbps ? `${bitrateKbps} kbps` : null;
   const spokenRate = bitrateKbps ? `${bitrateKbps} kilobits per second` : null;
@@ -1049,6 +1062,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 8,
+  },
+  toolbarSpacer: {
+    flex: 1,
   },
   toolbarButton: {
     width: 44,

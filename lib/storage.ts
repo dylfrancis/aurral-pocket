@@ -10,6 +10,11 @@ const THEME_PREFERENCES: readonly ThemePreference[] = [
   "dark",
 ];
 
+/** Readable in the background once unlocked, and never moved to another phone. */
+const THIS_DEVICE: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+};
+
 const KEYS = {
   SERVER_URL: "server_url",
   THEME_PREFERENCE: "theme_preference",
@@ -25,6 +30,8 @@ const KEYS = {
   OIDC_SESSION: "oidc_session",
   OIDC_LOGOUT_URL: "oidc_logout_url",
   PLAYBACK_QUEUE: "playback_queue",
+  QUEUE_SYNC: "queue_sync",
+  PLAYER_DEVICE: "player_device",
   PLAY_EVENT_OUTBOX: "play_event_outbox",
   SAVED_OFFLINE: "saved_offline",
   AUDIO_CACHE: "audio_cache",
@@ -193,6 +200,25 @@ export const SecureStorage = {
   },
 
   /** Kept here, not in AsyncStorage, because a proxy header is often a secret. */
+  /**
+   * The name other clients see this phone's queue saved under. Kept to this
+   * device: a backup restored onto a new phone would otherwise give two phones
+   * one name, and each would take the other's saves for its own.
+   */
+  async getPlayerDevice(): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(KEYS.PLAYER_DEVICE, THIS_DEVICE);
+    } catch {
+      return null;
+    }
+  },
+
+  async setPlayerDevice(name: string): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(KEYS.PLAYER_DEVICE, name, THIS_DEVICE);
+    } catch {}
+  },
+
   async getCustomHeaders(): Promise<Record<string, string>> {
     try {
       const raw = await SecureStore.getItemAsync(KEYS.CUSTOM_HEADERS);
@@ -335,6 +361,30 @@ export const AppStorage = {
   async deletePlaybackQueue(): Promise<void> {
     try {
       await AsyncStorage.removeItem(KEYS.PLAYBACK_QUEUE);
+    } catch {}
+  },
+
+  /**
+   * How the queue stands against the server's copy. Its shape lives in
+   * lib/player/queue-sync.ts.
+   */
+  async getQueueSync(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(KEYS.QUEUE_SYNC);
+    } catch {
+      return null;
+    }
+  },
+
+  async setQueueSync(json: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.QUEUE_SYNC, json);
+    } catch {}
+  },
+
+  async deleteQueueSync(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.QUEUE_SYNC);
     } catch {}
   },
 
