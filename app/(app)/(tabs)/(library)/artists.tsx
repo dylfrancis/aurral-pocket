@@ -5,15 +5,20 @@ import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import Block from "@expo/material-symbols/block.xml";
-import SortByAlpha from "@expo/material-symbols/sort_by_alpha.xml";
-import Schedule from "@expo/material-symbols/schedule.xml";
-import LibraryMusic from "@expo/material-symbols/library_music.xml";
+import {
+  LIBRARY_ARTIST_SORT_OPTIONS,
+  type LibraryArtistSortMode,
+} from "@/components/library/AlbumSortPicker";
 import { AlphabetIndex } from "@/components/library/AlphabetIndex";
 import { ArtistCard } from "@/components/library/ArtistCard";
+import {
+  filterMenu,
+  sortMenu,
+  statusSection,
+} from "@/components/library/LibraryListMenus";
 import { MediaRow } from "@/components/ui/MediaRow";
 import {
-  FILTER_MENU_ICON,
-  menuOptionActions,
+  menuOptionSection,
   type MenuOption,
 } from "@/components/ui/MenuOptions";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
@@ -22,14 +27,25 @@ import {
   GridCell,
   gridListStyles,
 } from "@/components/ui/GridCell";
-import { type SortMode } from "@/components/library/SearchBar";
 import { EmptyState } from "@/components/library/EmptyState";
+import { NO_SCROLL_ANCHOR } from "@/components/library/ReleaseGrid";
 import { useLibraryArtistsSuspense } from "@/hooks/library/use-library-artists";
+import {
+  offeredSort,
+  sortsFor,
+  useLibraryView,
+  type LibraryShow,
+} from "@/hooks/library/use-library-view";
 import { useGridListView } from "@/hooks/use-grid-list-view";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
 import { buildLetterIndex, type LetterIndexEntry } from "@/lib/alphabet-index";
 import { artistRouteId } from "@/lib/library-read";
+import {
+  artistServerSort,
+  newShuffleSeed,
+  shuffleRank,
+} from "@/lib/library-sorts";
 import { stripArticle } from "@/lib/strings";
 import type { Artist } from "@/lib/types/library";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
@@ -46,48 +62,59 @@ function addedTime(artist: Artist): number | null {
   return Number.isNaN(time) ? null : time;
 }
 
-const SORT_OPTIONS: MenuOption<SortMode>[] = [
-  {
-    key: "alpha",
-    label: "Alphabetical",
-    iosIcon: "textformat.abc",
-    androidIcon: SortByAlpha,
-  },
-  {
-    key: "recent",
-    label: "Recently Added",
-    iosIcon: "clock",
-    androidIcon: Schedule,
-  },
-  {
-    key: "albums",
-    label: "Album Count",
-    iosIcon: "square.stack",
-    androidIcon: LibraryMusic,
-  },
+const ARTIST_SORTS = LIBRARY_ARTIST_SORT_OPTIONS.map((option) => option.key);
+const ARTIST_SHOWS: LibraryShow[] = ["all", "favorites"];
+const SHOW_OPTIONS: MenuOption<LibraryShow>[] = [
+  { key: "all", label: "All Artists" },
+  { key: "favorites", label: "Favorites" },
 ];
 
 export default function LibraryArtistsScreen() {
   const router = useRouter();
   const colors = useColors();
-  const { data: artists, refetch } = useLibraryArtistsSuspense();
+  const { view, setSort, setShow, setStatus } = useLibraryView(
+    "library-artists",
+    ARTIST_SORTS,
+    ARTIST_SHOWS,
+  );
+  const sortOptions = useMemo(
+    () => sortsFor(LIBRARY_ARTIST_SORT_OPTIONS, view.show),
+    [view.show],
+  );
+  const sortMode = offeredSort(sortOptions, view.sort);
+  const isFiltered = view.show !== "all" || view.status !== null;
+  // Recently Played and Most Played leave out what hasn't been played.
+  const narrowed = isFiltered || sortMode === "played" || sortMode === "plays";
+  const { data: artists, refetch } = useLibraryArtistsSuspense({
+    sort: artistServerSort(sortMode),
+    status: view.status,
+    favorite: view.show === "favorites",
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortMode, setSortMode] = useState<SortMode>("alpha");
+  // Picking Random again deals a new order.
+  const [shuffleSeed, setShuffleSeed] = useState(newShuffleSeed);
+  const chooseSort = useCallback(
+    (mode: LibraryArtistSortMode) => {
+      if (mode === "random") setShuffleSeed(newShuffleSeed());
+      setSort(mode);
+    },
+    [setSort],
+  );
   const { isGrid, numColumns, viewMenuSection } = useGridListView(
     "library-artists",
     "grid",
   );
   const listRef = useRef<FlashListRef<Artist>>(null);
 
-  const filtered = useMemo(() => {
+  const searchMatches = useMemo(() => {
     if (!searchQuery) return artists;
     const query = searchQuery.toLowerCase();
     return artists.filter((a) => a.artistName.toLowerCase().includes(query));
   }, [artists, searchQuery]);
 
   const sorted = useMemo(() => {
-    const list = [...filtered];
+    const list = [...searchMatches];
     switch (sortMode) {
       case "alpha":
         return list.sort(byName);
@@ -107,8 +134,19 @@ export default function LibraryArtistsScreen() {
         return list.sort(
           (a, b) => b.statistics.albumCount - a.statistics.albumCount,
         );
+      case "random":
+        return list.sort(
+          (a, b) =>
+            shuffleRank(shuffleSeed, a.id) - shuffleRank(shuffleSeed, b.id),
+        );
+      // The server's order.
+      case "played":
+      case "plays":
+      case "released":
+      case "favorited":
+        return list;
     }
-  }, [filtered, sortMode]);
+  }, [searchMatches, sortMode, shuffleSeed]);
 
   const letterIndex = useMemo(() => {
     if (sortMode !== "alpha") return [];
@@ -217,10 +255,15 @@ export default function LibraryArtistsScreen() {
         >
           Blocklist
         </Stack.Toolbar.Button>
-        <Stack.Toolbar.Menu icon={FILTER_MENU_ICON} title="Sort By">
-          {menuOptionActions(SORT_OPTIONS, sortMode, setSortMode)}
-          {viewMenuSection}
-        </Stack.Toolbar.Menu>
+        {sortMenu(sortOptions, sortMode, chooseSort)}
+        {filterMenu(
+          {
+            show: menuOptionSection("Show", SHOW_OPTIONS, view.show, setShow),
+            status: statusSection(view.status, setStatus),
+            view: viewMenuSection,
+          },
+          isFiltered,
+        )}
       </Stack.Toolbar>
       <View style={styles.listWrapper}>
         <FlashList
@@ -234,7 +277,15 @@ export default function LibraryArtistsScreen() {
           // contentInset (0), which blocks jumps into the adjusted header
           // inset; this prop disables that clamp.
           scrollToOverflowEnabled
-          ListEmptyComponent={<EmptyState message="Your library is empty" />}
+          // A filter swaps the whole list; see NO_SCROLL_ANCHOR.
+          maintainVisibleContentPosition={NO_SCROLL_ANCHOR}
+          ListEmptyComponent={
+            <EmptyState
+              message={
+                narrowed ? "No artists to show" : "Your library is empty"
+              }
+            />
+          }
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{
             // Rows carry their own horizontal padding; only the grid needs

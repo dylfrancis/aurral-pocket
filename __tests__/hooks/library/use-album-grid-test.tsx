@@ -6,6 +6,10 @@ jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => ({ serverUrl: "http://server", token: "token" }),
 }));
 
+jest.mock("@/hooks/library/use-library-view", () =>
+  require("@/test-support/library-view"),
+);
+
 import React from "react";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -196,6 +200,71 @@ describe("useAlbumGrid", () => {
     });
     await waitFor(() =>
       expect(albumIds(result.current.items)).toEqual(["new"]),
+    );
+  });
+
+  it.each([
+    ["played", { sort: "played", direction: "asc" }],
+    ["plays", { sort: "plays", direction: "asc" }],
+    ["released", { sort: "released", direction: "asc" }],
+    ["random", { sort: "random", direction: "asc" }],
+  ] as const)(
+    "asks for %s latest or most first, which the server reads as asc",
+    async (mode, expected) => {
+      mockGetCanonicalLibraryPage.mockResolvedValue(makePage());
+      const { wrapper } = makeWrapper();
+      const { result } = await renderHook(() => useAlbumGrid(), { wrapper });
+
+      await act(async () => {
+        result.current.setSortMode(mode);
+      });
+
+      expect(mockGetCanonicalLibraryPage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ ...expected, page: 1 }),
+      );
+    },
+  );
+
+  it("narrows to favorites and a status, with Recently Favorited only on favorites", async () => {
+    mockGetCanonicalLibraryPage.mockResolvedValue(makePage());
+    const { wrapper } = makeWrapper();
+    const { result } = await renderHook(() => useAlbumGrid(), { wrapper });
+    const offersFavorited = () =>
+      result.current.sortOptions.some((option) => option.key === "favorited");
+    expect(offersFavorited()).toBe(false);
+
+    await act(async () => {
+      result.current.setShow("favorites");
+    });
+    await act(async () => {
+      result.current.setSortMode("favorited");
+    });
+    await act(async () => {
+      result.current.setStatus("missing");
+    });
+
+    expect(offersFavorited()).toBe(true);
+    expect(mockGetCanonicalLibraryPage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sort: "favorited",
+        favorite: true,
+        status: "missing",
+      }),
+    );
+
+    // Without favorites the server can't order by them, so the default sort
+    // stands in.
+    await act(async () => {
+      result.current.setShow("all");
+    });
+
+    expect(result.current.sortMode).toBe("name-asc");
+    expect(mockGetCanonicalLibraryPage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sort: "name",
+        favorite: false,
+        status: "missing",
+      }),
     );
   });
 

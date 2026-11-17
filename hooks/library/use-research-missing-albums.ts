@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import { canResearchAurralAlbum } from "@/lib/album-status";
 import { researchAurralAlbum } from "@/lib/api/library";
 import { albumDownloadStatus, managedAlbumId } from "@/lib/library-read";
+import { invalidateFilteredLists } from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
 import type { Album, DownloadStatusMap } from "@/lib/types/library";
 
@@ -87,6 +88,8 @@ export function useResearchMissingAlbums(
       queryClient.invalidateQueries({
         queryKey: libraryKeys.downloadStatusesAll(),
       });
+      // Re-searching an unmonitored album monitored it.
+      void invalidateFilteredLists(queryClient, "status");
     },
   });
 

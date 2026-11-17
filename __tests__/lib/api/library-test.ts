@@ -179,7 +179,14 @@ describe("getCanonicalLibraryPage", () => {
   it("sends only the parameters the caller set", async () => {
     mockApi.get.mockResolvedValue({ data: { kind: "albums" } });
 
-    await getCanonicalLibraryPage({ kind: "albums", page: 2, pageSize: 50 });
+    await getCanonicalLibraryPage({
+      kind: "albums",
+      page: 2,
+      pageSize: 50,
+      // The server refuses favorite=false and an empty status.
+      status: null,
+      favorite: false,
+    });
     expect(mockApi.get).toHaveBeenCalledWith("/library", {
       params: { kind: "albums", page: "2", pageSize: "50" },
     });
@@ -200,6 +207,8 @@ describe("getCanonicalLibraryPage", () => {
       direction: "desc",
       artistId: "art1",
       albumId: "alb1",
+      status: "missing",
+      favorite: true,
     });
     expect(mockApi.get).toHaveBeenCalledWith("/library", {
       params: {
@@ -214,6 +223,8 @@ describe("getCanonicalLibraryPage", () => {
         direction: "desc",
         artistId: "art1",
         albumId: "alb1",
+        status: "missing",
+        favorite: "true",
       },
     });
   });
@@ -649,6 +660,53 @@ describe("getCanonicalLibraryPage", () => {
       size: 200,
       streamFormat: "flac",
       streamPath: "/library/stream/12/33",
+    });
+  });
+
+  it("streams a track from the album holding its file when no album was asked for", async () => {
+    // The Songs list reads tracks from every album. A track on a compilation
+    // and its own album has its file on only one of them.
+    mockApi.get.mockResolvedValue({
+      data: {
+        kind: "tracks",
+        page: 1,
+        pageSize: 100,
+        total: 1,
+        hasMore: false,
+        artists: [],
+        albums: [],
+        tracks: [
+          {
+            id: 35,
+            identityKey: "song:on-two-albums",
+            title: "On Two Albums",
+            albums: [
+              { albumId: 12, discNumber: 1, trackNumber: 3 },
+              { albumId: 15, discNumber: 1, trackNumber: 9 },
+            ],
+            files: [
+              {
+                id: 801,
+                albumId: 15,
+                format: "flac",
+                size: 400,
+                available: true,
+              },
+            ],
+            sources: ["aurral"],
+            available: true,
+          },
+        ],
+      },
+    });
+
+    const page = await getCanonicalLibraryPage({
+      kind: "tracks",
+      availableOnly: true,
+    });
+    expect(page.tracks[0]).toMatchObject({
+      hasFile: true,
+      streamPath: "/library/stream/15/35",
     });
   });
 

@@ -1,4 +1,9 @@
-import type { LibraryAlbumsParams } from "@/lib/types/library";
+import type { QueryKey } from "@tanstack/react-query";
+import type {
+  LibraryAlbumsParams,
+  LibraryArtistsParams,
+  LibraryListParams,
+} from "@/lib/types/library";
 import type { LyricsLookup } from "@/lib/types/lyrics";
 import type { BrowseProvider, EditorialShelfScope } from "@/lib/types/search";
 
@@ -13,7 +18,11 @@ export const authKeys = {
 };
 
 export const libraryKeys = {
+  /** The whole artist list, in the server's default order. */
   artists: () => ["library", "artists"] as const,
+  /** The artist list filtered, or in an order only the server knows. */
+  artistsView: (params: LibraryArtistsParams) =>
+    ["library", "artists", params] as const,
   // Library membership lives under `artists`, so every invalidation of the
   // artist list refreshes it too.
   artistLookups: () => ["library", "artists", "lookup"] as const,
@@ -37,6 +46,9 @@ export const libraryKeys = {
   album: (albumRef: string) => ["library", "album", albumRef] as const,
   // The prefix of every single-album read, for invalidation.
   albumRecords: () => ["library", "album"] as const,
+  // The prefix of every songs view, for invalidation.
+  songViews: () => ["library", "songs"] as const,
+  songs: (params: LibraryListParams) => ["library", "songs", params] as const,
   genres: () => ["library", "genres"] as const,
   favorites: () => ["library", "favorites"] as const,
   tracks: (albumId: string) => ["library", "tracks", albumId] as const,
@@ -54,6 +66,24 @@ export const libraryKeys = {
   downloadStatuses: (artistId: string) =>
     ["library", "downloadStatuses", artistId] as const,
 };
+
+/**
+ * An artist, album or song list narrowed by `filter`: to favorites, or to a
+ * status. A change to favorites or monitoring leaves such a list stale.
+ */
+export function isFilteredListKey(
+  queryKey: QueryKey,
+  filter: "favorite" | "status",
+): boolean {
+  const [scope, list, params] = queryKey;
+  if (scope !== "library") return false;
+  if (list !== "artists" && list !== "albumsAll" && list !== "songs") {
+    return false;
+  }
+  if (typeof params !== "object" || params === null) return false;
+  const value = (params as Partial<Record<typeof filter, unknown>>)[filter];
+  return filter === "favorite" ? value === true : value != null;
+}
 
 export const searchKeys = {
   artists: (query: string) => ["search", "artists", query] as const,

@@ -2,13 +2,13 @@ import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, StyleSheet } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
-import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/library/EmptyState";
+import { SongRow } from "@/components/library/SongRow";
 import {
   TrackActionsSheet,
   useTrackActions,
 } from "@/components/library/TrackActionsSheet";
-import { TrackMenuButton } from "@/components/library/TrackMenuButton";
 import { CircleButton } from "@/components/ui/CircleButton";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
@@ -17,16 +17,16 @@ import {
   useLibraryFavorites,
   useToggleFavorite,
 } from "@/hooks/library/use-library-favorites";
-import { coverArtUrlFrom } from "@/hooks/library/use-cover-art-url";
+import {
+  albumTrackArtist,
+  albumTrackContext,
+} from "@/hooks/library/album-track-context";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
 import { albumRouteParams, artistRouteId } from "@/lib/library-read";
-import type { PlayerAlbumContext } from "@/lib/player/track-item";
-import { libraryKeys } from "@/lib/query-keys";
 import type {
   Album,
   Artist,
-  CoverArtResponse,
   FavoriteTrack,
   LibraryFavorites,
 } from "@/lib/types/library";
@@ -82,9 +82,6 @@ function rowKey(row: FavoriteRow) {
   }
 }
 
-const trackArtistName = (track: FavoriteTrack) =>
-  track.artistName || track.album?.artistName || "";
-
 function matchingFavorites(
   favorites: LibraryFavorites,
   query: string,
@@ -100,34 +97,8 @@ function matchingFavorites(
       matches(album.albumName, album.artistName),
     ),
     tracks: favorites.tracks.filter((track) =>
-      matches(track.trackName, trackArtistName(track), track.album?.albumName),
+      matches(track.trackName, albumTrackArtist(track), track.album?.albumName),
     ),
-  };
-}
-
-/**
- * Built at tap time, because the artwork fallback is whatever the row's
- * thumbnail lookup found. The list sends no lookups of its own.
- */
-function playerContext(
-  track: FavoriteTrack,
-  queryClient: QueryClient,
-): PlayerAlbumContext {
-  const albumMbid = track.album?.mbid || null;
-  return {
-    albumTitle: track.album?.albumName ?? "",
-    artistName: trackArtistName(track),
-    coverPath: track.album?.coverUrl ?? null,
-    artworkUrl: albumMbid
-      ? coverArtUrlFrom(
-          queryClient.getQueryData<CoverArtResponse>(
-            libraryKeys.albumCover(albumMbid),
-          ),
-        )
-      : null,
-    albumMbid,
-    artistMbid: track.album?.artistMbid ?? null,
-    albumRef: track.album ? albumRouteParams(track.album).ref : null,
   };
 }
 
@@ -235,28 +206,15 @@ export default function LibraryFavoritesScreen() {
         );
       case "track": {
         const { track } = row;
-        const openActions = () =>
-          trackActions.open(track, playerContext(track, queryClient));
         return (
-          <MediaRow
-            imageType="album"
-            mbid={track.album?.mbid}
-            coverUrl={track.album?.coverUrl}
-            title={track.trackName}
-            subtitle={[trackArtistName(track), track.album?.albumName]
-              .filter(Boolean)
-              .join(" · ")}
-            showChevron={false}
-            trailing={
-              <TrackMenuButton
-                trackName={track.trackName}
-                onPress={openActions}
-              />
-            }
+          <SongRow
+            track={track}
             onPress={() =>
-              void play([track], track, playerContext(track, queryClient))
+              void play([track], track, albumTrackContext(track, queryClient))
             }
-            onLongPress={openActions}
+            onOpenActions={() =>
+              trackActions.open(track, albumTrackContext(track, queryClient))
+            }
           />
         );
       }

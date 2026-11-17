@@ -41,6 +41,7 @@ import {
 import { formatReleaseWait } from "@/lib/album-status";
 import { ApiError } from "@/lib/api/client";
 import { libraryAlbumsRef } from "@/lib/library-read";
+import { invalidateLibraryLists } from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
 import { Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
@@ -169,11 +170,7 @@ export function ReleaseDetailScreen() {
   );
 
   const invalidateAfterMutation = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
-    void queryClient.invalidateQueries({
-      queryKey: libraryKeys.albumsAllViews(),
-    });
-    void queryClient.invalidateQueries({ queryKey: libraryKeys.genres() });
+    invalidateLibraryLists(queryClient);
     void queryClient.invalidateQueries({
       queryKey: libraryKeys.downloadStatusesAll(),
     });

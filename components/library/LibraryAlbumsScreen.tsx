@@ -1,19 +1,23 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { AlbumCard } from "@/components/library/AlbumCard";
+import { SAVED_ALBUM_SORT_OPTIONS } from "@/components/library/AlbumSortPicker";
+import { statusSection } from "@/components/library/LibraryListMenus";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { menuOptionSection } from "@/components/ui/MenuOptions";
 import { SavedMark, albumSavedId } from "@/components/offline/SavedMark";
 import { SEARCH_PLACEHOLDERS } from "@/constants/navigation";
 import { useAlbumGrid } from "@/hooks/library/use-album-grid";
+import {
+  offeredSort,
+  type LibraryShow,
+} from "@/hooks/library/use-library-view";
 import { useSavedAlbums } from "@/hooks/offline/use-saved-albums";
 import { albumRouteParams } from "@/lib/library-read";
 import { useIsOffline } from "@/lib/offline/network";
 import { savedAlbumRoute } from "@/lib/offline/saved-routes";
 import type { Album } from "@/lib/types/library";
-
-type Show = "all" | "saved";
 
 /**
  * Every album in the library, or in one genre. No download statuses: the
@@ -21,15 +25,17 @@ type Show = "all" | "saved";
  *
  * The whole library can show only what's saved on the phone, and does by
  * itself with no connection. A genre can't: a save doesn't keep its genres.
+ * Saved albums are sorted on the phone, so they take fewer sorts and no
+ * status.
  */
 export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
   const grid = useAlbumGrid({ genre });
   const router = useRouter();
   const isOffline = useIsOffline();
-  const [picked, setPicked] = useState<Show>("all");
   const canShowSaved = !genre;
-  const showSaved = canShowSaved && (isOffline || picked === "saved");
-  const savedAlbums = useSavedAlbums(grid.typedQuery, grid.sortMode);
+  const showSaved = canShowSaved && (isOffline || grid.show === "saved");
+  const savedSort = offeredSort(SAVED_ALBUM_SORT_OPTIONS, grid.sortMode);
+  const savedAlbums = useSavedAlbums(grid.typedQuery, savedSort);
 
   // A bare path, so expo-router resolves it inside the current tab group.
   const openAlbum = useCallback(
@@ -50,21 +56,33 @@ export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
   const savedIdOf = (album: Album) =>
     showSaved ? album.id : albumSavedId(album);
 
-  const showSection = useMemo(
-    () =>
-      canShowSaved
-        ? menuOptionSection<Show>(
-            "Show",
-            [
-              // Offline, the server's list can't load.
-              { key: "all", label: "All Albums", disabled: isOffline },
-              { key: "saved", label: "Saved Offline" },
-            ],
-            showSaved ? "saved" : "all",
-            setPicked,
-          )
-        : undefined,
-    [canShowSaved, isOffline, showSaved],
+  const { setShow, setStatus } = grid;
+  const filterSections = useMemo(
+    () => ({
+      show: menuOptionSection<LibraryShow>(
+        "Show",
+        [
+          // Offline, the server's lists can't load.
+          { key: "all", label: "All Albums", disabled: isOffline },
+          { key: "favorites", label: "Favorites", disabled: isOffline },
+          ...(canShowSaved
+            ? [{ key: "saved" as const, label: "Saved Offline" }]
+            : []),
+        ],
+        showSaved ? "saved" : grid.show,
+        setShow,
+      ),
+      status: statusSection(grid.status, setStatus, { disabled: showSaved }),
+    }),
+    [
+      canShowSaved,
+      isOffline,
+      showSaved,
+      grid.show,
+      grid.status,
+      setShow,
+      setStatus,
+    ],
   );
 
   return (
@@ -73,9 +91,9 @@ export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
       isLoading={showSaved ? false : grid.isLoading}
       refreshing={showSaved ? false : grid.refreshing}
       onRefresh={grid.handleRefresh}
-      sortMode={grid.sortMode}
+      sortMode={showSaved ? savedSort : grid.sortMode}
       onSortChange={grid.setSortMode}
-      sortOptions={grid.sortOptions}
+      sortOptions={showSaved ? SAVED_ALBUM_SORT_OPTIONS : grid.sortOptions}
       searchQuery={showSaved ? grid.typedQuery : grid.settledQuery}
       onSearchChange={grid.setSearchQuery}
       searchPlaceholder={SEARCH_PLACEHOLDERS.albums}
@@ -87,7 +105,8 @@ export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
       viewModeKey="library-albums"
       onEndReached={showSaved ? undefined : grid.loadMore}
       isFetchingNextPage={showSaved ? false : grid.isFetchingNextPage}
-      showSection={showSection}
+      filterSections={filterSections}
+      filtered={showSaved || grid.show !== "all" || grid.status !== null}
       renderItem={(item) => (
         <AlbumCard
           album={item}

@@ -93,6 +93,7 @@ async function open(initialUrl: string) {
     // The layout's other screens, so it finds every route it names.
     artists: OtherRoute,
     albums: OtherRoute,
+    songs: OtherRoute,
     genres: OtherRoute,
     "genre/[genre]": OtherRoute,
     favorites: OtherRoute,

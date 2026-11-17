@@ -60,6 +60,10 @@ import {
   libraryAlbumsRef,
   managedAlbumId,
 } from "@/lib/library-read";
+import {
+  invalidateFilteredLists,
+  invalidateLibraryLists,
+} from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import { Colors, Fonts } from "@/constants/theme";
@@ -244,6 +248,7 @@ export function AlbumDetailScreen() {
           queryKey: libraryKeys.album(params.ref),
         });
         invalidateArtistAlbums();
+        void invalidateFilteredLists(queryClient, "status");
       }
     },
   });
@@ -268,14 +273,7 @@ export function AlbumDetailScreen() {
     },
     onSuccess: () => {
       invalidateArtistAlbums();
-      // The Albums or Genres screen may sit under this page, still counting
-      // the album.
-      void queryClient.invalidateQueries({
-        queryKey: libraryKeys.albumsAllViews(),
-      });
-      void queryClient.invalidateQueries({ queryKey: libraryKeys.genres() });
-      // An artist Aurral doesn't manage goes with its last album.
-      void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
+      invalidateLibraryLists(queryClient);
       // The album this page is about is gone, so the page cannot stay.
       router.back();
     },

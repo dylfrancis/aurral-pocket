@@ -27,6 +27,7 @@ const KEYS = {
   EXPIRES_AT: "token_expires_at",
   LAST_ACTIVE_AT: "last_active_at",
   VIEW_MODES: "view_modes",
+  LIBRARY_VIEWS: "library_views",
   OIDC_SESSION: "oidc_session",
   OIDC_LOGOUT_URL: "oidc_logout_url",
   PLAYBACK_QUEUE: "playback_queue",
@@ -340,6 +341,26 @@ export const AppStorage = {
   async setViewModes(modes: Record<string, string>): Promise<void> {
     try {
       await AsyncStorage.setItem(KEYS.VIEW_MODES, JSON.stringify(modes));
+    } catch {}
+  },
+
+  /** Each Library list's sort and filters, unchecked; see useLibraryView. */
+  async getLibraryViews(): Promise<Record<string, unknown>> {
+    try {
+      const raw = await AsyncStorage.getItem(KEYS.LIBRARY_VIEWS);
+      if (!raw) return {};
+      const parsed: unknown = JSON.parse(raw);
+      return parsed && typeof parsed === "object"
+        ? (parsed as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  },
+
+  async setLibraryViews(views: Record<string, unknown>): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.LIBRARY_VIEWS, JSON.stringify(views));
     } catch {}
   },
 

@@ -13,6 +13,7 @@ import {
   type FavoriteKind,
   type TrackFavorite,
 } from "@/lib/api/library";
+import { invalidateFilteredLists } from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
 import type { LibraryFavorites } from "@/lib/types/library";
 
@@ -83,8 +84,8 @@ type ToggleFavorite = {
 
 /**
  * A removal leaves the list at once, because the unpaged reread can be slow.
- * `userFavorite` still goes stale in the cached album and artist lists, which
- * don't read it.
+ * Library lists showing only favorites reread too. `userFavorite` still goes
+ * stale in the other cached lists, which don't read it.
  */
 export function useToggleFavorite() {
   const queryClient = useQueryClient();
@@ -126,14 +127,15 @@ export function useToggleFavorite() {
     onSettled: () => {
       // A reread before another toggle's request lands would bring its row back.
       if (queryClient.isMutating({ mutationKey: favoritesKey }) > 1) return;
-      return Promise.all(
-        [
+      return Promise.all([
+        ...[
           favoritesKey,
           libraryKeys.canonicalArtists(),
           libraryKeys.albumRecords(),
           libraryKeys.trackLists(),
         ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-      );
+        invalidateFilteredLists(queryClient, "favorite"),
+      ]);
     },
   });
 }

@@ -78,6 +78,7 @@ import LibraryHome from "@/app/(app)/(tabs)/(library)/index";
 import { api } from "@/lib/api/client";
 import { playAlbumFromTrack } from "@/lib/player/player";
 import { libraryKeys } from "@/lib/query-keys";
+import type { LibraryAlbumsParams } from "@/lib/types/library";
 
 const mockGet = api.get as jest.Mock;
 const mockPost = api.post as jest.Mock;
@@ -159,6 +160,7 @@ async function openFavorites(initialUrl = "/favorites", client = makeClient()) {
       // The layout's other screens, so it finds every route it names.
       artists: OtherRoute,
       albums: OtherRoute,
+      songs: OtherRoute,
       genres: OtherRoute,
       "genre/[genre]": OtherRoute,
       blocklist: OtherRoute,
@@ -423,6 +425,33 @@ describe("favorites screen", () => {
     expect(mockPlayAlbumFromTrack.mock.calls[0][2].artworkUrl).toBe(
       "https://covers.example/first.jpg",
     );
+  });
+
+  it("rereads the Library lists showing only favorites, and leaves the rest", async () => {
+    const client = makeClient();
+    const view: LibraryAlbumsParams = {
+      genre: "",
+      query: "",
+      sort: "name",
+      direction: "asc",
+      status: null,
+      favorite: false,
+    };
+    const favoritesView = libraryKeys.albumsAll({ ...view, favorite: true });
+    // Rereading every list would reshuffle one sorted at random.
+    const wholeView = libraryKeys.albumsAll(view);
+    client.setQueryData(favoritesView, { pages: [], pageParams: [] });
+    client.setQueryData(wholeView, { pages: [], pageParams: [] });
+    await openFavorites("/favorites", client);
+
+    await fireEvent.press(
+      await screen.findByLabelText("Remove Second Album from favorites"),
+    );
+
+    await waitFor(() =>
+      expect(client.getQueryState(favoritesView)?.isInvalidated).toBe(true),
+    );
+    expect(client.getQueryState(wholeView)?.isInvalidated).toBe(false);
   });
 
   it("puts a row back and says so when the server refuses the removal", async () => {

@@ -4,35 +4,56 @@ import {
   type LibraryAlbumSortMode,
 } from "@/components/library/AlbumSortPicker";
 import { useLibraryAlbumsAll } from "@/hooks/library/use-library-albums-all";
+import {
+  offeredSort,
+  sortsFor,
+  useLibraryView,
+  type LibraryShow,
+} from "@/hooks/library/use-library-view";
 import { useDebouncedValue } from "@/hooks/search/use-debounced-value";
+import { serverSort } from "@/lib/library-sorts";
 import type { LibraryAlbumsParams } from "@/lib/types/library";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 /** The web library's search debounce (QUERY_DEBOUNCE_MS in LibraryPage). */
 const SEARCH_DEBOUNCE_MS = 250;
 
-// The server reverses direction for `newest`, so `asc` is newest first.
-const SERVER_SORTS: Record<
-  LibraryAlbumSortMode,
-  Pick<LibraryAlbumsParams, "sort" | "direction">
-> = {
-  "name-asc": { sort: "name", direction: "asc" },
-  "name-desc": { sort: "name", direction: "desc" },
-  "artist-asc": { sort: "artist", direction: "asc" },
-  "artist-desc": { sort: "artist", direction: "desc" },
-  newest: { sort: "newest", direction: "asc" },
-};
+const ALBUM_SORTS = LIBRARY_ALBUM_SORT_OPTIONS.map((option) => option.key);
 
-/** Search, sort and paging for a whole-library album grid. */
+// A genre can't show what's saved offline: a save doesn't keep its genres.
+const LIBRARY_SHOWS: LibraryShow[] = ["all", "favorites", "saved"];
+const GENRE_SHOWS: LibraryShow[] = ["all", "favorites"];
+
+/**
+ * Search, sort, filters and paging for a whole-library album grid. The sort
+ * and filters are remembered: one choice for the Albums list, one shared by
+ * every genre.
+ */
 export function useAlbumGrid({ genre = "" }: { genre?: string } = {}) {
-  const [sortMode, setSortMode] = useState<LibraryAlbumSortMode>("name-asc");
+  const { view, setSort, setShow, setStatus } = useLibraryView(
+    genre ? "genre-albums" : "library-albums",
+    ALBUM_SORTS,
+    genre ? GENRE_SHOWS : LIBRARY_SHOWS,
+  );
+  const sortOptions = useMemo(
+    () => sortsFor(LIBRARY_ALBUM_SORT_OPTIONS, view.show),
+    [view.show],
+  );
+  const sortMode = offeredSort(sortOptions, view.sort);
+
   const [searchQuery, setSearchQuery] = useState("");
   const typedQuery = searchQuery.trim();
   const debouncedQuery = useDebouncedValue(typedQuery, SEARCH_DEBOUNCE_MS);
 
   const params = useMemo<LibraryAlbumsParams>(
-    () => ({ genre, query: debouncedQuery, ...SERVER_SORTS[sortMode] }),
-    [genre, debouncedQuery, sortMode],
+    () => ({
+      genre,
+      query: debouncedQuery,
+      ...serverSort(sortMode),
+      status: view.status,
+      favorite: view.show === "favorites",
+    }),
+    [genre, debouncedQuery, sortMode, view.status, view.show],
   );
   const {
     data,
@@ -45,6 +66,15 @@ export function useAlbumGrid({ genre = "" }: { genre?: string } = {}) {
   } = useLibraryAlbumsAll(params);
 
   const { refreshing, onRefresh: handleRefresh } = usePullToRefresh(refetch);
+
+  // Picking Random again deals a new order: the server shuffles every read.
+  const chooseSort = useCallback(
+    (mode: LibraryAlbumSortMode) => {
+      if (mode === "random" && sortMode === "random") void refetch();
+      else setSort(mode);
+    },
+    [sortMode, refetch, setSort],
+  );
 
   const loadMore = useCallback(() => {
     if (!hasNextPage || isFetchingNextPage) return;
@@ -61,8 +91,12 @@ export function useAlbumGrid({ genre = "" }: { genre?: string } = {}) {
     loadMore,
     isFetchingNextPage,
     sortMode,
-    setSortMode,
-    sortOptions: LIBRARY_ALBUM_SORT_OPTIONS,
+    setSortMode: chooseSort,
+    sortOptions,
+    show: view.show,
+    setShow,
+    status: view.status,
+    setStatus,
     setSearchQuery,
     /** What's typed, for a list searched on the phone. */
     typedQuery,
