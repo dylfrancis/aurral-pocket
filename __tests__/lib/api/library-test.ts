@@ -23,7 +23,10 @@ import {
   getArtistCover,
   getAlbumCover,
   deleteAurralAlbum,
+  getReleaseGroupPreviews,
+  getReleaseGroupTracks,
   requestAlbumFromSearch,
+  setAlbumEdition,
   researchAurralAlbum,
   favoriteEntityId,
   getLibraryFavorites,
@@ -98,6 +101,32 @@ describe("deleteAurralAlbum", () => {
     await deleteAurralAlbum("14", true);
     expect(mockApi.delete).toHaveBeenCalledWith("/library/albums/14", {
       params: { deleteFiles: true },
+    });
+  });
+});
+
+describe("album editions", () => {
+  it("names an edition by its release the way each route takes it", async () => {
+    mockApi.get.mockResolvedValue({ data: { previews: {} } });
+    mockApi.put.mockResolvedValue({ data: { success: true } });
+
+    await getReleaseGroupTracks("rg-1", "rel-2");
+    await getReleaseGroupPreviews("rg-1", {
+      release: "rel-2",
+      artistMbid: "artist-1",
+    });
+    await setAlbumEdition("14", "rel-2");
+
+    expect(mockApi.get).toHaveBeenCalledWith(
+      "/artists/release-group/rg-1/tracks",
+      { params: { release: "rel-2" } },
+    );
+    expect(mockApi.get).toHaveBeenCalledWith(
+      "/artists/release-group/rg-1/previews",
+      { params: { release: "rel-2", artistMbid: "artist-1" } },
+    );
+    expect(mockApi.put).toHaveBeenCalledWith("/library/albums/14/edition", {
+      releaseMbid: "rel-2",
     });
   });
 });
