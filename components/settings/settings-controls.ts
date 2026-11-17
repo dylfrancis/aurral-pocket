@@ -11,4 +11,6 @@ export type SettingsPickerProps = {
 export type SettingsSwitchProps = {
   value: boolean;
   onChange: (value: boolean) => void;
+  /** For a switch outside a settings row, which names it there. */
+  accessibilityLabel?: string;
 };

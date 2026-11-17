@@ -1,7 +1,14 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Host } from "@expo/ui";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useRouter, type Href } from "expo-router";
-import { useCallback, useRef, useState, type ComponentProps } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import {
   FlatList,
   Pressable,
@@ -42,6 +49,7 @@ import {
 } from "@/components/player/player-colors";
 import { Scrubber } from "@/components/player/Scrubber";
 import { TrackMenu } from "@/components/player/TrackMenu";
+import { SettingsSwitch } from "@/components/settings/SettingsSwitch";
 import type {
   TrackMenuAction,
   TrackMenuActionId,
@@ -76,6 +84,10 @@ import {
   useQueue,
   type RepeatMode,
 } from "@/lib/player/player";
+import {
+  setPlaybackSettings,
+  usePlaybackSettings,
+} from "@/lib/player/playback-settings";
 import type { PlayerTrack } from "@/lib/player/track-item";
 
 /** Each repeat tap steps to the next mode: queue, then track, then off. */
@@ -104,6 +116,14 @@ const PRESS_FEEDBACK_TRANSITION = {
   transitionDuration: 120,
   transitionTimingFunction: "ease-out",
 };
+
+const QUEUE_HEADING_TEXT = { ...Fonts.semiBold, fontSize: 18 };
+
+/** The queue panel's list: the listener's tracks, then Autoplay's. */
+type QueueRow =
+  | { kind: "track"; item: PlayerTrack }
+  | { kind: "empty" }
+  | { kind: "autoplay" };
 
 /**
  * Progress lives in the Scrubber alone; everything else here reads track,
@@ -141,7 +161,17 @@ export function NowPlayingScreen() {
   // A missing match means the engine is on an item the facade did not
   // queue; an empty list beats presenting the whole queue as "up next".
   const currentIndex = items.findIndex((it) => it.id === currentId);
-  const upNext = currentIndex < 0 ? [] : items.slice(currentIndex + 1);
+  const queueRows = useMemo(() => {
+    const upNext = currentIndex < 0 ? [] : items.slice(currentIndex + 1);
+    const queued = upNext.filter((item) => !item.autoplay);
+    const autoplayed = upNext.filter((item) => item.autoplay);
+    const row = (item: PlayerTrack): QueueRow => ({ kind: "track", item });
+    return [
+      ...(queued.length > 0 ? queued.map(row) : [{ kind: "empty" } as const]),
+      { kind: "autoplay" } as const,
+      ...autoplayed.map(row),
+    ];
+  }, [items, currentIndex]);
   // A playlist's tracks each have their own artist, and its context has none.
   const artistMbid = track?.artistMbid ?? album?.artistMbid ?? null;
 
@@ -218,10 +248,11 @@ export function NowPlayingScreen() {
     }
   };
 
-  const renderUpNextRow = useCallback(
-    ({ item }: { item: PlayerTrack }) => <UpNextRow item={item} />,
-    [],
-  );
+  const renderQueueRow = useCallback(({ item: row }: { item: QueueRow }) => {
+    if (row.kind === "track") return <UpNextRow item={row.item} />;
+    if (row.kind === "autoplay") return <AutoplayHeading />;
+    return <QueueEmptyRow />;
+  }, []);
 
   const fileQuality = track ? describeFileQuality(track) : null;
 
@@ -311,19 +342,11 @@ export function NowPlayingScreen() {
                   against a container still settling and leaves a gap above
                   the first row until the first scroll. */}
                 <FlatList
-                  data={upNext}
-                  renderItem={renderUpNextRow}
-                  keyExtractor={(item) => item.id}
+                  data={queueRows}
+                  renderItem={renderQueueRow}
+                  keyExtractor={queueRowKey}
                   style={styles.queueList}
                   contentContainerStyle={styles.queueContent}
-                  ListEmptyComponent={
-                    <Text
-                      variant="caption"
-                      style={[styles.upNextEmpty, { color: colors.subtle }]}
-                    >
-                      Nothing up next.
-                    </Text>
-                  }
                 />
               </Animated.View>
             )}
@@ -773,6 +796,45 @@ function FavoriteButton({
   );
 }
 
+function queueRowKey(row: QueueRow): string {
+  return row.kind === "track" ? row.item.id : row.kind;
+}
+
+function QueueEmptyRow() {
+  const colors = usePlayerColors();
+  return (
+    <Text
+      variant="caption"
+      style={[styles.upNextEmpty, { color: colors.subtle }]}
+    >
+      Nothing up next.
+    </Text>
+  );
+}
+
+/** The same setting as in Settings › Playback and Storage. */
+function AutoplayHeading() {
+  const colors = usePlayerColors();
+  const { autoplay } = usePlaybackSettings();
+  return (
+    <View style={styles.autoplayHeading}>
+      <Text
+        variant="subtitle"
+        style={[styles.queueHeadingText, { color: colors.text }]}
+      >
+        Autoplay
+      </Text>
+      <Host matchContents ignoreSafeArea="all">
+        <SettingsSwitch
+          value={autoplay}
+          accessibilityLabel="Autoplay"
+          onChange={(next) => setPlaybackSettings({ autoplay: next })}
+        />
+      </Host>
+    </View>
+  );
+}
+
 function UpNextRow({ item }: { item: PlayerTrack }) {
   const colors = usePlayerColors();
   // Offline, a track the phone hasn't saved is passed over, so it shows as
@@ -915,9 +977,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   queueHeading: {
-    ...Fonts.semiBold,
-    fontSize: 18,
+    ...QUEUE_HEADING_TEXT,
     paddingHorizontal: GUTTER,
+    marginBottom: 8,
+  },
+  queueHeadingText: QUEUE_HEADING_TEXT,
+  autoplayHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: GUTTER,
+    marginTop: 20,
     marginBottom: 8,
   },
   queueList: {

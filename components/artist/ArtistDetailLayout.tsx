@@ -41,6 +41,7 @@ import {
   useLibraryLookup,
 } from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
+import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { deleteLibraryArtist } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
@@ -61,6 +62,7 @@ import MoreVert from "@expo/material-symbols/more_vert.xml";
 import SearchIcon from "@expo/material-symbols/search.xml";
 import BlockIcon from "@expo/material-symbols/block.xml";
 import CheckCircle from "@expo/material-symbols/check_circle.xml";
+import Sensors from "@expo/material-symbols/sensors.xml";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -358,6 +360,16 @@ export function ArtistDetailLayout({
   );
   const { refreshing, onRefresh } = usePullToRefresh(refreshArtist);
 
+  const startRadio = useStartRadio();
+  // The MBID finds the Library artist. A name could also match another artist
+  // who shares it.
+  const handleStartRadio = useCallback(() => {
+    void startRadio({
+      seed: { artists: [{ id: canonicalArtist?.id ?? null, mbid }] },
+      label: artistName,
+    });
+  }, [startRadio, canonicalArtist?.id, mbid, artistName]);
+
   const handleSimilarPress = useCallback(
     (artist: SimilarArtist) => {
       stopPreview();
@@ -387,6 +399,14 @@ export function ArtistDetailLayout({
           icon={IS_IOS ? "ellipsis" : MoreVert}
           accessibilityLabel="More actions"
         >
+          {inLibrary && (
+            <Stack.Toolbar.MenuAction
+              icon={IS_IOS ? "dot.radiowaves.left.and.right" : Sensors}
+              onPress={handleStartRadio}
+            >
+              Start Radio
+            </Stack.Toolbar.MenuAction>
+          )}
           {inLibrary && canResearchMissing && (
             <Stack.Toolbar.MenuAction
               icon={IS_IOS ? "magnifyingglass" : SearchIcon}

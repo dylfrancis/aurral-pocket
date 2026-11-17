@@ -32,7 +32,7 @@ async function settle() {
 }
 
 describe("playback settings", () => {
-  it("start at one track ahead, a gigabyte of cache, no queue limit and Wi-Fi Only off", async () => {
+  it("start at one track ahead, a gigabyte of cache, no queue limit, Wi-Fi Only off and Autoplay on", async () => {
     await start();
 
     expect(settings.getPlaybackSettings()).toEqual({
@@ -40,13 +40,18 @@ describe("playback settings", () => {
       queueLimit: 0,
       cacheBytes: 1_000_000_000,
       wifiOnly: false,
+      autoplay: true,
       transcoding: settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
   });
 
   it("come back after a restart", async () => {
     await start();
-    settings.setPlaybackSettings({ prefetchAhead: 3, wifiOnly: true });
+    settings.setPlaybackSettings({
+      prefetchAhead: 3,
+      wifiOnly: true,
+      autoplay: false,
+    });
     const transcoding = {
       ...settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
       cellular: { format: "mp3", kbps: 192, losslessOnly: true },
@@ -64,6 +69,7 @@ describe("playback settings", () => {
       queueLimit: 0,
       cacheBytes: 5_000_000_000,
       wifiOnly: true,
+      autoplay: false,
       transcoding,
     });
   });
@@ -83,16 +89,18 @@ describe("playback settings", () => {
     );
   });
 
-  it("fall back to the default for a value no longer offered", async () => {
+  it("fall back to the default for a value no longer offered, or not yet stored", async () => {
     await start(
       JSON.stringify({ prefetchAhead: 7, queueLimit: 100, cacheBytes: 3 }),
     );
 
+    // A record from before Autoplay existed turns it on, as for a new install.
     expect(settings.getPlaybackSettings()).toEqual({
       prefetchAhead: 1,
       queueLimit: 100,
       cacheBytes: 1_000_000_000,
       wifiOnly: false,
+      autoplay: true,
       transcoding: settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
   });

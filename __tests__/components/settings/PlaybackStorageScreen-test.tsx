@@ -83,16 +83,20 @@ describe("PlaybackStorageScreen", () => {
     await choose("Prefetch Ahead", "3 Tracks");
     await choose("Queue Length", "50 Tracks");
     await choose("Cache Size", "2 GB");
+    // Prefer Lossless on Wi-Fi, Wi-Fi Only, then Autoplay.
     await fireEvent.press(screen.getAllByRole("switch")[1]);
+    await fireEvent.press(screen.getAllByRole("switch")[2]);
 
     expect(getPlaybackSettings()).toEqual({
       prefetchAhead: 3,
       queueLimit: 50,
       cacheBytes: 2_000_000_000,
       wifiOnly: true,
+      autoplay: false,
       transcoding: DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
     expect(screen.getAllByRole("switch")[1]).toBeChecked();
+    expect(screen.getAllByRole("switch")[2]).not.toBeChecked();
   });
 
   it("sets the cellular format, bitrate and lossless rule independently of Wi-Fi", async () => {

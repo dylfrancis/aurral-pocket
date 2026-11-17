@@ -1,7 +1,9 @@
 import { fetch } from "expo/fetch";
 import { buildAuthenticatedUrl, customHeadersFor } from "@/lib/api/client";
 import type { TrackFavorite } from "@/lib/api/library";
+import type { RadioArtist, RadioSeed } from "@/lib/api/radio";
 import type { RepeatMode } from "@/lib/player/player";
+import type { RadioStation } from "@/lib/player/radio";
 import type { PlayerAlbumContext, PlayerTrack } from "@/lib/player/track-item";
 import { AppStorage } from "@/lib/storage";
 
@@ -41,6 +43,8 @@ export type SavedTrack = {
   isPreview?: boolean;
   /** Absent on tracks that report their plays. */
   recordHistory?: boolean;
+  /** Absent on tracks the listener queued. */
+  autoplay?: boolean;
 };
 
 export type SavedQueue = {
@@ -55,6 +59,8 @@ export type SavedQueue = {
   album: PlayerAlbumContext;
   shuffle: boolean;
   repeat: RepeatMode;
+  /** A station keeps growing after a restore. Absent for any other queue. */
+  station?: RadioStation | null;
 };
 
 const SAVED_QUEUE_VERSION = 1;
@@ -108,6 +114,25 @@ function parseSavedQueue(parsed: unknown): SavedQueue | null {
     repeat: REPEAT_MODES.includes(parsed.repeat as RepeatMode)
       ? (parsed.repeat as RepeatMode)
       : "off",
+    station: parseStation(parsed.station),
+  };
+}
+
+function parseStation(raw: unknown): RadioStation | null {
+  if (!isRecord(raw) || !isRecord(raw.seed)) return null;
+  const seed: RadioSeed = {
+    trackIds: asArray(raw.seed.trackIds).filter(isString),
+    albumIds: asArray(raw.seed.albumIds).filter(isString),
+    artists: asArray(raw.seed.artists).filter(isRecord).map(parseArtist),
+  };
+  return { seed, label: isString(raw.label) ? raw.label : "" };
+}
+
+function parseArtist(raw: Record<string, unknown>): RadioArtist {
+  return {
+    id: isString(raw.id) ? raw.id : null,
+    mbid: isString(raw.mbid) ? raw.mbid : null,
+    name: isString(raw.name) ? raw.name : null,
   };
 }
 
@@ -152,6 +177,7 @@ function parseTrack(raw: unknown): SavedTrack | null {
         : null,
     isPreview: raw.isPreview === true,
     recordHistory: raw.recordHistory !== false,
+    autoplay: raw.autoplay === true,
   };
 }
 
@@ -193,6 +219,7 @@ export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
     bitrateKbps: item.bitrateKbps,
     isPreview: item.isPreview,
     recordHistory: item.recordHistory,
+    autoplay: item.autoplay,
   };
 }
 
@@ -236,6 +263,7 @@ export function toPlayableTrack(
     favorite: saved.favorite ?? null,
     isPreview: saved.isPreview,
     recordHistory: saved.recordHistory,
+    autoplay: saved.autoplay,
     artistMbid: saved.artistMbid ?? album.artistMbid,
     albumMbid: saved.albumMbid ?? album.albumMbid,
     albumRef: saved.albumRef ?? album.albumRef ?? null,
