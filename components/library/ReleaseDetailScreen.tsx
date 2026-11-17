@@ -28,15 +28,21 @@ import { AlbumSearchStatusBadge } from "@/components/search/AlbumSearchStatusBad
 import { AppSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
+import { EditionPicker } from "./EditionPicker";
 import { useAudioPreview } from "@/hooks/library/use-audio-preview";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
+  invalidateEditionReads,
+  useAlbumEditions,
+} from "@/hooks/library/use-album-editions";
+import {
+  useEditionTracks,
+  type EditionTrack,
+} from "@/hooks/library/use-edition-tracks";
+import {
   addLibraryAlbum,
   getLibraryArtistId,
-  getReleaseGroupTracks,
   requestAlbumFromSearch,
-  searchDeezerAlbum,
-  type ReleaseGroupTrack,
 } from "@/lib/api/library";
 import { formatReleaseWait } from "@/lib/album-status";
 import { ApiError } from "@/lib/api/client";
@@ -133,21 +139,11 @@ export function ReleaseDetailScreen() {
   });
   const libraryArtistId = params.artistId || lookedUpArtistId || null;
 
-  const { data: tracks, isLoading: tracksLoading } = useQuery({
-    queryKey: libraryKeys.releaseGroupTracks(mbid),
-    queryFn: async () => {
-      const deezerId = await searchDeezerAlbum(artistName, title);
-      return getReleaseGroupTracks(mbid, {
-        deezerAlbumId: deezerId ?? undefined,
-        artistMbid: params.artistMbid || undefined,
-        artistName,
-        albumTitle: title,
-        releaseType: params.primaryType || undefined,
-        releaseDate: params.releaseDate || undefined,
-      });
-    },
-    enabled: !!mbid,
-    staleTime: 10 * 60 * 1000,
+  const editions = useAlbumEditions(mbid, { inLibrary: false });
+  const pickedRelease = editions.previewRelease;
+  const { tracks, isLoading: tracksLoading } = useEditionTracks(mbid, {
+    release: pickedRelease,
+    artistMbid: params.artistMbid || undefined,
   });
 
   const {
@@ -162,7 +158,7 @@ export function ReleaseDetailScreen() {
   useEffect(() => () => stopPreview(), [stopPreview]);
 
   const togglePreview = useCallback(
-    (track: ReleaseGroupTrack) => {
+    (track: EditionTrack) => {
       if (!track.preview_url) return;
       toggleAudio(trackKey(track), track.preview_url);
     },
@@ -171,6 +167,8 @@ export function ReleaseDetailScreen() {
 
   const invalidateAfterMutation = useCallback(() => {
     invalidateLibraryLists(queryClient);
+    // The album now has a Library edition.
+    void invalidateEditionReads(queryClient, mbid);
     void queryClient.invalidateQueries({
       queryKey: libraryKeys.downloadStatusesAll(),
     });
@@ -185,7 +183,7 @@ export function ReleaseDetailScreen() {
         });
       }
     }
-  }, [queryClient, libraryArtistId, params.artistMbid]);
+  }, [queryClient, mbid, libraryArtistId, params.artistMbid]);
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -196,7 +194,8 @@ export function ReleaseDetailScreen() {
         (needsArtistLookup
           ? await queryClient.fetchQuery(artistIdQuery)
           : null);
-      if (artistId) {
+      // Only a request can name an edition, so one goes that way.
+      if (artistId && !pickedRelease) {
         const added = await addLibraryAlbum(artistId, mbid, title);
         return { createdArtist: false, albumStatus: added.albumStatus };
       }
@@ -208,6 +207,7 @@ export function ReleaseDetailScreen() {
         albumName: title,
         artistMbid: params.artistMbid,
         artistName,
+        releaseMbid: pickedRelease,
       });
       return {
         createdArtist: !!requested.createdArtist,
@@ -262,16 +262,18 @@ export function ReleaseDetailScreen() {
   );
 
   const trackActionsRef = useRef<BottomSheetModal>(null);
-  const [actionTrack, setActionTrack] = useState<ReleaseGroupTrack | null>(
-    null,
-  );
-  const openTrackActions = useCallback((track: ReleaseGroupTrack) => {
+  const [actionTrack, setActionTrack] = useState<EditionTrack | null>(null);
+  const openTrackActions = useCallback((track: EditionTrack) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setActionTrack(track);
     trackActionsRef.current?.present();
   }, []);
 
-  const year = releaseYear(params.releaseDate);
+  // The standard edition can be a later pressing, so its date isn't the
+  // album's.
+  const year = releaseYear(
+    pickedRelease ? editions.viewing?.date : params.releaseDate,
+  );
   const secondaryTypes = (params.secondaryTypes || "")
     .split(",")
     .filter(Boolean);
@@ -337,6 +339,18 @@ export function ReleaseDetailScreen() {
               .filter(Boolean)
               .join(" · ")}
           </Text>
+          {editions.visible && editions.viewing ? (
+            <EditionPicker
+              editions={editions.editions}
+              selectedId={editions.viewing.id}
+              libraryId={editions.library}
+              onSelect={(id) => {
+                stopPreview();
+                editions.view(id);
+              }}
+              triggerColor={colors.text}
+            />
+          ) : null}
           {params.status ? (
             <AlbumSearchStatusBadge status={params.status as AlbumStatus} />
           ) : null}
@@ -389,7 +403,7 @@ export function ReleaseDetailScreen() {
             const isPlaying = playingId === key;
             return (
               <PreviewTrackRow
-                key={`${track.number}-${i}`}
+                key={`${key}-${i}`}
                 track={track}
                 hasPreview={!!track.preview_url}
                 isPlaying={isPlaying}
@@ -452,9 +466,8 @@ export function ReleaseDetailScreen() {
   );
 }
 
-/** Deezer rows carry no stable id of their own, so this is the fallback chain. */
-function trackKey(track: ReleaseGroupTrack) {
-  return track.id ?? track.mbid ?? `${track.number}`;
+function trackKey(track: EditionTrack) {
+  return track.id || `${track.discNumber}-${track.trackNumber}`;
 }
 
 type ActionState = {
@@ -545,7 +558,7 @@ const PreviewTrackRow = React.memo(function PreviewTrackRow({
   onToggle,
   onMenuPress,
 }: {
-  track: ReleaseGroupTrack;
+  track: EditionTrack;
   hasPreview: boolean;
   isPlaying: boolean;
   isLoading: boolean;

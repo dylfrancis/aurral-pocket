@@ -60,8 +60,18 @@ export const libraryKeys = {
   artistDetails: (mbid: string) => ["library", "artistDetails", mbid] as const,
   artistPreviews: (mbid: string) =>
     ["library", "artistPreviews", mbid] as const,
-  releaseGroupTracks: (mbid: string) =>
+  // A null release is the server's pick: the Library's edition, else the
+  // standard one.
+  releaseGroupTracks: (mbid: string, release: string | null) =>
+    ["library", "releaseGroupTracks", mbid, release] as const,
+  // The prefix of every edition's track list of one album, for invalidation.
+  releaseGroupTrackLists: (mbid: string) =>
     ["library", "releaseGroupTracks", mbid] as const,
+  releaseGroupPreviews: (mbid: string, release: string | null) =>
+    ["library", "releaseGroupPreviews", mbid, release] as const,
+  releaseGroupPreviewLists: (mbid: string) =>
+    ["library", "releaseGroupPreviews", mbid] as const,
+  albumEditions: (mbid: string) => ["library", "albumEditions", mbid] as const,
   downloadStatusesAll: () => ["library", "downloadStatuses"] as const,
   downloadStatuses: (artistId: string) =>
     ["library", "downloadStatuses", artistId] as const,

@@ -1,4 +1,3 @@
-import { fetch } from "expo/fetch";
 import { api } from "./client";
 import type {
   Artist,
@@ -627,129 +626,82 @@ export async function researchAurralAlbum(
   return requested.albumStatus ?? null;
 }
 
+/** One track of a release group's edition, from its `tracks` route. */
 export type ReleaseGroupTrack = {
-  id?: string;
-  mbid?: string;
-  number: number;
-  trackNumber?: number;
-  position?: number;
+  /** The recording's MBID, which `previews` keys clips by. */
+  id: string;
   title: string;
+  trackNumber: number;
+  discNumber: number;
   length: number | null;
-  preview_url?: string;
 };
 
-type DeezerAlbumTrack = {
-  id: number;
-  title: string;
-  track_position?: number;
-  duration?: number;
-  preview?: string | null;
-};
-
-async function fetchDeezerAlbumTracks(
-  deezerAlbumId: string,
-): Promise<ReleaseGroupTrack[]> {
-  const id = deezerAlbumId.replace(/^dz-/, "");
-  if (!id) return [];
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-    const response = await fetch(
-      `https://api.deezer.com/album/${id}/tracks?limit=200`,
-      { signal: controller.signal },
-    );
-    clearTimeout(timeout);
-    if (!response.ok) return [];
-    const body = (await response.json()) as { data?: DeezerAlbumTrack[] };
-    const raw = body.data ?? [];
-    return raw.map((t, i) => ({
-      id: String(t.id),
-      mbid: String(t.id),
-      title: t.title || "",
-      number: t.track_position || i + 1,
-      trackNumber: t.track_position || i + 1,
-      position: t.track_position || i + 1,
-      length: t.duration ? t.duration * 1000 : null,
-      preview_url: t.preview ?? undefined,
-    }));
-  } catch {
-    return [];
-  }
-}
-
-export type ReleaseGroupTracksParams = {
-  deezerAlbumId?: string;
-  artistMbid?: string;
-  artistName?: string;
-  albumTitle?: string;
-  releaseType?: string;
-  releaseDate?: string;
-};
-
-export async function getReleaseGroupTracks(
-  mbid: string,
-  params: ReleaseGroupTracksParams = {},
-) {
-  const { deezerAlbumId } = params;
-
-  // Newer aurral backends enrich release-group tracks with Deezer preview URLs
-  // server-side (better matching than we can do client-side). Pass everything
-  // they can use to resolve the album and match tracks.
-  const query: Record<string, string> = {};
-  if (params.deezerAlbumId) query.deezerAlbumId = params.deezerAlbumId;
-  if (params.artistMbid) query.artistMbid = params.artistMbid;
-  if (params.artistName) query.artistName = params.artistName;
-  if (params.albumTitle) query.albumTitle = params.albumTitle;
-  if (params.releaseType) query.releaseType = params.releaseType;
-  if (params.releaseDate) query.releaseDate = params.releaseDate;
-
+/**
+ * The tracks of one edition of a release group. With no `release`, the server
+ * picks the Library album's edition, else the standard one.
+ */
+export async function getReleaseGroupTracks(mbid: string, release?: string) {
   const r = await api.get<ReleaseGroupTrack[]>(
     `/artists/release-group/${mbid}/tracks`,
-    { params: Object.keys(query).length > 0 ? query : undefined },
+    { params: release ? { release } : undefined },
   );
-  const tracks = r.data;
-
-  // Fallback for older self-hosted backends that don't enrich previews: if none
-  // came back and we have a Deezer album, fetch tracks straight from Deezer.
-  if (deezerAlbumId && !tracks.some((t) => t.preview_url)) {
-    const dzTracks = await fetchDeezerAlbumTracks(deezerAlbumId);
-    if (dzTracks.length > 0) return dzTracks;
-  }
-  return tracks;
+  return r.data;
 }
 
-export async function searchDeezerAlbum(
-  artistName: string,
-  albumTitle: string,
-): Promise<string | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-    const params = new URLSearchParams({
-      q: `${artistName} ${albumTitle}`,
-      limit: "5",
-    });
-    const response = await fetch(
-      `https://api.deezer.com/search/album?${params.toString()}`,
-      { signal: controller.signal },
-    );
-    clearTimeout(timeout);
-    if (!response.ok) return null;
-    const body = (await response.json()) as {
-      data?: { id: number; title: string }[];
-    };
-    const lowerTitle = albumTitle.toLowerCase();
-    const match =
-      body.data?.find((a) => a.title.toLowerCase() === lowerTitle) ??
-      body.data?.find(
-        (a) =>
-          a.title.toLowerCase().includes(lowerTitle) ||
-          lowerTitle.includes(a.title.toLowerCase()),
-      );
-    return match ? `dz-${match.id}` : null;
-  } catch {
-    return null;
-  }
+/** A thirty-second clip. The URL is a server path that needs no token. */
+export type ReleaseGroupPreview = { preview_url: string };
+
+/**
+ * Clips for an edition's tracks, keyed by recording MBID. The server matches
+ * them on Deezer, so a track it can't find there has none.
+ */
+export async function getReleaseGroupPreviews(
+  mbid: string,
+  params: { release?: string; artistMbid?: string } = {},
+) {
+  const query: Record<string, string> = {};
+  if (params.release) query.release = params.release;
+  if (params.artistMbid) query.artistMbid = params.artistMbid;
+  const r = await api.get<{ previews: Record<string, ReleaseGroupPreview> }>(
+    `/artists/release-group/${mbid}/previews`,
+    { params: Object.keys(query).length > 0 ? query : undefined },
+  );
+  return r.data.previews;
+}
+
+/**
+ * One edition of a release group: a tracklist its releases list in full.
+ * Pressings with the same running order are one edition.
+ */
+export type AlbumEdition = {
+  /** The release that stands for the edition. */
+  id: string;
+  /** "Standard" for the standard edition. Other names can repeat. */
+  name: string;
+  date: string | null;
+  trackCount: number;
+};
+
+export type AlbumEditions = {
+  /** The standard edition first, then the rest by date. */
+  editions: AlbumEdition[];
+  /** The edition the Library album lists. Null when it isn't in the Library. */
+  library: string | null;
+};
+
+export async function getAlbumEditions(releaseGroupMbid: string) {
+  const r = await api.get<AlbumEditions>(
+    `/artists/release-group/${releaseGroupMbid}/editions`,
+  );
+  return r.data;
+}
+
+/**
+ * Make an edition the Library album's. Its tracks without a file that the
+ * edition doesn't list leave the album. Tracks with a file stay.
+ */
+export async function setAlbumEdition(albumId: string, releaseMbid: string) {
+  await api.put(`/library/albums/${albumId}/edition`, { releaseMbid });
 }
 
 /** Only an album Aurral manages answers a request with one. */
@@ -781,6 +733,8 @@ export type RequestAlbumPayload = {
   albumName: string;
   artistMbid: string;
   artistName: string;
+  /** An edition's release. Without it, Aurral picks the standard edition. */
+  releaseMbid?: string;
 };
 
 /**
