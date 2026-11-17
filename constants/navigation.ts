@@ -48,6 +48,7 @@ export function searchBarColors(colors: { text: string; subtle: string }) {
 export const SEARCH_PLACEHOLDERS = {
   artists: "Search artists...",
   albums: "Search albums and artists",
+  songs: "Search songs, albums and artists",
   genres: "Search genres",
   favorites: "Search favorites",
   blocklist: "Search for an artist",

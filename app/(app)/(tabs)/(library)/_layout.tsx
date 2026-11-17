@@ -41,6 +41,15 @@ export default function LibraryLayout() {
           }}
         />
         <Stack.Screen
+          name="songs"
+          options={{
+            title: "Songs",
+            headerLargeTitleEnabled: true,
+            headerBackButtonDisplayMode: "minimal",
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.songs, colors),
+          }}
+        />
+        <Stack.Screen
           name="genres"
           options={{
             title: "Genres",

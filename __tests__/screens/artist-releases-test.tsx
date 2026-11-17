@@ -89,6 +89,7 @@ async function openRow(albumType: string, { loading = false } = {}) {
       index: OtherRoute,
       artists: OtherRoute,
       albums: OtherRoute,
+      songs: OtherRoute,
       favorites: OtherRoute,
       genres: OtherRoute,
       "genre/[genre]": OtherRoute,

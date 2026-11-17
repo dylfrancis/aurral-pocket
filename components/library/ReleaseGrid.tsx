@@ -16,6 +16,11 @@ import {
 } from "@/components/library/AlbumSortPicker";
 import { EmptyState } from "@/components/library/EmptyState";
 import {
+  filterMenu,
+  sortMenu,
+  type FilterSections,
+} from "@/components/library/LibraryListMenus";
+import {
   GRID_EDGE_PADDING,
   GridCell,
   gridListStyles,
@@ -29,6 +34,14 @@ import { headerSearchBar } from "@/constants/navigation";
 import { useColors } from "@/hooks/use-colors";
 
 const DRAW_DISTANCE = 800;
+
+/**
+ * FlashList keeps the first visible row in place when the data changes. A new
+ * sort, filter or search first shows the old rows, so the new ones would open
+ * scrolled to wherever that row landed, under the header. Pages only ever add
+ * rows at the end, which needs no anchor.
+ */
+export const NO_SCROLL_ANCHOR = { disabled: true } as const;
 
 type ReleaseGridProps<T, SortKey extends string> = {
   items: T[];
@@ -57,10 +70,17 @@ type ReleaseGridProps<T, SortKey extends string> = {
   /** Shows a spinner under the last row while the next page loads. */
   isFetchingNextPage?: boolean;
   /**
-   * The filter menu's Show section, from menuOptionSection. Memoize it: a new
-   * element rebuilds the native header.
+   * The filter menu's Show section, from menuOptionSection, shown under Sort
+   * By in the one menu. Memoize it: a new element rebuilds the native header.
    */
   showSection?: React.ReactElement;
+  /**
+   * Show and Status sections, from menuOptionSection, for separate Sort and
+   * Filter buttons, with View in Filter. Memoize them as `showSection`.
+   */
+  filterSections?: Omit<FilterSections, "view">;
+  /** Whether Show or Status narrows the list, which the Filter icon marks. */
+  filtered?: boolean;
 };
 
 export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
@@ -85,6 +105,8 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   onEndReached,
   isFetchingNextPage = false,
   showSection,
+  filterSections,
+  filtered = false,
 }: ReleaseGridProps<T, SortKey>) {
   const colors = useColors();
   const view = useGridListView(viewModeKey, "grid");
@@ -104,6 +126,15 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
     [onSearchChange],
   );
   const toolbar = useMemo(() => {
+    const viewSection = hasGrid ? view.viewMenuSection : undefined;
+    if (filterSections) {
+      return (
+        <Stack.Toolbar placement="right">
+          {sortMenu(sortOptions, sortMode, onSortChange)}
+          {filterMenu({ ...filterSections, view: viewSection }, filtered)}
+        </Stack.Toolbar>
+      );
+    }
     const sortActions = menuOptionActions(sortOptions, sortMode, onSortChange);
     return (
       <Stack.Toolbar placement="right">
@@ -119,7 +150,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
             sortActions
           )}
           {showSection}
-          {hasGrid && view.viewMenuSection}
+          {viewSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
     );
@@ -128,6 +159,8 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
     sortMode,
     onSortChange,
     showSection,
+    filterSections,
+    filtered,
     hasGrid,
     view.viewMenuSection,
   ]);
@@ -191,6 +224,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
         // Covers start loading before cells scroll in. About ten more ~1 MB
         // decoded covers in memory than FlashList's default of 250.
         drawDistance={DRAW_DISTANCE}
+        maintainVisibleContentPosition={NO_SCROLL_ANCHOR}
         ListFooterComponent={
           isFetchingNextPage ? (
             <ActivityIndicator color={colors.brand} style={styles.footer} />

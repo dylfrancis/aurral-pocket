@@ -1,33 +1,9 @@
 const mockPush = jest.fn();
-jest.mock("expo-router", () => {
-  const React = require("react");
-  const { Pressable, Text } = require("react-native");
-  // The native menu renders nothing under Jest, so each action renders as a
-  // pressable named by its title, carrying whether it's on or can be picked.
-  const MenuAction = ({ children, isOn, disabled, onPress }: any) =>
-    React.createElement(
-      Pressable,
-      {
-        accessibilityRole: "menuitem",
-        accessibilityLabel: children,
-        accessibilityState: { checked: !!isOn, disabled: !!disabled },
-        onPress: disabled ? undefined : onPress,
-      },
-      React.createElement(Text, null, children),
-    );
-  const Passthrough = ({ children }: any) =>
-    React.createElement(React.Fragment, null, children);
-  return {
-    useRouter: () => ({ push: mockPush }),
-    useLocalSearchParams: () => ({}),
-    Stack: {
-      Screen: () => null,
-      SearchBar: () => null,
-      Toolbar: Object.assign(Passthrough, { Menu: Passthrough, MenuAction }),
-    },
-  };
-});
-
+jest.mock("expo-router", () => ({
+  ...require("@/test-support/expo-router-stack"),
+  useRouter: () => ({ push: mockPush }),
+  useLocalSearchParams: () => ({}),
+}));
 jest.mock("@shopify/flash-list", () => {
   const { FlatList } = require("react-native");
   return { FlashList: FlatList };
@@ -59,21 +35,31 @@ jest.mock("@/lib/offline/network", () => ({
 let mockLibraryAlbums: unknown[] = [];
 let mockTypedQuery = "";
 jest.mock("@/hooks/library/use-album-grid", () => ({
-  useAlbumGrid: () => ({
-    items: mockLibraryAlbums,
-    isLoading: false,
-    refreshing: false,
-    handleRefresh: jest.fn(),
-    loadMore: jest.fn(),
-    isFetchingNextPage: false,
-    sortMode: "name-asc",
-    setSortMode: jest.fn(),
-    sortOptions: [],
-    setSearchQuery: jest.fn(),
-    typedQuery: mockTypedQuery,
-    settledQuery: mockTypedQuery,
-    hasUnderlyingItems: mockLibraryAlbums.length > 0,
-  }),
+  useAlbumGrid: () => {
+    const { view, setShow, setStatus } =
+      require("@/test-support/library-view").useLibraryView("albums", [
+        "name-asc",
+      ]);
+    return {
+      show: view.show,
+      setShow,
+      status: view.status,
+      setStatus,
+      items: mockLibraryAlbums,
+      isLoading: false,
+      refreshing: false,
+      handleRefresh: jest.fn(),
+      loadMore: jest.fn(),
+      isFetchingNextPage: false,
+      sortMode: "name-asc",
+      setSortMode: jest.fn(),
+      sortOptions: [],
+      setSearchQuery: jest.fn(),
+      typedQuery: mockTypedQuery,
+      settledQuery: mockTypedQuery,
+      hasUnderlyingItems: mockLibraryAlbums.length > 0,
+    };
+  },
 }));
 
 let mockArtistAlbums: unknown[] = [];

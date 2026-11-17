@@ -43,7 +43,7 @@ import {
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { deleteLibraryArtist } from "@/lib/api/library";
-import { libraryKeys } from "@/lib/query-keys";
+import { invalidateLibraryLists } from "@/hooks/library/library-lists";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
 import type {
   Album,
@@ -298,11 +298,7 @@ export function ArtistDetailLayout({
     mutationFn: (id: string) => deleteLibraryArtist(id),
     onSuccess: () => {
       setArtistInLibrary(queryClient, mbid, false);
-      void queryClient.invalidateQueries({ queryKey: libraryKeys.artists() });
-      void queryClient.invalidateQueries({
-        queryKey: libraryKeys.albumsAllViews(),
-      });
-      void queryClient.invalidateQueries({ queryKey: libraryKeys.genres() });
+      invalidateLibraryLists(queryClient);
     },
   });
 
