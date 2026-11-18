@@ -814,6 +814,96 @@ describe("AlbumDetailScreen", () => {
       );
     });
   });
+  it("lists and heads the tracks by their places on the Library's edition", async () => {
+    // The Library also links two tracks at a one-disc pressing's running
+    // numbers, and lists that link first.
+    const track = (
+      id: string,
+      title: string,
+      trackNumber: number,
+      discTitle: string | null,
+    ) =>
+      ({
+        id,
+        mbid: `rec-${id}`,
+        trackName: title,
+        title,
+        trackNumber,
+        discNumber: 1,
+        discTitle,
+        hasFile: true,
+        streamPath: `/library/stream/14/${id}`,
+      }) as Track;
+    const illegal = track("1", "Illegal", 1, "Originals");
+    const remix = track("2", "Illegal (Nia Archives remix)", 13, null);
+    const romeo = track("3", "Romeo", 12, "Originals");
+    mockUseLibraryTracks.mockReturnValue({
+      data: [illegal, romeo, remix],
+      isLoading: false,
+    });
+    // MusicBrainz names only the second disc; the files name the first.
+    mockGetReleaseGroupTracks.mockResolvedValue(
+      (
+        [
+          ["rec-1", 1, 1, null],
+          ["rec-3", 1, 2, null],
+          ["rec-2", 2, 1, "Remixes"],
+        ] as const
+      ).map(([id, discNumber, trackNumber, discTitle]) => ({
+        id,
+        title: id,
+        trackNumber,
+        discNumber,
+        discTitle,
+        length: null,
+      })),
+    );
+
+    await openAlbumPage(album);
+
+    expect(await screen.findByText("Disc 2 · Remixes")).toBeTruthy();
+    expect(screen.getByText("Disc 1 · Originals")).toBeTruthy();
+    expect(mockGetReleaseGroupTracks).toHaveBeenCalledWith("rg-1", undefined);
+    await fireEvent.press(screen.getByText("Play"));
+    expect(mockPlayAlbum).toHaveBeenCalledWith(
+      [
+        illegal,
+        { ...romeo, trackNumber: 2 },
+        { ...remix, discNumber: 2, trackNumber: 1 },
+      ],
+      expect.anything(),
+    );
+  });
+
+  it("waits for the edition's places before listing the tracks", async () => {
+    let answer!: (tracks: unknown[]) => void;
+    mockGetReleaseGroupTracks.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    mockUseLibraryTracks.mockReturnValue({
+      data: [
+        {
+          id: "101",
+          mbid: "rec-1",
+          trackName: "Nude",
+          title: "Nude",
+          trackNumber: 1,
+          hasFile: true,
+          streamPath: "/library/stream/14/101",
+        } as Track,
+      ],
+      isLoading: false,
+    });
+
+    await openAlbumPage(album);
+    expect(screen.queryByText("Nude")).toBeNull();
+
+    await act(async () => answer([]));
+    expect(screen.getByText("Nude")).toBeTruthy();
+  });
+
   describe("editions", () => {
     const editions = [
       { id: "rel-std", name: "Standard", date: "1997-05-21", trackCount: 12 },
@@ -852,21 +942,25 @@ describe("AlbumDetailScreen", () => {
       });
       mockGetAlbumEditions.mockResolvedValue({ editions, library: "rel-std" });
       // The edition runs in another order than the Library's.
-      mockGetReleaseGroupTracks.mockResolvedValue(
-        [
-          ["rec-2", "Paranoid Android"],
-          ["rec-1", "Airbag"],
-          ["rec-3", "Subterranean Homesick Alien"],
-          ["rec-4", "Lull"],
-        ].map(([id, title], index) => ({
-          id,
-          mbid: id,
-          title,
-          trackNumber: index + 1,
-          discNumber: 1,
-          length: null,
-          releaseMbid: "rel-cx",
-        })),
+      const collectorsTracks = [
+        ["rec-2", "Paranoid Android"],
+        ["rec-1", "Airbag"],
+        ["rec-3", "Subterranean Homesick Alien"],
+        ["rec-4", "Lull"],
+      ].map(([id, title], index) => ({
+        id,
+        mbid: id,
+        title,
+        trackNumber: index + 1,
+        discNumber: 1,
+        length: null,
+        releaseMbid: "rel-cx",
+      }));
+      // The Library's own edition lists nothing, so its tracks keep their
+      // places.
+      mockGetReleaseGroupTracks.mockImplementation(
+        async (_mbid: string, release?: string) =>
+          release === "rel-cx" ? collectorsTracks : [],
       );
       mockGetReleaseGroupPreviews.mockResolvedValue({
         "rec-4": { preview_url: "/api/deezer/preview/4.mp3" },
