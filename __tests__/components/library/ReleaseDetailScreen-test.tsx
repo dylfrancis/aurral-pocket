@@ -170,6 +170,32 @@ describe("ReleaseDetailScreen", () => {
       expect.objectContaining({ title: "Downloads Mar 5, 2027" }),
     );
   });
+  it("heads each disc of a multi-disc album with MusicBrainz's title", async () => {
+    mockParams = { mbid: "rg-9", title: "Mellon Collie", artistName: "SP" };
+    mockGetReleaseGroupTracks.mockResolvedValue(
+      [
+        ["Tonight, Tonight", 1, "Dawn to Dusk"],
+        ["Jellybelly", 1, "Dawn to Dusk"],
+        ["Bodies", 2, null],
+      ].map(([title, discNumber, discTitle], index) => ({
+        id: `rec-${index}`,
+        title,
+        trackNumber: index + 1,
+        discNumber,
+        discTitle,
+        length: null,
+      })),
+    );
+    await render(
+      <QueryClientProvider client={client}>
+        <ReleaseDetailScreen />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("Disc 1 · Dawn to Dusk")).toBeTruthy();
+    expect(screen.getByText("Disc 2")).toBeTruthy();
+  });
+
   it("lists a picked edition's tracks and requests that edition", async () => {
     // The artist is in the Library, which would otherwise add the album
     // without naming an edition.

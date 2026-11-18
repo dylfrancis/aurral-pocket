@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { Fragment, useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +38,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Text } from "@/components/ui/Text";
 import { AlbumStatusBadge } from "./AlbumStatusBadge";
 import { CoverArtImage } from "./CoverArtImage";
+import { DiscHeading } from "./DiscHeading";
 import { EditionClipRow } from "./EditionClipRow";
 import { EditionPicker } from "./EditionPicker";
 import { TrackActionsSheet, useTrackActions } from "./TrackActionsSheet";
@@ -48,7 +49,10 @@ import {
   useAlbumEditions,
 } from "@/hooks/library/use-album-editions";
 import { stopPreviewClip } from "@/hooks/library/use-audio-preview";
-import { useEditionTracks } from "@/hooks/library/use-edition-tracks";
+import {
+  useEditionTracks,
+  useReleaseGroupTracks,
+} from "@/hooks/library/use-edition-tracks";
 import { useCoverArtUrl } from "@/hooks/library/use-cover-art-url";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
@@ -60,6 +64,12 @@ import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import {
+  discHeadings,
+  discOf,
+  discTitles,
+  placeOnEdition,
+} from "@/lib/album-discs";
 import { canResearchAurralAlbum, isUnreleased } from "@/lib/album-status";
 import { formatBytes, saveStatusLine } from "@/lib/offline/format";
 import { useIsOffline } from "@/lib/offline/network";
@@ -330,6 +340,23 @@ export function AlbumDetailScreen() {
     },
   });
 
+  // The Library can number a track by another edition, so tracks take their
+  // places, and discs their names, from the Library's own edition. The server
+  // picks it when no release is asked for.
+  const libraryEdition = useReleaseGroupTracks(albumMbid || undefined);
+  const libraryEditionTracks = libraryEdition.data;
+  // The list waits for the places, so it doesn't reorder under a tap. A read
+  // that fails doesn't hold it up through its retries.
+  const placesPending =
+    libraryEdition.isLoading && libraryEdition.failureCount === 0;
+  const placedTracks = useMemo(
+    () =>
+      tracks && !placesPending
+        ? placeOnEdition(tracks, libraryEditionTracks ?? [])
+        : undefined,
+    [tracks, placesPending, libraryEditionTracks],
+  );
+
   // Re-renders the rows' unavailable state as the connection comes and goes.
   useIsOffline();
   const saveOffline = useSaveOffline({
@@ -337,7 +364,7 @@ export function AlbumDetailScreen() {
     id: params.ref,
     title,
     save:
-      tracks && tracks.some((track) => track.streamPath)
+      placedTracks && placedTracks.some((track) => track.streamPath)
         ? () =>
             saveAlbum({
               ref: params.ref,
@@ -350,7 +377,7 @@ export function AlbumDetailScreen() {
                 libraryAlbumId: params.libraryAlbumId ?? "",
                 artistId: params.artistId || album?.artistId || "",
               },
-              tracks,
+              tracks: placedTracks,
               album: album ?? undefined,
             })
         : null,
@@ -359,10 +386,10 @@ export function AlbumDetailScreen() {
   const savedItem = saveOffline.status?.item;
   const savedTracks = savedItem?.kind === "album" ? savedItem.tracks : null;
   const albumTracks = useMemo(
-    () => tracks ?? savedTracks ?? [],
-    [tracks, savedTracks],
+    () => placedTracks ?? savedTracks ?? [],
+    [placedTracks, savedTracks],
   );
-  const showTracksLoading = tracksLoading && !savedTracks;
+  const showTracksLoading = (tracksLoading || placesPending) && !savedTracks;
   // Before saving, the files' size on the server.
   const albumBytes = albumTracks
     .filter((track) => track.streamPath)
@@ -390,6 +417,34 @@ export function AlbumDetailScreen() {
         : null,
     [previewRelease, editionTracks, albumTracks],
   );
+  const previewHeadings = useMemo(
+    () =>
+      discHeadings(
+        (preview?.rows ?? []).map((row) => ({
+          disc: discOf(row.editionTrack),
+          tagTitle: row.libraryTrack?.discTitle,
+          musicBrainzTitle: row.editionTrack.discTitle,
+        })),
+      ),
+    [preview],
+  );
+
+  const albumHeadings = useMemo(() => {
+    const musicBrainzTitles = discTitles(
+      (libraryEditionTracks ?? []).map((track) => ({
+        disc: discOf(track),
+        title: track.discTitle,
+      })),
+    );
+    return discHeadings(
+      albumTracks.map((track) => ({
+        disc: discOf(track),
+        tagTitle: track.discTitle,
+        musicBrainzTitle: musicBrainzTitles.get(discOf(track)),
+      })),
+    );
+  }, [albumTracks, libraryEditionTracks]);
+
   // Play follows the list as shown, so nothing plays until the edition's list
   // is in.
   const listTracks = useMemo<Track[]>(() => {
@@ -686,19 +741,24 @@ export function AlbumDetailScreen() {
           </Text>
         ) : preview ? (
           <>
-            {preview.rows.map((row) =>
-              row.libraryTrack?.streamPath ? (
-                renderTrack(row.libraryTrack, row.editionTrack.trackNumber)
-              ) : (
-                <EditionClipRow
-                  key={row.key}
-                  track={row.editionTrack}
-                  artistName={artistName}
-                  albumTitle={title}
-                  artwork={artworkUrl}
+            {preview.rows.map((row, index) => (
+              <Fragment key={row.key}>
+                <DiscHeading
+                  title={previewHeadings[index]}
+                  first={index === 0}
                 />
-              ),
-            )}
+                {row.libraryTrack?.streamPath ? (
+                  renderTrack(row.libraryTrack, row.editionTrack.trackNumber)
+                ) : (
+                  <EditionClipRow
+                    track={row.editionTrack}
+                    artistName={artistName}
+                    albumTitle={title}
+                    artwork={artworkUrl}
+                  />
+                )}
+              </Fragment>
+            ))}
             {preview.extras.length > 0 ? (
               <SectionLabel style={styles.extrasLabel}>
                 From Other Editions
@@ -707,7 +767,12 @@ export function AlbumDetailScreen() {
             {preview.extras.map((track) => renderTrack(track))}
           </>
         ) : albumTracks.length > 0 ? (
-          albumTracks.map((track) => renderTrack(track))
+          albumTracks.map((track, index) => (
+            <Fragment key={track.id}>
+              <DiscHeading title={albumHeadings[index]} first={index === 0} />
+              {renderTrack(track)}
+            </Fragment>
+          ))
         ) : (
           <Text variant="caption" style={styles.emptyText}>
             No tracks available

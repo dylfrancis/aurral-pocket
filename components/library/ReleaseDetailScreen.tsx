@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -28,6 +35,7 @@ import { AlbumSearchStatusBadge } from "@/components/search/AlbumSearchStatusBad
 import { AppSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
+import { DiscHeading } from "./DiscHeading";
 import { EditionPicker } from "./EditionPicker";
 import { useAudioPreview } from "@/hooks/library/use-audio-preview";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -44,6 +52,7 @@ import {
   getLibraryArtistId,
   requestAlbumFromSearch,
 } from "@/lib/api/library";
+import { discHeadings, discOf } from "@/lib/album-discs";
 import { formatReleaseWait } from "@/lib/album-status";
 import { ApiError } from "@/lib/api/client";
 import { libraryAlbumsRef } from "@/lib/library-read";
@@ -145,6 +154,17 @@ export function ReleaseDetailScreen() {
     release: pickedRelease,
     artistMbid: params.artistMbid || undefined,
   });
+
+  const headings = useMemo(
+    () =>
+      discHeadings(
+        (tracks ?? []).map((track) => ({
+          disc: discOf(track),
+          musicBrainzTitle: track.discTitle,
+        })),
+      ),
+    [tracks],
+  );
 
   const {
     playingId,
@@ -402,18 +422,20 @@ export function ReleaseDetailScreen() {
             const key = trackKey(track);
             const isPlaying = playingId === key;
             return (
-              <PreviewTrackRow
-                key={`${key}-${i}`}
-                track={track}
-                hasPreview={!!track.preview_url}
-                isPlaying={isPlaying}
-                isLoading={loadingId === key}
-                progress={isPlaying ? progress : 0}
-                onToggle={() => togglePreview(track)}
-                onMenuPress={
-                  canAddToPlaylist ? () => openTrackActions(track) : undefined
-                }
-              />
+              <Fragment key={`${key}-${i}`}>
+                <DiscHeading title={headings[i]} first={i === 0} />
+                <PreviewTrackRow
+                  track={track}
+                  hasPreview={!!track.preview_url}
+                  isPlaying={isPlaying}
+                  isLoading={loadingId === key}
+                  progress={isPlaying ? progress : 0}
+                  onToggle={() => togglePreview(track)}
+                  onMenuPress={
+                    canAddToPlaylist ? () => openTrackActions(track) : undefined
+                  }
+                />
+              </Fragment>
             );
           })
         ) : (
