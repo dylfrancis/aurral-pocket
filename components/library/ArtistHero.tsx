@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -34,6 +35,8 @@ type ArtistHeroProps = {
   onAddPress?: () => void;
   /** Library artists only. Omit when the artist can't be favorited. */
   favorite?: { active: boolean; onToggle: () => void };
+  /** Library artists only: shown under the badge. */
+  monitoring?: ReactNode;
 };
 
 export function ArtistHero({
@@ -44,6 +47,7 @@ export function ArtistHero({
   onBadgePress,
   onAddPress,
   favorite,
+  monitoring,
 }: ArtistHeroProps) {
   const colors = useColors();
 
@@ -96,21 +100,24 @@ export function ArtistHero({
             borderRadius={Radius.round}
           />
         ) : inLibrary ? (
-          <View style={styles.libraryActions}>
-            {onBadgePress && <LibraryBadge onPress={onBadgePress} />}
-            {favorite && (
-              <CircleButton
-                icon={favorite.active ? "heart" : "heart-outline"}
-                size={FAVORITE_BUTTON_SIZE}
-                accessibilityLabel={
-                  favorite.active
-                    ? `Remove ${artist.artistName} from favorites`
-                    : `Add ${artist.artistName} to favorites`
-                }
-                onPress={favorite.onToggle}
-              />
-            )}
-          </View>
+          <>
+            <View style={styles.libraryActions}>
+              {onBadgePress && <LibraryBadge onPress={onBadgePress} />}
+              {favorite && (
+                <CircleButton
+                  icon={favorite.active ? "heart" : "heart-outline"}
+                  size={FAVORITE_BUTTON_SIZE}
+                  accessibilityLabel={
+                    favorite.active
+                      ? `Remove ${artist.artistName} from favorites`
+                      : `Add ${artist.artistName} to favorites`
+                  }
+                  onPress={favorite.onToggle}
+                />
+              )}
+            </View>
+            {monitoring}
+          </>
         ) : (
           onAddPress && (
             <Pressable

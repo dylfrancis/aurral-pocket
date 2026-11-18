@@ -1,17 +1,14 @@
-import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
-import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import React from "react";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import * as Burnt from "burnt";
+import * as Haptics from "expo-haptics";
+import { MonitoringForm } from "@/components/artist/MonitoringForm";
 import { AppSheet } from "@/components/ui/AppSheet";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { Text } from "@/components/ui/Text";
+import { useMonitoringDefaults } from "@/hooks/library/use-artist-monitoring";
 import { useAddArtist } from "@/hooks/search/use-add-artist";
-import { Fonts } from "@/constants/theme";
-import {
-  DEFAULT_ARTIST_MONITORING,
-  type ArtistMonitoring,
-} from "@/lib/types/search";
-import { useColors } from "@/hooks/use-colors";
+import { ApiError } from "@/lib/api/client";
+import { describeMonitoringPlan } from "@/lib/monitoring-rules";
+import type { ArtistMonitoring } from "@/lib/types/monitoring";
 
 type AddArtistSheetProps = {
   mbid: string;
@@ -20,198 +17,81 @@ type AddArtistSheetProps = {
   onAdded?: () => void;
 };
 
-const MONITOR_OPTIONS: {
-  value: ArtistMonitoring;
-  label: string;
-  description: string;
-}[] = [
-  {
-    value: DEFAULT_ARTIST_MONITORING,
-    label: "Monitored",
-    description: "Downloads what your default monitoring rules pick",
-  },
-  {
-    value: { monitored: false },
-    label: "Not Monitored",
-    description: "Artist only, nothing downloads",
-  },
-];
-
 export function AddArtistSheet({
   mbid,
   artistName,
   sheetRef,
   onAdded,
 }: AddArtistSheetProps) {
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
-  const [selectedOption, setSelectedOption] = useState(MONITOR_OPTIONS[0]);
-
-  const addArtist = useAddArtist(() => {
-    sheetRef.current?.dismiss();
-    onAdded?.();
-  });
-
-  const handleAdd = useCallback(() => {
-    addArtist.mutate({
-      foreignArtistId: mbid,
-      artistName,
-      monitoring: selectedOption.value,
-    });
-  }, [addArtist, mbid, artistName, selectedOption]);
-
   return (
     <AppSheet
       ref={sheetRef}
       snapPoints={["85%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
     >
-      <BottomSheetScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
-      >
-        <View style={styles.header}>
-          <Text variant="title" style={styles.title}>
-            Add to Library
-          </Text>
-          <Text
-            variant="caption"
-            numberOfLines={1}
-            style={{ color: colors.subtle }}
-          >
-            {artistName}
-          </Text>
-        </View>
-
-        <View style={styles.optionsSection}>
-          <Text
-            variant="caption"
-            style={[styles.sectionLabel, { color: colors.subtle }]}
-          >
-            Monitoring
-          </Text>
-          {MONITOR_OPTIONS.map((option) => {
-            const isSelected = selectedOption === option;
-            return (
-              <Pressable
-                key={option.label}
-                onPress={() => setSelectedOption(option)}
-                style={({ pressed }) => [
-                  styles.optionRow,
-                  {
-                    borderBottomColor: colors.separator,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={isSelected ? "radio-button-on" : "radio-button-off"}
-                  size={22}
-                  color={isSelected ? colors.brand : colors.subtle}
-                />
-                <View style={styles.optionMeta}>
-                  <Text
-                    variant="body"
-                    style={[
-                      styles.optionLabel,
-                      isSelected && { color: colors.brand },
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                  <Text variant="caption" style={{ color: colors.subtle }}>
-                    {option.description}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View style={styles.actions}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.addButton,
-              { backgroundColor: colors.brand, opacity: pressed ? 0.8 : 1 },
-            ]}
-            onPress={handleAdd}
-            disabled={addArtist.isPending}
-          >
-            {addArtist.isPending ? (
-              <ActivityIndicator size={18} color={colors.buttonPrimaryText} />
-            ) : addArtist.isSuccess ? (
-              <Ionicons
-                name="checkmark"
-                size={18}
-                color={colors.buttonPrimaryText}
-              />
-            ) : (
-              <Ionicons name="add" size={18} color={colors.buttonPrimaryText} />
-            )}
-            <Text
-              variant="body"
-              style={[
-                styles.addButtonText,
-                { color: colors.buttonPrimaryText },
-              ]}
-            >
-              {addArtist.isSuccess ? "Added" : "Add to Library"}
-            </Text>
-          </Pressable>
-        </View>
-      </BottomSheetScrollView>
+      <AddArtistForm
+        mbid={mbid}
+        artistName={artistName}
+        onAdded={() => {
+          sheetRef.current?.dismiss();
+          onAdded?.();
+        }}
+      />
     </AppSheet>
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 12,
-    gap: 4,
-  },
-  title: {
-    fontSize: 20,
-    ...Fonts.bold,
-  },
-  sectionLabel: {
-    ...Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontSize: 12,
-    paddingBottom: 4,
-  },
-  optionsSection: {
-    paddingHorizontal: 16,
-  },
-  optionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  optionMeta: {
-    flex: 1,
-    gap: 2,
-  },
-  optionLabel: {
-    ...Fonts.medium,
-  },
-  actions: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  addButtonText: {
-    ...Fonts.semiBold,
-  },
-});
+function AddArtistForm({
+  mbid,
+  artistName,
+  onAdded,
+}: {
+  mbid: string;
+  artistName: string;
+  onAdded: () => void;
+}) {
+  const defaults = useMonitoringDefaults();
+  const addArtist = useAddArtist(
+    (data, { monitoring }) => {
+      Burnt.toast({
+        title: `Added ${artistName}`,
+        message: monitoring.monitored
+          ? describeMonitoringPlan(data.artist?.monitoring, data.artist?.rules)
+          : undefined,
+        preset: "done",
+      });
+      onAdded();
+    },
+    (error) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Burnt.toast({
+        title: `Couldn't add ${artistName}`,
+        message: error instanceof ApiError ? error.message : undefined,
+        preset: "error",
+      });
+    },
+  );
+
+  const add = (monitoring: ArtistMonitoring) =>
+    addArtist.mutate({ foreignArtistId: mbid, artistName, monitoring });
+
+  return (
+    <MonitoringForm
+      title="Add to Library"
+      artistName={artistName}
+      defaultRules={defaults.data?.rules}
+      defaultsFailed={defaults.isError}
+      initialChoice="default"
+      offDescription="Artist only, nothing downloads"
+      submitLabel="Add to Library"
+      submitIcon="add"
+      submitting={addArtist.isPending}
+      submitted={addArtist.isSuccess}
+      submittedLabel="Added"
+      onSubmit={add}
+    />
+  );
+}

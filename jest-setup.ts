@@ -105,6 +105,93 @@ jest.mock("@/components/library/EditionPicker", () => {
   };
 });
 
+// The artist's monitoring capsule is a native menu too. It stands in as a group
+// labelled with the capsule's text, holding a plain button per choice.
+jest.mock("@/components/artist/MonitoringCapsule", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  const { MONITORING_CHOICE_LABELS } = require("@/lib/monitoring-rules");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  const items = [
+    ["default", "Default Rules"],
+    ["custom", "Custom Rules…"],
+    ["off", "Not Monitored"],
+  ];
+  return {
+    MonitoringCapsule: ({ choice, onSelect }: any) =>
+      React.createElement(
+        View,
+        {
+          accessibilityLabel: `Monitoring, ${MONITORING_CHOICE_LABELS[choice]}`,
+        },
+        items.map(([value, title]) =>
+          React.createElement(
+            Pressable,
+            {
+              key: value,
+              accessibilityLabel: title,
+              accessibilityState: { selected: value === choice },
+              onPress: () => onSelect(value),
+            },
+            React.createElement(Text, null, title),
+          ),
+        ),
+      ),
+  };
+});
+
+// The menu picker and stepper in a sheet's rows are SwiftUI or Compose. The
+// picker stands in as a group labelled like it, holding a button per option;
+// the stepper as a pair of buttons, "<label>, fewer" and "<label>, more".
+jest.mock("@/components/ui/MenuPicker", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return {
+    MenuPicker: ({ accessibilityLabel, value, options, onChange }: any) =>
+      React.createElement(
+        View,
+        { accessibilityLabel },
+        options.map((option: any) =>
+          React.createElement(
+            Pressable,
+            {
+              key: option.value,
+              accessibilityLabel: option.label,
+              accessibilityState: { selected: option.value === value },
+              onPress: () => onChange(option.value),
+            },
+            React.createElement(Text, null, option.label),
+          ),
+        ),
+      ),
+  };
+});
+
+jest.mock("@/components/ui/NumberStepper", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require("react");
+  const { Pressable, View } = require("react-native");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return {
+    NumberStepper: ({ accessibilityLabel, value, min, max, onChange }: any) =>
+      React.createElement(
+        View,
+        null,
+        React.createElement(Pressable, {
+          accessibilityLabel: `${accessibilityLabel}, fewer`,
+          onPress: () => onChange(Math.max(min, value - 1)),
+        }),
+        React.createElement(Pressable, {
+          accessibilityLabel: `${accessibilityLabel}, more`,
+          onPress: () => onChange(Math.min(max, value + 1)),
+        }),
+      ),
+  };
+});
+
 // AsyncStorage has no native module under Jest, and it throws at import time.
 // `lib/storage` reaches many modules indirectly, so install the mock the library
 // ships. Suites that assert on storage calls still mock it themselves.

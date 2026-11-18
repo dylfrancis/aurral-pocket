@@ -24,6 +24,12 @@ import type {
   LibraryScanJob,
   LibraryScanStatus,
 } from "@/lib/types/library";
+import type {
+  ArtistMonitoring,
+  ArtistMonitoringChange,
+  ArtistMonitoringState,
+  MonitoringDefaults,
+} from "@/lib/types/monitoring";
 
 /**
  * Read one Library artist by MBID. An unknown artist answers 404, and an id
@@ -576,6 +582,29 @@ export async function getArtistPreviewTracks(
 export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {
   const r = await api.delete(`/library/artists/${mbid}`, {
     params: { deleteFiles },
+  });
+  return r.data;
+}
+
+export async function getMonitoringDefaults() {
+  const r = await api.get<MonitoringDefaults>("/library/monitoring/defaults");
+  return r.data;
+}
+
+export async function getArtistMonitoring(mbid: string) {
+  const r = await api.get<ArtistMonitoringState>(
+    `/library/artists/${mbid}/monitoring`,
+  );
+  return r.data;
+}
+
+/** Starting to monitor queues what the rules pick. */
+export async function setArtistMonitoring(
+  mbid: string,
+  monitoring: ArtistMonitoring,
+) {
+  const r = await api.put<ArtistMonitoringChange>(`/library/artists/${mbid}`, {
+    monitoring,
   });
   return r.data;
 }
