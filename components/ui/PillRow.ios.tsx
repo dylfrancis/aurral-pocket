@@ -16,7 +16,7 @@ import {
 import { HAS_LIQUID_GLASS } from "@/constants/navigation";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import type { PillRowProps } from "./pill-row";
+import { isPillSelected, type PillRowProps } from "./pill-row";
 
 export function PillRow<Id extends string>({
   items,
@@ -43,7 +43,7 @@ export function PillRow<Id extends string>({
           modifiers={[padding({ horizontal: 16, vertical: 4 })]}
         >
           {items.map((item) => {
-            const isSelected = item.id === selected;
+            const isSelected = isPillSelected(selected, item.id);
             const variant = HAS_LIQUID_GLASS
               ? isSelected
                 ? "glassProminent"
@@ -64,7 +64,7 @@ export function PillRow<Id extends string>({
                 : [foregroundStyle(colors.text)]),
             ];
             const handlePress = () => {
-              if (isSelected) return;
+              if (isSelected && typeof selected === "string") return;
               void Haptics.selectionAsync();
               onSelect(item.id);
             };

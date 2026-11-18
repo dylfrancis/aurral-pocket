@@ -12,6 +12,14 @@ export type PillRowItem<Id extends string = string> = {
 
 export type PillRowProps<Id extends string = string> = {
   items: readonly PillRowItem<Id>[];
-  selected: Id;
+  /** A list makes the pills toggles: a tap on a selected one reaches `onSelect` too. */
+  selected: Id | readonly Id[];
   onSelect: (id: Id) => void;
 };
+
+export function isPillSelected<Id extends string>(
+  selected: Id | readonly Id[],
+  id: Id,
+): boolean {
+  return typeof selected === "string" ? selected === id : selected.includes(id);
+}

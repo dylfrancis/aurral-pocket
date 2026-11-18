@@ -104,7 +104,14 @@ export function Chip({
   }
 
   return (
-    <View style={[containerStyle, inactive && styles.disabled]}>{body}</View>
+    <View
+      // Grouped only when it has nothing of its own to press.
+      accessible={!!accessibilityLabel && !onRemove}
+      accessibilityLabel={accessibilityLabel}
+      style={[containerStyle, inactive && styles.disabled]}
+    >
+      {body}
+    </View>
   );
 }
 

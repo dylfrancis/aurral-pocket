@@ -26,12 +26,20 @@ function toArtist(data: AddArtistResponse): Artist {
   };
 }
 
-export function useAddArtist(onSuccess?: () => void) {
+/**
+ * The callbacks run even after the caller unmounts, as a sheet's content does
+ * when it's dismissed mid-request. Callbacks passed to `mutate` wouldn't.
+ */
+export function useAddArtist(
+  onSuccess?: (data: AddArtistResponse, params: AddArtistRequest) => void,
+  onError?: (error: Error, params: AddArtistRequest) => void,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (params: AddArtistRequest) => addArtist(params),
-    onSuccess: (data: AddArtistResponse) => {
+    onError,
+    onSuccess: (data: AddArtistResponse, params: AddArtistRequest) => {
       const artist = toArtist(data);
       // Which page the optimistic entry lands in does not matter — the list
       // sorts client-side. It survives only until the next refetch: the
@@ -85,7 +93,7 @@ export function useAddArtist(onSuccess?: () => void) {
         });
       }
 
-      onSuccess?.();
+      onSuccess?.(data, params);
     },
   });
 }
