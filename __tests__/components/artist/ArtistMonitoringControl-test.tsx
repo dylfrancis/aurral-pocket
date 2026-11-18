@@ -101,7 +101,7 @@ const state = (
 
 const clients: QueryClient[] = [];
 
-async function renderControl(onChanged = jest.fn()) {
+async function renderControl() {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -111,14 +111,9 @@ async function renderControl(onChanged = jest.fn()) {
   clients.push(client);
   await render(
     <QueryClientProvider client={client}>
-      <ArtistMonitoringControl
-        mbid={MBID}
-        artistName="Radiohead"
-        onChanged={onChanged}
-      />
+      <ArtistMonitoringControl mbid={MBID} artistName="Radiohead" />
     </QueryClientProvider>,
   );
-  return onChanged;
 }
 
 beforeEach(() => {
@@ -161,11 +156,10 @@ describe("ArtistMonitoringControl", () => {
   ])("switches to %s from the menu", async (item, monitoring, sent) => {
     mockGetMonitoring.mockResolvedValue(monitoring);
     mockSetMonitoring.mockResolvedValue({ monitored: false });
-    const onChanged = await renderControl();
+    await renderControl();
     await fireEvent.press(await screen.findByLabelText(item));
 
     expect(mockSetMonitoring).toHaveBeenCalledWith(MBID, sent);
-    expect(onChanged).toHaveBeenCalled();
   });
 
   it("says what a change queued", async () => {

@@ -486,7 +486,6 @@ export function ArtistDetailLayout({
               <ArtistMonitoringControl
                 mbid={mbid}
                 artistName={libraryArtist?.artistName || artistName}
-                onChanged={() => void refetchAlbums()}
               />
             }
             onAddPress={() => {

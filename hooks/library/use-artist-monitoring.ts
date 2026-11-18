@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
-import { invalidateFilteredLists } from "@/hooks/library/library-lists";
 import {
   getArtistMonitoring,
   getMonitoringDefaults,
@@ -48,11 +47,7 @@ function nextState(
 }
 
 /** Changes a Library artist's monitoring, and says what it queued. */
-export function useSetArtistMonitoring(
-  mbid: string,
-  artistName: string,
-  onChanged?: () => void,
-) {
+export function useSetArtistMonitoring(mbid: string, artistName: string) {
   const queryClient = useQueryClient();
   const queryKey = libraryKeys.artistMonitoring(mbid);
 
@@ -75,15 +70,6 @@ export function useSetArtistMonitoring(
           : undefined,
         preset: "done",
       });
-      void queryClient.invalidateQueries({
-        queryKey: libraryKeys.downloadStatusesAll(),
-      });
-      // Starting can add or monitor the artist's albums.
-      void invalidateFilteredLists(queryClient, "status");
-      void queryClient.invalidateQueries({
-        queryKey: libraryKeys.albumRecords(),
-      });
-      onChanged?.();
     },
     onError: (error) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

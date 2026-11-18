@@ -24,8 +24,6 @@ const CAPSULE_PLACEHOLDER = { width: 124, height: 28 };
 type ArtistMonitoringControlProps = {
   mbid: string;
   artistName: string;
-  /** Runs after a change, which can add or monitor the artist's albums. */
-  onChanged?: () => void;
 };
 
 /**
@@ -35,13 +33,12 @@ type ArtistMonitoringControlProps = {
 export function ArtistMonitoringControl({
   mbid,
   artistName,
-  onChanged,
 }: ArtistMonitoringControlProps) {
   const colors = useColors();
   const hasPermission = useHasPermission();
   const canChange = hasPermission("changeMonitoring");
   const { data: state, isPending } = useArtistMonitoring(mbid);
-  const change = useSetArtistMonitoring(mbid, artistName, onChanged);
+  const change = useSetArtistMonitoring(mbid, artistName);
   const sheetRef = useRef<BottomSheetModal>(null);
 
   if (isPending) {
