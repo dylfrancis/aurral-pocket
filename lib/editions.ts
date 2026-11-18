@@ -1,3 +1,4 @@
+import { discOf } from "@/lib/album-discs";
 import type { AlbumEdition, ReleaseGroupTrack } from "@/lib/api/library";
 import { releaseYear } from "@/lib/date-time";
 import { formatTrackCount } from "@/lib/discover/format";
@@ -37,7 +38,7 @@ const normalizeTitle = (title: string) =>
 
 /**
  * Matches an edition's tracks to the Library album's, by recording, then by
- * title at the same number. `extras` are Library files the edition doesn't
+ * title at the same place. `extras` are Library files the edition doesn't
  * list, which a switch keeps.
  */
 export function editionRows(
@@ -55,6 +56,7 @@ export function editionRows(
       libraryTrack =
         [...unmatched].find(
           (track) =>
+            discOf(track) === discOf(editionTrack) &&
             track.trackNumber === editionTrack.trackNumber &&
             title !== "" &&
             normalizeTitle(track.title) === title,
