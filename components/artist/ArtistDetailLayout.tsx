@@ -1,4 +1,5 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
+import { ArtistMonitoringControl } from "@/components/artist/ArtistMonitoringControl";
 import {
   AddToPlaylistSheet,
   useAddToPlaylist,
@@ -44,6 +45,7 @@ import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { deleteLibraryArtist } from "@/lib/api/library";
 import { invalidateLibraryLists } from "@/hooks/library/library-lists";
+import { libraryKeys } from "@/lib/query-keys";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
 import type {
   Album,
@@ -351,8 +353,15 @@ export function ArtistDetailLayout({
   }, [blockedEntry, unblockArtist, blockArtist, mbid, artistName]);
 
   const refreshArtist = useCallback(
-    () => Promise.all([refetchAlbums(), refetchCanonicalArtist()]),
-    [refetchAlbums, refetchCanonicalArtist],
+    () =>
+      Promise.all([
+        refetchAlbums(),
+        refetchCanonicalArtist(),
+        queryClient.invalidateQueries({
+          queryKey: libraryKeys.artistMonitoring(mbid),
+        }),
+      ]),
+    [refetchAlbums, refetchCanonicalArtist, queryClient, mbid],
   );
   const { refreshing, onRefresh } = usePullToRefresh(refreshArtist);
 
@@ -472,6 +481,12 @@ export function ArtistDetailLayout({
               canonicalArtistLoading || canonicalArtist?.identityKey
                 ? { active: isFavorite, onToggle: handleToggleFavorite }
                 : undefined
+            }
+            monitoring={
+              <ArtistMonitoringControl
+                mbid={mbid}
+                artistName={libraryArtist?.artistName || artistName}
+              />
             }
             onAddPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

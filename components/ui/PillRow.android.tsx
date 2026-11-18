@@ -5,7 +5,7 @@ import { FilterChip, Icon, Row, Text } from "@expo/ui/jetpack-compose";
 import { horizontalScroll, padding } from "@expo/ui/jetpack-compose/modifiers";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import type { PillRowProps } from "./pill-row";
+import { isPillSelected, type PillRowProps } from "./pill-row";
 
 export function PillRow<Id extends string>({
   items,
@@ -26,7 +26,7 @@ export function PillRow<Id extends string>({
         modifiers={[horizontalScroll(), padding(16, 4, 16, 4)]}
       >
         {items.map((item) => {
-          const isSelected = item.id === selected;
+          const isSelected = isPillSelected(selected, item.id);
           const foreground = isSelected
             ? colors.buttonPrimaryText
             : colors.text;
@@ -37,7 +37,7 @@ export function PillRow<Id extends string>({
               key={`${item.id}:${item.count ?? ""}`}
               selected={isSelected}
               onClick={() => {
-                if (isSelected) return;
+                if (isSelected && typeof selected === "string") return;
                 void Haptics.selectionAsync();
                 onSelect(item.id);
               }}

@@ -1,4 +1,9 @@
 import type { LibraryQueueTrack } from "@/lib/types/library";
+import type {
+  ArtistMonitoring,
+  MonitoringPlan,
+  MonitoringRules,
+} from "@/lib/types/monitoring";
 
 /**
  * An artist result from the app contract's `GET /search?scope=artist`.
@@ -157,13 +162,6 @@ export type TagArtistsResponse = {
   offset: number;
 };
 
-/**
- * `useDefault` follows the server's default rules. An unmonitored artist is
- * added and nothing downloads.
- */
-export type ArtistMonitoring =
-  { monitored: true; useDefault: true } | { monitored: false };
-
 /** What adding an artist sends unless the listener picks otherwise. */
 export const DEFAULT_ARTIST_MONITORING: ArtistMonitoring = {
   monitored: true,
@@ -191,6 +189,9 @@ export type AddArtistResponse = {
       trackCount: number;
       sizeOnDisk: number;
     };
+    /** Set when the artist was added monitored: the rules in force and what they queued. */
+    rules?: MonitoringRules | null;
+    monitoring?: MonitoringPlan;
   };
 };
 

@@ -209,6 +209,20 @@
       "playlistSongs": [],
       "songIds": []
     },
+    "GET /library/monitoring/defaults": {
+      "artistCount": "number",
+      "rules": {
+        "catalog": "string",
+        "edition": "string",
+        "extraTypes": [],
+        "latestCount": "number",
+        "newReleases": "boolean",
+        "sinceYear": "null",
+        "topTracks": "number",
+        "types": ["string"]
+      },
+      "updatedAt": "null"
+    },
     "GET /library/recent": [],
     "GET /library/recent-releases": [],
     "GET /play-queue": {
