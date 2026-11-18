@@ -5,6 +5,7 @@ import type { PlayQueueTrack } from "@/lib/api/play-queue";
 import { audioFormatLabel } from "@/lib/player/audio-format";
 import type { FlowJob } from "@/lib/types/flow";
 import type { LibraryQueueTrack, Track } from "@/lib/types/library";
+import type { LibrarySearchTrack } from "@/lib/types/search";
 
 /**
  * One sound as the audio engine takes it.
@@ -155,6 +156,53 @@ export function queueTrackToPlayerTrack(
     albumRef:
       track.libraryAlbumId == null ? null : String(track.libraryAlbumId),
     audioFormat: audioFormatLabel(track.quality, track.streamFormat),
+  };
+}
+
+/** A Library song found by search, which plays as its album's track. */
+export function searchTrackContext(
+  track: LibrarySearchTrack,
+  artworkUrl: string | null,
+): PlayerAlbumContext {
+  return {
+    albumTitle: track.albumTitle ?? "",
+    artistName: track.artistName,
+    coverPath: track.coverUrl,
+    artworkUrl,
+    albumMbid: track.albumMbid,
+    artistMbid: track.artistMbid,
+    albumRef: track.libraryAlbumId,
+  };
+}
+
+/**
+ * A Library song found by search. Null when Aurral has no file for it or the
+ * session token is gone.
+ */
+export function searchTrackToPlayerTrack(
+  track: LibrarySearchTrack,
+  album: PlayerAlbumContext,
+): PlayerTrack | null {
+  const url = track.streamPath ? buildAuthenticatedUrl(track.streamPath) : null;
+  if (!url) return null;
+
+  return {
+    id: track.id,
+    title: track.title,
+    artist: album.artistName || "Unknown Artist",
+    album: album.albumTitle || "Unknown Album",
+    duration: 0,
+    url,
+    artwork: album.artworkUrl,
+    streamPath: track.streamPath,
+    coverPath: album.coverPath,
+    trackMbid: track.trackMbid,
+    artistMbid: album.artistMbid,
+    albumMbid: album.albumMbid,
+    // Search sends no identity key. Now Playing and the track sheet read it
+    // from the song's album.
+    favorite: null,
+    albumRef: album.albumRef,
   };
 }
 

@@ -17,6 +17,7 @@ import {
 import type { TrackFavorite } from "@/lib/api/library";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useSongSave } from "@/hooks/offline/use-song-save";
+import { useLibraryTrackDetails } from "@/hooks/player/use-library-track-details";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { hasRadioSeed, radioSeedFor } from "@/lib/player/radio";
 import { Fonts } from "@/constants/theme";
@@ -148,6 +149,12 @@ function TrackActionsContent({
   const options: ItemOptions = "item" in target ? target : {};
   const item = "item" in target ? target.item : null;
   const track = "track" in target ? target.track : null;
+  // Search and radio send Library songs with no favorite key, so it's read
+  // from the song's album.
+  const itemFavorite =
+    useLibraryTrackDetails(item?.favorite ? null : item).favorite ??
+    item?.favorite ??
+    null;
   const playerTrack = item ?? (track ? toPlayerTrack(track, album) : null);
   const canQueue = !!item || !!track;
   const saveAction =
@@ -271,9 +278,9 @@ function TrackActionsContent({
             isFavorite={track.userFavorite === true}
             closeThen={closeThen}
           />
-        ) : item?.favorite ? (
+        ) : item && itemFavorite ? (
           <QueuedFavoriteAction
-            favorite={item.favorite}
+            favorite={itemFavorite}
             trackMbid={item.trackMbid}
             closeThen={closeThen}
           />

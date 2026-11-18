@@ -35,6 +35,7 @@ function libraryTrack(
     releaseYear: "2023",
     durationMs: 156000,
     streamPath: "/library/canonical-stream/12/t1",
+    coverUrl: null,
     ...overrides,
   };
 }

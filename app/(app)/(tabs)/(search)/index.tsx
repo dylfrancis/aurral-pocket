@@ -17,6 +17,13 @@ import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
+import { SearchSongRow } from "@/components/search/SearchSongRow";
+import {
+  SearchPlaylistRow,
+  searchPlaylistHref,
+  searchPlaylistKey,
+} from "@/components/search/SearchPlaylistRow";
+import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
 import Mic from "@expo/material-symbols/mic.xml";
 import { ShazamSheet } from "@/components/shazam";
 import { isShazamAvailable } from "@/modules/shazam";
@@ -27,6 +34,8 @@ import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useLibraryAlbumLookup } from "@/hooks/search/use-library-album-lookup";
+import { useLibrarySearch } from "@/hooks/search/use-library-search";
+import { useSearchSongActions } from "@/hooks/search/use-search-song-actions";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { searchBarColors } from "@/constants/navigation";
 import { Fonts } from "@/constants/theme";
@@ -39,6 +48,8 @@ import { useColors } from "@/hooks/use-colors";
 
 const ARTIST_PREVIEW_LIMIT = 3;
 const ALBUM_PREVIEW_LIMIT = 3;
+const SONG_PREVIEW_LIMIT = 3;
+const PLAYLIST_PREVIEW_LIMIT = 3;
 const TAG_PREVIEW_LIMIT = 5;
 
 export default function SearchScreen() {
@@ -67,6 +78,12 @@ export default function SearchScreen() {
     isPlaceholderData: albumIsStale,
   } = useAlbumSearch(artistQuery);
 
+  const {
+    data: libraryData,
+    isLoading: libraryLoading,
+    isPlaceholderData: libraryIsStale,
+  } = useLibrarySearch(artistQuery);
+
   const { data: tags } = useTagSuggestions(
     isTagSearch ? tagQuery : artistQuery,
   );
@@ -75,11 +92,14 @@ export default function SearchScreen() {
     artists?.map((artist) => artist.id) ?? [],
   );
   const albums = albumData?.items;
+  const songs = libraryData?.tracks;
+  const playlists = libraryData?.playlists;
+  const songActions = useSearchSongActions();
 
   const { add: addRecentSearch } = recentSearches;
 
   const pushResults = useCallback(
-    (q: string, scope?: "artist" | "album") => {
+    (q: string, scope?: "artist" | "album" | "song" | "playlist") => {
       Keyboard.dismiss();
       if (q.startsWith("#")) {
         addRecentSearch({ type: "tag", text: q.slice(1) });
@@ -143,23 +163,38 @@ export default function SearchScreen() {
     hasQuery && !isTagSearch
       ? (albums ?? []).slice(0, ALBUM_PREVIEW_LIMIT)
       : [];
+  const previewSongs =
+    hasQuery && !isTagSearch ? (songs ?? []).slice(0, SONG_PREVIEW_LIMIT) : [];
+  // Most queries match no playlist, so the section gets no skeleton. It
+  // waits for this query's answer instead of showing the last one's.
+  const previewPlaylists =
+    hasQuery && !isTagSearch && !libraryIsStale
+      ? (playlists ?? []).slice(0, PLAYLIST_PREVIEW_LIMIT)
+      : [];
 
   const showArtistSkeleton =
     hasQuery && !isTagSearch && (artistLoading || artistIsStale);
   const showAlbumSkeleton =
     hasQuery && !isTagSearch && (albumLoading || albumIsStale);
+  const showSongSkeleton =
+    hasQuery && !isTagSearch && (libraryLoading || libraryIsStale);
   const showArtistSection = showArtistSkeleton || previewArtists.length > 0;
   const showAlbumSection = showAlbumSkeleton || previewAlbums.length > 0;
+  const showSongSection = showSongSkeleton || previewSongs.length > 0;
 
   const noResults =
     hasQuery &&
     !isTagSearch &&
     !artistLoading &&
     !albumLoading &&
+    !libraryLoading &&
     !artistIsStale &&
     !albumIsStale &&
+    !libraryIsStale &&
     previewArtists.length === 0 &&
     previewAlbums.length === 0 &&
+    previewSongs.length === 0 &&
+    previewPlaylists.length === 0 &&
     previewTags.length === 0;
 
   const noTagResults = hasQuery && isTagSearch && previewTags.length === 0;
@@ -187,6 +222,10 @@ export default function SearchScreen() {
       !isTagSearch && (artists?.length ?? 0) > ARTIST_PREVIEW_LIMIT;
     const hasMoreAlbums =
       !isTagSearch && (albums?.length ?? 0) > ALBUM_PREVIEW_LIMIT;
+    const hasMoreSongs =
+      !isTagSearch && (songs?.length ?? 0) > SONG_PREVIEW_LIMIT;
+    const hasMorePlaylists =
+      !isTagSearch && (playlists?.length ?? 0) > PLAYLIST_PREVIEW_LIMIT;
     const hasMoreTags = isTagSearch && (tags?.length ?? 0) > TAG_PREVIEW_LIMIT;
 
     content = (
@@ -229,6 +268,53 @@ export default function SearchScreen() {
                   />
                 )}
               </>
+            )}
+          </View>
+        )}
+
+        {showSongSection && (
+          <View>
+            <SectionLabel text="Songs" colorSubtle={colors.subtle} />
+            {showSongSkeleton ? (
+              <SkeletonRows count={SONG_PREVIEW_LIMIT} variant="album" />
+            ) : (
+              <>
+                {previewSongs.map((track) => (
+                  <SearchSongRow
+                    key={`song-${track.id}`}
+                    track={track}
+                    onPress={() => void songActions.play(track)}
+                    onOpenActions={() => songActions.openActions(track)}
+                  />
+                ))}
+                {hasMoreSongs && (
+                  <SeeAllRow
+                    label="See all songs"
+                    color={colors.brand}
+                    onPress={() => pushResults(query.trim(), "song")}
+                  />
+                )}
+              </>
+            )}
+          </View>
+        )}
+
+        {previewPlaylists.length > 0 && (
+          <View>
+            <SectionLabel text="Playlists" colorSubtle={colors.subtle} />
+            {previewPlaylists.map((playlist) => (
+              <SearchPlaylistRow
+                key={searchPlaylistKey(playlist)}
+                playlist={playlist}
+                onPress={() => router.push(searchPlaylistHref(playlist))}
+              />
+            ))}
+            {hasMorePlaylists && (
+              <SeeAllRow
+                label="See all playlists"
+                color={colors.brand}
+                onPress={() => pushResults(query.trim(), "playlist")}
+              />
             )}
           </View>
         )}
@@ -290,7 +376,7 @@ export default function SearchScreen() {
     content = (
       <EmptyState
         icon="search-outline"
-        message="Search for artists or #tags to discover music"
+        message="Search for artists, songs, playlists or #tags"
       />
     );
   }
@@ -298,7 +384,7 @@ export default function SearchScreen() {
   return (
     <>
       <Stack.SearchBar
-        placeholder="Artists, bands, #tags..."
+        placeholder="Artists, songs, playlists, #tags..."
         hideWhenScrolling={false}
         autoCapitalize="none"
         {...searchBarColors(colors)}
@@ -333,6 +419,10 @@ export default function SearchScreen() {
           router.push({ pathname: "/release/[mbid]", params })
         }
         onSearchManually={(q) => pushResults(q, "artist")}
+      />
+      <TrackActionsSheet
+        target={songActions.actionsTarget}
+        onClose={songActions.closeActions}
       />
     </>
   );
