@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { discOf } from "@/lib/album-discs";
 import type {
   Artist,
   ArtistDetails,
@@ -135,6 +136,14 @@ function firstAvailableFile(
   );
 }
 
+/** The file's disc subtitle tag, which can arrive as a list. */
+function discSubtitle(item: CanonicalTrackItem) {
+  const [subtitle] = [item.metadata?.tags?.discsubtitle].flat();
+  return typeof subtitle === "string" && subtitle.trim()
+    ? subtitle.trim()
+    : null;
+}
+
 /**
  * The field choices follow buildTrack in the server's
  * backend/services/libraryReadModel.ts, and streamPath follows the Library
@@ -164,6 +173,8 @@ function canonicalTrackToTrack(
     trackName: item.title ?? "",
     title: item.title ?? "",
     trackNumber: relation?.trackNumber ?? 0,
+    discNumber: discOf(relation ?? {}),
+    discTitle: discSubtitle(item),
     hasFile: streamable,
     size: Number(file?.size ?? 0),
     quality: file?.quality?.format ?? null,
@@ -633,6 +644,8 @@ export type ReleaseGroupTrack = {
   title: string;
   trackNumber: number;
   discNumber: number;
+  /** MusicBrainz's name for the disc, when it has one. */
+  discTitle?: string | null;
   length: number | null;
 };
 

@@ -121,6 +121,13 @@ export type Track = {
   trackName: string;
   title: string;
   trackNumber: number;
+  /**
+   * Canonical read path only. The disc the track sits on in this album. A
+   * track saved offline before discs were read has none.
+   */
+  discNumber?: number;
+  /** Canonical read path only. The file's disc subtitle tag. */
+  discTitle?: string | null;
   hasFile: boolean;
   size: number;
   quality: string | null;
@@ -411,6 +418,8 @@ export type CanonicalTrackItem = {
   mbid?: string | null;
   title?: string;
   artistName?: string;
+  /** The file's tags as the scanner read them. A wanted track has none. */
+  metadata?: { tags?: { discsubtitle?: string | string[] } } | null;
   albums?: {
     albumId: number | string;
     discNumber?: number | null;

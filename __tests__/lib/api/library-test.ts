@@ -474,8 +474,8 @@ describe("getCanonicalLibraryPage", () => {
 
   it("maps raw Library track rows to the legacy Track shape", async () => {
     // Track pages are read per album. The mapper matches the track's album
-    // link against the requested albumId for the track number, and derives
-    // streamPath the same way the server's read adapter does.
+    // link against the requested albumId for the disc and track number, and
+    // derives streamPath the same way the server's read adapter does.
     mockApi.get.mockResolvedValue({
       data: {
         kind: "tracks",
@@ -492,9 +492,11 @@ describe("getCanonicalLibraryPage", () => {
             mbid: "mb-track-1",
             title: "Weird Fishes",
             artistName: "Radiohead",
+            // The scanner can read a tag as a list.
+            metadata: { tags: { discsubtitle: ["The Night Side"] } },
             albums: [
               { albumId: 99, discNumber: 1, trackNumber: 9 },
-              { albumId: 12, discNumber: 1, trackNumber: 4 },
+              { albumId: 12, discNumber: 2, trackNumber: 4 },
             ],
             files: [
               {
@@ -525,6 +527,8 @@ describe("getCanonicalLibraryPage", () => {
         trackName: "Weird Fishes",
         title: "Weird Fishes",
         trackNumber: 4,
+        discNumber: 2,
+        discTitle: "The Night Side",
         hasFile: true,
         size: 31457280,
         quality: "FLAC",
@@ -578,6 +582,8 @@ describe("getCanonicalLibraryPage", () => {
         trackName: "Wanted Track",
         title: "Wanted Track",
         trackNumber: 5,
+        discNumber: 1,
+        discTitle: null,
         hasFile: false,
         size: 0,
         quality: null,
