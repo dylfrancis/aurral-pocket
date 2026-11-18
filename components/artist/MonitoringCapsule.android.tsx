@@ -28,7 +28,6 @@ import {
 // edge-to-edge screen it detaches from its chip.
 const POPUP_PROPERTIES = { clippingEnabled: false };
 
-/** A chip that opens the artist's monitoring in a Compose dropdown. */
 export function MonitoringCapsule({
   choice,
   defaultSummary,

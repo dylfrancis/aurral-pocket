@@ -46,7 +46,7 @@ function nextState(
   };
 }
 
-/** Changes a Library artist's monitoring, and says what it queued. */
+/** Toasts what each change queued. */
 export function useSetArtistMonitoring(mbid: string, artistName: string) {
   const queryClient = useQueryClient();
   const queryKey = libraryKeys.artistMonitoring(mbid);

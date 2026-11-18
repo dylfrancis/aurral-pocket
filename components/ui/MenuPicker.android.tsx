@@ -22,7 +22,6 @@ import type { MenuPickerProps } from "./menu-picker";
 // edge-to-edge screen it detaches from its anchor.
 const POPUP_PROPERTIES = { clippingEnabled: false };
 
-/** A Compose menu off the value at the end of a row. */
 export function MenuPicker<Value extends string>({
   accessibilityLabel,
   value,

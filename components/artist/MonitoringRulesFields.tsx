@@ -41,7 +41,6 @@ type MonitoringRulesFieldsProps = {
   onChange: (rules: MonitoringRules) => void;
 };
 
-/** The web's rule fields, as rows of a sheet. */
 export function MonitoringRulesFields({
   rules,
   onChange,

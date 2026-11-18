@@ -26,10 +26,6 @@ type ArtistMonitoringControlProps = {
   artistName: string;
 };
 
-/**
- * A Library artist's monitoring under the hero's actions. Default Rules and
- * Not Monitored apply from the menu; Custom Rules opens the rules in a sheet.
- */
 export function ArtistMonitoringControl({
   mbid,
   artistName,

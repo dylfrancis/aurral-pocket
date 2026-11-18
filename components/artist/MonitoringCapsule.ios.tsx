@@ -16,7 +16,6 @@ import {
   type MonitoringCapsuleProps,
 } from "./monitoring-capsule-types";
 
-/** A capsule that opens the artist's monitoring in a SwiftUI menu. */
 export function MonitoringCapsule({
   choice,
   defaultSummary,

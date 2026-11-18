@@ -5,17 +5,14 @@ import type {
   MonitoringRules,
 } from "@/lib/types/monitoring";
 
-/** How an artist is monitored: by the default rules, its own, or not at all. */
 export type MonitoringChoice = "default" | "custom" | "off";
 
-/** What the artist page's capsule reads for each choice. */
 export const MONITORING_CHOICE_LABELS: Record<MonitoringChoice, string> = {
   default: "Monitored",
   custom: "Custom Rules",
   off: "Not Monitored",
 };
 
-/** Reads an artist's monitoring, or a change to it, as a choice. */
 export function monitoringChoice(monitoring: {
   monitored: boolean;
   useDefault?: boolean;
@@ -77,8 +74,8 @@ export const EDITION_HINTS: Record<MonitoringEdition, string> = {
 };
 
 /**
- * Picks a catalogue. A first "since" gets a year five back, as on the web, so
- * the rules are valid before anyone types one.
+ * A first "since" gets a year five back, as on the web, so the rules are
+ * valid before anyone types one.
  */
 export function withCatalog(
   rules: MonitoringRules,
@@ -95,10 +92,7 @@ export function withCatalog(
   };
 }
 
-/**
- * Turns one release type on or off, in the server's order. The last primary
- * type stays on, since the server needs one.
- */
+/** The last primary type stays on, since the server needs one. */
 export function toggleType(
   rules: MonitoringRules,
   key: "types" | "extraTypes",
@@ -180,7 +174,6 @@ export function describeMonitoringRules(rules: MonitoringRules): string {
 const plural = (count: number, word: string) =>
   `${count} ${word}${count === 1 ? "" : "s"}`;
 
-/** What a monitoring change downloads, for its toast. */
 export function describeMonitoringPlan(
   plan: MonitoringPlan | undefined,
   rules: MonitoringRules | null | undefined,

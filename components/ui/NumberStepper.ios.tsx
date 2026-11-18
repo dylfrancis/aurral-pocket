@@ -14,8 +14,8 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { NumberStepperProps } from "./number-stepper";
 
 /**
- * Round − and + buttons. SwiftUI's Stepper drew about 15pt above its frame
- * in a sheet row on iOS 27, at any scroll offset, so it isn't used here.
+ * SwiftUI's Stepper drew about 15pt above its frame in a sheet row on iOS 27,
+ * at any scroll offset, so it isn't used here.
  */
 export function NumberStepper({
   value,
