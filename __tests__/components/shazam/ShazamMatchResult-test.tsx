@@ -144,6 +144,7 @@ const LIBRARY_BLINDING: LibrarySearchTrack = {
   releaseYear: "2020",
   durationMs: 200040,
   streamPath: "/library/canonical-stream/4/9",
+  coverUrl: null,
 };
 
 const UNHOLY_RECORDING: IsrcRecording = {

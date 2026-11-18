@@ -52,10 +52,18 @@ export async function searchArtists(
  * artist and a title finds nothing.
  */
 export async function searchLibraryTracks(query: string, limit = 30) {
+  return (await searchLibrary(query, limit)).tracks;
+}
+
+/**
+ * Library songs and the user's own flows and playlists that match `query`,
+ * up to `limit` of each. The server allows at most 30.
+ */
+export async function searchLibrary(query: string, limit = 30) {
   const r = await api.get<LibrarySearchResponse>("/search/library", {
     params: { q: query, limit },
   });
-  return r.data.tracks;
+  return { tracks: r.data.tracks, playlists: r.data.playlists };
 }
 
 /** What a Spotify, Apple Music, TIDAL, Deezer or YouTube Music link names. */

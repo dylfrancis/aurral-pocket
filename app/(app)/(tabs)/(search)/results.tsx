@@ -5,6 +5,7 @@ import {
   Stack,
   useLocalSearchParams,
   useNavigation,
+  useRouter,
   type ErrorBoundaryProps,
 } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
@@ -12,9 +13,18 @@ import Public from "@expo/material-symbols/public.xml";
 import Star from "@expo/material-symbols/star.xml";
 import Group from "@expo/material-symbols/group.xml";
 import Album from "@expo/material-symbols/album.xml";
+import MusicNote from "@expo/material-symbols/music_note.xml";
+import QueueMusic from "@expo/material-symbols/queue_music.xml";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchAlbumCard } from "@/components/search/SearchAlbumCard";
+import { SearchSongRow } from "@/components/search/SearchSongRow";
+import {
+  SearchPlaylistRow,
+  searchPlaylistHref,
+  searchPlaylistKey,
+} from "@/components/search/SearchPlaylistRow";
+import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
 import { TagArtistRow } from "@/components/search/TagArtistRow";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
@@ -31,9 +41,13 @@ import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useLibraryAlbumLookup } from "@/hooks/search/use-library-album-lookup";
+import { useLibrarySearch } from "@/hooks/search/use-library-search";
+import { useSearchSongActions } from "@/hooks/search/use-search-song-actions";
 import { useGridListView } from "@/hooks/use-grid-list-view";
 import { Fonts } from "@/constants/theme";
 import type {
+  LibrarySearchPlaylist,
+  LibrarySearchTrack,
   SearchAlbum,
   SearchArtist,
   TagArtist,
@@ -43,7 +57,14 @@ import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useOpenArtist } from "@/hooks/use-open-artist";
 import { useColors } from "@/hooks/use-colors";
 
-type ResultScope = "artist" | "album";
+type ResultScope = "artist" | "album" | "song" | "playlist";
+
+const RESULT_SCOPES: readonly ResultScope[] = [
+  "artist",
+  "album",
+  "song",
+  "playlist",
+];
 
 const SCOPE_OPTIONS: MenuOption<ResultScope>[] = [
   { key: "artist", label: "Artists", iosIcon: "person.2", androidIcon: Group },
@@ -52,6 +73,18 @@ const SCOPE_OPTIONS: MenuOption<ResultScope>[] = [
     label: "Albums",
     iosIcon: "opticaldisc",
     androidIcon: Album,
+  },
+  {
+    key: "song",
+    label: "Songs",
+    iosIcon: "music.note",
+    androidIcon: MusicNote,
+  },
+  {
+    key: "playlist",
+    label: "Playlists",
+    iosIcon: "music.note.list",
+    androidIcon: QueueMusic,
   },
 ];
 
@@ -71,6 +104,7 @@ export default function SearchResultsScreen() {
     scope?: ResultScope;
   }>();
   const openArtist = useOpenArtist();
+  const router = useRouter();
   const colors = useColors();
 
   const query = q ?? "";
@@ -79,8 +113,9 @@ export default function SearchResultsScreen() {
 
   const [tagScope, setTagScope] = useState<TagSearchScope>("recommended");
   const [resultScope, setResultScope] = useState<ResultScope>(
-    scopeParam === "album" ? "album" : "artist",
+    scopeParam && RESULT_SCOPES.includes(scopeParam) ? scopeParam : "artist",
   );
+  const isLibraryScope = resultScope === "song" || resultScope === "playlist";
   const { isGrid, numColumns, viewMenuSection } = useGridListView(
     "search-results",
     "list",
@@ -98,6 +133,14 @@ export default function SearchResultsScreen() {
     refetch: refetchAlbums,
   } = useAlbumSearch(isTagSearch || resultScope !== "album" ? "" : query);
 
+  // Asked in every scope: Search already holds this answer, so switching to
+  // Songs or Playlists shows rows at once instead of an empty list.
+  const {
+    data: libraryData,
+    isLoading: libraryLoading,
+    refetch: refetchLibrary,
+  } = useLibrarySearch(isTagSearch ? "" : query);
+
   const {
     data: tagData,
     isLoading: tagLoading,
@@ -111,21 +154,35 @@ export default function SearchResultsScreen() {
     () =>
       isTagSearch
         ? refetchTags()
-        : resultScope === "album"
-          ? refetchAlbums()
-          : refetchArtists(),
-    [isTagSearch, resultScope, refetchTags, refetchAlbums, refetchArtists],
+        : isLibraryScope
+          ? refetchLibrary()
+          : resultScope === "album"
+            ? refetchAlbums()
+            : refetchArtists(),
+    [
+      isTagSearch,
+      isLibraryScope,
+      resultScope,
+      refetchTags,
+      refetchLibrary,
+      refetchAlbums,
+      refetchArtists,
+    ],
   );
   const { refreshing, onRefresh } = usePullToRefresh(refreshResults);
 
   const isLoading = isTagSearch
     ? tagLoading
-    : resultScope === "album"
-      ? albumLoading
-      : artistLoading;
+    : isLibraryScope
+      ? libraryLoading
+      : resultScope === "album"
+        ? albumLoading
+        : artistLoading;
 
   const artists = artistData?.artists;
   const albums = albumData?.items;
+  const songs = libraryData?.tracks;
+  const playlists = libraryData?.playlists;
   const tagArtists = tagData?.recommendations;
   const { isInLibrary } = useLibraryLookup(
     (isTagSearch ? tagArtists : artists)?.map((artist) => artist.id) ?? [],
@@ -133,9 +190,13 @@ export default function SearchResultsScreen() {
 
   const fullData = isTagSearch
     ? tagArtists
-    : resultScope === "album"
-      ? albums
-      : artists;
+    : resultScope === "song"
+      ? songs
+      : resultScope === "playlist"
+        ? playlists
+        : resultScope === "album"
+          ? albums
+          : artists;
   const resultCount = fullData?.length ?? 0;
   const showResults = fullData !== undefined && resultCount > 0;
   const showNoResults =
@@ -178,6 +239,29 @@ export default function SearchResultsScreen() {
       />
     ),
     [albumStatusFor, openAlbum],
+  );
+
+  const songActions = useSearchSongActions();
+  const { play: playSong, openActions: openSongActions } = songActions;
+  const renderSongItem = useCallback(
+    ({ item }: { item: LibrarySearchTrack }) => (
+      <SearchSongRow
+        track={item}
+        onPress={() => void playSong(item)}
+        onOpenActions={() => openSongActions(item)}
+      />
+    ),
+    [playSong, openSongActions],
+  );
+
+  const renderPlaylistItem = useCallback(
+    ({ item }: { item: LibrarySearchPlaylist }) => (
+      <SearchPlaylistRow
+        playlist={item}
+        onPress={() => router.push(searchPlaylistHref(item))}
+      />
+    ),
+    [router],
   );
 
   const renderTagArtistItem = useCallback(
@@ -229,8 +313,9 @@ export default function SearchResultsScreen() {
 
   const canBroadenToAll =
     isTagSearch && tagScope === "recommended" && showNoResults;
+  // Song and playlist rows have square artwork, as album rows do.
   const skeletonVariant: "artist" | "album" =
-    !isTagSearch && resultScope === "album" ? "album" : "artist";
+    !isTagSearch && resultScope !== "artist" ? "album" : "artist";
   const emptyComponent = isLoading ? (
     <SkeletonRows count={8} variant={skeletonVariant} />
   ) : showNoResults ? (
@@ -243,6 +328,11 @@ export default function SearchResultsScreen() {
   ) : null;
 
   const albumKeyExtractor = useMemo(() => (item: SearchAlbum) => item.id, []);
+  const songKeyExtractor = useMemo(
+    () => (item: LibrarySearchTrack) => item.id,
+    [],
+  );
+  const playlistKeyExtractor = useMemo(() => searchPlaylistKey, []);
   const artistKeyExtractor = useMemo(
     () => (item: SearchArtist | TagArtist) => item.id,
     [],
@@ -255,7 +345,8 @@ export default function SearchResultsScreen() {
           {isTagSearch
             ? menuOptionActions(TAG_SCOPE_OPTIONS, tagScope, setTagScope)
             : menuOptionActions(SCOPE_OPTIONS, resultScope, setResultScope)}
-          {viewMenuSection}
+          {/* Songs and playlists are rows only. */}
+          {(isTagSearch || !isLibraryScope) && viewMenuSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
 
@@ -269,6 +360,30 @@ export default function SearchResultsScreen() {
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
           ListHeaderComponent={tagListHeader}
+          ListEmptyComponent={emptyComponent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        />
+      ) : resultScope === "song" ? (
+        <FlashList
+          key="song"
+          data={showResults ? (songs as LibrarySearchTrack[]) : []}
+          renderItem={renderSongItem}
+          keyExtractor={songKeyExtractor}
+          contentInsetAdjustmentBehavior="automatic"
+          ListEmptyComponent={emptyComponent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        />
+      ) : resultScope === "playlist" ? (
+        <FlashList
+          key="playlist"
+          data={showResults ? (playlists as LibrarySearchPlaylist[]) : []}
+          renderItem={renderPlaylistItem}
+          keyExtractor={playlistKeyExtractor}
+          contentInsetAdjustmentBehavior="automatic"
           ListEmptyComponent={emptyComponent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -303,6 +418,10 @@ export default function SearchResultsScreen() {
           }
         />
       )}
+      <TrackActionsSheet
+        target={songActions.actionsTarget}
+        onClose={songActions.closeActions}
+      />
     </>
   );
 }

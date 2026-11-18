@@ -49,12 +49,30 @@ export type LibrarySearchTrack = {
   releaseYear: string | null;
   durationMs: number | null;
   streamPath: string | null;
+  /** Server-relative: the album's cover. */
+  coverUrl: string | null;
+};
+
+/**
+ * One of the user's own flows or static playlists from `GET /search/library`,
+ * matched by its name or by a song in it. Empty without `accessPlaylists`.
+ */
+export type LibrarySearchPlaylist = {
+  id: string;
+  name: string;
+  /** Null for a flow. */
+  trackCount: number | null;
+  /** Set for a flow, which opens by this id. */
+  sourceFlowId: string | null;
+  /** Set when the name didn't match but some of the playlist's songs did. */
+  trackMatch: { title: string; count: number } | null;
 };
 
 /** Body of `GET /search/library`, as far as pocket reads it. */
 export type LibrarySearchResponse = {
   query: string;
   tracks: LibrarySearchTrack[];
+  playlists: LibrarySearchPlaylist[];
 };
 
 /**

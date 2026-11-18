@@ -16,6 +16,7 @@ import {
   getMadeForYou,
   searchArtists,
   searchAlbums,
+  searchLibrary,
   searchLibraryTracks,
   resolveStreamingLink,
   addArtist,
@@ -112,6 +113,30 @@ describe("searchLibraryTracks", () => {
     ]);
     expect(mockApi.get).toHaveBeenCalledWith("/search/library", {
       params: { q: "Blinding Lights", limit: 30 },
+    });
+  });
+});
+
+describe("searchLibrary", () => {
+  it("asks GET /search/library for the query and returns its songs and playlists", async () => {
+    const track = { id: "77", title: "Karma Police", streamPath: "/s" };
+    const playlist = { id: "f1", name: "Karma Mix", sourceFlowId: "f1" };
+    mockApi.get.mockResolvedValue({
+      data: {
+        query: "karma",
+        artists: [],
+        albums: [],
+        tracks: [track],
+        playlists: [playlist],
+      },
+    });
+
+    await expect(searchLibrary("karma")).resolves.toEqual({
+      tracks: [track],
+      playlists: [playlist],
+    });
+    expect(mockApi.get).toHaveBeenCalledWith("/search/library", {
+      params: { q: "karma", limit: 30 },
     });
   });
 });
