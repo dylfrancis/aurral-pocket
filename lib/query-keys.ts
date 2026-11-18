@@ -103,6 +103,8 @@ export const searchKeys = {
     ["search", "byTag", tag, scope] as const,
   similarArtists: (mbid: string) => ["search", "similar", mbid] as const,
   library: (query: string) => ["search", "library", query] as const,
+  songsAndPlaylists: (query: string) =>
+    ["search", "songsAndPlaylists", query] as const,
 };
 
 export const shazamKeys = {
