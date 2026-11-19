@@ -3,8 +3,6 @@
  * can read from several at once, and all null means local history only.
  */
 export type ListenHistorySettings = {
-  /** Last.fm username. */
-  lastfm: string | null;
   /** ListenBrainz username. */
   listenbrainz: string | null;
   /** Koito base URL, normalized by the server. */

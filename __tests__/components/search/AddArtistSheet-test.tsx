@@ -93,7 +93,7 @@ import type { MonitoringRules } from "@/lib/types/monitoring";
 const mockAddArtist = addArtist as jest.Mock;
 const mockGetDefaults = getMonitoringDefaults as jest.Mock;
 
-// A fresh nightly's defaults.
+// A fresh 3.0.0 server's defaults.
 const DEFAULT_RULES: MonitoringRules = {
   catalog: "all",
   sinceYear: null,

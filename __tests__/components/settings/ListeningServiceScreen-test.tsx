@@ -40,7 +40,6 @@ jest.mock("@/lib/api/me", () => ({
 }));
 
 import React from "react";
-import { AppState, Linking } from "react-native";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ListeningServiceScreen } from "@/components/settings/ListeningServiceScreen";
@@ -62,7 +61,6 @@ const disconnected = { connected: false, displayName: null, connectedAt: null };
 
 function status(overrides: Partial<ScrobbleStatus> = {}): ScrobbleStatus {
   return {
-    lastfm: { ...disconnected, configured: true },
     listenbrainz: disconnected,
     koito: disconnected,
     ...overrides,
@@ -97,11 +95,7 @@ beforeEach(() => {
     permissions: {},
   };
   mockGetStatus.mockResolvedValue(status());
-  mockGetHistory.mockResolvedValue({
-    lastfm: "ada-fm",
-    listenbrainz: null,
-    koito: null,
-  });
+  mockGetHistory.mockResolvedValue({ listenbrainz: null, koito: null });
 });
 
 describe("ListeningServiceScreen", () => {
@@ -133,11 +127,7 @@ describe("ListeningServiceScreen", () => {
     );
     expect(utils.getByText("Save")).toBeTruthy();
 
-    mockGetHistory.mockResolvedValue({
-      lastfm: "ada-fm",
-      listenbrainz: "lb-ada",
-      koito: null,
-    });
+    mockGetHistory.mockResolvedValue({ listenbrainz: "lb-ada", koito: null });
     await fireEvent.changeText(
       utils.getByPlaceholderText("User token"),
       "lb-token",
@@ -152,18 +142,15 @@ describe("ListeningServiceScreen", () => {
     ["saves a changed username, trimmed", " new-name ", "new-name"],
     ["clears the service when the field is emptied", "", null],
   ])("%s, for this service only", async (_, typed, sent) => {
-    mockUpdateHistory.mockResolvedValue({
-      lastfm: sent,
-      listenbrainz: null,
-      koito: null,
-    });
-    const utils = await renderService("lastfm");
+    mockGetHistory.mockResolvedValue({ listenbrainz: "ada-lb", koito: null });
+    mockUpdateHistory.mockResolvedValue({ listenbrainz: sent, koito: null });
+    const utils = await renderService("listenbrainz");
 
-    await fireEvent.changeText(await utils.findByDisplayValue("ada-fm"), typed);
+    await fireEvent.changeText(await utils.findByDisplayValue("ada-lb"), typed);
     await fireEvent.press(utils.getByText("Save"));
 
     await waitFor(() => expect(mockUpdateHistory).toHaveBeenCalledTimes(1));
-    expect(mockUpdateHistory.mock.calls[0][0]).toEqual({ lastfm: sent });
+    expect(mockUpdateHistory.mock.calls[0][0]).toEqual({ listenbrainz: sent });
   });
 
   it("lets an account without Access Settings disconnect Koito but not link it", async () => {
@@ -186,41 +173,5 @@ describe("ListeningServiceScreen", () => {
 
     await fireEvent.press(utils.getByText("Disconnect"));
     await waitFor(() => expect(mockUnlink).toHaveBeenCalledWith("koito"));
-  });
-
-  it("links Last.fm in the web app and reloads both reads on return", async () => {
-    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
-    let onAppState: (state: string) => void = () => {};
-    jest.spyOn(AppState, "addEventListener").mockImplementation(((
-      _: string,
-      handler: (state: string) => void,
-    ) => {
-      onAppState = handler;
-      return { remove: jest.fn() };
-    }) as never);
-    const utils = await renderService("lastfm");
-
-    await fireEvent.press(await utils.findByText("Connect in Aurral"));
-    expect(openURL).toHaveBeenCalledWith(
-      "https://aurral.example.com/?settings=listening%2Flastfm",
-    );
-
-    onAppState("active");
-    await waitFor(() => expect(mockGetStatus).toHaveBeenCalledTimes(2));
-    expect(mockGetHistory).toHaveBeenCalledTimes(2);
-  });
-
-  it("tells a user that an admin has to add the Last.fm key first", async () => {
-    mockGetStatus.mockResolvedValue(
-      status({ lastfm: { ...disconnected, configured: false } }),
-    );
-    const utils = await renderService("lastfm");
-
-    expect(
-      await utils.findByText(
-        "An admin needs to add a Last.fm API key before you can connect.",
-      ),
-    ).toBeTruthy();
-    expect(utils.queryByText("Connect in Aurral")).toBeNull();
   });
 });

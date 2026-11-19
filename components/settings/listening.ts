@@ -5,13 +5,11 @@ import type {
 } from "@/lib/types/scrobbling";
 
 export const LISTENING_SERVICES: readonly ScrobbleProvider[] = [
-  "lastfm",
   "listenbrainz",
   "koito",
 ];
 
 export const SERVICE_LABELS: Record<ScrobbleProvider, string> = {
-  lastfm: "Last.fm",
   listenbrainz: "ListenBrainz",
   koito: "Koito",
 };

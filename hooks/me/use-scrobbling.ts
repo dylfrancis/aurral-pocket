@@ -5,7 +5,6 @@ import {
   getScrobbleStatus,
   linkScrobbler,
   unlinkScrobbler,
-  type TokenScrobbler,
 } from "@/lib/api/scrobbling";
 import { meKeys } from "@/lib/query-keys";
 import type { ScrobbleProvider } from "@/lib/types/scrobbling";
@@ -39,7 +38,7 @@ export function useRefreshListening() {
   );
 }
 
-export function useLinkScrobbler(provider: TokenScrobbler) {
+export function useLinkScrobbler(provider: ScrobbleProvider) {
   const refresh = useRefreshListening();
 
   return useMutation({

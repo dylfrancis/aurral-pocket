@@ -34,7 +34,17 @@ export type ServerFeature =
   | "librarySorts"
   | "queueCancelAll"
   | "queuePause"
-  | "streamTranscoding";
+  | "streamTranscoding"
+  // Reviewed, not adopted: pocket has no Friends, Blends, Community, playlist
+  // collaborator or device pairing screens.
+  | "communityPlaylists"
+  | "friends"
+  | "playlistMembers"
+  | "blends"
+  | "localPeople"
+  | "friendProfiles"
+  | "friendBlends"
+  | "pairing";
 
 /** The app contract a server implements, from `GET /health/bootstrap`. */
 export type ApiContract = {
