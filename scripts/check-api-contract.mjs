@@ -54,6 +54,14 @@
  * must match what the app knows (SUPPORTED_API_VERSION, ServerFeature), so a
  * new version or a new feature fails the check instead of going unnoticed.
  *
+ * How it checks the socket
+ * ------------------------
+ * Pocket also listens on Aurral's /ws channels, and Aurral accepts any channel
+ * name, so a renamed channel or message type would go quiet rather than fail.
+ * The check subscribes to every channel in LIVE_MESSAGE_TYPES
+ * (lib/types/live.ts) and makes Aurral send each message it can trigger on a
+ * fresh container (see LIVE_PROBES). The rest are listed as unprobed.
+ *
  * Usage:
  *   AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs
  *
@@ -267,6 +275,40 @@ function routePattern(key) {
 }
 
 const CONTRACT_PATTERNS = new Set([...CONTRACT.keys()].map(routePattern));
+
+const LIVE_TIMEOUT_MS = 10_000;
+
+/**
+ * How the check makes Aurral send a socket message, keyed "<channel> <type>"
+ * and run in this order. Without a `trigger` route, subscribing sends it.
+ * `check` returns what the message got wrong.
+ */
+const LIVE_PROBES = new Map([
+  [
+    "playlists playlist_status",
+    {
+      check: (message) => {
+        const shape = shapeOf(message.status);
+        if (kindOf(shape) !== "object") {
+          return [`\`status\` is ${kindOf(shape)}, not an object`];
+        }
+        return contractFieldErrors(
+          CONTRACT.get("GET /playlists/status"),
+          shape,
+        ).map((error) => `\`status\` must carry ${error}`);
+      },
+    },
+  ],
+  [
+    "library library_scan_completed",
+    {
+      trigger: "POST /library/refresh",
+      // A fresh container's Library is empty, but a scan the route probes
+      // started may run first.
+      timeoutMs: 60_000,
+    },
+  ],
+]);
 
 /**
  * The shape of a JSON value, with every concrete value erased:
@@ -489,6 +531,18 @@ function matchesKind(got, spec) {
   );
 }
 
+/** Each contract field `shape` lacks, or carries as the wrong kind. */
+function contractFieldErrors(fields, shape) {
+  const errors = [];
+  for (const [field, spec] of Object.entries(fields)) {
+    const got = field in shape ? kindOf(shape[field]) : undefined;
+    if (!matchesKind(got, spec)) {
+      errors.push(`\`${field}\` (${spec}); got ${got ?? "no such key"}`);
+    }
+  }
+  return errors;
+}
+
 /**
  * Returns true on failure. Runs in both modes — see CONTRACT. Only routes
  * pocket probes are checked: the contract covers routes pocket never calls.
@@ -516,16 +570,12 @@ function checkContractFields(shapes, probed) {
       }
       continue;
     }
-    for (const [field, spec] of Object.entries(fields)) {
-      const got = field in shape ? kindOf(shape[field]) : undefined;
-      if (!matchesKind(got, spec)) {
-        console.error(
-          `\nFAIL: ${key} must carry \`${field}\` (${spec}); got ` +
-            `${got ?? "no such key"}. Aurral's app contract guarantees it — ` +
-            "see #176.",
-        );
-        failed = true;
-      }
+    for (const error of contractFieldErrors(fields, shape)) {
+      console.error(
+        `\nFAIL: ${key} must carry ${error}. Aurral's app contract ` +
+          "guarantees it — see #176.",
+      );
+      failed = true;
     }
   }
   return failed;
@@ -616,6 +666,214 @@ async function checkContractVersion(token) {
         `${api.features.length} features Aurral lists.`,
     );
   }
+  return failed;
+}
+
+/** LIVE_MESSAGE_TYPES from lib/types/live.ts: channel -> message types. */
+function readPocketLiveChannels() {
+  const src = readFileSync(join(ROOT, "lib", "types", "live.ts"), "utf8");
+  const body =
+    /export const LIVE_MESSAGE_TYPES = \{([\s\S]*?)\} as const/.exec(
+      src,
+    )?.[1] ?? "";
+  const handled = new Map();
+  for (const [, quoted, bare, list] of body.matchAll(
+    /(?:"([^"]+)"|([\w$]+))\s*:\s*\[([^\]]*)\]/g,
+  )) {
+    handled.set(
+      quoted ?? bare,
+      [...list.matchAll(/"([^"]+)"/g)].map((m) => m[1]),
+    );
+  }
+  if (handled.size === 0 || [...handled.values()].some((t) => !t.length)) {
+    console.error(
+      "FAIL: could not read LIVE_MESSAGE_TYPES from lib/types/live.ts. " +
+        "Update readPocketLiveChannels.",
+    );
+    process.exit(1);
+  }
+  return handled;
+}
+
+/** A socket to Aurral that keeps every JSON message it receives. */
+function openLiveSocket(token) {
+  const url =
+    `${BASE.replace(/^http/i, "ws")}/ws?token=` + encodeURIComponent(token);
+  const socket = new WebSocket(url);
+  const received = [];
+  const listeners = new Set();
+  let closeCode = null;
+  const notify = () => {
+    for (const listener of [...listeners]) listener();
+  };
+  socket.addEventListener("message", (event) => {
+    try {
+      received.push(JSON.parse(String(event.data)));
+    } catch {
+      return;
+    }
+    notify();
+  });
+  socket.addEventListener("close", (event) => {
+    closeCode = event.code;
+    notify();
+  });
+
+  return {
+    get closeCode() {
+      return closeCode;
+    },
+    get count() {
+      return received.length;
+    },
+    send: (message) => socket.send(JSON.stringify(message)),
+    close: () => socket.close(),
+    typesOn: (channel) => [
+      ...new Set(
+        received.filter((m) => m.channel === channel).map((m) => m.type),
+      ),
+    ],
+    /**
+     * The first message from index `from` on that `matches`, or null once
+     * `timeoutMs` passes or the socket closes.
+     */
+    next(matches, timeoutMs, from = 0) {
+      return new Promise((resolve) => {
+        let timer;
+        const settle = (value) => {
+          clearTimeout(timer);
+          listeners.delete(check);
+          resolve(value);
+        };
+        function check() {
+          const found = received.slice(from).find(matches);
+          if (found) settle(found);
+          else if (closeCode !== null) settle(null);
+        }
+        timer = setTimeout(() => settle(null), timeoutMs);
+        listeners.add(check);
+        check();
+      });
+    },
+  };
+}
+
+/**
+ * Returns true on failure. Runs in both modes, with a session of its own: the
+ * route probes sign theirs out.
+ */
+async function checkLiveChannels() {
+  const handled = readPocketLiveChannels();
+  if (typeof WebSocket === "undefined") {
+    console.error("\nFAIL: this Node has no global WebSocket. Use Node 22+.");
+    return true;
+  }
+  let live;
+  try {
+    const token = await login();
+    live = openLiveSocket(token);
+    return await probeLiveChannels(live, handled, token);
+  } catch (error) {
+    // The route failures still need reporting.
+    console.error(`\nFAIL: the socket probe stopped: ${error.message}`);
+    return true;
+  } finally {
+    live?.close();
+  }
+}
+
+async function probeLiveChannels(live, handled, token) {
+  const fail = (text) => {
+    console.error(`\nFAIL: ${text}`);
+    return true;
+  };
+
+  const first = await live.next(() => true, LIVE_TIMEOUT_MS);
+  if (first?.type !== "connected") {
+    const closed = live.closeCode === null ? "" : `, closed ${live.closeCode}`;
+    return fail(
+      first
+        ? `/ws sent ${first.type} before \`connected\`.`
+        : `/ws sent nothing within ${LIVE_TIMEOUT_MS / 1000}s${closed}.`,
+    );
+  }
+
+  const channels = [...handled.keys()];
+  let from = live.count;
+  live.send({ type: "subscribe", channels });
+  const subscribed = await live.next(
+    (m) => m.type === "subscribed",
+    LIVE_TIMEOUT_MS,
+    from,
+  );
+  const unlisted = channels.filter(
+    (channel) => !subscribed?.subscriptions?.includes(channel),
+  );
+  if (unlisted.length > 0) {
+    return fail(
+      `/ws did not confirm a subscription to ${unlisted.join(", ")}.`,
+    );
+  }
+
+  let failed = false;
+  const probed = [];
+  for (const [key, probe] of LIVE_PROBES) {
+    const [channel, type] = key.split(" ");
+    if (!handled.get(channel)?.includes(type)) {
+      failed = fail(
+        `LIVE_PROBES has ${type} on ${channel}, which pocket no longer ` +
+          "listens for. Remove the probe.",
+      );
+      continue;
+    }
+    const cue = probe.trigger ? `after ${probe.trigger}` : "on subscribing";
+    if (probe.trigger) {
+      const [method, path] = probe.trigger.split(" ");
+      from = live.count;
+      const { status } = await request(method, `/api${path}`, token);
+      if (status >= 300) {
+        failed = fail(`${probe.trigger} answered ${status}.`);
+        continue;
+      }
+    }
+    const message = await live.next(
+      (m) => m.channel === channel && m.type === type,
+      probe.timeoutMs ?? LIVE_TIMEOUT_MS,
+      from,
+    );
+    if (!message) {
+      const sent = live.typesOn(channel);
+      failed = fail(
+        `Aurral sent no ${type} on ${channel} ${cue}` +
+          (sent.length ? `; that channel sent ${sent.join(", ")}` : "") +
+          ". Pocket listens for it (LIVE_MESSAGE_TYPES in lib/types/live.ts).",
+      );
+      continue;
+    }
+    const errors = probe.check?.(message) ?? [];
+    for (const error of errors) {
+      failed = fail(`${type} on ${channel}: ${error}.`);
+    }
+    if (errors.length === 0) probed.push({ channel, type, cue });
+  }
+
+  const unprobed = [...handled].flatMap(([channel, types]) =>
+    types
+      .filter((type) => !LIVE_PROBES.has(`${channel} ${type}`))
+      .map((type) => ({ channel, type })),
+  );
+  console.log(`\nSocket channels: ${channels.join(", ")}`);
+  for (const m of probed) {
+    console.log(`  ok       ${m.channel.padEnd(11)} ${m.type} (${m.cue})`);
+  }
+  for (const m of unprobed) {
+    console.log(`  unprobed ${m.channel.padEnd(11)} ${m.type}`);
+  }
+  const total = [...handled.values()].reduce((n, t) => n + t.length, 0);
+  console.log(
+    `${unprobed.length} of the ${total} socket messages pocket listens for ` +
+      "are unprobed: a fresh container can't send them cheaply.",
+  );
   return failed;
 }
 
@@ -844,6 +1102,8 @@ async function main() {
       `Aurral's app contract; the rest can change in any release.`,
   );
 
+  const liveFailed = await checkLiveChannels();
+
   let failed = false;
 
   if (missing.length > 0) {
@@ -870,6 +1130,7 @@ async function main() {
 
   if (checkContractFields(shapes, probed)) failed = true;
   if (contractFailed) failed = true;
+  if (liveFailed) failed = true;
 
   if (RECORD) {
     if (failed) {
