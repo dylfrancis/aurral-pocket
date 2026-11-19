@@ -101,12 +101,7 @@ export const ActivityRow = React.memo(function ActivityRow({
     >
       <View style={styles.thumb}>
         {artistMbid ? (
-          <CoverArtImage
-            type="artist"
-            mbid={artistMbid}
-            size={56}
-            borderRadius={8}
-          />
+          <CoverArtImage type="artist" mbid={artistMbid} size={56} />
         ) : (
           <View
             style={[
