@@ -12,15 +12,14 @@ type Props = {
   title: string;
   playlists: EditorialPlaylistSummary[];
   onViewAll?: () => void;
-  /** Each card gets a ▶ that plays its playlist in one tap. */
-  playable?: boolean;
+  withPlayButtons?: boolean;
 };
 
 export function EditorialPlaylistRail({
   title,
   playlists,
   onViewAll,
-  playable = false,
+  withPlayButtons = false,
 }: Props) {
   const openPlaylist = useOpenEditorialPlaylist();
   const { play, loadingId } = usePlayEditorialPlaylist();
@@ -37,7 +36,7 @@ export function EditorialPlaylistRail({
             artworkUrl={playlist.artworkUrl}
             size={EDITORIAL_CARD_SIZE}
             onPress={() => openPlaylist(playlist)}
-            onPlay={playable ? () => void play(playlist) : undefined}
+            onPlay={withPlayButtons ? () => void play(playlist) : undefined}
             playLoading={loadingId === key}
           />
         );
