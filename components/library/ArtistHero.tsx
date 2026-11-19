@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { CircleButton } from "@/components/ui/CircleButton";
 import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
+import { PlayRowSkeleton } from "@/components/ui/PlayRowSkeleton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
@@ -81,7 +82,12 @@ export function ArtistHero({
         colors={["transparent", colors.background]}
         style={styles.gradient}
       />
-      <View style={[styles.foreground, inLibrary && styles.foregroundPlay]}>
+      <View
+        style={[
+          styles.foreground,
+          inLibrary !== false && styles.foregroundPlay,
+        ]}
+      >
         <View style={IS_IOS ? styles.spacer : styles.spacerAndroid} />
         <CoverArtImage
           type="artist"
@@ -93,11 +99,15 @@ export function ArtistHero({
           {artist.artistName}
         </Text>
         {inLibrary === undefined ? (
-          <Skeleton
-            width={LIBRARY_ACTION_PLACEHOLDER.width}
-            height={LIBRARY_ACTION_PLACEHOLDER.height}
-            borderRadius={Radius.round}
-          />
+          // A Library artist's capsule and Play row, the usual way here.
+          <>
+            <Skeleton
+              width={LIBRARY_ACTION_PLACEHOLDER.width}
+              height={LIBRARY_ACTION_PLACEHOLDER.height}
+              borderRadius={Radius.round}
+            />
+            <PlayRowSkeleton />
+          </>
         ) : inLibrary ? (
           <>
             {libraryControl}

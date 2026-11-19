@@ -4,10 +4,13 @@ import * as Haptics from "expo-haptics";
 import { TopTrackRow } from "@/components/artist/TopTrackRow";
 import { TopTracksSkeleton } from "@/components/artist/TopTracksSkeleton";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { Fonts, Radius } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import type { TopTrack } from "@/lib/top-tracks";
+
+const PLAY_ALL_PLACEHOLDER = { width: 68, height: 26 };
 
 type TopTracksSectionProps = {
   topTracks: TopTrack[];
@@ -37,7 +40,14 @@ export function TopTracksSection({
   if (isLoading && topTracks.length === 0) {
     return (
       <View style={styles.container}>
-        <SectionLabel>Top Tracks</SectionLabel>
+        <View style={styles.header}>
+          <SectionLabel>Top Tracks</SectionLabel>
+          <Skeleton
+            width={PLAY_ALL_PLACEHOLDER.width}
+            height={PLAY_ALL_PLACEHOLDER.height}
+            borderRadius={Radius.round}
+          />
+        </View>
         <TopTracksSkeleton />
       </View>
     );
