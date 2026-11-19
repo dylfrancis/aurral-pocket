@@ -15,9 +15,13 @@ import { getFlowArtworkPath } from "@/lib/api/flow";
 import { formatBytes, saveStatusLine } from "@/lib/offline/format";
 import { savedAlbumRoute } from "@/lib/offline/saved-routes";
 import {
+  OFFLINE,
   SAVED_SONGS,
+  offlineQueue,
   usePlaySavedSongs,
 } from "@/hooks/offline/use-play-saved-songs";
+import { useStartQueue } from "@/hooks/player/use-start-queue";
+import { ListPlayRow } from "@/components/library/ListPlayRow";
 import { albumCoverHints } from "@/hooks/player/queue-covers";
 import { toPlayableTrack, type SavedTrack } from "@/lib/player/saved-queue";
 import {
@@ -45,6 +49,10 @@ export function OfflineScreen() {
   // A song saved on its own and with its album is on the phone once.
   const totalBytes = useSavedBytes();
   const playSongs = usePlaySavedSongs();
+  const startQueue = useStartQueue();
+  // Built at the tap: a URL carries the session token.
+  const playEverything = (shuffled: boolean) =>
+    void startQueue(offlineQueue(saves), OFFLINE, { shuffled });
   const trackActions = useTrackActions();
   const openSongActions = (track: SavedTrack) => {
     const item = toPlayableTrack(track, SAVED_SONGS);
@@ -75,6 +83,11 @@ export function OfflineScreen() {
 
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic">
+      <ListPlayRow
+        title="Offline"
+        onPlay={() => playEverything(false)}
+        onShuffle={() => playEverything(true)}
+      />
       <Text variant="caption" style={[styles.total, { color: colors.subtle }]}>
         {`${formatBytes(totalBytes)} on this phone`}
       </Text>

@@ -81,6 +81,8 @@ type ReleaseGridProps<T, SortKey extends string> = {
   filterSections?: Omit<FilterSections, "view">;
   /** Whether Show or Status narrows the list, which the Filter icon marks. */
   filtered?: boolean;
+  /** Drawn above the first row, across the full width. */
+  header?: React.ReactElement;
 };
 
 export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
@@ -107,6 +109,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
   showSection,
   filterSections,
   filtered = false,
+  header,
 }: ReleaseGridProps<T, SortKey>) {
   const colors = useColors();
   const view = useGridListView(viewModeKey, "grid");
@@ -216,6 +219,7 @@ export function ReleaseGrid<T, SortKey extends string = AlbumSortMode>({
         }
         keyExtractor={keyExtractor}
         numColumns={isGrid ? view.numColumns : 1}
+        ListHeaderComponent={header}
         ListEmptyComponent={emptyComponent}
         onEndReached={onEndReached}
         // Two screens, not half a screen, so a fast scroll rarely outruns

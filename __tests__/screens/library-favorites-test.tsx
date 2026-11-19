@@ -5,6 +5,7 @@ jest.mock("@/lib/api/client", () => ({
 
 jest.mock("@/lib/player/player", () => ({
   playAlbumFromTrack: jest.fn(() => Promise.resolve(true)),
+  playQueueFrom: jest.fn(() => Promise.resolve(true)),
   playNextInQueue: jest.fn(),
   addToQueue: jest.fn(),
   setShuffle: jest.fn(),
@@ -25,6 +26,12 @@ jest.mock("@shopify/flash-list", () => {
 
 jest.mock("@/components/library/CoverArtImage", () => ({
   CoverArtImage: () => null,
+}));
+
+// The home's album rails draw Reanimated skeletons, which renderRouter's mock
+// can't run. No test here reads them.
+jest.mock("@/components/library/LibraryAlbumRail", () => ({
+  LibraryAlbumRail: () => null,
 }));
 
 jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
@@ -75,8 +82,8 @@ import LibraryFavoritesScreen, {
   ErrorBoundary,
 } from "@/app/(app)/(tabs)/(library)/favorites";
 import LibraryHome from "@/app/(app)/(tabs)/(library)/index";
-import { api } from "@/lib/api/client";
-import { playAlbumFromTrack } from "@/lib/player/player";
+import { api, setAuthToken, setBaseUrl } from "@/lib/api/client";
+import { playAlbumFromTrack, playQueueFrom } from "@/lib/player/player";
 import { libraryKeys } from "@/lib/query-keys";
 import type { LibraryAlbumsParams } from "@/lib/types/library";
 
@@ -335,6 +342,23 @@ describe("favorites screen", () => {
       coverPath: "/api/library/albums/4/cover",
       artistMbid: "test-artist",
     });
+  });
+
+  it("plays the favorite songs a search leaves from Play", async () => {
+    setBaseUrl("https://music.example");
+    setAuthToken("token");
+    await openFavorites();
+    await screen.findByText("First Song");
+
+    await fireEvent.press(screen.getByLabelText("Play Favorites"));
+
+    const [queue, startId, context] = (playQueueFrom as jest.Mock).mock
+      .calls[0];
+    expect(queue.map((item: { title: string }) => item.title)).toEqual([
+      "First Song",
+    ]);
+    expect(startId).toBe(queue[0].id);
+    expect(context).toMatchObject({ albumTitle: "Favorites" });
   });
 
   it("keeps a track's favorite action in its three dots, not on the row", async () => {

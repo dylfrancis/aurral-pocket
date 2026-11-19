@@ -9,6 +9,7 @@ import {
   TrackActionsSheet,
   useTrackActions,
 } from "@/components/library/TrackActionsSheet";
+import { ListPlayRow } from "@/components/library/ListPlayRow";
 import { CircleButton } from "@/components/ui/CircleButton";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
@@ -22,6 +23,10 @@ import {
   albumTrackContext,
 } from "@/hooks/library/album-track-context";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
+import {
+  songListContext,
+  usePlayLibrarySongs,
+} from "@/hooks/library/use-play-library-songs";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
 import { albumRouteParams, artistRouteId } from "@/lib/library-read";
 import type {
@@ -35,6 +40,7 @@ import { useOpenArtist } from "@/hooks/use-open-artist";
 import { useColors } from "@/hooks/use-colors";
 
 const ROW_HEART_SIZE = 40;
+const FAVORITES = songListContext("Favorites");
 
 type FavoriteRow =
   | { type: "header"; title: string }
@@ -111,13 +117,15 @@ export default function LibraryFavoritesScreen() {
   const toggleFavorite = useToggleFavorite();
   const trackActions = useTrackActions();
   const play = usePlayTrack();
+  const { playSongs } = usePlayLibrarySongs();
 
   const [searchQuery, setSearchQuery] = useState("");
   const trimmedQuery = searchQuery.trim();
-  const rows = useMemo(
-    () => favoriteRows(matchingFavorites(favorites, trimmedQuery)),
+  const shown = useMemo(
+    () => matchingFavorites(favorites, trimmedQuery),
     [favorites, trimmedQuery],
   );
+  const rows = useMemo(() => favoriteRows(shown), [shown]);
   // Stable, because a header rebuild can drop the Android search icon.
   const handleSearchChange = useCallback(
     (event: { nativeEvent: { text: string } }) =>
@@ -233,6 +241,18 @@ export default function LibraryFavoritesScreen() {
         renderItem={renderRow}
         keyExtractor={rowKey}
         getItemType={(row) => row.type}
+        // The favorite songs a search leaves, in the list's order.
+        ListHeaderComponent={
+          shown.tracks.length > 0 ? (
+            <ListPlayRow
+              title="Favorites"
+              onPlay={() => void playSongs(shown.tracks, FAVORITES)}
+              onShuffle={() =>
+                void playSongs(shown.tracks, FAVORITES, { shuffled: true })
+              }
+            />
+          ) : null
+        }
         ListEmptyComponent={
           trimmedQuery ? (
             <EmptyState
