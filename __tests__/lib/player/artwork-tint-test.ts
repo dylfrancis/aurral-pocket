@@ -1,4 +1,5 @@
 import type { ImageColorsResult } from "react-native-image-colors";
+import { PlayerColors } from "@/components/player/player-colors";
 import { Colors } from "@/constants/theme";
 import { pickCoverColor, tintForScheme } from "@/lib/player/artwork-tint";
 
@@ -50,6 +51,13 @@ function wcagContrast(a: string, b: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+/** HSV saturation: 0 for a gray, 1 for a pure color. */
+function saturation(hex: string): number {
+  const values = channels(hex);
+  const max = Math.max(...values);
+  return max === 0 ? 0 : (max - Math.min(...values)) / max;
+}
+
 describe("pickCoverColor", () => {
   it("takes the cover's accent over a black background", () => {
     // A red sun on a black sleeve should tint the player red, not black.
@@ -96,9 +104,29 @@ describe("tintForScheme", () => {
     (_name, color) => {
       const tint = tintForScheme(color, "light");
 
-      expect(wcagContrast(tint, Colors.light.subtle)).toBeGreaterThanOrEqual(
-        4.5,
-      );
+      expect(
+        wcagContrast(tint, PlayerColors.light.subtle),
+      ).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it.each([
+    ["red", "#c0392b"],
+    ["orange", "#e67e22"],
+    ["teal", "#16a085"],
+    ["blue", "#2c3e8f"],
+    ["purple", "#8e44ad"],
+  ])(
+    "shows a %s cover's color against the light background",
+    (_name, color) => {
+      const tint = tintForScheme(color, "light");
+
+      // Near the background, or washed out to a gray, the tint can't tell
+      // one cover from another.
+      expect(
+        wcagContrast(tint, Colors.light.background),
+      ).toBeGreaterThanOrEqual(1.3);
+      expect(saturation(tint)).toBeGreaterThanOrEqual(0.15);
     },
   );
 

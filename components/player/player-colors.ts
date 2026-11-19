@@ -17,7 +17,8 @@ export const PlayerColors = {
   light: {
     background: Colors.light.background,
     text: Colors.light.text,
-    subtle: Colors.light.subtle,
+    // Darker than the theme's gray, which drops below 4.5:1 on the tint.
+    subtle: "#565656",
     faint: "rgba(0, 0, 0, 0.25)",
     separator: "rgba(0, 0, 0, 0.1)",
     pressedFill: "rgba(0, 0, 0, 0.08)",
