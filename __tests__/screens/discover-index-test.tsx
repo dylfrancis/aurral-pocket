@@ -141,6 +141,10 @@ jest.mock("@/components/discover/RecommendedTab", () => {
   };
 });
 
+jest.mock("@/components/discover/YourRadioCard", () => ({
+  YourRadioCard: () => null,
+}));
+
 jest.mock("@/components/discover/TrendingCharts", () => {
   const { Text } = require("react-native");
   return { TrendingCharts: () => <Text testID="tab-trending" /> };

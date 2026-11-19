@@ -17,6 +17,7 @@ export function MadeForYouSection({ onViewAll }: Props) {
       title="Made for You"
       playlists={data}
       onViewAll={onViewAll}
+      playable
     />
   );
 }
