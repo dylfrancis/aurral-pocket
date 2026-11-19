@@ -74,8 +74,8 @@ export default function FlowEditScreen() {
   const editingId = typeof params.id === "string" ? params.id : null;
 
   // The form edits a one-time snapshot of the flow. Subscribing to the live
-  // status poll here would re-render every tick, snapping the iOS hour wheel
-  // back mid-gesture and resetting in-progress drafts (#138).
+  // status here would re-render on every update, snapping the iOS hour wheel
+  // back mid-gesture and resetting in-progress drafts.
   const { snapshot: existingFlow, isLoading } = useEditSnapshot(
     !!editingId,
     (status) => status.flows.find((flow) => flow.id === editingId),

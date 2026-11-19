@@ -64,8 +64,8 @@ export default function PlaylistEditScreen() {
   const playlistId = typeof params.id === "string" ? params.id : null;
 
   // The form edits a one-time snapshot of the playlist. Subscribing to the
-  // live status poll here would reset in-progress draft edits whenever the
-  // playlist changes server-side (same failure mode as #138).
+  // live status here would reset in-progress draft edits whenever the
+  // playlist changes server-side.
   const { snapshot, isLoading } = usePlaylistEditSnapshot(playlistId);
 
   if (isLoading) {

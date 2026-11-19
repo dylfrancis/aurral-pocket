@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "lib/api/**"
+      - "lib/types/live.ts"
       - "scripts/check-api-contract.mjs"
       - "scripts/api-contract-baseline.json"
       - ".aurral-version"

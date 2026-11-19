@@ -2,15 +2,18 @@ import { useCallback } from "react";
 import {
   queryOptions,
   useQuery,
+  useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { useLiveChannel } from "@/hooks/live/use-live-channel";
 import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
 import { getFlowStatus, getPlaylistJobs } from "@/lib/api/flow";
+import { isLiveSocketConnected } from "@/lib/api/live-socket";
 import { flowKeys } from "@/lib/query-keys";
 
-const POLL_INTERVAL_MS = 3000;
+const FALLBACK_POLL_MS = 3000;
 
 export function flowStatusQueryOptions() {
   return queryOptions({
@@ -22,23 +25,57 @@ export function flowStatusQueryOptions() {
   });
 }
 
+/**
+ * Writes each pushed playlist status into the status cache, then calls
+ * `onPush`. Aurral builds one per listener and sends it at once when the
+ * channel is first subscribed or the socket reconnects.
+ */
+export function usePlaylistStatusPushes(
+  enabled: boolean,
+  onPush?: () => void,
+): { isConnected: boolean } {
+  const queryClient = useQueryClient();
+  return useLiveChannel(
+    "playlists",
+    ["playlist_status"],
+    (message) => {
+      queryClient.setQueryData(flowKeys.status(), message.status);
+      onPush?.();
+    },
+    { enabled },
+  );
+}
+
+/**
+ * Polls, and refetches on resume, only while the socket is down. The socket
+ * closes in the background, so a resume from there still refetches.
+ */
+function statusRefreshOptions(isFocused: boolean, isConnected: boolean) {
+  return {
+    refetchInterval: isFocused && !isConnected ? FALLBACK_POLL_MS : false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: isConnected ? false : "always",
+  } as const;
+}
+
 export function useFlowStatus() {
   const { serverUrl, token } = useAuth();
   const isFocused = useIsFocused();
   const enabled = !!serverUrl && !!token;
+  const { isConnected } = usePlaylistStatusPushes(enabled && isFocused);
 
   const query = useQuery({
     ...flowStatusQueryOptions(),
+    ...statusRefreshOptions(isFocused, isConnected),
     enabled,
-    refetchInterval: isFocused ? POLL_INTERVAL_MS : false,
-    refetchIntervalInBackground: false,
   });
 
   const { refetch } = query;
   useRefreshOnFocus(
     useCallback(() => {
-      // refetch() bypasses `enabled`, so guard it ourselves
-      if (enabled) refetch();
+      // refetch() bypasses `enabled`, so guard it ourselves. While connected,
+      // subscribing sends the status, or another listener kept it current.
+      if (enabled && !isLiveSocketConnected()) refetch();
     }, [enabled, refetch]),
   );
 
@@ -54,19 +91,25 @@ export function playlistJobsQueryOptions(playlistId: string) {
 }
 
 /**
- * Track jobs for one flow or shared playlist. The status snapshot does not
- * carry jobs (server dropped them in Aurral cc9dc1d5), so this polls
- * /playlists/jobs/:id on the same cadence as the status query.
+ * Track jobs for one flow or shared playlist. The status carries no jobs, so
+ * each status push refetches them.
  */
 export function usePlaylistJobs(playlistId: string | undefined) {
   const { serverUrl, token } = useAuth();
   const isFocused = useIsFocused();
+  const queryClient = useQueryClient();
   const enabled = !!serverUrl && !!token && !!playlistId;
+  const { isConnected } = usePlaylistStatusPushes(enabled && isFocused, () => {
+    void queryClient.invalidateQueries(
+      { queryKey: flowKeys.jobs(playlistId!), exact: true },
+      { cancelRefetch: false },
+    );
+  });
 
   return useQuery({
     ...playlistJobsQueryOptions(playlistId ?? ""),
     enabled,
-    refetchInterval: isFocused ? POLL_INTERVAL_MS : false,
+    refetchInterval: isFocused && !isConnected ? FALLBACK_POLL_MS : false,
     refetchIntervalInBackground: false,
   });
 }
@@ -78,14 +121,19 @@ export function usePlaylistJobs(playlistId: string | undefined) {
  */
 export function useFlowStatusSuspense() {
   const isFocused = useIsFocused();
+  const { isConnected } = usePlaylistStatusPushes(isFocused);
 
   const query = useSuspenseQuery({
     ...flowStatusQueryOptions(),
-    refetchInterval: isFocused ? POLL_INTERVAL_MS : false,
-    refetchIntervalInBackground: false,
+    ...statusRefreshOptions(isFocused, isConnected),
   });
 
-  useRefreshOnFocus(query.refetch);
+  const { refetch } = query;
+  useRefreshOnFocus(
+    useCallback(() => {
+      if (!isLiveSocketConnected()) void refetch();
+    }, [refetch]),
+  );
 
   return query;
 }

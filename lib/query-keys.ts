@@ -98,6 +98,32 @@ export function isFilteredListKey(
   return filter === "favorite" ? value === true : value != null;
 }
 
+const LIBRARY_INDEX_LISTS = new Set([
+  "artists",
+  "artist",
+  "canonicalArtist",
+  "albums",
+  "albumsAll",
+  "album",
+  "songs",
+  "tracks",
+  "genres",
+  "favorites",
+]);
+
+/**
+ * A read of Aurral's Library index, which a scan refreshes. Metadata reads such
+ * as artist details, editions and previews stay out, as on the web.
+ */
+export function isLibraryIndexKey(queryKey: QueryKey): boolean {
+  const [scope, list] = queryKey;
+  return (
+    scope === "library" &&
+    typeof list === "string" &&
+    LIBRARY_INDEX_LISTS.has(list)
+  );
+}
+
 export const searchKeys = {
   artists: (query: string) => ["search", "artists", query] as const,
   albums: (query: string) => ["search", "albums", query] as const,

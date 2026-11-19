@@ -41,7 +41,7 @@ export function CollectionArtwork({
   const imageLoaded = loadedUri === artworkSource.uri;
   const imageFailed = failedUri === artworkSource.uri;
 
-  // Retry a failed load when polling picks up new stats — the backend writes
+  // Retry a failed load when new stats arrive — the backend writes
   // the artwork when a flow first runs, so a stats change is a good signal
   // that the previously-404'd URL is now valid.
   const statsKey = stats

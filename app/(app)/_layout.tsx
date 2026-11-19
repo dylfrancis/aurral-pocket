@@ -5,6 +5,8 @@ import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { IS_ANDROID } from "@/constants/platform";
 import { useAuth } from "@/contexts/auth-context";
 import { NowPlayingProvider } from "@/contexts/now-playing-context";
+import { useDiscoveryUpdates } from "@/hooks/discover/use-discovery-updates";
+import { useLibraryUpdates } from "@/hooks/library/use-library-updates";
 import { useLiveSocketFollowsSession } from "@/hooks/live/use-live-socket-follows-session";
 import { useSavedLibraryFollowsSession } from "@/hooks/offline/use-saved-library-follows-session";
 import { usePluginActionResults } from "@/hooks/plugins/use-plugin-actions";
@@ -34,6 +36,8 @@ export default function AppLayout() {
   useSavedLibraryFollowsSession();
   useLiveSocketFollowsSession();
   usePluginActionResults();
+  useLibraryUpdates();
+  useDiscoveryUpdates();
   const reduceMotion = useReducedMotion();
 
   return (

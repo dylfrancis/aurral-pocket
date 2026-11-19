@@ -49,7 +49,7 @@ type Props = {
   searchPlaceholder: string;
   /**
    * Memoize this with stable handlers: a rebuilt header can drop the Android
-   * search icon, and this page re-renders on every keystroke and status poll.
+   * search icon, and this page re-renders on every keystroke and status update.
    */
   toolbar: ReactNode;
   header: ReactNode;
