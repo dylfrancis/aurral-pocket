@@ -44,7 +44,6 @@ function HorizontalArtistCardComponent({
           mbid={mbid}
           coverUrl={imageUrl}
           size={fill ? "fill" : ARTIST_CARD_WIDTH}
-          borderRadius={10}
         />
         {isInLibrary && (
           <View style={[styles.badge, { backgroundColor: colors.card }]}>
@@ -86,10 +85,12 @@ const styles = StyleSheet.create({
   coverWrap: {
     position: "relative",
   },
+  // On the circle's edge at the lower right, where a square's corner would
+  // leave it floating outside the photo.
   badge: {
     position: "absolute",
-    top: 6,
-    right: 6,
+    bottom: 8,
+    right: 8,
     borderRadius: 999,
     padding: 2,
   },
@@ -97,13 +98,16 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     gap: 2,
     height: 60,
+    alignItems: "center",
   },
   name: {
     fontSize: 13,
     lineHeight: 18,
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 11,
     lineHeight: 14,
+    textAlign: "center",
   },
 });

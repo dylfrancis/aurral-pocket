@@ -88,7 +88,6 @@ export function ArtistHero({
           mbid={artist.mbid}
           coverUrl={artist.coverUrl}
           size={200}
-          borderRadius={100}
         />
         <Text variant="title" style={styles.name}>
           {artist.artistName}

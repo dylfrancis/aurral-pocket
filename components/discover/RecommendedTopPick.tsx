@@ -26,12 +26,7 @@ export function RecommendedTopPick({ artist, seeds, onPress }: Props) {
       onPress={onPress}
       style={({ pressed }) => [styles.card, { opacity: pressed ? 0.7 : 1 }]}
     >
-      <CoverArtImage
-        type="artist"
-        mbid={artist.id}
-        size={COVER_SIZE}
-        borderRadius={12}
-      />
+      <CoverArtImage type="artist" mbid={artist.id} size={COVER_SIZE} />
       <View style={styles.info}>
         <Text
           variant="caption"

@@ -32,12 +32,7 @@ export const SimilarArtistCard = React.memo(function SimilarArtistCard({
       ]}
     >
       <View style={styles.coverWrap}>
-        <CoverArtImage
-          type="artist"
-          mbid={artist.id}
-          size={IMAGE_SIZE}
-          borderRadius={IMAGE_SIZE / 2}
-        />
+        <CoverArtImage type="artist" mbid={artist.id} size={IMAGE_SIZE} />
         {isInLibrary && (
           <View style={[styles.badge, { backgroundColor: colors.card }]}>
             <Ionicons name="checkmark-circle" size={18} color={colors.brand} />

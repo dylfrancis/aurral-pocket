@@ -14,6 +14,7 @@ type CoverArtImageProps = {
   mbid: string;
   size: number | "fill";
   style?: ImageStyle;
+  /** Defaults to a circle for artists and to 8 for everything else. */
   borderRadius?: number;
   blurRadius?: number;
   /**
@@ -29,11 +30,15 @@ export function CoverArtImage({
   mbid,
   size,
   style,
-  borderRadius = 8,
+  borderRadius: borderRadiusProp,
   blurRadius,
   coverUrl,
   hints,
 }: CoverArtImageProps) {
+  // React Native caps a radius at half the side, so a "fill" image is round
+  // too.
+  const borderRadius =
+    borderRadiusProp ?? (type === "artist" ? CIRCLE_RADIUS : 8);
   // Kept per record, because list cells are recycled for other records.
   const recordKey = `${type}:${coverUrl ?? ""}:${mbid}`;
   const [failures, setFailures] = useState({ recordKey, uris: [] as string[] });
@@ -111,6 +116,8 @@ export function CoverArtImage({
     </View>
   );
 }
+
+const CIRCLE_RADIUS = 9999;
 
 const styles = StyleSheet.create({
   placeholder: {

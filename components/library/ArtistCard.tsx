@@ -1,6 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
-import { Card } from "@/components/ui/Card";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { Fonts } from "@/constants/theme";
@@ -12,6 +11,7 @@ type ArtistCardProps = {
   onPress: () => void;
 };
 
+/** An artist in the Library grid: a round photo with the name under it. */
 export const ArtistCard = React.memo(function ArtistCard({
   artist,
   onPress,
@@ -19,13 +19,16 @@ export const ArtistCard = React.memo(function ArtistCard({
   const colors = useColors();
 
   return (
-    <Card onPress={onPress} style={styles.card}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+    >
       <CoverArtImage
         type="artist"
         mbid={artist.mbid}
         coverUrl={artist.coverUrl}
         size="fill"
-        borderRadius={12}
       />
       <View style={styles.info}>
         <Text
@@ -35,24 +38,27 @@ export const ArtistCard = React.memo(function ArtistCard({
         >
           {artist.artistName}
         </Text>
-        <Text variant="caption">
+        <Text variant="caption" style={styles.count}>
           {artist.statistics.albumCount}{" "}
           {artist.statistics.albumCount === 1 ? "album" : "albums"}
         </Text>
       </View>
-    </Card>
+    </Pressable>
   );
 });
 
 const styles = StyleSheet.create({
-  card: {
-    overflow: "hidden",
-  },
   info: {
-    padding: 8,
+    paddingTop: 8,
+    paddingBottom: 4,
     gap: 2,
+    alignItems: "center",
   },
   name: {
     ...Fonts.semiBold,
+    textAlign: "center",
+  },
+  count: {
+    textAlign: "center",
   },
 });
