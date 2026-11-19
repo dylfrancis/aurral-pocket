@@ -25,6 +25,7 @@ import Sensors from "@expo/material-symbols/sensors.xml";
 import SearchIcon from "@expo/material-symbols/search.xml";
 import OpenInNew from "@expo/material-symbols/open_in_new.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
+import AlbumIcon from "@expo/material-symbols/album.xml";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
 import { CoverTintBackdrop } from "@/components/player/CoverTintBackdrop";
@@ -41,7 +42,6 @@ import { AlbumStatusBadge } from "./AlbumStatusBadge";
 import { CoverArtImage } from "./CoverArtImage";
 import { DiscHeading } from "./DiscHeading";
 import { EditionClipRow } from "./EditionClipRow";
-import { EditionPicker } from "./EditionPicker";
 import { TrackActionsSheet, useTrackActions } from "./TrackActionsSheet";
 import { TrackRow } from "./TrackRow";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -83,7 +83,7 @@ import {
 } from "@/lib/api/library";
 import { ApiError } from "@/lib/api/client";
 import { formatTrackCount } from "@/lib/discover/format";
-import { editionLabel, editionRows } from "@/lib/editions";
+import { editionLabel, editionRows, editionSubtitle } from "@/lib/editions";
 import {
   albumDownloadStatus,
   libraryAlbumsRef,
@@ -562,6 +562,33 @@ export function AlbumDetailScreen() {
           >
             Start Radio
           </Stack.Toolbar.MenuAction>
+          {editions.visible && editions.viewing ? (
+            // Picking only previews an edition. The note under the hero
+            // carries Use This Edition, which is what switches it.
+            <Stack.Toolbar.Menu
+              icon={IS_IOS ? "square.stack" : AlbumIcon}
+              title="Edition"
+            >
+              {editions.editions.map((edition) => {
+                const detail = editionSubtitle(edition, editions.library);
+                return (
+                  <Stack.Toolbar.MenuAction
+                    key={edition.id}
+                    isOn={edition.id === editions.viewing?.id}
+                    // Android menus drop subtitles, and names repeat, so the
+                    // year and length go in the title there.
+                    subtitle={IS_IOS ? detail : undefined}
+                    onPress={() => {
+                      stopPreviewClip();
+                      editions.view(edition.id);
+                    }}
+                  >
+                    {IS_IOS ? edition.name : `${edition.name} · ${detail}`}
+                  </Stack.Toolbar.MenuAction>
+                );
+              })}
+            </Stack.Toolbar.Menu>
+          ) : null}
           <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "magnifyingglass" : SearchIcon}
             hidden={!showResearch}
@@ -655,18 +682,6 @@ export function AlbumDetailScreen() {
             <Text variant="caption" style={{ color: heroColors.subtle }}>
               {saveLine}
             </Text>
-          ) : null}
-          {editions.visible && editions.viewing ? (
-            <EditionPicker
-              editions={editions.editions}
-              selectedId={editions.viewing.id}
-              libraryId={editions.library}
-              onSelect={(id) => {
-                stopPreviewClip();
-                editions.view(id);
-              }}
-              triggerColor={heroColors.text}
-            />
           ) : null}
           {previewRelease && editions.libraryEdition ? (
             <View style={styles.editionNote}>

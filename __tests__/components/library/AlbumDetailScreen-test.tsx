@@ -71,13 +71,20 @@ jest.mock("expo-router", () => {
   const React = require("react");
   const { Pressable, Text } = require("react-native");
   // The native menu renders nothing under Jest, so each action renders as a
-  // pressable labelled by its title, and a hidden action renders nothing.
-  const MenuAction = ({ children, hidden, onPress }: any) =>
+  // pressable labelled by its title, and a hidden action renders nothing. A
+  // checkable action reads as selected while it's on.
+  const MenuAction = ({ children, hidden, isOn, onPress }: any) =>
     hidden
       ? null
       : React.createElement(
           Pressable,
-          { onPress },
+          {
+            onPress,
+            accessibilityLabel:
+              typeof children === "string" ? children : undefined,
+            accessibilityState:
+              isOn === undefined ? undefined : { selected: isOn },
+          },
           React.createElement(Text, null, children),
         );
   const Passthrough = ({ children }: any) =>
@@ -998,7 +1005,7 @@ describe("AlbumDetailScreen", () => {
     async function previewCollectorsEdition() {
       await openAlbumPage(album);
       await fireEvent.press(
-        await screen.findByLabelText("Collector's edition"),
+        await screen.findByLabelText(/^Collector's edition/),
       );
       await screen.findByText("Your Library has the Standard edition.");
     }
@@ -1039,7 +1046,7 @@ describe("AlbumDetailScreen", () => {
           screen.queryByText("Your Library has the Standard edition."),
         ).toBeNull(),
       );
-      expect(screen.getByLabelText("Collector's edition")).toBeSelected();
+      expect(screen.getByLabelText(/^Collector's edition/)).toBeSelected();
     });
   });
 });
