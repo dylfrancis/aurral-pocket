@@ -580,6 +580,36 @@ export async function getArtistPreviewTracks(
   return r.data.tracks;
 }
 
+/** One song to find and download into the Library. */
+export type TrackDownloadRequest = {
+  artistName: string;
+  trackName: string;
+  albumName?: string | null;
+  artistMbid?: string | null;
+  albumMbid?: string | null;
+  trackMbid?: string | null;
+};
+
+/**
+ * What a song request did: queued a download, found the song already in the
+ * Library, or reused a file Aurral already had.
+ */
+export type TrackDownloadResult = {
+  success: boolean;
+  alreadyOwned?: boolean;
+  queued?: boolean;
+  reused?: boolean;
+};
+
+/** Ask Aurral to search for one song and download it, as the web's Add to Library does. */
+export async function requestTrackDownload(track: TrackDownloadRequest) {
+  const r = await api.post<TrackDownloadResult>(
+    "/library/downloads/track",
+    track,
+  );
+  return r.data;
+}
+
 /**
  * Every playable Library track by an artist, ordered by album release date,
  * then disc and track, as the web's artist Play reads it.

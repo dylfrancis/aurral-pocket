@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
@@ -7,11 +7,19 @@ import Animated, {
 import { useLocalSearchParams } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useMutation } from "@tanstack/react-query";
+import * as Burnt from "burnt";
+import * as Haptics from "expo-haptics";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
 import { CollectionHero, COVER_SIZE } from "@/components/flow/CollectionPage";
 import { EmptyState } from "@/components/library/EmptyState";
-import { Button } from "@/components/ui/Button";
+import {
+  TrackActionsSheet,
+  useTrackActions,
+} from "@/components/library/TrackActionsSheet";
+import { CircleButton } from "@/components/ui/CircleButton";
+import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
 import { IS_IOS } from "@/constants/platform";
@@ -20,16 +28,24 @@ import {
   useAddEditorialPlaylist,
   useEditorialPlaylist,
 } from "@/hooks/discover/use-editorial-playlists";
-import { rowPlayerId, usePreviewRows } from "@/hooks/discover/use-preview-rows";
+import { rowPlayerId, useRowLinks } from "@/hooks/discover/use-preview-rows";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
+import { stopPreviewClip } from "@/hooks/library/use-audio-preview";
+import { useStartQueue } from "@/hooks/player/use-start-queue";
 import { ApiError } from "@/lib/api/client";
-import { formatTrackCount } from "@/lib/discover/format";
-import type { BrowseProvider } from "@/lib/types/search";
-import { EditorialArtwork } from "./EditorialArtwork";
+import { requestTrackDownload } from "@/lib/api/library";
 import {
-  EditorialTrackRow,
-  type EditorialTrackItem,
-} from "./EditorialTrackRow";
+  editorialClipItem,
+  editorialContext,
+  editorialQueue,
+} from "@/lib/discover/editorial-queue";
+import { formatTrackCount } from "@/lib/discover/format";
+import { playItem, togglePlayback, useCurrentTrack } from "@/lib/player/player";
+import { queueTrackToPlayerTrack } from "@/lib/player/track-item";
+import type { BrowseProvider } from "@/lib/types/search";
+import { BrowseTrackRow, type TrackDownloadState } from "./BrowseTrackRow";
+import { EditorialArtwork } from "./EditorialArtwork";
+import type { EditorialTrackItem } from "./EditorialTrackRow";
 import { useColors } from "@/hooks/use-colors";
 
 const GONE_MESSAGE: Record<BrowseProvider, string> = {
@@ -47,8 +63,10 @@ type RouteParams = {
 };
 
 /**
- * Each row plays on its own: its preview clip, or the Library's file when the
- * Library has the track.
+ * A Browse playlist (a mix, Made for You, or a Deezer playlist) laid out like
+ * an album: Shuffle, Play and + up top, and rows that play when tapped. Play
+ * takes the songs the Library has. The rest are grayed: a tap plays the clip,
+ * and ↓ asks Aurral to download the song.
  */
 export function EditorialPlaylistScreen() {
   const colors = useColors();
@@ -67,18 +85,14 @@ export function EditorialPlaylistScreen() {
   } = useEditorialPlaylist(provider, id);
   const addPlaylist = useAddEditorialPlaylist(provider, id);
   const openInLibrary = useOpenPlaylist();
-  const hasPlaylistAccess = useHasPermission()("accessPlaylists");
+  const hasPermission = useHasPermission();
+  const hasPlaylistAccess = hasPermission("accessPlaylists");
+  const canDownload = hasPermission("addAlbum");
 
-  const {
-    playingId,
-    loadingId,
-    progress,
-    lookupRowId,
-    stopPreview,
-    togglePreview,
-    openRowArtist,
-    openRowAlbum,
-  } = usePreviewRows();
+  // Leaving the page must not leave a clip playing behind it.
+  useEffect(() => () => stopPreviewClip(), []);
+  const { lookupRowId, openRowArtist, openRowAlbum } =
+    useRowLinks(stopPreviewClip);
 
   const trackItems = useMemo<EditorialTrackItem[]>(
     () =>
@@ -88,31 +102,128 @@ export function EditorialPlaylistScreen() {
       })),
     [playlist?.tracks, provider, id],
   );
+  const hasLibrarySongs = trackItems.some(({ track }) => !!track.owned);
 
-  const renderItem = useCallback(
-    ({ item }: { item: EditorialTrackItem }) => {
-      const playerId = rowPlayerId(item);
-      return (
-        <EditorialTrackRow
-          item={item}
-          isPlaying={playingId === playerId}
-          isLoading={loadingId === playerId}
-          progress={playingId === playerId ? progress : 0}
-          isLookingUpLink={lookupRowId === item.id}
-          onTogglePreview={togglePreview}
-          onOpenArtist={openRowArtist}
-          onOpenAlbum={openRowAlbum}
-        />
+  const startQueue = useStartQueue();
+  const playLibrarySongs = useCallback(
+    (options: { shuffled?: boolean; startId?: string } = {}) => {
+      if (!playlist) return;
+      // Built at the tap: each URL carries the session token.
+      void startQueue(
+        editorialQueue(playlist),
+        editorialContext(playlist),
+        options,
       );
     },
+    [playlist, startQueue],
+  );
+
+  const currentId = useCurrentTrack()?.id ?? null;
+  const handleRowPress = useCallback(
+    (item: EditorialTrackItem) => {
+      void Haptics.selectionAsync();
+      const playerId = rowPlayerId(item);
+      // The row already playing pauses or resumes.
+      if (playerId === currentId) {
+        void togglePlayback();
+        return;
+      }
+      if (item.track.owned) {
+        playLibrarySongs({ startId: playerId });
+        return;
+      }
+      const clip = editorialClipItem(item.id, item.track);
+      if (clip) void playItem(clip);
+    },
+    [currentId, playLibrarySongs],
+  );
+
+  const trackActions = useTrackActions();
+  const openRowActions = useCallback(
+    (item: EditorialTrackItem) => {
+      const { owned } = item.track;
+      trackActions.openItem(
+        owned
+          ? queueTrackToPlayerTrack(owned, item.track.artworkUrl)
+          : editorialClipItem(item.id, item.track),
+        editorialContext({ name: playlist?.name ?? params.name ?? "" }),
+        {
+          title: item.track.trackName,
+          // A clip is only a cut of the song, not a file to keep.
+          canSaveOffline: !!owned,
+        },
+      );
+    },
+    [trackActions, playlist?.name, params.name],
+  );
+
+  // Each ↓ remembers its request, so a second tap can't ask twice.
+  const [downloads, setDownloads] = useState<
+    Record<string, TrackDownloadState>
+  >({});
+  const download = useMutation({
+    mutationFn: (item: EditorialTrackItem) =>
+      requestTrackDownload({
+        artistName: item.track.artistName,
+        trackName: item.track.trackName,
+        albumName: item.track.albumName,
+      }),
+    onMutate: (item) =>
+      setDownloads((current) => ({ ...current, [item.id]: "sending" })),
+    onSuccess: (result, item) => {
+      setDownloads((current) => ({ ...current, [item.id]: "queued" }));
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Android shows only a toast's title, so the song goes there.
+      Burnt.toast({
+        title: result.alreadyOwned
+          ? `${item.track.trackName} is in your Library`
+          : `Downloading ${item.track.trackName}`,
+        preset: "done",
+      });
+    },
+    onError: (requestError, item) => {
+      setDownloads((current) => ({ ...current, [item.id]: "idle" }));
+      Burnt.toast({
+        title: "Couldn't download this song",
+        message:
+          requestError instanceof ApiError ? requestError.message : undefined,
+        preset: "error",
+      });
+    },
+  });
+  const requestDownload = download.mutate;
+  const handleDownload = useCallback(
+    (item: EditorialTrackItem) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      requestDownload(item);
+    },
+    [requestDownload],
+  );
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: EditorialTrackItem; index: number }) => (
+      <BrowseTrackRow
+        item={item}
+        position={index + 1}
+        playerId={rowPlayerId(item)}
+        isLookingUpLink={lookupRowId === item.id}
+        onPress={handleRowPress}
+        onOpenActions={openRowActions}
+        onOpenArtist={openRowArtist}
+        onOpenAlbum={openRowAlbum}
+        onDownload={canDownload ? handleDownload : undefined}
+        downloadState={downloads[item.id]}
+      />
+    ),
     [
-      playingId,
-      loadingId,
-      progress,
       lookupRowId,
-      togglePreview,
+      handleRowPress,
+      openRowActions,
       openRowArtist,
       openRowAlbum,
+      canDownload,
+      handleDownload,
+      downloads,
     ],
   );
 
@@ -187,28 +298,38 @@ export function EditorialPlaylistScreen() {
               ) : null}
               {metaLine ? <Text variant="caption">{metaLine}</Text> : null}
             </CollectionHero>
-            {hasPlaylistAccess ? (
-              <View style={styles.action}>
-                {libraryPlaylistId ? (
-                  <Button
-                    title="Open in Library"
-                    variant="inline"
-                    onPress={() => {
-                      stopPreview();
-                      void openInLibrary(libraryPlaylistId);
-                    }}
-                  />
-                ) : (
-                  // Only a loaded playlist says whether this makes a second copy.
-                  <Button
-                    title="Add to Library"
-                    loading={addPlaylist.isPending}
-                    disabled={!playlist}
-                    onPress={() => addPlaylist.mutate()}
-                  />
-                )}
-              </View>
-            ) : null}
+            <PlayRow
+              title={name}
+              disabled={!hasLibrarySongs}
+              onPlay={() => playLibrarySongs()}
+              onShuffle={() => playLibrarySongs({ shuffled: true })}
+            >
+              {/* Where the album page's heart goes. The spacer keeps Play
+                  centered for someone who can't save playlists. */}
+              {!hasPlaylistAccess ? (
+                <View style={styles.circleSpacer} />
+              ) : libraryPlaylistId ? (
+                <CircleButton
+                  icon="checkmark"
+                  size={PLAY_ROW_HEIGHT}
+                  accessibilityLabel={`Open ${name} in your Library`}
+                  onPress={() => {
+                    stopPreviewClip();
+                    void openInLibrary(libraryPlaylistId);
+                  }}
+                />
+              ) : (
+                // Only a loaded playlist says whether this makes a second
+                // copy.
+                <CircleButton
+                  icon="add"
+                  size={PLAY_ROW_HEIGHT}
+                  accessibilityLabel={`Add ${name} to your Library`}
+                  disabled={!playlist || addPlaylist.isPending}
+                  onPress={() => addPlaylist.mutate()}
+                />
+              )}
+            </PlayRow>
           </View>
         }
         ListEmptyComponent={
@@ -221,6 +342,10 @@ export function EditorialPlaylistScreen() {
           )
         }
       />
+      <TrackActionsSheet
+        target={trackActions.target}
+        onClose={trackActions.close}
+      />
     </View>
   );
 }
@@ -229,10 +354,9 @@ const styles = StyleSheet.create({
   description: {
     textAlign: "center",
   },
-  action: {
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+  circleSpacer: {
+    width: PLAY_ROW_HEIGHT,
+    height: PLAY_ROW_HEIGHT,
   },
   loader: {
     paddingVertical: 32,

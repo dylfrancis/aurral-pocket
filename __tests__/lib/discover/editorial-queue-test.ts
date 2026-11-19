@@ -1,4 +1,7 @@
-import { editorialQueue } from "@/lib/discover/editorial-queue";
+import {
+  editorialClipItem,
+  editorialQueue,
+} from "@/lib/discover/editorial-queue";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import type { LibraryQueueTrack } from "@/lib/types/library";
 import type { EditorialPlaylist, EditorialTrack } from "@/lib/types/search";
@@ -52,25 +55,37 @@ beforeAll(() => {
 });
 
 describe("editorialQueue", () => {
-  it("plays the Library's file where it has the song, the clip elsewhere, and skips a song with neither", () => {
+  it("queues only the songs the Library has, as their Library files", () => {
     const queue = editorialQueue(
       playlist([
         track("Airbag", { owned }),
         track("Nude", { preview_url: "/api/deezer/preview/9.mp3" }),
-        track("Lift", {}),
       ]),
     );
 
-    expect(queue).toHaveLength(2);
-    expect(queue[0]).toMatchObject({
-      id: "30",
-      streamPath: "/library/stream/4/30",
-    });
-    expect(queue[1]).toMatchObject({
+    expect(queue).toEqual([
+      expect.objectContaining({
+        id: "30",
+        streamPath: "/library/stream/4/30",
+      }),
+    ]);
+  });
+});
+
+describe("editorialClipItem", () => {
+  it("plays a missing song's clip, and has nothing for a song with none", () => {
+    expect(
+      editorialClipItem(
+        "row-1",
+        track("Nude", { preview_url: "/api/deezer/preview/9.mp3" }),
+      ),
+    ).toMatchObject({
+      id: "row-1",
       title: "Nude",
       streamPath: null,
       isPreview: true,
       url: "https://music.example/api/deezer/preview/9.mp3",
     });
+    expect(editorialClipItem("row-2", track("Lift", {}))).toBeNull();
   });
 });

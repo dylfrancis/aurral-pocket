@@ -79,9 +79,9 @@ export function useEditorialPlaylist(
 }
 
 /**
- * Play a Browse playlist straight from its card: the Library's files where it
- * has the tracks, clips elsewhere. `loadingId` is the card whose playlist is
- * still loading.
+ * Play a Browse playlist straight from its card, as its page's Play does: the
+ * songs the Library has. `loadingId` is the card whose playlist is still
+ * loading.
  */
 export function usePlayEditorialPlaylist() {
   const queryClient = useQueryClient();
