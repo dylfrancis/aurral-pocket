@@ -1,7 +1,6 @@
 import {
   buildGenreSections,
   formatBasedOn,
-  formatUpdatedAt,
   parseCalendarDate,
   formatReleaseStatus,
 } from "@/lib/discover/format";
@@ -157,22 +156,6 @@ describe("formatBasedOn", () => {
         { name: "E" },
       ]),
     ).toBe("Based on A, B and 3 other artists");
-  });
-});
-
-describe("formatUpdatedAt", () => {
-  it("returns null for null input", () => {
-    expect(formatUpdatedAt(null)).toBeNull();
-  });
-
-  it("returns null for invalid date string", () => {
-    expect(formatUpdatedAt("not-a-date")).toBeNull();
-  });
-
-  it("returns a formatted string for valid ISO date", () => {
-    const result = formatUpdatedAt("2026-04-20T12:00:00Z");
-    expect(typeof result).toBe("string");
-    expect(result).toContain("2026");
   });
 });
 

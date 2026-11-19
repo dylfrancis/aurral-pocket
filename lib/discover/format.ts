@@ -70,17 +70,6 @@ export function formatBasedOn(artists: BasedOnArtist[]): string | null {
   }`;
 }
 
-export function formatUpdatedAt(iso: string | null): string | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return formatDate(date, {
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 export function parseCalendarDate(value?: string | null): Date | null {
   if (!value) return null;
   const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
