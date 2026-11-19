@@ -22,6 +22,8 @@ type DiscoverRailProps<T> = {
   renderItem: (item: T) => ReactNode;
   /** The cards' width, so the View All card matches them. */
   cardSize: number;
+  /** "circle" for artists, so the loading cards match the round ones. */
+  cardShape?: "square" | "circle";
   isLoading?: boolean;
   onViewAll?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -38,6 +40,7 @@ export function DiscoverRail<T>({
   keyOf,
   renderItem,
   cardSize,
+  cardShape = "square",
   isLoading = false,
   onViewAll,
   style,
@@ -48,7 +51,7 @@ export function DiscoverRail<T>({
     <View style={style}>
       <SectionHeader title={title} accent={accent} onNavigate={onViewAll} />
       {isLoading ? (
-        <AlbumCategorySkeleton />
+        <AlbumCategorySkeleton shape={cardShape} header={false} />
       ) : (
         <ScrollView
           horizontal

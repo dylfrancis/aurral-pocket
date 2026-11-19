@@ -43,6 +43,7 @@ export function RecentlyAddedSection({ onArtistPress, onViewAll }: Props) {
         />
       )}
       cardSize={ARTIST_CARD_WIDTH}
+      cardShape="circle"
       isLoading={isLoading}
       onViewAll={onViewAll}
       style={styles.container}

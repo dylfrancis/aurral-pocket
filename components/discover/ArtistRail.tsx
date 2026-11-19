@@ -46,6 +46,7 @@ export function ArtistRail({
         />
       )}
       cardSize={ARTIST_CARD_WIDTH}
+      cardShape="circle"
       isLoading={isLoading}
       onViewAll={onViewAll}
       style={style}

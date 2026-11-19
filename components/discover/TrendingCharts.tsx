@@ -102,7 +102,7 @@ export function TrendingCharts({ active = true }: { active?: boolean }) {
       <View style={styles.loading}>
         <AlbumCategorySkeleton />
         <AlbumCategorySkeleton />
-        <AlbumCategorySkeleton />
+        <AlbumCategorySkeleton shape="circle" />
       </View>
     );
   }

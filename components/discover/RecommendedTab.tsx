@@ -93,8 +93,8 @@ export function RecommendedTab({ onArtistPress, onShowList }: Props) {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <AlbumCategorySkeleton />
-        <AlbumCategorySkeleton />
+        <AlbumCategorySkeleton shape="circle" />
+        <AlbumCategorySkeleton shape="circle" />
       </View>
     );
   }
