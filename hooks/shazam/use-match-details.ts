@@ -76,7 +76,7 @@ export function useMatchDetails(match: ShazamMatch): MatchDetails | null {
 
   const titleQuery = librarySearchQuery(match);
   const libraryQuery = useQuery({
-    queryKey: searchKeys.library(titleQuery),
+    queryKey: searchKeys.libraryTracks(titleQuery),
     queryFn: () => searchLibraryTracks(titleQuery),
     enabled: titleQuery.length > 0,
     // The library changes; the sheet should see it as it is now.
