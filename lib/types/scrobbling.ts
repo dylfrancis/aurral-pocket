@@ -1,4 +1,4 @@
-export type ScrobbleProvider = "lastfm" | "listenbrainz" | "koito";
+export type ScrobbleProvider = "listenbrainz" | "koito";
 
 export type ScrobbleConnection = {
   connected: boolean;
@@ -9,8 +9,6 @@ export type ScrobbleConnection = {
 };
 
 export type ScrobbleStatus = {
-  /** `configured` is false until an admin adds a Last.fm API key and secret. */
-  lastfm: ScrobbleConnection & { configured: boolean };
   listenbrainz: ScrobbleConnection;
   koito: ScrobbleConnection;
 };

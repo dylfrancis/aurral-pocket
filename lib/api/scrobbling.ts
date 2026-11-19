@@ -9,10 +9,8 @@ export async function getScrobbleStatus() {
   return r.data;
 }
 
-export type TokenScrobbler = Exclude<ScrobbleProvider, "lastfm">;
-
 /** Koito's link uses the Koito URL saved in the account's listening history. */
-export async function linkScrobbler(provider: TokenScrobbler, token: string) {
+export async function linkScrobbler(provider: ScrobbleProvider, token: string) {
   const r =
     provider === "listenbrainz"
       ? await api.put<ScrobbleLink>("/scrobbling/listenbrainz/link", { token })
@@ -21,8 +19,7 @@ export async function linkScrobbler(provider: TokenScrobbler, token: string) {
 }
 
 export async function unlinkScrobbler(provider: ScrobbleProvider) {
-  if (provider === "lastfm") await api.delete("/scrobbling/lastfm/link");
-  else if (provider === "listenbrainz")
+  if (provider === "listenbrainz")
     await api.delete("/scrobbling/listenbrainz/link");
   else await api.delete("/scrobbling/koito/link");
 }

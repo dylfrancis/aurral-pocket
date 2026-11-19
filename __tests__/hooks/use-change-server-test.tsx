@@ -29,7 +29,7 @@ async function changeServer() {
   const client = new QueryClient({
     defaultOptions: { mutations: { gcTime: 0 } },
   });
-  client.setQueryData(["me", "listeningHistory"], { lastfm: "ada" });
+  client.setQueryData(["me", "listeningHistory"], { listenbrainz: "ada" });
   const { result } = await renderHook(() => useChangeServer(), {
     wrapper: ({ children }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>

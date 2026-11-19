@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { AppState, Linking } from "react-native";
+import { useState } from "react";
 import { FieldGroup, Host, Text, TextInput } from "@expo/ui";
 import { useLocalSearchParams } from "expo-router";
 import * as Burnt from "burnt";
@@ -15,7 +14,6 @@ import {
   useFieldColors,
   useSettingsRow,
 } from "@/components/settings/SettingsRows";
-import { useAuth } from "@/contexts/auth-context";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
   useListeningHistory,
@@ -23,11 +21,9 @@ import {
 } from "@/hooks/me/use-listening-history";
 import {
   useLinkScrobbler,
-  useRefreshListening,
   useScrobbleStatus,
   useUnlinkScrobbler,
 } from "@/hooks/me/use-scrobbling";
-import type { TokenScrobbler } from "@/lib/api/scrobbling";
 import type { ScrobbleProvider, ScrobbleStatus } from "@/lib/types/scrobbling";
 
 function errorMessage(error: unknown) {
@@ -50,30 +46,10 @@ export function ListeningServiceScreen() {
       </Host>
     );
   }
-  return service === "lastfm" ? (
-    <LastfmPage />
-  ) : (
-    <TokenServicePage key={service} service={service} />
-  );
+  return <TokenServicePage key={service} service={service} />;
 }
 
-function LastfmPage() {
-  const historySection = useHistorySection("lastfm");
-  const status = useScrobbleStatus();
-  const placeholder = useScrobblingPlaceholder(status);
-  const scrobblingSection = useLastfmScrobbling(status.data);
-
-  return (
-    <Host style={{ flex: 1 }}>
-      <FieldGroup>
-        {historySection}
-        {placeholder ?? scrobblingSection}
-      </FieldGroup>
-    </Host>
-  );
-}
-
-function TokenServicePage({ service }: { service: TokenScrobbler }) {
+function TokenServicePage({ service }: { service: ScrobbleProvider }) {
   const historySection = useHistorySection(service);
   const status = useScrobbleStatus();
   const placeholder = useScrobblingPlaceholder(status);
@@ -233,7 +209,7 @@ function useDisconnect(service: ScrobbleProvider) {
 }
 
 function useTokenScrobbling(
-  service: TokenScrobbler,
+  service: ScrobbleProvider,
   status: ScrobbleStatus | undefined,
 ) {
   const row = useSettingsRow();
@@ -331,96 +307,6 @@ function useTokenScrobbling(
         : null}
       <FieldGroup.SectionFooter>
         <SettingsNote>{note}</SettingsNote>
-      </FieldGroup.SectionFooter>
-    </FieldGroup.Section>
-  );
-}
-
-/**
- * Last.fm's link callback checks a cookie that only the browser that started
- * the link holds, so pocket can't link it. Connect opens the web app, where
- * linking works, and both reads refresh when pocket is back in front.
- */
-function useLastfmScrobbling(status: ScrobbleStatus | undefined) {
-  const row = useSettingsRow();
-  const { serverUrl } = useAuth();
-  const hasPermission = useHasPermission();
-  const refresh = useRefreshListening();
-  const { disconnect, disconnecting } = useDisconnect("lastfm");
-  const [awaitingReturn, setAwaitingReturn] = useState(false);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active" && awaitingReturn) {
-        setAwaitingReturn(false);
-        void refresh();
-      }
-    });
-    return () => subscription.remove();
-  }, [awaitingReturn, refresh]);
-
-  if (!status) return null;
-  const connection = status.lastfm;
-
-  if (!connection.configured) {
-    return (
-      <FieldGroup.Section key="scrobbling" title="Scrobbling">
-        {connection.connected
-          ? row({
-              label: disconnecting ? "Disconnecting…" : "Disconnect",
-              destructive: true,
-              disabled: disconnecting,
-              onPress: disconnect,
-            })
-          : row({ label: "Status", value: "Not connected" })}
-        <FieldGroup.SectionFooter>
-          <SettingsNote>
-            {hasPermission("accessSettings")
-              ? "Add a Last.fm API key and secret in Aurral’s Discovery settings first."
-              : "An admin needs to add a Last.fm API key before you can connect."}
-          </SettingsNote>
-        </FieldGroup.SectionFooter>
-      </FieldGroup.Section>
-    );
-  }
-
-  const openWebApp = () => {
-    if (!serverUrl) return;
-    setAwaitingReturn(true);
-    Linking.openURL(
-      `${serverUrl}/?settings=${encodeURIComponent("listening/lastfm")}`,
-    ).catch(() => {
-      setAwaitingReturn(false);
-      Burnt.toast({ title: "Couldn't open Aurral", preset: "error" });
-    });
-  };
-
-  return (
-    <FieldGroup.Section key="scrobbling" title="Scrobbling">
-      {row({
-        label: "Status",
-        value: connection.connected
-          ? connectedLabel(connection)
-          : "Not connected",
-      })}
-      {row({
-        label: connection.connected ? "Relink in Aurral" : "Connect in Aurral",
-        action: true,
-        onPress: openWebApp,
-      })}
-      {connection.connected
-        ? row({
-            label: disconnecting ? "Disconnecting…" : "Disconnect",
-            destructive: true,
-            disabled: disconnecting,
-            onPress: disconnect,
-          })
-        : null}
-      <FieldGroup.SectionFooter>
-        <SettingsNote>
-          Last.fm links in Aurral’s web app. Sign in there, connect, then come
-          back.
-        </SettingsNote>
       </FieldGroup.SectionFooter>
     </FieldGroup.Section>
   );
