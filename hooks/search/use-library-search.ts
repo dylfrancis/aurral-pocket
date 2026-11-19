@@ -4,14 +4,15 @@ import { searchKeys } from "@/lib/query-keys";
 import { useDebouncedValue } from "./use-debounced-value";
 
 /**
- * Library songs and the user's own playlists that match `query`. Search and
- * its results share one answer, since one request returns all of them.
+ * Library artists, albums, songs and the user's own playlists that match
+ * `query`. Every search screen shares one answer, since one request returns
+ * all of them.
  */
 export function useLibrarySearch(query: string) {
   const debouncedQuery = useDebouncedValue(query.trim());
 
   return useQuery({
-    queryKey: searchKeys.songsAndPlaylists(debouncedQuery),
+    queryKey: searchKeys.librarySearch(debouncedQuery),
     queryFn: () => searchLibrary(debouncedQuery),
     enabled: debouncedQuery.length >= 2,
     placeholderData: keepPreviousData,

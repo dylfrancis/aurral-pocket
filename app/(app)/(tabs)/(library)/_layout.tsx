@@ -20,6 +20,7 @@ export default function LibraryLayout() {
           options={{
             title: "Library",
             headerLargeTitleEnabled: true,
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.library, colors),
           }}
         />
         <Stack.Screen
@@ -93,6 +94,7 @@ export default function LibraryLayout() {
           }}
         />
         <Stack.Screen name="playlist/[id]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen name="flow/[id]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen
           name="playlist-edit"
           options={{

@@ -56,14 +56,16 @@ export async function searchLibraryTracks(query: string, limit = 30) {
 }
 
 /**
- * Library songs and the user's own flows and playlists that match `query`,
- * up to `limit` of each. The server allows at most 30.
+ * Library artists, albums and songs and the user's own flows and playlists
+ * that match `query`, up to `limit` of each, with the query they answer. The
+ * server allows at most 30.
  */
 export async function searchLibrary(query: string, limit = 30) {
   const r = await api.get<LibrarySearchResponse>("/search/library", {
     params: { q: query, limit },
   });
-  return { tracks: r.data.tracks, playlists: r.data.playlists };
+  const { artists, albums, tracks, playlists } = r.data;
+  return { query, artists, albums, tracks, playlists };
 }
 
 /** What a Spotify, Apple Music, TIDAL, Deezer or YouTube Music link names. */

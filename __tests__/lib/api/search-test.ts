@@ -118,20 +118,25 @@ describe("searchLibraryTracks", () => {
 });
 
 describe("searchLibrary", () => {
-  it("asks GET /search/library for the query and returns its songs and playlists", async () => {
+  it("asks GET /search/library for the query and returns every kind it matched", async () => {
+    const artist = { id: "a1", libraryId: "1", name: "Karma Band" };
+    const album = { id: "rg1", libraryId: "2", title: "Karma" };
     const track = { id: "77", title: "Karma Police", streamPath: "/s" };
     const playlist = { id: "f1", name: "Karma Mix", sourceFlowId: "f1" };
     mockApi.get.mockResolvedValue({
       data: {
         query: "karma",
-        artists: [],
-        albums: [],
+        artists: [artist],
+        albums: [album],
         tracks: [track],
         playlists: [playlist],
       },
     });
 
     await expect(searchLibrary("karma")).resolves.toEqual({
+      query: "karma",
+      artists: [artist],
+      albums: [album],
       tracks: [track],
       playlists: [playlist],
     });
