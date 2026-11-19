@@ -28,8 +28,15 @@ import type { Album } from "@/lib/types/library";
  * Saved albums are sorted on the phone, so they take fewer sorts and no
  * status.
  */
-export function LibraryAlbumsScreen({ genre }: { genre?: string }) {
-  const grid = useAlbumGrid({ genre });
+export function LibraryAlbumsScreen({
+  genre,
+  openedSort,
+}: {
+  genre?: string;
+  /** The sort a Library home rail opened the list on. */
+  openedSort?: string;
+}) {
+  const grid = useAlbumGrid({ genre, openedSort });
   const router = useRouter();
   const isOffline = useIsOffline();
   const canShowSaved = !genre;

@@ -27,13 +27,17 @@ const GENRE_SHOWS: LibraryShow[] = ["all", "favorites"];
 /**
  * Search, sort, filters and paging for a whole-library album grid. The sort
  * and filters are remembered: one choice for the Albums list, one shared by
- * every genre.
+ * every genre. `openedSort` opens the grid on a sort without remembering it.
  */
-export function useAlbumGrid({ genre = "" }: { genre?: string } = {}) {
+export function useAlbumGrid({
+  genre = "",
+  openedSort,
+}: { genre?: string; openedSort?: string } = {}) {
   const { view, setSort, setShow, setStatus } = useLibraryView(
     genre ? "genre-albums" : "library-albums",
     ALBUM_SORTS,
     genre ? GENRE_SHOWS : LIBRARY_SHOWS,
+    ALBUM_SORTS.find((sort) => sort === openedSort),
   );
   const sortOptions = useMemo(
     () => sortsFor(LIBRARY_ALBUM_SORT_OPTIONS, view.show),

@@ -16,6 +16,12 @@ jest.mock("@/components/player/MiniPlayerHost", () => ({
   MiniPlayerHost: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// The home's album rails draw Reanimated skeletons, which renderRouter's mock
+// can't run. No test here reads them.
+jest.mock("@/components/library/LibraryAlbumRail", () => ({
+  LibraryAlbumRail: () => null,
+}));
+
 jest.mock("@shopify/flash-list", () => {
   const { FlatList } = require("react-native");
   return { FlashList: FlatList };

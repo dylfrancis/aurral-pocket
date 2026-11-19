@@ -3,6 +3,7 @@ import type {
   LibraryAlbumsParams,
   LibraryArtistsParams,
   LibraryListParams,
+  LibrarySort,
 } from "@/lib/types/library";
 import type { LyricsLookup } from "@/lib/types/lyrics";
 import type { BrowseProvider, EditorialShelfScope } from "@/lib/types/search";
@@ -42,6 +43,9 @@ export const libraryKeys = {
   albumsAllViews: () => ["library", "albumsAll"] as const,
   albumsAll: (params: LibraryAlbumsParams) =>
     ["library", "albumsAll", params] as const,
+  // Under `albumsAll`, so the Library home's rails reread with its lists.
+  albumRail: (sort: LibrarySort) =>
+    ["library", "albumsAll", "rail", sort] as const,
   // Album lookups live under `albumsAll`, so every invalidation of the
   // whole-library album list refreshes them too.
   albumLookup: (mbids: string) =>

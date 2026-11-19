@@ -67,6 +67,10 @@ function readView<Sort extends string>(
  * A Library list's sort and filters, remembered under `listKey` across
  * launches. `sorts` is every sort the list can offer, its default first.
  *
+ * `openedSort` opens the list on that sort with no filters, as a Library home
+ * rail's › does, without touching the remembered view. A change made there is
+ * remembered as usual.
+ *
  * Changes render in a transition, so a list read with Suspense keeps showing
  * the old view until the new one has loaded.
  */
@@ -74,9 +78,12 @@ export function useLibraryView<Sort extends string>(
   listKey: string,
   sorts: readonly Sort[],
   shows: readonly LibraryShow[],
+  openedSort?: Sort,
 ) {
-  const [view, setView] = useState(() =>
-    readView(cache?.[listKey], sorts, shows),
+  const [view, setView] = useState<LibraryView<Sort>>(() =>
+    openedSort
+      ? { sort: openedSort, show: "all", status: null }
+      : readView(cache?.[listKey], sorts, shows),
   );
   // The newest view asked for. `view` lags behind it while a Suspense list
   // loads in the transition, and a second change must build on the first.
@@ -85,6 +92,7 @@ export function useLibraryView<Sort extends string>(
 
   // `sorts` and `shows` are fixed per list, so only the key reloads.
   useEffect(() => {
+    if (openedSort) return;
     let cancelled = false;
     void loadViews().then((stored) => {
       // A change made before the read finished is newer than what's stored.
