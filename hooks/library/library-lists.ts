@@ -1,10 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { isFilteredListKey, libraryKeys } from "@/lib/query-keys";
+import { isFilteredListKey, libraryKeys, searchKeys } from "@/lib/query-keys";
 
 /**
  * Reread the Library's own lists after an artist or album joins or leaves it:
- * the Artists, Albums, Songs and Genres screens may sit under the page that
- * changed it.
+ * the Artists, Albums, Songs and Genres screens and Library search may sit
+ * under the page that changed it.
  */
 export function invalidateLibraryLists(queryClient: QueryClient) {
   for (const queryKey of [
@@ -12,6 +12,7 @@ export function invalidateLibraryLists(queryClient: QueryClient) {
     libraryKeys.albumsAllViews(),
     libraryKeys.songViews(),
     libraryKeys.genres(),
+    searchKeys.librarySearchAll(),
   ]) {
     void queryClient.invalidateQueries({ queryKey });
   }

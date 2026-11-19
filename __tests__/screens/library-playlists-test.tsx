@@ -16,10 +16,14 @@ jest.mock("@/components/player/MiniPlayerHost", () => ({
   MiniPlayerHost: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// The home's album rails draw Reanimated skeletons, which renderRouter's mock
-// can't run. No test here reads them.
+// The home's album rails and search results load Reanimated and the sheet
+// library, which renderRouter's mocks can't run. No test here reads them.
 jest.mock("@/components/library/LibraryAlbumRail", () => ({
   LibraryAlbumRail: () => null,
+}));
+jest.mock("@/components/library/LibrarySearchResults", () => ({
+  LibrarySearchResults: () => null,
+  isLibrarySearchQuery: () => false,
 }));
 
 jest.mock("@shopify/flash-list", () => {

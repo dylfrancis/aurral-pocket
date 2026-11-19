@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import type { NativeSyntheticEvent } from "react-native";
+import type { SearchBarTextEventData } from "react-native-screens";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter, type Href } from "expo-router";
 import * as Haptics from "expo-haptics";
 import ShuffleIcon from "@expo/material-symbols/shuffle.xml";
 import { LibraryAlbumRail } from "@/components/library/LibraryAlbumRail";
+import {
+  LibrarySearchResults,
+  isLibrarySearchQuery,
+} from "@/components/library/LibrarySearchResults";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import { Text } from "@/components/ui/Text";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -15,6 +21,7 @@ import {
   usePlayLibrarySongs,
 } from "@/hooks/library/use-play-library-songs";
 import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
+import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { Fonts } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
@@ -52,6 +59,7 @@ const LIBRARY_SHUFFLE = songListContext("Library");
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const colors = useColors();
   const hasPermission = useHasPermission();
   const categories = CATEGORIES.filter(
     (category) =>
@@ -75,8 +83,23 @@ export default function LibraryScreen() {
     });
   }, [readAndPlay]);
 
+  // Stable, for the same reason as the shuffle handler.
+  const [query, setQuery] = useState("");
+  const changeQuery = useCallback(
+    (e: NativeSyntheticEvent<SearchBarTextEventData>) =>
+      setQuery(e.nativeEvent.text),
+    [],
+  );
+  const cancelSearch = useCallback(() => setQuery(""), []);
+  const isSearching = isLibrarySearchQuery(query);
+
   return (
     <>
+      <Stack.SearchBar
+        {...headerSearchBar(SEARCH_PLACEHOLDERS.library, colors)}
+        onChangeText={changeQuery}
+        onCancelButtonPress={cancelSearch}
+      />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon={IS_IOS ? "shuffle" : ShuffleIcon}
@@ -91,44 +114,50 @@ export default function LibraryScreen() {
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.content}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
       >
-        {categories.map((category, index) => (
-          <CategoryRow
-            key={category.label}
-            category={category}
-            // The last row drops its separator, so the list does not end on a
-            // hairline hanging under nothing.
-            separator={index < categories.length - 1}
-            onPress={() => router.push(category.route)}
-          />
-        ))}
-        {/* Every rail reads the server, so none shows offline. */}
-        {isOffline ? null : (
-          <View style={styles.rails}>
-            <LibraryAlbumRail
-              title="Recently Played"
-              sort="played"
-              refreshKey={playedKey}
+        <LibrarySearchResults query={query} />
+        {/* Hidden, not unmounted, so the rails don't reread after a search. */}
+        <View style={isSearching && styles.hidden}>
+          {categories.map((category, index) => (
+            <CategoryRow
+              key={category.label}
+              category={category}
+              // The last row drops its separator, so the list does not end on a
+              // hairline hanging under nothing.
+              separator={index < categories.length - 1}
+              onPress={() => router.push(category.route)}
             />
-            <LibraryAlbumRail
-              title="Most Played"
-              sort="plays"
-              refreshKey={playedKey}
-            />
-            <LibraryAlbumRail title="Recently Added" sort="newest" />
-            <LibraryAlbumRail
-              title="Recently Released"
-              sort="released"
-              availableOnly
-            />
-            <LibraryAlbumRail
-              title="Explore"
-              sort="random"
-              availableOnly
-              showAll={false}
-            />
-          </View>
-        )}
+          ))}
+          {/* Every rail reads the server, so none shows offline. */}
+          {isOffline ? null : (
+            <View style={styles.rails}>
+              <LibraryAlbumRail
+                title="Recently Played"
+                sort="played"
+                refreshKey={playedKey}
+              />
+              <LibraryAlbumRail
+                title="Most Played"
+                sort="plays"
+                refreshKey={playedKey}
+              />
+              <LibraryAlbumRail title="Recently Added" sort="newest" />
+              <LibraryAlbumRail
+                title="Recently Released"
+                sort="released"
+                availableOnly
+              />
+              <LibraryAlbumRail
+                title="Explore"
+                sort="random"
+                availableOnly
+                showAll={false}
+              />
+            </View>
+          )}
+        </View>
       </ScrollView>
     </>
   );
@@ -175,6 +204,9 @@ const styles = StyleSheet.create({
   rails: {
     paddingTop: 20,
     gap: 20,
+  },
+  hidden: {
+    display: "none",
   },
   row: {
     flexDirection: "row",

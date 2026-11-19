@@ -46,6 +46,7 @@ export function searchBarColors(colors: { text: string; subtle: string }) {
 
 /** Placeholders for the search bars a layout declares ahead of its screen. */
 export const SEARCH_PLACEHOLDERS = {
+  library: "Find in Library",
   artists: "Search artists...",
   albums: "Search albums and artists",
   songs: "Search songs, albums and artists",
