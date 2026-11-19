@@ -1,14 +1,24 @@
-import { useEffect } from "react";
-import { Pressable, ScrollView, StyleSheet } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter, type Href } from "expo-router";
+import * as Haptics from "expo-haptics";
+import ShuffleIcon from "@expo/material-symbols/shuffle.xml";
+import { LibraryAlbumRail } from "@/components/library/LibraryAlbumRail";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import { Text } from "@/components/ui/Text";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { preloadLibraryViews } from "@/hooks/library/use-library-view";
-import { IS_ANDROID } from "@/constants/platform";
+import {
+  readShuffleSongs,
+  songListContext,
+  usePlayLibrarySongs,
+} from "@/hooks/library/use-play-library-songs";
+import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { Fonts } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
+import { useIsOffline } from "@/lib/offline/network";
 
 type Category = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -18,9 +28,10 @@ type Category = {
 };
 
 /**
- * The library home is a category list: every row pushes a screen, and the home
- * itself reads nothing. With no query there is no spinner and no failure state
- * on the tab's first paint, however large the library is.
+ * The library home starts with a category list: every row pushes a screen and
+ * needs no read, so the list paints at once however large the library is, and
+ * works with no connection. The album rails come after it, and Shuffle Library
+ * sits in the top bar.
  */
 const CATEGORIES: Category[] = [
   { icon: "people-outline", label: "Artists", route: "/artists" },
@@ -39,6 +50,7 @@ const CATEGORIES: Category[] = [
 ];
 
 const ICON_SIZE = 22;
+const LIBRARY_SHUFFLE = songListContext("Library");
 
 export default function LibraryScreen() {
   const router = useRouter();
@@ -48,14 +60,38 @@ export default function LibraryScreen() {
       !category.requiresPlaylistAccess || hasPermission("accessPlaylists"),
   );
   useEffect(preloadLibraryViews, []);
+  const isOffline = useIsOffline();
+
+  // Played rails move with every play, so they reread on each return to the
+  // tab. Explore stays put: the album just opened from it shouldn't vanish.
+  const [playedKey, setPlayedKey] = useState(0);
+  const rereadPlayed = useCallback(() => setPlayedKey((key) => key + 1), []);
+  useRefreshOnFocus(rereadPlayed);
+
+  // About 500 songs drawn from across the whole Library. Stable, because a
+  // new handler rebuilds the native header.
+  const { readAndPlay, isLoading: shuffleLoading } = usePlayLibrarySongs();
+  const shuffleLibrary = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void readAndPlay(() => readShuffleSongs({}), LIBRARY_SHUFFLE, {
+      shuffled: true,
+    });
+  }, [readAndPlay]);
 
   return (
     <>
-      {IS_ANDROID && (
-        <Stack.Toolbar placement="right">
-          <OverflowMenu />
-        </Stack.Toolbar>
-      )}
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={IS_IOS ? "shuffle" : ShuffleIcon}
+          accessibilityLabel="Shuffle Library"
+          // It reads the server, and a second tap while it reads does nothing.
+          disabled={isOffline || shuffleLoading}
+          onPress={shuffleLibrary}
+        >
+          Shuffle Library
+        </Stack.Toolbar.Button>
+        {IS_ANDROID && <OverflowMenu />}
+      </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.content}
@@ -70,6 +106,33 @@ export default function LibraryScreen() {
             onPress={() => router.push(category.route)}
           />
         ))}
+        {/* Every rail reads the server, so none shows offline. */}
+        {isOffline ? null : (
+          <View style={styles.rails}>
+            <LibraryAlbumRail
+              title="Recently Played"
+              sort="played"
+              refreshKey={playedKey}
+            />
+            <LibraryAlbumRail
+              title="Most Played"
+              sort="plays"
+              refreshKey={playedKey}
+            />
+            <LibraryAlbumRail title="Recently Added" sort="newest" />
+            <LibraryAlbumRail
+              title="Recently Released"
+              sort="released"
+              availableOnly
+            />
+            <LibraryAlbumRail
+              title="Explore"
+              sort="random"
+              availableOnly
+              showAll={false}
+            />
+          </View>
+        )}
       </ScrollView>
     </>
   );
@@ -111,6 +174,11 @@ function CategoryRow({
 const styles = StyleSheet.create({
   content: {
     paddingTop: 8,
+    paddingBottom: 24,
+  },
+  rails: {
+    paddingTop: 20,
+    gap: 20,
   },
   row: {
     flexDirection: "row",

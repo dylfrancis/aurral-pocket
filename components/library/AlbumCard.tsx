@@ -10,7 +10,7 @@ import type { Album, DownloadStatusValue } from "@/lib/types/library";
 import { releaseYear } from "@/lib/date-time";
 import { useColors } from "@/hooks/use-colors";
 
-const CARD_WIDTH = 150;
+export const ALBUM_CARD_WIDTH = 150;
 
 const STATUS_LABELS: Record<string, string> = {
   adding: "Adding...",
@@ -65,7 +65,7 @@ export const AlbumCard = React.memo(function AlbumCard({
         type="album"
         mbid={album.mbid}
         coverUrl={album.coverUrl}
-        size={fill ? "fill" : CARD_WIDTH}
+        size={fill ? "fill" : ALBUM_CARD_WIDTH}
         borderRadius={10}
       />
       <View style={styles.meta}>
@@ -118,7 +118,7 @@ export const AlbumCard = React.memo(function AlbumCard({
 
 const styles = StyleSheet.create({
   container: {
-    width: CARD_WIDTH,
+    width: ALBUM_CARD_WIDTH,
     marginRight: 12,
   },
   containerFill: {

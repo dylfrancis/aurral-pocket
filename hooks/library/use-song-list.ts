@@ -40,9 +40,14 @@ const SONG_SHOWS: LibraryShow[] = ["all", "favorites"];
  * earlier page carried: offsets shift when the library changes between reads.
  */
 function flattenSongPages(data: InfiniteData<CanonicalPage>): AlbumTrack[] {
+  return songsOfPages(data.pages);
+}
+
+/** Songs from pages of `GET /library?kind=tracks`, each with its album. */
+export function songsOfPages(pages: readonly CanonicalPage[]): AlbumTrack[] {
   const seenIds = new Set<string>();
   const songs: AlbumTrack[] = [];
-  for (const page of data.pages) {
+  for (const page of pages) {
     const artistsById = new Map(page.artists.map((a) => [a.id, a]));
     const albumsById = new Map(page.albums.map((a) => [a.id, a]));
     for (const track of page.tracks) {

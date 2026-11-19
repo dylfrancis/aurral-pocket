@@ -93,6 +93,28 @@ describe("useLibraryView", () => {
     );
   });
 
+  it("opens on a rail's sort without changing the view it remembers", async () => {
+    const { AsyncStorage, rntl, useLibraryView } = launch();
+    const stored = {
+      "library-songs": { sort: "name-asc", show: "favorites", status: null },
+    };
+    await AsyncStorage.setItem("library_views", JSON.stringify(stored));
+    const { result } = await rntl.renderHook(() =>
+      useLibraryView("library-songs", SORTS, SHOWS, "played"),
+    );
+    // Lets the stored views load.
+    await rntl.act(async () => {});
+
+    expect(result.current.view).toEqual({
+      sort: "played",
+      show: "all",
+      status: null,
+    });
+    expect(
+      JSON.parse((await AsyncStorage.getItem("library_views")) ?? "{}"),
+    ).toEqual(stored);
+  });
+
   it("falls back to the list's defaults for what it no longer offers", async () => {
     const { AsyncStorage, rntl, useLibraryView } = launch();
     await AsyncStorage.setItem(
