@@ -29,10 +29,6 @@ import {
 // edge-to-edge screen it detaches from its chip.
 const POPUP_PROPERTIES = { clippingEnabled: false };
 
-/**
- * "In Library · Monitored": a chip that opens a Compose menu with the
- * artist's monitoring and Remove from Library.
- */
 export function ArtistLibraryCapsule({
   choice,
   defaultSummary,

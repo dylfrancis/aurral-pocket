@@ -10,7 +10,6 @@ import { useIsOffline } from "@/lib/offline/network";
 
 const ICON_SIZE = 44;
 
-/** One tap to music: a station from what the listener has played. */
 export function YourRadioCard() {
   const colors = useColors();
   const isOffline = useIsOffline();

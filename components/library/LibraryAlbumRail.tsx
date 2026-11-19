@@ -11,16 +11,13 @@ type LibraryAlbumRailProps = {
   title: string;
   sort: LibrarySort & LibraryAlbumSortMode;
   availableOnly?: boolean;
-  /** Omit for a rail with no View All, such as Explore. */
+  /** False for a rail with no View All, such as Explore. */
   showAll?: boolean;
   /** Changes on each return to the tab, to reread a rail that moves. */
   refreshKey?: number;
 };
 
-/**
- * A row of Library albums in one order. Its › opens Albums sorted the same
- * way. Hidden once loaded with nothing, as when nothing has been played yet.
- */
+/** Its › opens Albums on the same sort; hidden once loaded with nothing. */
 export function LibraryAlbumRail({
   title,
   sort,

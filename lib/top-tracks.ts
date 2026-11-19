@@ -5,7 +5,6 @@ import {
 } from "@/lib/player/track-item";
 import type { LibraryQueueTrack, PreviewTrack } from "@/lib/types/library";
 
-/** One of an artist's top tracks, with the Library's copy when it has one. */
 export type TopTrack = {
   preview: PreviewTrack;
   library: LibraryQueueTrack | null;
@@ -34,11 +33,8 @@ function loose(text: string): string {
 }
 
 /**
- * Match each top track to the Library's copy. Deezer sends no MusicBrainz ids,
- * so titles decide: the same title first, then the same title without a
- * version note such as "(Remastered)". When several Library tracks share a
- * title, the one on the same album wins, else the earliest album, which the
- * queue lists first.
+ * Deezer sends no MusicBrainz ids, so titles match: exact first, then without a
+ * version note. On a tie the same album wins, else the earliest one.
  */
 export function matchTopTracks(
   previews: readonly PreviewTrack[],
@@ -78,11 +74,7 @@ export function topTrackClipId(preview: PreviewTrack): string {
   return `preview:${preview.id}`;
 }
 
-/**
- * The queue item for a top track: the Library's file when there is one, else
- * the thirty-second clip. Null for a Library track whose URL can't be built
- * now, as when the session has ended.
- */
+/** Null for a Library track whose URL can't be built now, as when the session has ended. */
 export function topTrackItem(
   topTrack: TopTrack,
   artist: { name: string; mbid: string },

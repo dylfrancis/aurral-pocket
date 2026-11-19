@@ -206,7 +206,7 @@ export function NowPlayingScreen() {
     });
   }, [artistMbid, track?.artist, leaveFor]);
 
-  // Library tracks only: a playlist or radio track may have no album page.
+  // Only tracks with an album page: a playlist download has none.
   const openAlbum = useCallback(() => {
     if (!track?.albumRef) return;
     leaveFor({
@@ -737,7 +737,6 @@ function TrackTitles({
 }: {
   track: PlayerTrack;
   align: "center" | "start";
-  /** Opens the song's album. */
   onTitlePress?: () => void;
   onArtistPress?: () => void;
 }) {
@@ -780,7 +779,6 @@ function TrackTitles({
         onPress={onArtistPress}
         disabled={!onArtistPress}
         hitSlop={8}
-        // Dims while held, as the title does, so the tap reads as a link.
         style={({ pressed }) => pressed && styles.pressed}
         accessibilityRole={onArtistPress ? "button" : undefined}
         accessibilityLabel={

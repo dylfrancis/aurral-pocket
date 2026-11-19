@@ -10,11 +10,8 @@ import { useTrackPlayback } from "@/hooks/player/use-track-playback";
 import type { EditorialTrackItem } from "./EditorialTrackRow";
 
 const COVER_SIZE = 44;
-// A song the Library doesn't have reads as unavailable, like a missing album
-// track.
 const MISSING_OPACITY = 0.45;
 
-/** Where a song not in the Library stands with its ↓. */
 export type TrackDownloadState = "idle" | "sending" | "queued";
 
 type Props = {
@@ -32,11 +29,7 @@ type Props = {
   downloadState?: TrackDownloadState;
 };
 
-/**
- * A song on a Browse playlist. Tapping it plays: a Library song from here on,
- * a missing one as its clip alone. A missing song is grayed, with a ↓ that
- * asks Aurral to find and download it.
- */
+/** One the Library doesn't have is grayed, with a ↓ to download it. */
 export const BrowseTrackRow = React.memo(function BrowseTrackRow({
   item,
   position,

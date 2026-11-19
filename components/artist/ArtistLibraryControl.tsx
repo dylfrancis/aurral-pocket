@@ -26,10 +26,7 @@ type ArtistLibraryControlProps = {
   onRemove?: () => void;
 };
 
-/**
- * A Library artist's state in one capsule: that it's in the Library, how it's
- * monitored, and a menu to change the monitoring or remove the artist.
- */
+/** In Library and the monitoring in one capsule, whose menu changes it or removes the artist. */
 export function ArtistLibraryControl({
   mbid,
   artistName,

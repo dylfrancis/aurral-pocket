@@ -1,11 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
 
-/**
- * Shuffle and Play at the top of a list of many albums' songs, such as
- * Favorites, a genre or Offline. Nothing fills the third slot, so a spacer
- * keeps Play centered.
- */
+/** Nothing fills the third slot, so a spacer keeps Play centered. */
 export function ListPlayRow({
   title,
   disabled,

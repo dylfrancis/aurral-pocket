@@ -241,7 +241,6 @@ export default function LibraryFavoritesScreen() {
         renderItem={renderRow}
         keyExtractor={rowKey}
         getItemType={(row) => row.type}
-        // The favorite songs a search leaves, in the list's order.
         ListHeaderComponent={
           shown.tracks.length > 0 ? (
             <ListPlayRow

@@ -2,10 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { PLAY_ROW_HEIGHT } from "@/components/ui/PlayRow";
 
-/**
- * PlayRow's shape while what it plays is still unknown. Its own file, so a
- * screen that draws a PlayRow doesn't load the skeleton's animation.
- */
+/** Its own file, so a screen that draws a PlayRow doesn't load the skeleton's animation. */
 export function PlayRowSkeleton() {
   return (
     <View style={styles.row}>
@@ -28,7 +25,7 @@ export function PlayRowSkeleton() {
   );
 }
 
-// PlayRow's own row.
+// Matches PlayRow's row.
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",

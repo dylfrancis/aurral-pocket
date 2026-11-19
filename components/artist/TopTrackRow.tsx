@@ -19,10 +19,6 @@ type TopTrackRowProps = {
   onOpenActions: () => void;
 };
 
-/**
- * One of an artist's top tracks: the Library's file when there is one, else a
- * clip, tagged Preview.
- */
 export const TopTrackRow = React.memo(function TopTrackRow({
   topTrack,
   number,

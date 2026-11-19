@@ -97,7 +97,6 @@ export default function DiscoverListScreen() {
   useDateTimeFormat();
 
   const kind: Kind | null = isValidKind(kindParam) ? kindParam : null;
-  // Every list but new releases is of artists, which draw round.
   const artistKind = kind !== "recent-releases";
 
   const { isGrid, numColumns, viewMenuSection } = useGridListView(
