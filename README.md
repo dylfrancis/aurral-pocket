@@ -19,102 +19,55 @@
   </a>
 </p>
 
-A React Native / [Expo](https://expo.dev) mobile client for [**Aurral**](https://github.com/lklynet/aurral) - find new music, get it, and play it, all on your own server. Discover artists, manage your library and requests, and play your music on the go, online or offline.
+A mobile app for [Aurral](https://github.com/lklynet/aurral). Discover music, manage your library, and play it from your own server, online or offline.
 
-> Huge thanks to [@lklynet](https://github.com/lklynet) for building [Aurral](https://github.com/lklynet/aurral), this app wouldn't exist without it.
+## Install
 
-## Try the app
-
-Want to test a build without setting up the dev environment? Join one of the testing tracks below.
-
-### iOS (TestFlight)
-
-Install [TestFlight](https://apps.apple.com/app/testflight/id899247664) from the App Store, then join via:
-
-- **TestFlight invite:** https://testflight.apple.com/join/wMfHs7zE
-
-### Android (closed testing)
-
-Android requires closed testing before the app can be approved for open testing and production, so testers must join the Google Group before getting access to the app.
-
-1. Join the Aurral Closed Testers group: https://groups.google.com/g/aurral-closed-testers
-2. Once you have joined, opt in to the test:
-   - **Web:** https://play.google.com/apps/testing/com.aurral.aurralpocket
-   - **Play Store:** https://play.google.com/store/apps/details?id=com.aurral.aurralpocket
-
-> Note: you must join the group before the Play Store / web links will work.
-
-### Android (APK and Obtainium)
-
-Every stable [release](https://github.com/dylfrancis/aurral-pocket/releases/latest) has an APK attached, so you can install the app without Google Play.
-
-- **Obtainium:** add `https://github.com/dylfrancis/aurral-pocket` as a new app in [Obtainium](https://github.com/ImranR98/Obtainium), and it installs each release as it comes out.
-- **By hand:** download `aurral-pocket-<version>.apk` from the latest release and open it on your phone.
-
-> Note: the APK and the Google Play build are signed with different keys, so one can't update the other. To switch, uninstall the app first, which signs you out and removes offline saves.
+- **iOS:** join the [TestFlight beta](https://testflight.apple.com/join/wMfHs7zE).
+- **Google Play:** join the [closed testers group](https://groups.google.com/g/aurral-closed-testers) first, then opt in on the [web](https://play.google.com/apps/testing/com.aurral.aurralpocket) or in the [Play Store](https://play.google.com/store/apps/details?id=com.aurral.aurralpocket).
+- **Android APK:** download it from the [latest release](https://github.com/dylfrancis/aurral-pocket/releases/latest), or add this repo to [Obtainium](https://github.com/ImranR98/Obtainium) to get each release automatically. The APK and the Play build are signed with different keys, so to switch, uninstall first. That signs you out and removes offline saves.
 
 ## Compatibility
 
-Each release is built and tested against one Aurral version, pinned in [`.aurral-version`](./.aurral-version) (currently **3.0.0**). Settings → About shows both that version and the one your server runs. Older servers are not supported.
+Each release targets one Aurral version, pinned in [`.aurral-version`](./.aurral-version) (currently **3.0.0**). Older servers aren't supported. Settings → About shows the pinned version and your server's.
 
 ## Features
 
-- **Discover** - recommendations grouped by why they showed up, trending charts, editorial playlists, recent releases, shows near you, and tag browsing, with a customizable layout
-- **Library** - artists, albums, genres, favorites, playlists, and your blocklist; album pages tint to their cover
-- **Search** - find artists and albums and add them to your library
-- **Flows** - scheduled, auto-generated playlists that mix discovery, trending, tags, and related artists; start from a template, preview picks before they download, and stop or retry single tracks
-- **Player** - stream your library, flows, and playlists with background playback, a queue (play next, add to queue), and a full-screen now playing sheet
-- **Offline** - save albums, playlists, and songs to the device; Settings → Playback and Storage sets prefetching and the cache size
-- **Transcoding** - set separate Cellular and Wi-Fi profiles in Settings → Playback and Storage. Both start at Server Default. When Aurral advertises stream transcoding, Pocket uses the existing session to request MP3 or AAC (also Opus on Android). Profile or connection changes apply from the next track. Offline saves keep the original audio.
-- **Activity** - follow requests and downloads in Queue, Review, and History, filter by status, and spot quality upgrades
-- **Listening** - plays are reported to Aurral and your scrobblers; connect ListenBrainz or Koito from Settings → Listening
-- **Shazam** - identify songs playing around you with ShazamKit, then open the album or any credited artist, play the song if you own it, or add it to a playlist
-- **Sign-in** - password or OIDC, Face ID / biometric re-auth, and custom headers for reverse proxies such as Cloudflare Access
+- **Discover:** recommendations, Made for You mixes, Your Radio, trending charts, and playlists by genre, mood and decade
+- **Library:** artists, albums, songs, genres, favorites and playlists, with search, sorts and filters
+- **Search:** artists, albums, songs and playlists
+- **Player:** background playback, a queue, synced lyrics, radio with Autoplay, loudness levelling, and queue sync across devices
+- **Offline and streaming:** save albums, playlists and songs, and set Wi-Fi and cellular streaming quality
+- **Flows:** auto-generated playlists on a schedule
+- **Activity:** requests and downloads grouped by what started them, with Pause and Cancel All
+- **Listening:** plays go to Aurral, ListenBrainz or Koito
+- **Shazam:** identify a song playing nearby, then play it or open its album or artists
+- **Sign-in:** password or OIDC, biometric re-auth, and custom headers for reverse proxies such as Cloudflare Access
 
-On iOS, Activity and Settings are tabs (in the More list on iPhone). On Android, they open from the ⋮ menu on each tab.
+## Development
 
-## Requirements
-
-- Node.js `>= 24` (`.nvmrc` pins the exact version) and npm
-- Xcode for iOS builds
-- Android Studio and JDK 17 for Android builds
-- For Android builds, the ShazamKit for Android `.aar` (see [below](#android-shazamkit))
-- Docker, only for the [API contract check](#api-contract-check) and the [test stack](./docs/test-stack/README.md)
+You need Node.js 24 or newer (`.nvmrc` pins it) and npm, Xcode for iOS, and Android Studio with JDK 17 for Android. Docker is only needed for the API contract check and the [test stack](./docs/test-stack/README.md).
 
 The app uses native modules, so it runs in a [development build](https://docs.expo.dev/develop/development-builds/introduction/), not Expo Go.
 
-## Getting started
-
 ```bash
-npm install
+npm install       # also applies the fixes in patches/
+npm run ios       # or: npm run android
 ```
 
-`npm install` also applies the fixes in `patches/` through `patch-package`.
-
-Build the native app, install it on a simulator or device, and start Metro:
-
-```bash
-npm run ios
-npm run android
-```
-
-`ios/` and `android/` are generated from `app.json` and the config plugins, and are git-ignored. Once a development build is installed, `npm run start` is enough for JavaScript-only changes.
-
-Need a server to point the app at? [`docs/test-stack`](./docs/test-stack/README.md) runs a throwaway Aurral server in Docker.
+`ios/` and `android/` are generated and git-ignored. Once a build is installed, `npm run start` is enough for JavaScript changes. To get a server to point the app at, [`docs/test-stack`](./docs/test-stack/README.md) runs a throwaway Aurral in Docker.
 
 ### Android ShazamKit
 
-Apple's license bars redistributing ShazamKit for Android, so its `.aar` is git-ignored, and Android builds fail until it is installed. Download the SDK from Apple's developer site and run:
+Apple's license bars redistributing ShazamKit for Android, so Android builds fail until you install its `.aar`:
 
 ```bash
 npm run shazam:aar -- ~/Downloads/ShazamKitAndroid2.1.1.zip
 ```
 
-[`modules/shazam/android/libs/README.md`](./modules/shazam/android/libs/README.md) covers where to download it and how EAS builds fetch it.
+Song matching on Android also needs a developer token. Set `SHAZAM_KEY_ID`, `SHAZAM_TEAM_ID` and `SHAZAM_PRIVATE_KEY_PATH` in `.env.local`. [`modules/shazam/android/libs/README.md`](./modules/shazam/android/libs/README.md) has the details.
 
-Shazam on Android also needs a developer token. To mint one locally, set `SHAZAM_KEY_ID`, `SHAZAM_TEAM_ID`, and `SHAZAM_PRIVATE_KEY_PATH` (a media-identifier `.p8` key) in `.env.local`; `app.config.js` mints the token at config time. Without them the app builds and runs, but Android song matching fails. iOS needs no token.
-
-## Scripts
+### Scripts
 
 | Script               | Purpose                                                     |
 | -------------------- | ----------------------------------------------------------- |
@@ -125,29 +78,21 @@ Shazam on Android also needs a developer token. To mint one locally, set `SHAZAM
 | `lint`               | Run ESLint via `expo lint`                                  |
 | `test`               | Run the Jest suite with the iOS preset                      |
 | `test:android`       | Run the Jest suite with the Android preset                  |
-| `check:api-contract` | Verify every endpoint pocket calls (see below)              |
+| `check:api-contract` | Check every endpoint pocket calls against pinned Aurral     |
 | `shazam:aar`         | Install the ShazamKit for Android `.aar` from a zip or file |
 
-CI runs both `npm test` and `npm run test:android` on every pull request, so run both before pushing.
+CI runs both `npm test` and `npm run test:android`, so run both before pushing.
 
-## API contract check
+### API contract check
 
-Aurral 2.0 moved the weekly-flow router to `/playlists` and deleted
-`/search/artists`. Neither broke the build — the client kept compiling and only
-failed as a 404 on a user's device. `check:api-contract` catches that class of
-drift by booting the Aurral version we target and calling every endpoint pocket
-uses.
+`check:api-contract` calls every endpoint pocket uses on the pinned Aurral version. It fails when a route is gone, a response loses a key or changes a type, or the server reports an API version or feature pocket doesn't know. CI runs it on pull requests that touch `lib/api/`, on pushes to `main`, and weekly.
 
-The pinned version lives in `.aurral-version`. Bumping it is the deliberate act
-of retargeting a new Aurral release; CI fails if pocket has not caught up.
-
-Run it locally against a throwaway container:
+To run it locally:
 
 ```bash
 docker run -d --name aurral -p 3001:3001 \
   ghcr.io/lklynet/aurral:$(cat .aurral-version)
 
-# Wait for the server to come up.
 until curl -fsS http://localhost:3001/api/health/live >/dev/null; do sleep 1; done
 
 curl -fsS -X POST http://localhost:3001/api/onboarding/complete \
@@ -159,40 +104,9 @@ AURRAL_URL=http://localhost:3001 npm run check:api-contract
 docker rm -f aurral
 ```
 
-Start a **fresh container per run** — Aurral rate-limits logins to 10 per 15
-minutes, and a reused container will eventually refuse to authenticate. The
-check probes `DELETE` and cancel routes with synthetic IDs, so never point it at
-a server with data you care about.
+Use a fresh container each time. Aurral allows 10 logins per 15 minutes, and the check calls delete and cancel routes, so never point it at a server whose data you care about. After bumping `.aurral-version` or adding a GET call, run it once with `node scripts/check-api-contract.mjs --record` to update the baseline.
 
-What the check enforces:
-
-- **Routes exist.** A route counts as missing only when Aurral answers with its
-  catch-all `{"error":"Not found"}`. Anything else — including `400` for a
-  synthetic ID or `401` — means the route exists. Endpoints that answer only via
-  a redirect fail too: a compatibility shim is not a contract.
-- **Response shapes hold.** For GET routes that answer 200 with JSON, the key
-  paths and value types are compared against
-  [`scripts/api-contract-baseline.json`](./scripts/api-contract-baseline.json).
-  A key that disappears or changes type fails; a new key is only reported.
-- **The app contract matches.** Routes in Aurral's
-  [app contract](https://docs.aurral.org/api/app-contract/) are marked
-  `contract`, and the fields the contract guarantees must be present. The
-  contract version and feature names from `/health/bootstrap` must match what
-  pocket knows, so a new version or feature fails the check.
-
-After bumping `.aurral-version`, or adding a GET call, re-record the baseline
-right after onboarding a fresh container:
-
-```bash
-AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs --record
-```
-
-In CI, the check runs on pull requests that touch `lib/api/`, on pushes to
-`main`, and weekly. An advisory job also runs it against Aurral `latest`; on
-`main`, any drift it finds lands in an open `api-drift` issue instead of a red
-build.
-
-## Project structure
+### Project structure
 
 ```
 app/              Expo Router routes: (auth) sign-in, and (app) with the tabs and the now playing modal
@@ -211,29 +125,19 @@ __tests__/        Jest tests
 test-support/     Shared Jest mocks
 ```
 
-Routing is file-based via [Expo Router](https://docs.expo.dev/router/introduction). The tabs are Discover, Library, Search, and Flows, plus Activity and Settings, which are tabs on iOS and stack screens on Android. Typed routes and the React Compiler are enabled in `app.json` → `experiments`.
-
-## Tech stack
-
-- Expo SDK 58 / React Native 0.88 / React 19.3, with the React Compiler
-- Expo Router (native tabs, typed routes)
-- `@expo/ui` for native SwiftUI and Jetpack Compose controls
-- TanStack Query for data fetching
-- React Hook Form + Zod for forms and validation
-- Reanimated 4 + Gesture Handler + Bottom Sheet for interactions
-- FlashList for virtualized lists
-- `react-native-nitro-player` for playback, and `expo-file-system` for offline saves
-- Jest + `@testing-library/react-native` for tests
+Built with Expo SDK 58 (React Native 0.88, React 19.3), Expo Router, TanStack Query, Reanimated and `react-native-nitro-player`.
 
 ## Contributing
 
-- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (enforced by `commitlint`).
-- `husky` + `lint-staged` format and lint staged files on commit.
-- Releases are automated via [release-please](https://github.com/googleapis/release-please): `main` cuts stable releases and `test` cuts `-test` prereleases. See `CHANGELOG.md`. EAS builds each release for TestFlight and Google Play, and the `Android APK` workflow attaches an APK to each stable release.
+Contributions are welcome. [CONTRIBUTING.md](./CONTRIBUTING.md) covers how to propose a change and open a pull request.
+
+## AI disclosure
+
+Pocket is built with help from AI coding agents. The maintainer decides what gets built, reviews every change, and answers for what ships. Contributors can use agents too; see [Use an AI agent](./CONTRIBUTING.md#use-an-ai-agent).
 
 ## Credits
 
-Built on top of [Aurral](https://github.com/lklynet/aurral) by [@lklynet](https://github.com/lklynet) - all the heavy lifting (discovery, downloads, library management, streaming) lives there. Aurral Pocket is just a mobile face for it.
+Built on [Aurral](https://github.com/lklynet/aurral) by [@lklynet](https://github.com/lklynet), which does the heavy lifting: discovery, downloads, library management and streaming.
 
 ## License
 
