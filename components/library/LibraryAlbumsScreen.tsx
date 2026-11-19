@@ -3,12 +3,19 @@ import { useRouter } from "expo-router";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { SAVED_ALBUM_SORT_OPTIONS } from "@/components/library/AlbumSortPicker";
 import { statusSection } from "@/components/library/LibraryListMenus";
+import { ListPlayRow } from "@/components/library/ListPlayRow";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { menuOptionSection } from "@/components/ui/MenuOptions";
 import { SavedMark, albumSavedId } from "@/components/offline/SavedMark";
 import { SEARCH_PLACEHOLDERS } from "@/constants/navigation";
 import { useAlbumGrid } from "@/hooks/library/use-album-grid";
+import {
+  readFirstSongs,
+  readShuffleSongs,
+  songListContext,
+  usePlayLibrarySongs,
+} from "@/hooks/library/use-play-library-songs";
 import {
   offeredSort,
   type LibraryShow,
@@ -59,6 +66,33 @@ export function LibraryAlbumsScreen({
     },
     [router, showSaved, savedAlbums],
   );
+  // A genre plays its songs, read at the tap: Play takes them by artist,
+  // Shuffle draws them from across the whole genre.
+  const { readAndPlay, isLoading: songsLoading } = usePlayLibrarySongs();
+  const genreHeader = useMemo(
+    () =>
+      genre ? (
+        <ListPlayRow
+          title={genre}
+          disabled={songsLoading || isOffline}
+          onPlay={() =>
+            void readAndPlay(
+              () => readFirstSongs({ genre }, "artist"),
+              songListContext(genre),
+            )
+          }
+          onShuffle={() =>
+            void readAndPlay(
+              () => readShuffleSongs({ genre }),
+              songListContext(genre),
+              { shuffled: true },
+            )
+          }
+        />
+      ) : undefined,
+    [genre, songsLoading, isOffline, readAndPlay],
+  );
+
   // A saved card is keyed by its save.
   const savedIdOf = (album: Album) =>
     showSaved ? album.id : albumSavedId(album);
@@ -114,6 +148,7 @@ export function LibraryAlbumsScreen({
       isFetchingNextPage={showSaved ? false : grid.isFetchingNextPage}
       filterSections={filterSections}
       filtered={showSaved || grid.show !== "all" || grid.status !== null}
+      header={genreHeader}
       renderItem={(item) => (
         <AlbumCard
           album={item}

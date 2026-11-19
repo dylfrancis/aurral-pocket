@@ -12,6 +12,15 @@ jest.mock("@shopify/flash-list", () => {
 jest.mock("@/components/library/CoverArtImage", () => ({
   CoverArtImage: () => null,
 }));
+// A genre's Play row; these screens render with no query client.
+jest.mock("@/hooks/library/use-play-library-songs", () => ({
+  ...jest.requireActual("@/hooks/library/use-play-library-songs"),
+  usePlayLibrarySongs: () => ({
+    playSongs: jest.fn(),
+    readAndPlay: jest.fn(),
+    isLoading: false,
+  }),
+}));
 jest.mock("@/components/flow/CollectionArtwork", () => ({
   CollectionArtwork: () => null,
 }));
