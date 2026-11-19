@@ -1,6 +1,9 @@
 jest.mock("burnt", () => ({ toast: jest.fn() }));
 
-let mockUser: { role: string; permissions: { accessPlaylists: boolean } };
+let mockUser: {
+  role: string;
+  permissions: { accessPlaylists: boolean; addAlbum: boolean };
+};
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => ({
     serverUrl: "http://server",
@@ -15,6 +18,22 @@ jest.mock("@/lib/api/search", () => ({
   getEditorialPlaylist: jest.fn(),
 }));
 
+jest.mock("@/lib/api/library", () => ({
+  ...jest.requireActual("@/lib/api/library"),
+  requestTrackDownload: jest.fn(),
+}));
+
+// The track actions sheet; no test here opens it.
+jest.mock("@/components/library/TrackActionsSheet", () => ({
+  TrackActionsSheet: () => null,
+  useTrackActions: () => ({
+    target: null,
+    open: jest.fn(),
+    openItem: jest.fn(),
+    close: jest.fn(),
+  }),
+}));
+
 jest.mock("@/lib/api/flow", () => ({
   ...jest.requireActual("@/lib/api/flow"),
   getFlowStatus: jest.fn(() =>
@@ -22,16 +41,15 @@ jest.mock("@/lib/api/flow", () => ({
   ),
 }));
 
-let mockStatus: Record<string, unknown> = {};
+let mockCurrentId: string | null = null;
 jest.mock("@/lib/player/player", () => ({
-  pause: jest.fn(),
   pauseClip: jest.fn(),
   playItem: jest.fn(() => Promise.resolve()),
   playQueueFrom: jest.fn(() => Promise.resolve(true)),
-  resume: jest.fn(),
-  useCurrentTrack: () => null,
-  usePlaybackState: () => "stopped",
-  usePlayerStatus: () => mockStatus,
+  setShuffle: jest.fn(() => Promise.resolve()),
+  togglePlayback: jest.fn(() => Promise.resolve()),
+  useCurrentTrack: () => (mockCurrentId ? { id: mockCurrentId } : null),
+  usePlaybackState: () => (mockCurrentId ? "playing" : "stopped"),
 }));
 
 jest.mock("@/components/library/PlayingBars", () => ({
@@ -88,12 +106,19 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { EditorialPlaylistScreen } from "@/components/discover/EditorialPlaylistScreen";
 import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
+import { requestTrackDownload } from "@/lib/api/library";
 import {
   addEditorialPlaylistToLibrary,
   getEditorialLinks,
   getEditorialPlaylist,
 } from "@/lib/api/search";
-import { pause, pauseClip, playItem, playQueueFrom } from "@/lib/player/player";
+import {
+  pauseClip,
+  playItem,
+  playQueueFrom,
+  setShuffle,
+  togglePlayback,
+} from "@/lib/player/player";
 import { flowKeys } from "@/lib/query-keys";
 import type { LibraryQueueTrack } from "@/lib/types/library";
 import type { EditorialPlaylist, EditorialTrack } from "@/lib/types/search";
@@ -101,6 +126,9 @@ import type { EditorialPlaylist, EditorialTrack } from "@/lib/types/search";
 const mockGetPlaylist = getEditorialPlaylist as jest.Mock;
 const mockAdd = addEditorialPlaylistToLibrary as jest.Mock;
 const mockGetLinks = getEditorialLinks as jest.Mock;
+const mockRequestDownload = requestTrackDownload as jest.Mock;
+const ADD = "Add 90s Hits to your Library";
+const OPEN = "Open 90s Hits in your Library";
 
 function track(overrides: Partial<EditorialTrack> = {}): EditorialTrack {
   return {
@@ -161,10 +189,13 @@ beforeEach(() => {
   mockGetPlaylist.mockReset();
   mockAdd.mockReset();
   mockGetLinks.mockReset();
-  mockUser = { role: "user", permissions: { accessPlaylists: true } };
+  mockUser = {
+    role: "user",
+    permissions: { accessPlaylists: true, addAlbum: true },
+  };
   mockParams = { provider: "deezer", id: "878" };
   mockFocused = true;
-  mockStatus = {};
+  mockCurrentId = null;
 });
 
 afterEach(() => {
@@ -227,9 +258,11 @@ describe("the page itself", () => {
       playlist({ provider: "mix", id: "daily-1", name: "Daily Mix 1" }),
     );
 
-    await fireEvent.press(await screen.findByText("Add to Library"));
+    await fireEvent.press(
+      await screen.findByLabelText("Add Daily Mix 1 to your Library"),
+    );
 
-    await screen.findByText("Open in Library");
+    await screen.findByLabelText("Open Daily Mix 1 in your Library");
     expect(mockGetPlaylist).toHaveBeenCalledWith("mix", "daily-1");
     expect(mockAdd).toHaveBeenCalledWith("mix", "daily-1");
     // A mix syncs with Aurral, not Deezer.
@@ -250,8 +283,8 @@ describe("the page itself", () => {
   });
 });
 
-describe("previews", () => {
-  it("offers a play button only on tracks with a clip", async () => {
+describe("songs the Library doesn't have", () => {
+  it("grays them, and a song with no clip can't be tapped", async () => {
     await openPage(
       playlist({
         tracks: [
@@ -261,15 +294,20 @@ describe("previews", () => {
       }),
     );
 
-    await screen.findByText("Polly");
-    expect(screen.getByLabelText("Preview Lithium")).toBeTruthy();
-    expect(screen.queryByLabelText("Preview Polly")).toBeNull();
+    await fireEvent.press(
+      await screen.findByLabelText("Polly, not in your Library"),
+    );
+
+    expect(screen.getByLabelText("Lithium, not in your Library")).toBeTruthy();
+    expect(playItem).not.toHaveBeenCalled();
   });
 
-  it("plays the tapped track's clip with its details", async () => {
+  it("plays a tapped song's clip alone, with its details", async () => {
     await openPage();
 
-    await fireEvent.press(await screen.findByLabelText("Preview Lithium"));
+    await fireEvent.press(
+      await screen.findByLabelText("Lithium, not in your Library"),
+    );
 
     await waitFor(() =>
       expect(playItem).toHaveBeenCalledWith(
@@ -279,14 +317,15 @@ describe("previews", () => {
           album: "Nevermind",
           artwork: "https://cdn.example/nevermind.jpg",
           url: expect.stringContaining("/api/deezer/preview/1.mp3"),
+          isPreview: true,
         }),
       ),
     );
+    expect(playQueueFrom).not.toHaveBeenCalled();
   });
 
-  it("gives two tracks of the same song separate play states", async () => {
-    mockStatus = { currentId: "deezer-878-1", isPlaying: true, progress: 0.5 };
-
+  it("keeps two rows of the same song apart", async () => {
+    mockCurrentId = "deezer-878-1";
     await openPage(
       playlist({
         tracks: [
@@ -295,9 +334,46 @@ describe("previews", () => {
         ],
       }),
     );
+    const [first, second] = await screen.findAllByLabelText(
+      "Same Song, not in your Library",
+    );
 
-    await screen.findByLabelText("Pause Same Song");
-    expect(screen.getAllByLabelText("Preview Same Song")).toHaveLength(1);
+    await fireEvent.press(second);
+    expect(togglePlayback).toHaveBeenCalledTimes(1);
+    expect(playItem).not.toHaveBeenCalled();
+
+    await fireEvent.press(first);
+    expect(playItem).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "deezer-878-0" }),
+    );
+  });
+
+  it("asks Aurral to find and download one from its ↓", async () => {
+    mockRequestDownload.mockResolvedValue({ success: true, queued: true });
+    await openPage();
+
+    await fireEvent.press(await screen.findByLabelText("Download Lithium"));
+
+    expect(mockRequestDownload).toHaveBeenCalledWith({
+      artistName: "Nirvana",
+      trackName: "Lithium",
+      albumName: "Nevermind",
+    });
+    expect(await screen.findByLabelText("Lithium is downloading")).toBeTruthy();
+    expect(Burnt.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Downloading Lithium" }),
+    );
+  });
+
+  it("offers no ↓ to someone who can't add music", async () => {
+    mockUser = {
+      role: "user",
+      permissions: { accessPlaylists: true, addAlbum: false },
+    };
+    await openPage();
+
+    await screen.findByLabelText("Lithium, not in your Library");
+    expect(screen.queryByLabelText("Download Lithium")).toBeNull();
   });
 
   it("stops the clip when the page closes", async () => {
@@ -339,40 +415,76 @@ describe("tracks in the Library", () => {
     setAuthToken(null);
   });
 
-  it("plays the Library's file instead of the clip", async () => {
-    await openPage(playlist({ tracks: [track({ owned })] }));
-
-    await fireEvent.press(await screen.findByLabelText("Play Lithium"));
-
-    await waitFor(() =>
-      expect(playQueueFrom).toHaveBeenCalledWith(
-        [
-          expect.objectContaining({
-            id: "42",
-            streamPath: "/library/stream/7/42",
-            url: "http://server/api/library/stream/7/42?token=token",
-            trackMbid: "track-mbid",
-          }),
-        ],
-        "42",
-        expect.objectContaining({ albumTitle: "Nevermind", albumRef: "7" }),
-      ),
+  const ownedPolly: LibraryQueueTrack = {
+    ...owned,
+    id: "43",
+    title: "Polly",
+    streamPath: "/library/stream/7/43",
+    libraryTrackId: 43,
+  };
+  const mixedPlaylist = () =>
+    playlist({
+      tracks: [
+        track({ owned }),
+        track({ trackName: "Breed" }),
+        track({ trackName: "Polly", owned: ownedPolly }),
+      ],
+    });
+  const queuedIds = () =>
+    (playQueueFrom as jest.Mock).mock.calls[0][0].map(
+      (item: { id: string }) => item.id,
     );
+
+  it("plays the Library's songs from the tapped one, skipping the rest", async () => {
+    await openPage(mixedPlaylist());
+
+    await fireEvent.press(await screen.findByLabelText("Polly"));
+
+    await waitFor(() => expect(playQueueFrom).toHaveBeenCalled());
+    expect(queuedIds()).toEqual(["42", "43"]);
+    const [queue, startId, context] = (playQueueFrom as jest.Mock).mock
+      .calls[0];
+    expect(startId).toBe("43");
+    expect(queue[0]).toMatchObject({
+      streamPath: "/library/stream/7/42",
+      url: "http://server/api/library/stream/7/42?token=token",
+      trackMbid: "track-mbid",
+      albumRef: "7",
+    });
+    expect(context).toMatchObject({ albumTitle: "90s Hits" });
     expect(playItem).not.toHaveBeenCalled();
   });
 
-  it("pauses the Library track when it's already playing", async () => {
-    mockStatus = { currentId: "42", isPlaying: true, progress: 0.5 };
+  it("plays and shuffles only the Library's songs from the top", async () => {
+    await openPage(mixedPlaylist());
+
+    await fireEvent.press(await screen.findByLabelText("Shuffle 90s Hits"));
+
+    await waitFor(() => expect(playQueueFrom).toHaveBeenCalled());
+    expect(setShuffle).toHaveBeenCalledWith(true);
+    expect(queuedIds()).toEqual(["42", "43"]);
+  });
+
+  it("can't play from the top with nothing in the Library", async () => {
+    await openPage();
+
+    await fireEvent.press(await screen.findByLabelText("Play 90s Hits"));
+
+    expect(playQueueFrom).not.toHaveBeenCalled();
+  });
+
+  it("pauses the Library song when it's already playing", async () => {
+    mockCurrentId = "42";
     await openPage(playlist({ tracks: [track({ owned })] }));
 
-    await fireEvent.press(await screen.findByLabelText("Pause Lithium"));
+    await fireEvent.press(await screen.findByLabelText("Lithium"));
 
-    await waitFor(() => expect(pause).toHaveBeenCalled());
+    expect(togglePlayback).toHaveBeenCalled();
     expect(playQueueFrom).not.toHaveBeenCalled();
   });
 });
 
-describe("Add to Library", () => {
+describe("the + that saves the playlist", () => {
   it("saves the playlist and switches the page over without rereading it", async () => {
     mockAdd.mockResolvedValue({
       playlistId: "lib-1",
@@ -384,10 +496,10 @@ describe("Add to Library", () => {
     client.setQueryDefaults(flowKeys.status(), { gcTime: Infinity });
     client.setQueryData(flowKeys.status(), { flows: [], staticPlaylists: [] });
 
-    await fireEvent.press(await screen.findByText("Add to Library"));
+    await fireEvent.press(await screen.findByLabelText(ADD));
 
-    expect(await screen.findByText("Open in Library")).toBeTruthy();
-    expect(screen.queryByText("Add to Library")).toBeNull();
+    expect(await screen.findByLabelText(OPEN)).toBeTruthy();
+    expect(screen.queryByLabelText(ADD)).toBeNull();
     expect(Burnt.toast).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Added to your playlists",
@@ -407,9 +519,9 @@ describe("Add to Library", () => {
     });
     await openPage();
 
-    await fireEvent.press(await screen.findByText("Add to Library"));
+    await fireEvent.press(await screen.findByLabelText(ADD));
 
-    await screen.findByText("Open in Library");
+    await screen.findByLabelText(OPEN);
     expect(Burnt.toast).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Already in your playlists" }),
     );
@@ -419,7 +531,7 @@ describe("Add to Library", () => {
     mockAdd.mockRejectedValue(new ApiError(502, "Deezer is down"));
     await openPage();
 
-    await fireEvent.press(await screen.findByText("Add to Library"));
+    await fireEvent.press(await screen.findByLabelText(ADD));
 
     await waitFor(() =>
       expect(Burnt.toast).toHaveBeenCalledWith({
@@ -428,7 +540,7 @@ describe("Add to Library", () => {
         preset: "error",
       }),
     );
-    expect(screen.getByText("Add to Library")).toBeTruthy();
+    expect(screen.getByLabelText(ADD)).toBeTruthy();
   });
 
   it("can't add before the page knows whether it's already saved", async () => {
@@ -436,7 +548,9 @@ describe("Add to Library", () => {
     mockGetPlaylist.mockReturnValue(new Promise(() => {}));
 
     await renderPage();
-    await fireEvent.press(screen.getByText("Add to Library"));
+    await fireEvent.press(
+      screen.getByLabelText("Add From the card to your Library"),
+    );
 
     expect(mockAdd).not.toHaveBeenCalled();
   });
@@ -444,7 +558,7 @@ describe("Add to Library", () => {
   it("opens Library > Playlists for a saved playlist", async () => {
     await openPage(playlist({ libraryPlaylistId: "lib-1" }));
 
-    await fireEvent.press(await screen.findByText("Open in Library"));
+    await fireEvent.press(await screen.findByLabelText(OPEN));
 
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith(
@@ -457,13 +571,16 @@ describe("Add to Library", () => {
   it.each([null, "lib-1"])(
     "offers nothing without accessPlaylists (saved as %s)",
     async (libraryPlaylistId) => {
-      mockUser = { role: "user", permissions: { accessPlaylists: false } };
+      mockUser = {
+        role: "user",
+        permissions: { accessPlaylists: false, addAlbum: true },
+      };
 
       await openPage(playlist({ libraryPlaylistId }));
 
       await screen.findByText("Lithium");
-      expect(screen.queryByText("Add to Library")).toBeNull();
-      expect(screen.queryByText("Open in Library")).toBeNull();
+      expect(screen.queryByLabelText(ADD)).toBeNull();
+      expect(screen.queryByLabelText(OPEN)).toBeNull();
     },
   );
 });
