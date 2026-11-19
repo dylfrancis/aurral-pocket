@@ -2,13 +2,6 @@ jest.mock("@/hooks/discover", () => ({
   useRecentlyAdded: jest.fn(),
 }));
 
-jest.mock("@/hooks/search/use-library-lookup", () => ({
-  useLibraryLookup: jest.fn(() => ({
-    isInLibrary: () => false,
-    libraryArtists: [],
-  })),
-}));
-
 jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
