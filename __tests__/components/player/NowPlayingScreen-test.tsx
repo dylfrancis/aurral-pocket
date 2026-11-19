@@ -498,6 +498,20 @@ describe("NowPlayingScreen", () => {
     });
   });
 
+  it("opens the album page from the song's title, under the sheet", async () => {
+    const { getByLabelText } = await renderPlaying();
+
+    await fireEvent.press(getByLabelText("View album Kid A"));
+
+    expectLeftFor({
+      pathname: "/(app)/(tabs)/(library)/album/[ref]",
+      params: expect.objectContaining({
+        ref: "canonical-album-1",
+        title: "Kid A",
+      }),
+    });
+  });
+
   it("opens the album page from the menu, under the player", async () => {
     const { getByLabelText } = await renderPlaying();
 
@@ -587,6 +601,7 @@ describe("NowPlayingScreen", () => {
 
     expect(getByText("Slowdive")).toBeTruthy();
     expect(queryByLabelText("Go to Album")).toBeNull();
+    expect(queryByLabelText(/^View album/)).toBeNull();
     await fireEvent.press(getByLabelText("View artist Slowdive"));
 
     expectLeftFor({
