@@ -35,6 +35,32 @@ export type SearchArtistsWire = {
 };
 
 /**
+ * An artist from `GET /search/library`. `id` is its MBID, or its Library id
+ * when it has none.
+ */
+export type LibrarySearchArtist = {
+  id: string;
+  libraryId: string;
+  hasMbid: boolean;
+  name: string;
+  /** Server-relative: the artist's Library artwork. */
+  image: string | null;
+};
+
+/** An album from `GET /search/library`. Only albums with a file come back. */
+export type LibrarySearchAlbum = {
+  /** Release-group MBID. */
+  id: string | null;
+  libraryId: string;
+  title: string;
+  artistName: string;
+  artistMbid: string | null;
+  releaseDate: string | null;
+  /** Server-relative: the album's cover. */
+  coverUrl: string | null;
+};
+
+/**
  * A track from `GET /search/library`. Only tracks Aurral can read a file for
  * come back, and `streamPath` plays that file.
  */
@@ -76,6 +102,8 @@ export type LibrarySearchPlaylist = {
 /** Body of `GET /search/library`, as far as pocket reads it. */
 export type LibrarySearchResponse = {
   query: string;
+  artists: LibrarySearchArtist[];
+  albums: LibrarySearchAlbum[];
   tracks: LibrarySearchTrack[];
   playlists: LibrarySearchPlaylist[];
 };

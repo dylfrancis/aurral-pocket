@@ -1,20 +1,17 @@
 import { useCallback, useRef, useState } from "react";
-import {
-  Keyboard,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Keyboard, ScrollView, StyleSheet, View } from "react-native";
 import type { NativeSyntheticEvent } from "react-native";
 import type { SearchBarTextEventData } from "react-native-screens";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
-import { Ionicons } from "@expo/vector-icons";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
+import {
+  SearchSectionLabel,
+  SeeAllRow,
+} from "@/components/search/SearchSections";
 import { SearchArtistRow } from "@/components/search/SearchArtistRow";
 import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
 import { SearchSongRow } from "@/components/search/SearchSongRow";
@@ -28,7 +25,6 @@ import Mic from "@expo/material-symbols/mic.xml";
 import { ShazamSheet } from "@/components/shazam";
 import { isShazamAvailable } from "@/modules/shazam";
 import { RecentSearches } from "@/components/search/RecentSearches";
-import { Text } from "@/components/ui/Text";
 import { useArtistSearch } from "@/hooks/search/use-artist-search";
 import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
@@ -38,7 +34,6 @@ import { useLibrarySearch } from "@/hooks/search/use-library-search";
 import { useSearchSongActions } from "@/hooks/search/use-search-song-actions";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { searchBarColors } from "@/constants/navigation";
-import { Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
@@ -232,7 +227,7 @@ export default function SearchScreen() {
       <View style={styles.previewSection}>
         {previewTags.length > 0 && (
           <View>
-            <SectionLabel text="Tags" colorSubtle={colors.subtle} />
+            <SearchSectionLabel text="Tags" />
             {previewTags.map((tag) => (
               <SearchPreviewRow
                 key={`tag-${tag}`}
@@ -247,7 +242,7 @@ export default function SearchScreen() {
 
         {showArtistSection && (
           <View>
-            <SectionLabel text="Artists" colorSubtle={colors.subtle} />
+            <SearchSectionLabel text="Artists" />
             {showArtistSkeleton ? (
               <SkeletonRows count={ARTIST_PREVIEW_LIMIT} variant="artist" />
             ) : (
@@ -263,7 +258,6 @@ export default function SearchScreen() {
                 {hasMoreArtists && (
                   <SeeAllRow
                     label="See all artists"
-                    color={colors.brand}
                     onPress={() => pushResults(query.trim(), "artist")}
                   />
                 )}
@@ -274,7 +268,7 @@ export default function SearchScreen() {
 
         {showSongSection && (
           <View>
-            <SectionLabel text="Songs" colorSubtle={colors.subtle} />
+            <SearchSectionLabel text="Songs" />
             {showSongSkeleton ? (
               <SkeletonRows count={SONG_PREVIEW_LIMIT} variant="album" />
             ) : (
@@ -290,7 +284,6 @@ export default function SearchScreen() {
                 {hasMoreSongs && (
                   <SeeAllRow
                     label="See all songs"
-                    color={colors.brand}
                     onPress={() => pushResults(query.trim(), "song")}
                   />
                 )}
@@ -301,7 +294,7 @@ export default function SearchScreen() {
 
         {previewPlaylists.length > 0 && (
           <View>
-            <SectionLabel text="Playlists" colorSubtle={colors.subtle} />
+            <SearchSectionLabel text="Playlists" />
             {previewPlaylists.map((playlist) => (
               <SearchPlaylistRow
                 key={searchPlaylistKey(playlist)}
@@ -312,7 +305,6 @@ export default function SearchScreen() {
             {hasMorePlaylists && (
               <SeeAllRow
                 label="See all playlists"
-                color={colors.brand}
                 onPress={() => pushResults(query.trim(), "playlist")}
               />
             )}
@@ -321,7 +313,7 @@ export default function SearchScreen() {
 
         {showAlbumSection && (
           <View>
-            <SectionLabel text="Albums" colorSubtle={colors.subtle} />
+            <SearchSectionLabel text="Albums" />
             {showAlbumSkeleton ? (
               <SkeletonRows count={ALBUM_PREVIEW_LIMIT} variant="album" />
             ) : (
@@ -337,7 +329,6 @@ export default function SearchScreen() {
                 {hasMoreAlbums && (
                   <SeeAllRow
                     label="See all albums"
-                    color={colors.brand}
                     onPress={() => pushResults(query.trim(), "album")}
                   />
                 )}
@@ -349,7 +340,6 @@ export default function SearchScreen() {
         {hasMoreTags && (
           <SeeAllRow
             label="See all tag results"
-            color={colors.brand}
             onPress={() => pushResults(query.trim())}
           />
         )}
@@ -428,69 +418,9 @@ export default function SearchScreen() {
   );
 }
 
-function SectionLabel({
-  text,
-  colorSubtle,
-}: {
-  text: string;
-  colorSubtle: string;
-}) {
-  return (
-    <Text
-      variant="caption"
-      style={[styles.sectionLabel, { color: colorSubtle }]}
-    >
-      {text}
-    </Text>
-  );
-}
-
-function SeeAllRow({
-  label,
-  color,
-  onPress,
-}: {
-  label: string;
-  color: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.seeAllRow,
-        { opacity: pressed ? 0.6 : 1 },
-      ]}
-    >
-      <Text variant="body" style={[styles.seeAllText, { color }]}>
-        {label}
-      </Text>
-      <Ionicons name="chevron-forward" size={16} color={color} />
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   previewSection: {
     paddingTop: 4,
-  },
-  sectionLabel: {
-    ...Fonts.semiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 6,
-  },
-  seeAllRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    gap: 4,
-  },
-  seeAllText: {
-    ...Fonts.semiBold,
   },
 });
 
