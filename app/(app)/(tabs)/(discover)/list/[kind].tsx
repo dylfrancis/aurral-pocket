@@ -149,10 +149,9 @@ export default function DiscoverListScreen() {
         ? discovery.data?.globalTop
         : undefined) ?? [];
   // The whole list, as the Discover sections pass it, so they share a lookup.
+  // Recently added artists are all in the Library, so they need none.
   const { isInLibrary } = useLibraryLookup(
-    kind === "recently-added"
-      ? (recentlyAdded.data ?? []).map(recentlyAddedMbid)
-      : discoveryArtists.map((artist) => artist.id),
+    discoveryArtists.map((artist) => artist.id),
   );
 
   useEffect(() => {
@@ -280,11 +279,6 @@ export default function DiscoverListScreen() {
                   mbid={mbid}
                   title={item.artistName}
                   subtitle={formatAdded(item.addedAt || item.added)}
-                  trailing={
-                    isInLibrary(mbid) ? (
-                      <Chip label="In Library" variant="brand" />
-                    ) : undefined
-                  }
                   onPress={() => openArtist({ mbid, name: item.artistName })}
                 />
               );
@@ -294,7 +288,6 @@ export default function DiscoverListScreen() {
                 mbid={mbid}
                 name={item.artistName}
                 subtitle={formatAdded(item.addedAt || item.added)}
-                isInLibrary={isInLibrary(mbid)}
                 fill
                 onPress={() => openArtist({ mbid, name: item.artistName })}
               />
