@@ -61,21 +61,6 @@ describe("DiscoverHeaderSection", () => {
     expect(toJSON()).toBeNull();
   });
 
-  it("renders subtitle and 'Updated' when lastUpdated is present", async () => {
-    mockHook.mockReturnValue({
-      data: { ...baseData, lastUpdated: "2026-04-20T00:00:00Z" },
-    });
-
-    const { queryByText, getByText } = await render(
-      <DiscoverHeaderSection onTagPress={jest.fn()} />,
-    );
-
-    expect(
-      queryByText("Your daily mix, curated from your library."),
-    ).toBeTruthy();
-    expect(getByText(/Updated /)).toBeTruthy();
-  });
-
   it("renders top genres as tag pills that fire onTagPress", async () => {
     mockHook.mockReturnValue({
       data: { ...baseData, topGenres: ["rock", "jazz"] },

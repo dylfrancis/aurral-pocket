@@ -3,9 +3,8 @@ import { Text } from "@/components/ui/Text";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TagPill } from "@/components/ui/TagPill";
-import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { useDiscovery } from "@/hooks/discover";
-import { formatBasedOn, formatUpdatedAt } from "@/lib/discover/format";
+import { formatBasedOn } from "@/lib/discover/format";
 import { useColors } from "@/hooks/use-colors";
 
 type Props = {
@@ -14,8 +13,6 @@ type Props = {
 
 export function DiscoverHeaderSection({ onTagPress }: Props) {
   const colors = useColors();
-  // Repaint the "updated" date when the server format changes.
-  useDateTimeFormat();
   const { data, isLoading } = useDiscovery();
 
   if (data?.configured === false) return null;
@@ -24,16 +21,6 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
     if (!isLoading) return null;
     return (
       <View style={styles.container}>
-        <View style={styles.intro}>
-          <View style={styles.introText}>
-            <Text
-              variant="body"
-              style={[styles.subtitle, { color: colors.subtle }]}
-            >
-              Your daily mix, curated from your library.
-            </Text>
-          </View>
-        </View>
         <View style={styles.tagsBlock}>
           <SectionHeader title="Top Tags" />
           <ScrollView
@@ -54,30 +41,10 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
   // separate "Explore by Tag" section. Parent aurral web app splits them the
   // same way (DiscoverPage "Top Tags" block pulls from topGenres).
   const tags = data.topGenres ?? [];
-  const updatedLabel = formatUpdatedAt(data.lastUpdated);
   const basedOnLabel = formatBasedOn(data.basedOn ?? []);
 
   return (
     <View style={styles.container}>
-      <View style={styles.intro}>
-        <View style={styles.introText}>
-          <Text
-            variant="body"
-            style={[styles.subtitle, { color: colors.subtle }]}
-          >
-            Your daily mix, curated from your library.
-          </Text>
-          {updatedLabel ? (
-            <Text
-              variant="caption"
-              style={[styles.meta, { color: colors.subtle }]}
-            >
-              Updated {updatedLabel}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-
       {tags.length > 0 ? (
         <View style={styles.tagsBlock}>
           <SectionHeader title="Top Tags" />
@@ -108,23 +75,6 @@ export function DiscoverHeaderSection({ onTagPress }: Props) {
 const styles = StyleSheet.create({
   container: {
     gap: 12,
-  },
-  intro: {
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  introText: {
-    flex: 1,
-    gap: 2,
-  },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  meta: {
-    fontSize: 12,
   },
   tagsBlock: {
     gap: 4,
