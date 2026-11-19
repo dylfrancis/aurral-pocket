@@ -12,6 +12,7 @@ import {
 import { DiscoverTabPanel } from "@/components/discover/DiscoverTabPanel";
 import { RecommendedTab } from "@/components/discover/RecommendedTab";
 import { DiscoverTabs } from "@/components/discover/DiscoverTabs";
+import { YourRadioCard } from "@/components/discover/YourRadioCard";
 import type { DiscoverTab } from "@/components/discover/discover-tabs";
 import { EditorialShelf } from "@/components/discover/EditorialShelf";
 import { TrendingCharts } from "@/components/discover/TrendingCharts";
@@ -284,6 +285,7 @@ export default function DiscoverScreen() {
       >
         <DiscoverTabs selected={tab} onSelect={selectTab} />
         <DiscoverTabPanel active={tab === "forYou"}>
+          <YourRadioCard />
           {notConfigured ? (
             <Card bordered style={styles.emptyCard}>
               <Ionicons
