@@ -72,9 +72,6 @@
  *   curl -X POST http://localhost:3001/api/onboarding/complete ...   # see workflow
  *   AURRAL_URL=http://localhost:3001 node scripts/check-api-contract.mjs --record
  *
- * The nightly image is published for amd64 only. On Apple silicon, add
- * `--platform linux/amd64` to the docker run.
- *
  * Record right after onboarding, as CI checks. Until the background download
  * worker reports in, GET /playlists/status answers a fallback `worker` without
  * `downloadMetrics`, `lastJobMetrics` and `operationWorker`

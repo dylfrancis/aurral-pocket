@@ -1,5 +1,5 @@
 {
-  "aurralVersion": "nightly",
+  "aurralVersion": "3.0.0",
   "shapes": {
     "GET /auth/me": {
       "expiresAt": "number",
@@ -29,10 +29,10 @@
       "globalTop": [
         {
           "discoveryDepth": "number",
-          "discoveryTier": "string",
+          "discoveryTier": "null",
           "firstDiscoveredAt": "null",
           "id": "string",
-          "image": "null",
+          "image": "string",
           "listeners": "number",
           "matchPercent": "null",
           "matchedTags": [],
@@ -41,8 +41,8 @@
           "playcount": "number",
           "popularityLabel": "string",
           "popularityRank": "number",
-          "score": "number",
-          "scoreTotal": "number",
+          "score": "null",
+          "scoreTotal": "null",
           "sourceArtist": "null",
           "sourceArtists": [],
           "sourceType": "string",
@@ -128,7 +128,6 @@
       "deemixConfigured": "boolean",
       "googleLoginEnabled": "boolean",
       "inboxEnabled": "boolean",
-      "lastfmConfigured": "boolean",
       "localNetworkBypass": {
         "active": "boolean",
         "eligible": "boolean",
@@ -326,12 +325,6 @@
         "connectedAt": "null",
         "displayName": "null"
       },
-      "lastfm": {
-        "configured": "boolean",
-        "connected": "boolean",
-        "connectedAt": "null",
-        "displayName": "null"
-      },
       "listenbrainz": {
         "connected": "boolean",
         "connectedAt": "null",
@@ -343,7 +336,6 @@
     },
     "GET /users/me/listening-history": {
       "koito": "null",
-      "lastfm": "null",
       "listenbrainz": "null"
     }
   }
