@@ -24,7 +24,7 @@ import type { Artist } from "@/lib/types/library";
 import { useColors } from "@/hooks/use-colors";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const LIBRARY_ACTION_PLACEHOLDER = { width: 196, height: 28 };
+const CAPSULE_PLACEHOLDER = { width: 196, height: 28 };
 
 type ArtistHeroProps = {
   artist: Pick<Artist, "mbid" | "artistName" | "coverUrl">;
@@ -102,8 +102,8 @@ export function ArtistHero({
           // A Library artist's capsule and Play row, the usual way here.
           <>
             <Skeleton
-              width={LIBRARY_ACTION_PLACEHOLDER.width}
-              height={LIBRARY_ACTION_PLACEHOLDER.height}
+              width={CAPSULE_PLACEHOLDER.width}
+              height={CAPSULE_PLACEHOLDER.height}
               borderRadius={Radius.round}
             />
             <PlayRowSkeleton />
