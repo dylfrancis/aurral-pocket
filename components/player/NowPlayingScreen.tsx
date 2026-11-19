@@ -206,6 +206,22 @@ export function NowPlayingScreen() {
     });
   }, [artistMbid, track?.artist, leaveFor]);
 
+  // Library tracks only: a playlist or radio track may have no album page.
+  const openAlbum = useCallback(() => {
+    if (!track?.albumRef) return;
+    leaveFor({
+      pathname: "/(app)/(tabs)/(library)/album/[ref]",
+      params: {
+        ref: track.albumRef,
+        title: track.album,
+        artistName: track.artist,
+        artistMbid: artistMbid ?? "",
+        albumMbid: track.albumMbid ?? "",
+        coverUrl: track.coverPath ?? "",
+      },
+    });
+  }, [track, artistMbid, leaveFor]);
+
   const addToPlaylist = useAddToPlaylist();
   const menuActions: TrackMenuAction[] = [];
   // A playlist track needs an artist name, so the permission alone is not
@@ -242,18 +258,8 @@ export function NowPlayingScreen() {
         albumMbid: track.albumMbid,
         trackMbid: track.trackMbid,
       });
-    } else if (id === "album" && track.albumRef) {
-      leaveFor({
-        pathname: "/(app)/(tabs)/(library)/album/[ref]",
-        params: {
-          ref: track.albumRef,
-          title: track.album,
-          artistName: track.artist,
-          artistMbid: artistMbid ?? "",
-          albumMbid: track.albumMbid ?? "",
-          coverUrl: track.coverPath ?? "",
-        },
-      });
+    } else if (id === "album") {
+      openAlbum();
     } else if (id === "artist") {
       openArtist();
     }
@@ -320,6 +326,7 @@ export function NowPlayingScreen() {
                     <TrackTitles
                       track={track}
                       align="start"
+                      onTitlePress={track.albumRef ? openAlbum : undefined}
                       onArtistPress={artistMbid ? openArtist : undefined}
                     />
                   </Animated.View>
@@ -336,6 +343,7 @@ export function NowPlayingScreen() {
                       <TrackTitles
                         track={track}
                         align="center"
+                        onTitlePress={track.albumRef ? openAlbum : undefined}
                         onArtistPress={artistMbid ? openArtist : undefined}
                       />
                     </Animated.View>
@@ -724,10 +732,13 @@ function Grabber({ onPress }: { onPress: () => void }) {
 function TrackTitles({
   track,
   align,
+  onTitlePress,
   onArtistPress,
 }: {
   track: PlayerTrack;
   align: "center" | "start";
+  /** Opens the song's album. */
+  onTitlePress?: () => void;
   onArtistPress?: () => void;
 }) {
   const colors = usePlayerColors();
@@ -742,17 +753,29 @@ function TrackTitles({
           : { alignItems: "flex-start", gap: 2 },
       ]}
     >
-      <MarqueeText
-        variant="subtitle"
-        align={align}
-        style={[
-          Fonts.semiBold,
-          centered ? styles.titleLarge : styles.titleCompact,
-          { color: colors.text },
-        ]}
+      {/* Stretched, so the marquee keeps the full width to scroll in. */}
+      <Pressable
+        onPress={onTitlePress}
+        disabled={!onTitlePress}
+        hitSlop={8}
+        accessibilityRole={onTitlePress ? "button" : undefined}
+        accessibilityLabel={
+          onTitlePress ? `View album ${track.album || track.title}` : undefined
+        }
+        style={styles.titlePress}
       >
-        {track.title}
-      </MarqueeText>
+        <MarqueeText
+          variant="subtitle"
+          align={align}
+          style={[
+            Fonts.semiBold,
+            centered ? styles.titleLarge : styles.titleCompact,
+            { color: colors.text },
+          ]}
+        >
+          {track.title}
+        </MarqueeText>
+      </Pressable>
       <Pressable
         onPress={onArtistPress}
         disabled={!onArtistPress}
@@ -948,6 +971,9 @@ const styles = StyleSheet.create({
   },
   titles: {
     flex: 1,
+  },
+  titlePress: {
+    alignSelf: "stretch",
   },
   titleLarge: {
     fontSize: 24,
