@@ -151,7 +151,7 @@
     <main>
       <header>
         <h1>Aurral Pocket Privacy Policy</h1>
-        <p class="muted">Last updated: April 21, 2026</p>
+        <p class="muted">Last updated: November 19, 2026</p>
       </header>
 
       <p>
@@ -171,15 +171,19 @@
         This policy explains what data the app handles, where that data goes,
         and what choices you have. The short version: the app does not operate
         any servers of its own, does not run analytics or tracking, and does
-        not send your data to us or to any third party. It only talks to the
-        Aurral server that <em>you</em> configure.
+        not send your data to us. It talks to the Aurral server that
+        <em>you</em> configure, and to a few other services only when you use
+        the features that need them (see section 4).
       </p>
 
       <div class="callout">
-        <strong>Summary.</strong> Aurral Pocket connects only to the
-        self-hosted Aurral server address you enter. Credentials, your session
-        token, and app preferences are stored on your device. No analytics,
-        telemetry, advertising SDKs, or third-party trackers are included.
+        <strong>Summary.</strong> Aurral Pocket connects to the self-hosted
+        Aurral server address you enter. It contacts other services only for
+        specific features: Apple's Shazam service and MusicBrainz when you
+        identify a song, and your server's sign-in provider if your server
+        uses single sign-on. Credentials, your session token, and app
+        preferences are stored on your device. No analytics, telemetry,
+        advertising SDKs, or third-party trackers are included.
       </div>
 
       <h2>1. About the Aurral ecosystem</h2>
@@ -193,7 +197,8 @@
         Because Aurral is self-hosted, the operator of the Aurral server - not
         the authors of Aurral Pocket - controls how data on that server is
         stored, processed, and shared with any upstream services it integrates
-        with (for example MusicBrainz, Last.fm, Lidarr, Navidrome). If you are
+        with (for example MusicBrainz, ListenBrainz, Koito, Lidarr,
+        Navidrome). If you are
         connecting to someone else's Aurral server, ask them about their
         practices. If you are running your own, you are the operator.
       </p>
@@ -209,7 +214,22 @@
         <li>
           <strong>Account credentials.</strong> Your Aurral username and
           password, entered during sign-in to obtain a session token from your
-          server.
+          server. If your server uses single sign-on, you sign in on your
+          identity provider's own page, shown inside the app, and the app
+          receives only the session your Aurral server issues.
+        </li>
+        <li>
+          <strong>Optional custom headers.</strong> Request headers you add in
+          Settings &gt; Server, such as Cloudflare Access service tokens, for
+          reaching a server behind a proxy. They are sent with every request
+          to your server.
+        </li>
+        <li>
+          <strong>Optional listening service keys.</strong> A ListenBrainz
+          user token or Koito API key you enter in Settings &gt; Listening.
+          The app sends it
+          to your Aurral server, which uses it to scrobble your plays, and
+          does not keep a copy on your device.
         </li>
         <li>
           <strong>Optional ZIP / postal code.</strong> If you use the
@@ -245,6 +265,11 @@
               "Remember me"
             </li>
             <li>Your biometric (Face ID / Touch ID) preference</li>
+            <li>Custom headers you added for your server</li>
+            <li>
+              The name this phone uses for queue sync (see 2.3), which is
+              never restored onto another phone
+            </li>
           </ul>
         </li>
         <li>
@@ -260,20 +285,89 @@
               Nearby-location preference (IP-based or a ZIP / postal code you
               entered)
             </li>
+            <li>Your playback queue and queue sync state</li>
+            <li>Plays waiting to be sent to your server</li>
+            <li>
+              The list of songs saved offline and of audio loaded ahead of
+              time
+            </li>
+            <li>
+              App settings, such as theme, date and time format, views,
+              Discover layout, and playback settings
+            </li>
+            <li>
+              Whether you signed in with single sign-on, and your provider's
+              sign-out address
+            </li>
           </ul>
+        </li>
+        <li>
+          <strong>Files:</strong>
+          <ul>
+            <li>Songs you save offline</li>
+            <li>
+              Tracks from your queue, loaded ahead of time so a drop in signal
+              doesn't stop the music, up to the cache size you set in
+              Settings &gt; Playback and Storage
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong>Sign-in web view:</strong> cookies your identity provider
+          sets during single sign-on, kept in the app's own web storage and
+          not shared with your browser.
         </li>
       </ul>
       <p>
-        You can remove all of this data at any time by signing out and/or
-        uninstalling the app.
+        Section 7 explains what signing out, changing server, and uninstalling
+        remove. If your phone backs up to iCloud or Google, those backups can
+        include the app's local data, under your Apple or Google account.
       </p>
 
-      <h3>2.3 Information automatically collected</h3>
+      <h3>2.3 Information sent to your server as you listen</h3>
+      <ul>
+        <li>
+          <strong>Plays.</strong> Each song you play is reported to your Aurral
+          server: its title, artist, album, MusicBrainz identifiers, length,
+          and when you played it. Your server keeps them as your listening
+          history and passes them on to ListenBrainz or Koito if your account
+          is linked to one. A play recorded while you're offline waits on your
+          device until it can be sent.
+        </li>
+        <li>
+          <strong>Queue sync.</strong> Your playback queue is saved to your
+          account on your Aurral server, so other Aurral players and Subsonic
+          apps signed in to the same account can pick up where you left off.
+          It's saved under a name made from your phone's name and a short
+          random tag, for example "Aurral Pocket on Pixel 9 1a2b". On Android,
+          the phone's name can be one you chose yourself.
+        </li>
+      </ul>
+
+      <h3>2.4 Song identification</h3>
+      <p>
+        When you tap to identify a song, the app listens through the
+        microphone for up to a minute, until it finds a match or you stop it.
+        Apple's ShazamKit
+        turns the sound into a fingerprint on your device and sends that
+        fingerprint to Apple's Shazam service to match it. The app does not
+        save or upload the recording itself, and it never listens unless you
+        start it.
+      </p>
+      <p>
+        After a match, the app looks up the song's ISRC (an industry code for
+        a recording) on MusicBrainz, to show the right artists. Matches are
+        kept in memory to avoid repeat lookups and are not stored on your
+        device.
+      </p>
+
+      <h3>2.5 Information automatically collected</h3>
       <p>
         <strong>None by the app.</strong> Aurral Pocket does not embed any
         analytics, crash reporting, advertising, attribution, or tracking SDKs.
-        It does not collect device identifiers, IP addresses, contacts,
-        calendars, photos, audio, health data, or precise GPS location.
+        It does not read advertising or hardware identifiers, contacts,
+        calendars, photos, health data, or precise GPS location, and it uses
+        the microphone only as described in 2.4.
       </p>
       <p>
         Apple and Google independently collect aggregate install and crash
@@ -293,8 +387,21 @@
           authenticate and communicate with the Aurral server you configured.
         </li>
         <li>
+          Custom headers are sent only to your Aurral server, to get past the
+          proxy in front of it.
+        </li>
+        <li>
           Recent searches and nearby-location preferences are used only to
           populate UI on your device.
+        </li>
+        <li>
+          Plays and your queue are sent to your Aurral server for your
+          listening history, scrobbling if you linked a service, and picking
+          up your queue on another device.
+        </li>
+        <li>
+          Microphone audio is used only to identify the song playing around
+          you, while you are identifying one.
         </li>
         <li>
           Biometric authentication (Face ID / Touch ID) is used only to
@@ -309,16 +416,40 @@
       <ul>
         <li>
           <strong>Your Aurral server</strong>, at the URL you provide, for
-          authentication, discovery, library, search, requests, and album
-          artwork.
+          authentication, discovery, library, search, requests, streaming,
+          artwork, play history, queue sync, and live updates.
         </li>
         <li>
-          Any hosts that your Aurral server redirects image URLs to (for
-          example, cover art hosted by your server or linked from upstream
-          music metadata providers). The app does not choose these hosts; it
-          only renders URLs returned by your server.
+          Any hosts that your Aurral server points images and audio to (for
+          example, cover art from upstream music metadata providers, or
+          preview clips hosted by Deezer). The app does not choose these
+          hosts; it only loads URLs returned by your server.
+        </li>
+        <li>
+          <strong>Apple's Shazam service</strong>, only while you identify a
+          song, to match the audio fingerprint described in 2.4. Apple
+          handles that data under
+          <a href="https://www.apple.com/legal/privacy/">its privacy policy</a>.
+        </li>
+        <li>
+          <strong>MusicBrainz</strong> (musicbrainz.org), only after a song is
+          identified, to look up the song's ISRC. The request carries only
+          that code and the app's name, nothing about your account, though
+          MusicBrainz sees your IP address as any website does. It is run by
+          the MetaBrainz Foundation under
+          <a href="https://metabrainz.org/privacy">its privacy policy</a>.
+        </li>
+        <li>
+          <strong>Your server's identity provider</strong>, only if your server
+          uses single sign-on. Signing in shows the provider's page inside the
+          app, and signing out opens its sign-out page in the background. Your
+          server's operator chooses the provider.
         </li>
       </ul>
+      <p>
+        Links you tap, such as concert tickets or artist pages on MusicBrainz
+        and Last.fm, open in your browser, outside the app.
+      </p>
       <p>
         The app does not contact any servers operated by the authors of Aurral
         Pocket, and does not contact any third-party analytics or advertising
@@ -333,8 +464,10 @@
           permission and continue using password sign-in.
         </li>
         <li>
-          <strong>Microphone.</strong> Explicitly <em>not</em> requested. The
-          Android manifest blocks <code>RECORD_AUDIO</code>.
+          <strong>Microphone</strong> (optional). Asked for the first time you
+          identify a song, and used only while identifying one (see 2.4). If
+          you decline, everything else in the app still works, and you can
+          change your answer in your phone's settings.
         </li>
         <li>
           <strong>Location.</strong> The app does not request device location.
@@ -349,24 +482,41 @@
 
       <h2>6. Data sharing</h2>
       <p>
-        The app authors do not receive, store, or share your data. The only
-        party that receives data from the app is the Aurral server whose
-        address you enter. How that server uses or forwards data (for example,
-        to Lidarr, Last.fm, MusicBrainz, or Navidrome) is determined by its
-        operator and configuration, not by the app.
+        The app authors do not receive, store, or share your data. The app
+        sends data to the Aurral server whose address you enter, and, only for
+        the features described in section 4, to Apple's Shazam service,
+        MusicBrainz, and your server's identity provider. How your server uses
+        or forwards data (for example, to Lidarr, MusicBrainz, ListenBrainz,
+        Koito, or Navidrome) is determined by its operator and configuration,
+        not by the app.
       </p>
 
       <h2>7. Data retention and deletion</h2>
       <ul>
         <li>
-          <strong>On-device data</strong> persists until you sign out, clear it
-          from the app, or uninstall the app. Uninstalling removes all
-          app-stored data from the device.
+          <strong>Signing out</strong> removes your session token, profile
+          info, playback queue, and audio loaded ahead of time. It keeps your
+          server address, custom headers, saved sign-in (if you chose "Remember
+          me"), songs saved offline, and plays not yet sent, which are sent
+          when the same account signs back in.
         </li>
         <li>
-          <strong>Data on your Aurral server</strong> is retained according to
-          the operator's configuration. If you run your own server, you
-          control retention. If you use someone else's, contact that operator.
+          <strong>Changing server</strong> (Settings &gt; Server &gt; Change
+          Server) also removes your server address, custom headers, saved
+          sign-in, songs saved offline, and plays not yet sent. The app does
+          the same after 30 days without use. App settings and recent searches
+          stay until you clear them or uninstall.
+        </li>
+        <li>
+          <strong>Uninstalling</strong> removes all app-stored data from the
+          device. Copies in an iCloud or Google backup follow that backup's
+          own retention.
+        </li>
+        <li>
+          <strong>Data on your Aurral server</strong>, including your
+          listening history and saved queue, is retained according to the
+          operator's configuration. If you run your own server, you control
+          retention. If you use someone else's, contact that operator.
         </li>
       </ul>
 
@@ -382,7 +532,8 @@
       <h2>9. Security</h2>
       <p>
         Sensitive values (session token, saved credentials if you enable
-        "Remember me", session metadata) are stored using the operating
+        "Remember me", custom headers, session metadata) are stored using the
+        operating
         system's secure keystore. Traffic between the app and your Aurral
         server is only as secure as the address you configure; we strongly
         recommend using HTTPS.
@@ -400,6 +551,19 @@
           to avoid storing credentials on the device.
         </li>
         <li>Clear recent searches from the search screen.</li>
+        <li>
+          Decline microphone access, or turn it off later in your phone's
+          settings. Only song identification needs it.
+        </li>
+        <li>
+          Remove anything you saved offline with "Remove from Phone", and empty
+          the audio loaded ahead of time with Clear Cache in Settings &gt;
+          Playback and Storage.
+        </li>
+        <li>
+          Change server to remove everything tied to your server and account
+          from the device.
+        </li>
         <li>
           Uninstall the app to remove all app-stored data from your device.
         </li>
@@ -427,8 +591,8 @@
         independent client built on top of
         <a href="https://github.com/lklynet/aurral">Aurral</a>
         by <a href="https://github.com/lklynet">@lklynet</a> and is not
-        affiliated with Apple, Google, MusicBrainz, Last.fm, Lidarr, or
-        Navidrome.
+        affiliated with Apple, Shazam, Google, MusicBrainz, ListenBrainz,
+        Koito, Last.fm, Deezer, Lidarr, or Navidrome.
       </footer>
     </main>
   </body>
