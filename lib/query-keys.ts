@@ -1,4 +1,5 @@
 import type { QueryKey } from "@tanstack/react-query";
+import type { SharedPlaylistTrack } from "@/lib/types/flow";
 import type {
   LibraryAlbumsParams,
   LibraryArtistsParams,
@@ -195,6 +196,8 @@ export const flowKeys = {
   status: () => ["flow", "status"] as const,
   jobsAll: () => ["flow", "jobs"] as const,
   jobs: (playlistId: string) => ["flow", "jobs", playlistId] as const,
+  containing: (track: SharedPlaylistTrack) =>
+    ["flow", "containing", track] as const,
   workerSettings: () => ["flow", "worker", "settings"] as const,
   templates: () => ["flow", "templates"] as const,
 };

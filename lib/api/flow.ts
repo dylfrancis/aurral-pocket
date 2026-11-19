@@ -35,6 +35,29 @@ export async function getPlaylistJobs(playlistId: string): Promise<FlowJob[]> {
   return r.data;
 }
 
+/**
+ * Ids of the static playlists that already hold the track, matched the way
+ * the server matches an append.
+ */
+export async function getPlaylistsContaining(
+  track: SharedPlaylistTrack,
+): Promise<string[]> {
+  const r = await api.get<{
+    playlists: { id: string; jobId: string | null }[];
+  }>(`${FLOW}/containing`, {
+    params: {
+      artistName: track.artistName,
+      trackName: track.trackName,
+      albumName: track.albumName,
+      artistMbid: track.artistMbid,
+      albumMbid: track.albumMbid,
+      trackMbid: track.trackMbid,
+      releaseYear: track.releaseYear,
+    },
+  });
+  return r.data.playlists.map((playlist) => playlist.id);
+}
+
 export async function getWorkerSettings(): Promise<WorkerSettings> {
   const r = await api.get<WorkerSettings>(`${FLOW}/worker/settings`);
   return r.data;
