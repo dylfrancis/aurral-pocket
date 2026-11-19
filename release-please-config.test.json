@@ -1,5 +1,6 @@
 {
   "include-component-in-tag": false,
+  "include-commit-authors": true,
   "packages": {
     ".": {
       "release-type": "node",
