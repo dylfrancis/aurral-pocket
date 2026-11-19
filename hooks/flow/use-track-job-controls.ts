@@ -70,7 +70,7 @@ function cachedJobStatus(queryClient: QueryClient, jobId: string) {
 
 /**
  * The track's row takes the new status at once, and the server's answer
- * replaces it. A poll already in flight would put back the old one.
+ * replaces it. A fetch already in flight would put back the old one.
  */
 function useTrackJobControl(
   callApi: (jobId: string) => Promise<TrackJobControlResult>,

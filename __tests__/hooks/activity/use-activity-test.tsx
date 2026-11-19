@@ -10,9 +10,16 @@ jest.mock("expo-router/react-navigation", () => ({
   useIsFocused: () => true,
 }));
 
+jest.mock("@/contexts/auth-context", () => ({
+  useAuth: jest.fn(),
+}));
+
+jest.mock("@/lib/api/live-socket", () => require("@/test-support/live-socket"));
+
 import React from "react";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
 import {
   ACTIVITY_PAGE_SIZE,
   useActivityCounts,
@@ -21,8 +28,10 @@ import {
 import { getActivityPage } from "@/lib/api/activity";
 import type { ActivityView } from "@/lib/activity-views";
 import type { ActivityItem, ActivityPage } from "@/lib/types/activity";
+import { mockLive } from "@/test-support/live-socket";
 
 const mockGetActivityPage = getActivityPage as jest.Mock;
+const mockUseAuth = useAuth as jest.Mock;
 
 function row(id: string): ActivityItem {
   return {
@@ -74,6 +83,8 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 beforeEach(() => {
+  mockLive.reset();
+  mockUseAuth.mockReturnValue({ user: { id: 1, role: "admin" } });
   mockGetActivityPage.mockReset();
   mockGetActivityPage.mockResolvedValue(page([]));
   // Infinity schedules no gc timer, which would hold Jest open.
@@ -195,5 +206,53 @@ describe("useActivityCounts", () => {
     await waitFor(() =>
       expect(result.current).toEqual({ queue: 5, review: 2, history: 40 }),
     );
+  });
+});
+
+describe("useActivityPages with the socket", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  async function wait(ms: number) {
+    await act(async () => jest.advanceTimersByTime(ms));
+  }
+
+  it("rereads on each playlist status push, and otherwise once a minute", async () => {
+    mockLive.setConnected(true);
+    await renderHook(
+      () => useActivityPages("queue", { status: null, cause: null }),
+      { wrapper },
+    );
+    await waitFor(() => expect(mockGetActivityPage).toHaveBeenCalledTimes(1));
+
+    await act(async () =>
+      mockLive.push({
+        channel: "playlists",
+        type: "playlist_status",
+        status: { flows: [], staticPlaylists: [] },
+      }),
+    );
+    await waitFor(() => expect(mockGetActivityPage).toHaveBeenCalledTimes(2));
+
+    await wait(59_000);
+    expect(mockGetActivityPage).toHaveBeenCalledTimes(2);
+    await wait(1_000);
+    expect(mockGetActivityPage).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps the 15s poll for an account without playlist access", async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 2, role: "user", permissions: { accessPlaylists: false } },
+    });
+    mockLive.setConnected(true);
+    await renderHook(
+      () => useActivityPages("queue", { status: null, cause: null }),
+      { wrapper },
+    );
+    await waitFor(() => expect(mockGetActivityPage).toHaveBeenCalledTimes(1));
+    expect(mockLive.channels()).toEqual([]);
+
+    await wait(15_000);
+    expect(mockGetActivityPage).toHaveBeenCalledTimes(2);
   });
 });

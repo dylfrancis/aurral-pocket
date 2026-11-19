@@ -44,7 +44,7 @@ export function SearchPlaylistRow({
   const isFlow = !!playlist.sourceFlowId;
   const id = playlist.sourceFlowId ?? playlist.id;
   // Search sends no artwork revision. Read from the cache, so Search doesn't
-  // poll flow status the way the Flows screen does.
+  // keep flow status live the way the Flows screen does.
   const flowStatus = useQueryClient().getQueryData(
     flowStatusQueryOptions().queryKey,
   );

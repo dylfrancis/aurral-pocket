@@ -5,8 +5,11 @@ import {
   useQuery,
   useQueryClient,
   type InfiniteData,
+  type QueryKey,
 } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router/react-navigation";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
+import { usePlaylistStatusPushes } from "@/hooks/flow/use-flow-status";
 import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
 import { activityPageFilter, type ActivityView } from "@/lib/activity-views";
 import { getActivityPage } from "@/lib/api/activity";
@@ -17,7 +20,10 @@ import type {
   ActivityStatus,
 } from "@/lib/types/activity";
 
-const ACTIVE_POLL_MS = 15_000;
+const FALLBACK_POLL_MS = 15_000;
+// Pushes miss work that leaves the playlist status unchanged, such as
+// discovery refreshes, so the web still reads Activity once a minute.
+const RECONCILE_POLL_MS = 60_000;
 
 /** The web's page size. */
 export const ACTIVITY_PAGE_SIZE = 25;
@@ -40,16 +46,43 @@ function flattenActivityPages(data: InfiniteData<ActivityPage>) {
 }
 
 /**
- * Reads a page at a time as the list scrolls and polls the loaded pages while
- * focused. `page` is the first page, which carries the causes, filters,
- * cancelable count and pause.
+ * Refetches `queryKey` on each playlist status push while focused, and returns
+ * how often to poll. Like the web, only accounts with playlist access listen.
+ */
+function useActivityPushes(queryKey: QueryKey) {
+  const isFocused = useIsFocused();
+  const queryClient = useQueryClient();
+  const canListen = useHasPermission()("accessPlaylists");
+  const { isConnected } = usePlaylistStatusPushes(
+    isFocused && canListen,
+    () => {
+      void queryClient.invalidateQueries(
+        { queryKey },
+        { cancelRefetch: false },
+      );
+    },
+  );
+  return {
+    isConnected,
+    refetchInterval: isFocused
+      ? isConnected
+        ? RECONCILE_POLL_MS
+        : FALLBACK_POLL_MS
+      : false,
+  } as const;
+}
+
+/**
+ * Reads a page at a time as the list scrolls and keeps the loaded pages
+ * current while focused. `page` is the first page, which carries the causes,
+ * filters, cancelable count and pause.
  */
 export function useActivityPages(
   view: ActivityView,
   filter: { status: ActivityStatus | null; cause: string | null },
 ) {
-  const isFocused = useIsFocused();
   const queryClient = useQueryClient();
+  const live = useActivityPushes(activityKeys.pagesAll());
   const pageFilter = activityPageFilter(view);
   const params = {
     view: pageFilter.view,
@@ -80,9 +113,10 @@ export function useActivityPages(
     },
     select: flattenActivityPages,
     placeholderData: keepPreviousData,
-    refetchInterval: isFocused ? ACTIVE_POLL_MS : false,
+    refetchInterval: live.refetchInterval,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: "always",
+    // The socket closes in the background, so a resume from there refetches.
+    refetchOnWindowFocus: live.isConnected ? false : "always",
     // Only a view's first load has nothing else to show. A filter that fails
     // to load leaves the screen up, with a retry, and keeps polling.
     throwOnError: (_error, q) =>
@@ -138,11 +172,11 @@ async function getActivityCounts(): Promise<ActivityCounts> {
 
 /** Each view's unfiltered count, for the view menu. */
 export function useActivityCounts() {
-  const isFocused = useIsFocused();
+  const { refetchInterval } = useActivityPushes(activityKeys.counts());
   const query = useQuery({
     queryKey: activityKeys.counts(),
     queryFn: getActivityCounts,
-    refetchInterval: isFocused ? ACTIVE_POLL_MS : false,
+    refetchInterval,
     refetchIntervalInBackground: false,
   });
   useRefreshOnFocus(query.refetch);
