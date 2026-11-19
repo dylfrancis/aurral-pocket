@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { NowPlayingProvider } from "@/contexts/now-playing-context";
 import { useLiveSocketFollowsSession } from "@/hooks/live/use-live-socket-follows-session";
 import { useSavedLibraryFollowsSession } from "@/hooks/offline/use-saved-library-follows-session";
+import { usePluginActionResults } from "@/hooks/plugins/use-plugin-actions";
 import { useQueueFollowsSession } from "@/hooks/player/use-queue-follows-session";
 import { useQueueSync } from "@/hooks/player/use-queue-sync";
 import { startPlayHistory } from "@/lib/player/play-history";
@@ -32,6 +33,7 @@ export default function AppLayout() {
   useQueueSync();
   useSavedLibraryFollowsSession();
   useLiveSocketFollowsSession();
+  usePluginActionResults();
   const reduceMotion = useReducedMotion();
 
   return (

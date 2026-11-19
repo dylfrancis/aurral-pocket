@@ -12,6 +12,11 @@ jest.mock("@/lib/api/library", () => ({
   setAlbumEdition: jest.fn(() => Promise.resolve()),
 }));
 
+jest.mock("@/lib/api/plugins", () => ({
+  getPluginActions: jest.fn(),
+  runPluginAction: jest.fn(),
+}));
+
 const mockHasPermission = jest.fn((_permission: string) => true);
 jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: () => mockHasPermission,
@@ -191,6 +196,7 @@ import {
   setAlbumEdition,
   updateLibraryFavorites,
 } from "@/lib/api/library";
+import { getPluginActions, runPluginAction } from "@/lib/api/plugins";
 import { albumRouteParams } from "@/lib/library-read";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
@@ -212,6 +218,8 @@ const mockGetAlbumEditions = getAlbumEditions as jest.Mock;
 const mockGetReleaseGroupTracks = getReleaseGroupTracks as jest.Mock;
 const mockGetReleaseGroupPreviews = getReleaseGroupPreviews as jest.Mock;
 const mockSetAlbumEdition = setAlbumEdition as jest.Mock;
+const mockGetPluginActions = getPluginActions as jest.Mock;
+const mockRunPluginAction = runPluginAction as jest.Mock;
 
 const album: Album = {
   id: "14",
@@ -253,6 +261,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockHasPermission.mockReturnValue(true);
   mockUseLibraryTracks.mockReturnValue({ data: [], isLoading: false });
+  mockGetPluginActions.mockResolvedValue([]);
+  mockRunPluginAction.mockResolvedValue("Noted");
   jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons) => {
     buttons?.find((button) => button.style === "destructive")?.onPress?.();
   });
@@ -580,6 +590,24 @@ describe("AlbumDetailScreen", () => {
     await fireEvent.press(screen.getByLabelText("Shuffle In Rainbows"));
 
     expect(mockShuffleAlbum).toHaveBeenCalledWith(tracks, expect.anything());
+  });
+
+  it("runs a plugin's album action on the Library album", async () => {
+    const noteAlbum = {
+      pluginId: "eden",
+      pluginName: "Eden",
+      id: "album",
+      label: "Note this album",
+      target: "album",
+    };
+    mockGetPluginActions.mockResolvedValue([noteAlbum]);
+    await openAlbumPage(album);
+
+    await fireEvent.press(await screen.findByText("Note this album"));
+
+    expect(mockRunPluginAction).toHaveBeenCalledWith(noteAlbum, {
+      albumId: "14",
+    });
   });
 
   describe("radio", () => {

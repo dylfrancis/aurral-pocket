@@ -1,6 +1,6 @@
 import { Host } from "@expo/ui";
 import type { ComponentProps } from "react";
-import { Button, Image, Menu } from "@expo/ui/swift-ui";
+import { Button, Divider, Image, Menu } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel as accessibilityLabelModifier,
   contentShape,
@@ -31,6 +31,7 @@ const SYMBOLS: Record<TrackMenuActionId, SFSymbol> = {
 export function TrackMenu({
   actions,
   onAction,
+  pluginActions = [],
   triggerColor,
   compact = false,
   accessibilityLabel = "More actions",
@@ -62,6 +63,16 @@ export function TrackMenu({
             role={action.destructive ? "destructive" : undefined}
             modifiers={action.disabled ? [disabled(true)] : undefined}
             onPress={() => onAction(action.id)}
+          />
+        ))}
+        {pluginActions.length > 0 && <Divider />}
+        {pluginActions.map((action) => (
+          <Button
+            key={action.key}
+            label={action.label}
+            systemImage="puzzlepiece.extension"
+            modifiers={action.running ? [disabled(true)] : undefined}
+            onPress={action.run}
           />
         ))}
       </Menu>

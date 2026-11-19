@@ -70,6 +70,7 @@ import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useDragToClose } from "@/hooks/player/use-drag-to-close";
 import { useLibraryTrackDetails } from "@/hooks/player/use-library-track-details";
 import { useTrackLyrics } from "@/hooks/player/use-track-lyrics";
+import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { TrackFavorite } from "@/lib/api/library";
 import { useCanPlayNow } from "@/lib/offline/saved-library";
@@ -90,7 +91,7 @@ import {
   setPlaybackSettings,
   usePlaybackSettings,
 } from "@/lib/player/playback-settings";
-import type { PlayerTrack } from "@/lib/player/track-item";
+import { libraryIdsOf, type PlayerTrack } from "@/lib/player/track-item";
 
 /** Each repeat tap steps to the next mode: queue, then track, then off. */
 const NEXT_REPEAT_MODE: Record<RepeatMode, RepeatMode> = {
@@ -221,6 +222,13 @@ export function NowPlayingScreen() {
   const songSave = useSongSave();
   const saveAction = songSave.actionFor(track);
   if (saveAction) menuActions.push(saveAction);
+  const libraryTrackId = libraryIdsOf(
+    track?.streamPath ?? null,
+  )?.libraryTrackId;
+  const pluginActions = usePluginActions(
+    "track",
+    libraryTrackId ? { trackIds: [libraryTrackId] } : null,
+  );
 
   const onMenuAction = (id: TrackMenuActionId) => {
     if (!track) return;
@@ -389,10 +397,11 @@ export function NowPlayingScreen() {
                       {fileQuality?.shown}
                     </Text>
                     <View style={[styles.actionSlot, styles.actionSlotEnd]}>
-                      {menuActions.length > 0 && (
+                      {menuActions.length + pluginActions.length > 0 && (
                         <TrackMenu
                           actions={menuActions}
                           onAction={onMenuAction}
+                          pluginActions={pluginActions}
                           triggerColor={colors.text}
                         />
                       )}
