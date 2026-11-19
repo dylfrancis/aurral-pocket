@@ -13,30 +13,30 @@ import Animated, {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { CircleButton } from "@/components/ui/CircleButton";
+import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
-import { LibraryBadge } from "./LibraryBadge";
 import { Fonts, Radius } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import type { Artist } from "@/lib/types/library";
 import { useColors } from "@/hooks/use-colors";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const FAVORITE_BUTTON_SIZE = 44;
-const LIBRARY_ACTION_PLACEHOLDER = { width: 170, height: 45 };
+const LIBRARY_ACTION_PLACEHOLDER = { width: 196, height: 28 };
 
 type ArtistHeroProps = {
   artist: Pick<Artist, "mbid" | "artistName" | "coverUrl">;
   scrollY?: SharedValue<number>;
   refreshing?: boolean;
   inLibrary: boolean | undefined;
-  onBadgePress?: () => void;
   onAddPress?: () => void;
+  /** Library artists only: the In Library capsule. */
+  libraryControl?: ReactNode;
+  /** Library artists only: Play and Shuffle for all of the artist's tracks. */
+  play?: { disabled: boolean; onPlay: () => void; onShuffle: () => void };
   /** Library artists only. Omit when the artist can't be favorited. */
   favorite?: { active: boolean; onToggle: () => void };
-  /** Library artists only: shown under the badge. */
-  monitoring?: ReactNode;
 };
 
 export function ArtistHero({
@@ -44,10 +44,10 @@ export function ArtistHero({
   scrollY,
   refreshing,
   inLibrary,
-  onBadgePress,
   onAddPress,
+  libraryControl,
+  play,
   favorite,
-  monitoring,
 }: ArtistHeroProps) {
   const colors = useColors();
 
@@ -81,7 +81,7 @@ export function ArtistHero({
         colors={["transparent", colors.background]}
         style={styles.gradient}
       />
-      <View style={styles.foreground}>
+      <View style={[styles.foreground, inLibrary && styles.foregroundPlay]}>
         <View style={IS_IOS ? styles.spacer : styles.spacerAndroid} />
         <CoverArtImage
           type="artist"
@@ -100,22 +100,32 @@ export function ArtistHero({
           />
         ) : inLibrary ? (
           <>
-            <View style={styles.libraryActions}>
-              {onBadgePress && <LibraryBadge onPress={onBadgePress} />}
-              {favorite && (
-                <CircleButton
-                  icon={favorite.active ? "heart" : "heart-outline"}
-                  size={FAVORITE_BUTTON_SIZE}
-                  accessibilityLabel={
-                    favorite.active
-                      ? `Remove ${artist.artistName} from favorites`
-                      : `Add ${artist.artistName} to favorites`
-                  }
-                  onPress={favorite.onToggle}
-                />
-              )}
-            </View>
-            {monitoring}
+            {libraryControl}
+            {play && (
+              <PlayRow
+                title={artist.artistName}
+                disabled={play.disabled}
+                onPlay={play.onPlay}
+                onShuffle={play.onShuffle}
+              >
+                {/* The spacer keeps Play centered when the artist can't be
+                    favorited. */}
+                {favorite ? (
+                  <CircleButton
+                    icon={favorite.active ? "heart" : "heart-outline"}
+                    size={PLAY_ROW_HEIGHT}
+                    accessibilityLabel={
+                      favorite.active
+                        ? `Remove ${artist.artistName} from favorites`
+                        : `Add ${artist.artistName} to favorites`
+                    }
+                    onPress={favorite.onToggle}
+                  />
+                ) : (
+                  <View style={styles.circleSpacer} />
+                )}
+              </PlayRow>
+            )}
           </>
         ) : (
           onAddPress && (
@@ -167,6 +177,14 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 8,
   },
+  // The Play row brings its own padding.
+  foregroundPlay: {
+    paddingBottom: 0,
+  },
+  circleSpacer: {
+    width: PLAY_ROW_HEIGHT,
+    height: PLAY_ROW_HEIGHT,
+  },
   spacer: {
     height: SCREEN_WIDTH - 300,
   },
@@ -184,11 +202,6 @@ const styles = StyleSheet.create({
   name: {
     textAlign: "center",
     paddingHorizontal: 24,
-  },
-  libraryActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
   },
   addButton: {
     flexDirection: "row",

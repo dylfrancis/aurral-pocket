@@ -111,38 +111,50 @@ jest.mock("@/components/library/EditionPicker", () => {
   };
 });
 
-// The artist's monitoring capsule is a native menu too. It stands in as a group
-// labelled with the capsule's text, holding a plain button per choice.
-jest.mock("@/components/artist/MonitoringCapsule", () => {
+// The artist's library capsule is a native menu too. It stands in as a group
+// labelled like the capsule, holding a plain button per monitoring choice
+// (when it can change) and one for Remove from Library.
+jest.mock("@/components/artist/ArtistLibraryCapsule", () => {
   /* eslint-disable @typescript-eslint/no-require-imports */
   const React = require("react");
   const { Pressable, Text, View } = require("react-native");
-  const { MONITORING_CHOICE_LABELS } = require("@/lib/monitoring-rules");
+  const {
+    REMOVE_FROM_LIBRARY,
+    libraryCapsuleAccessibilityLabel,
+  } = require("@/components/artist/artist-library-capsule-types");
   /* eslint-enable @typescript-eslint/no-require-imports */
   const items = [
     ["default", "Default Rules"],
     ["custom", "Custom Rules…"],
     ["off", "Not Monitored"],
   ];
+  const button = (
+    key: string,
+    title: string,
+    onPress: () => void,
+    selected?: boolean,
+  ) =>
+    React.createElement(
+      Pressable,
+      {
+        key,
+        accessibilityLabel: title,
+        accessibilityState: selected === undefined ? undefined : { selected },
+        onPress,
+      },
+      React.createElement(Text, null, title),
+    );
   return {
-    MonitoringCapsule: ({ choice, onSelect }: any) =>
+    ArtistLibraryCapsule: ({ choice, onSelect, onRemove }: any) =>
       React.createElement(
         View,
-        {
-          accessibilityLabel: `Monitoring, ${MONITORING_CHOICE_LABELS[choice]}`,
-        },
-        items.map(([value, title]) =>
-          React.createElement(
-            Pressable,
-            {
-              key: value,
-              accessibilityLabel: title,
-              accessibilityState: { selected: value === choice },
-              onPress: () => onSelect(value),
-            },
-            React.createElement(Text, null, title),
-          ),
-        ),
+        { accessibilityLabel: libraryCapsuleAccessibilityLabel(choice) },
+        onSelect && choice
+          ? items.map(([value, title]) =>
+              button(value, title, () => onSelect(value), value === choice),
+            )
+          : null,
+        onRemove ? button("remove", REMOVE_FROM_LIBRARY, onRemove) : null,
       ),
   };
 });

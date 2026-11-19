@@ -1,9 +1,8 @@
 import { useRef } from "react";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { MonitoringCapsule } from "@/components/artist/MonitoringCapsule";
+import { ArtistLibraryCapsule } from "@/components/artist/ArtistLibraryCapsule";
 import { MonitoringForm } from "@/components/artist/MonitoringForm";
 import { AppSheet } from "@/components/ui/AppSheet";
-import { Chip } from "@/components/ui/Chip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Radius } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -13,23 +12,29 @@ import {
 } from "@/hooks/library/use-artist-monitoring";
 import { useColors } from "@/hooks/use-colors";
 import {
-  MONITORING_CHOICE_LABELS,
   describeMonitoringRules,
   monitoringChoice,
   type MonitoringChoice,
 } from "@/lib/monitoring-rules";
 
-const CAPSULE_PLACEHOLDER = { width: 124, height: 28 };
+const CAPSULE_PLACEHOLDER = { width: 196, height: 28 };
 
-type ArtistMonitoringControlProps = {
+type ArtistLibraryControlProps = {
   mbid: string;
   artistName: string;
+  /** Omit to leave Remove from Library out of the menu. */
+  onRemove?: () => void;
 };
 
-export function ArtistMonitoringControl({
+/**
+ * A Library artist's state in one capsule: that it's in the Library, how it's
+ * monitored, and a menu to change the monitoring or remove the artist.
+ */
+export function ArtistLibraryControl({
   mbid,
   artistName,
-}: ArtistMonitoringControlProps) {
+  onRemove,
+}: ArtistLibraryControlProps) {
   const colors = useColors();
   const hasPermission = useHasPermission();
   const canChange = hasPermission("changeMonitoring");
@@ -46,23 +51,12 @@ export function ArtistMonitoringControl({
       />
     );
   }
-  if (!state?.added) return null;
-
   // Shows the pick at once. A refused change falls back to the server's.
-  const choice =
-    change.isPending && change.variables
+  const choice = !state?.added
+    ? null
+    : change.isPending && change.variables
       ? monitoringChoice(change.variables)
       : monitoringChoice(state);
-
-  if (!canChange) {
-    return (
-      <Chip
-        label={MONITORING_CHOICE_LABELS[choice]}
-        icon={choice === "off" ? "eye-off-outline" : "eye-outline"}
-        accessibilityLabel={`Monitoring, ${MONITORING_CHOICE_LABELS[choice]}`}
-      />
-    );
-  }
 
   const select = (next: MonitoringChoice) => {
     if (next === "custom") {
@@ -77,44 +71,50 @@ export function ArtistMonitoringControl({
     );
   };
 
-  const customRules = state.monitored && !state.useDefault ? state.rules : null;
+  const customRules =
+    state?.added && state.monitored && !state.useDefault ? state.rules : null;
 
   return (
     <>
-      <MonitoringCapsule
+      <ArtistLibraryCapsule
         choice={choice}
-        defaultSummary={describeMonitoringRules(state.defaultRules)}
+        defaultSummary={
+          state?.added ? describeMonitoringRules(state.defaultRules) : ""
+        }
         customSummary={
           customRules ? describeMonitoringRules(customRules) : null
         }
-        onSelect={select}
+        onSelect={canChange && choice ? select : undefined}
+        onRemove={onRemove}
         triggerColor={colors.text}
       />
-      <AppSheet
-        ref={sheetRef}
-        snapPoints={["85%"]}
-        enablePanDownToClose
-        enableDynamicSizing={false}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-      >
-        <MonitoringForm
-          title="Monitoring"
-          artistName={artistName}
-          defaultRules={state.defaultRules}
-          initialChoice="custom"
-          initialRules={customRules}
-          offDescription="Nothing new downloads"
-          submitLabel="Save"
-          submitIcon="checkmark"
-          submitting={change.isPending}
-          onSubmit={(monitoring) =>
-            change.mutate(monitoring, {
-              onSuccess: () => sheetRef.current?.dismiss(),
-            })
-          }
-        />
-      </AppSheet>
+      {state?.added ? (
+        <AppSheet
+          ref={sheetRef}
+          snapPoints={["85%"]}
+          enablePanDownToClose
+          enableDynamicSizing={false}
+          keyboardBehavior="interactive"
+          keyboardBlurBehavior="restore"
+        >
+          <MonitoringForm
+            title="Monitoring"
+            artistName={artistName}
+            defaultRules={state.defaultRules}
+            initialChoice="custom"
+            initialRules={customRules}
+            offDescription="Nothing new downloads"
+            submitLabel="Save"
+            submitIcon="checkmark"
+            submitting={change.isPending}
+            onSubmit={(monitoring) =>
+              change.mutate(monitoring, {
+                onSuccess: () => sheetRef.current?.dismiss(),
+              })
+            }
+          />
+        </AppSheet>
+      ) : null}
     </>
   );
 }

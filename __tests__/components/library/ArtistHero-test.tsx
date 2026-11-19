@@ -47,6 +47,7 @@ jest.mock("expo-linear-gradient", () => {
 });
 
 import React from "react";
+import { Text } from "react-native";
 import { render, fireEvent } from "@testing-library/react-native";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import type { Artist } from "@/lib/types/library";
@@ -73,12 +74,20 @@ describe("ArtistHero", () => {
     expect(getByText("Test Artist")).toBeTruthy();
   });
 
-  it("renders library badge when inLibrary", async () => {
-    const onPress = jest.fn();
-    const { getByText } = await render(
-      <ArtistHero artist={baseArtist} inLibrary onBadgePress={onPress} />,
+  it("shows a library artist's capsule, then Play, Shuffle and the heart", async () => {
+    const { getByText, getByLabelText } = await render(
+      <ArtistHero
+        artist={baseArtist}
+        inLibrary
+        libraryControl={<Text>In Library · Monitored</Text>}
+        play={{ disabled: false, onPlay: jest.fn(), onShuffle: jest.fn() }}
+        favorite={{ active: false, onToggle: jest.fn() }}
+      />,
     );
-    expect(getByText("In Your Library")).toBeTruthy();
+    expect(getByText("In Library · Monitored")).toBeTruthy();
+    expect(getByText("Play")).toBeTruthy();
+    expect(getByLabelText("Shuffle Test Artist")).toBeTruthy();
+    expect(getByLabelText("Add Test Artist to favorites")).toBeTruthy();
   });
 
   it("offers no favorite for an artist outside the library", async () => {
@@ -92,13 +101,20 @@ describe("ArtistHero", () => {
     expect(queryByLabelText(/to favorites$/)).toBeNull();
   });
 
-  it("calls onBadgePress when badge is tapped", async () => {
-    const onPress = jest.fn();
-    const { getByText } = await render(
-      <ArtistHero artist={baseArtist} inLibrary onBadgePress={onPress} />,
+  it("plays and shuffles a library artist", async () => {
+    const onPlay = jest.fn();
+    const onShuffle = jest.fn();
+    const { getByText, getByLabelText } = await render(
+      <ArtistHero
+        artist={baseArtist}
+        inLibrary
+        play={{ disabled: false, onPlay, onShuffle }}
+      />,
     );
-    await fireEvent.press(getByText("In Your Library"));
-    expect(onPress).toHaveBeenCalledTimes(1);
+    await fireEvent.press(getByText("Play"));
+    await fireEvent.press(getByLabelText("Shuffle Test Artist"));
+    expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(onShuffle).toHaveBeenCalledTimes(1);
   });
 
   it("renders add button when not in library", async () => {
@@ -109,11 +125,15 @@ describe("ArtistHero", () => {
     expect(getByText("Add to Library")).toBeTruthy();
   });
 
-  it("does not render badge or add button without callbacks", async () => {
+  it("offers no Play row or add button outside the library without callbacks", async () => {
     const { queryByText } = await render(
-      <ArtistHero artist={baseArtist} inLibrary={false} />,
+      <ArtistHero
+        artist={baseArtist}
+        inLibrary={false}
+        play={{ disabled: false, onPlay: jest.fn(), onShuffle: jest.fn() }}
+      />,
     );
-    expect(queryByText("In Your Library")).toBeNull();
+    expect(queryByText("Play")).toBeNull();
     expect(queryByText("Add to Library")).toBeNull();
   });
 

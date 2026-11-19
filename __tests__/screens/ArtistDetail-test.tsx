@@ -12,6 +12,7 @@ jest.mock("expo-image", () => {
 
 jest.mock("@/lib/api/library", () => ({
   deleteLibraryArtist: jest.fn(),
+  getArtistQueue: jest.fn(() => Promise.resolve([])),
   updateLibraryFavorites: jest.fn(() => Promise.resolve({ changedIds: [] })),
   favoriteEntityId: jest.requireActual("@/lib/api/library").favoriteEntityId,
 }));
@@ -755,9 +756,8 @@ describe("ArtistDetailScreen", () => {
         ...defaultAlbumHook,
         data: albums,
       });
-      const { getAllByText } = await renderScreen();
-      // One from LibraryBadge in hero, one from section label
-      expect(getAllByText("In Your Library").length).toBeGreaterThanOrEqual(2);
+      const { getByText } = await renderScreen();
+      expect(getByText("In Your Library")).toBeTruthy();
     });
 
     it("shows Albums & Releases section when release groups exist", async () => {
@@ -875,12 +875,10 @@ describe("ArtistDetailScreen", () => {
         data: [makeAlbum({ id: "1" })],
       });
 
-      const { queryAllByText, queryByText } = await renderScreen();
+      const { getByText, queryByText } = await renderScreen();
 
-      // Library albums render as usual (label appears in hero and section)
-      expect(queryAllByText("In Your Library").length).toBeGreaterThanOrEqual(
-        2,
-      );
+      // Library albums render as usual.
+      expect(getByText("In Your Library")).toBeTruthy();
       expect(queryByText("Albums & Releases")).toBeNull();
     });
   });

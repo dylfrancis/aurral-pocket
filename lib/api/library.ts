@@ -21,6 +21,7 @@ import type {
   CanonicalTrackItem,
   LibraryFavorites,
   LibraryFavoritesWire,
+  LibraryQueueTrack,
   LibraryScanJob,
   LibraryScanStatus,
 } from "@/lib/types/library";
@@ -577,6 +578,17 @@ export async function getArtistPreviewTracks(
     },
   );
   return r.data.tracks;
+}
+
+/**
+ * Every playable Library track by an artist, ordered by album release date,
+ * then disc and track, as the web's artist Play reads it.
+ */
+export async function getArtistQueue(mbid: string) {
+  const r = await api.get<{ tracks?: LibraryQueueTrack[] }>(
+    `/library/artists/${mbid}/queue`,
+  );
+  return r.data.tracks ?? [];
 }
 
 export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {

@@ -1,5 +1,5 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
-import { ArtistMonitoringControl } from "@/components/artist/ArtistMonitoringControl";
+import { ArtistLibraryControl } from "@/components/artist/ArtistLibraryControl";
 import {
   AddToPlaylistSheet,
   useAddToPlaylist,
@@ -17,6 +17,7 @@ import { HAS_LIQUID_GLASS } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetails } from "@/hooks/library/use-artist-details";
+import { useArtistQueue } from "@/hooks/library/use-artist-queue";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import {
@@ -43,11 +44,17 @@ import {
   useLibraryLookup,
 } from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
+import { useStartQueue } from "@/hooks/player/use-start-queue";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import { deleteLibraryArtist } from "@/lib/api/library";
 import { invalidateLibraryLists } from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
+import {
+  queueTrackToPlayerTrack,
+  type PlayerAlbumContext,
+  type PlayerTrack,
+} from "@/lib/player/track-item";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
 import type {
   Album,
@@ -163,6 +170,7 @@ export function ArtistDetailLayout({
   } = useLibraryAlbums(albumsRef);
   const { stop: stopPreview, ...preview } = usePreviewPlayer(mbid, artistName);
   const { data: details, isPending: detailsLoading } = useArtistDetails(mbid);
+  const { data: artistQueue } = useArtistQueue(inLibrary ? mbid : undefined);
   const { data: similarArtists } = useSimilarArtists(mbid);
 
   const allReleaseGroups = details?.["release-groups"];
@@ -310,7 +318,7 @@ export function ArtistDetailLayout({
     },
   });
 
-  const handleBadgePress = useCallback(() => {
+  const handleRemove = useCallback(() => {
     if (!libraryArtist) return;
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
@@ -366,10 +374,34 @@ export function ArtistDetailLayout({
         queryClient.invalidateQueries({
           queryKey: libraryKeys.artistMonitoring(mbid),
         }),
+        queryClient.invalidateQueries({
+          queryKey: libraryKeys.artistQueue(mbid),
+        }),
       ]),
     [refetchAlbums, refetchCanonicalArtist, queryClient, mbid],
   );
   const { refreshing, onRefresh } = usePullToRefresh(refreshArtist);
+
+  const startQueue = useStartQueue();
+  // Built at the tap: each URL carries the session token.
+  const playArtist = useCallback(
+    (shuffled: boolean) => {
+      const items = (artistQueue ?? [])
+        .map((track) => queueTrackToPlayerTrack(track, null))
+        .filter((item): item is PlayerTrack => item !== null);
+      const context: PlayerAlbumContext = {
+        albumTitle: artistName,
+        artistName,
+        coverPath: null,
+        artworkUrl: null,
+        albumMbid: null,
+        artistMbid: mbid,
+      };
+      stopPreview();
+      void startQueue(items, context, { shuffled });
+    },
+    [artistQueue, artistName, mbid, stopPreview, startQueue],
+  );
 
   const startRadio = useStartRadio();
   // The MBID finds the Library artist. A name could also match another artist
@@ -481,19 +513,24 @@ export function ArtistDetailLayout({
             scrollY={scrollY}
             refreshing={refreshing}
             inLibrary={libraryStatusLoading ? undefined : inLibrary}
-            onBadgePress={handleBadgePress}
-            // Shows while the artist loads, so the heart doesn't pop in and shift
-            // the badge.
+            libraryControl={
+              <ArtistLibraryControl
+                mbid={mbid}
+                artistName={libraryArtist?.artistName || artistName}
+                onRemove={libraryArtist ? handleRemove : undefined}
+              />
+            }
+            play={{
+              disabled: !artistQueue?.length,
+              onPlay: () => playArtist(false),
+              onShuffle: () => playArtist(true),
+            }}
+            // Shows while the artist loads, so the heart doesn't pop in and
+            // shift Play off center.
             favorite={
               canonicalArtistLoading || canonicalArtist?.identityKey
                 ? { active: isFavorite, onToggle: handleToggleFavorite }
                 : undefined
-            }
-            monitoring={
-              <ArtistMonitoringControl
-                mbid={mbid}
-                artistName={libraryArtist?.artistName || artistName}
-              />
             }
             onAddPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

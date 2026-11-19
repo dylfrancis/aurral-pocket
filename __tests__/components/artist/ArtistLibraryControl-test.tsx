@@ -57,7 +57,7 @@ import {
   screen,
 } from "@testing-library/react-native";
 import * as Burnt from "burnt";
-import { ArtistMonitoringControl } from "@/components/artist/ArtistMonitoringControl";
+import { ArtistLibraryControl } from "@/components/artist/ArtistLibraryControl";
 import { getArtistMonitoring, setArtistMonitoring } from "@/lib/api/library";
 import type {
   ArtistMonitoringState,
@@ -101,7 +101,7 @@ const state = (
 
 const clients: QueryClient[] = [];
 
-async function renderControl() {
+async function renderControl(onRemove?: () => void) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -111,7 +111,11 @@ async function renderControl() {
   clients.push(client);
   await render(
     <QueryClientProvider client={client}>
-      <ArtistMonitoringControl mbid={MBID} artistName="Radiohead" />
+      <ArtistLibraryControl
+        mbid={MBID}
+        artistName="Radiohead"
+        onRemove={onRemove}
+      />
     </QueryClientProvider>,
   );
 }
@@ -127,7 +131,7 @@ afterEach(() => {
   clients.length = 0;
 });
 
-describe("ArtistMonitoringControl", () => {
+describe("ArtistLibraryControl", () => {
   it.each([
     ["default rules", state({}), "Monitored"],
     [
@@ -143,7 +147,7 @@ describe("ArtistMonitoringControl", () => {
   ])("shows an artist on %s", async (_case, monitoring, label) => {
     mockGetMonitoring.mockResolvedValue(monitoring);
     await renderControl();
-    expect(await screen.findByLabelText(`Monitoring, ${label}`)).toBeTruthy();
+    expect(await screen.findByLabelText(`In Library, ${label}`)).toBeTruthy();
   });
 
   it.each([
@@ -220,7 +224,25 @@ describe("ArtistMonitoringControl", () => {
     mockGetMonitoring.mockResolvedValue(state({}));
     await renderControl();
 
-    expect(await screen.findByLabelText("Monitoring, Monitored")).toBeTruthy();
+    expect(await screen.findByLabelText("In Library, Monitored")).toBeTruthy();
     expect(screen.queryByLabelText("Not Monitored")).toBeNull();
+  });
+
+  it("removes the artist from its menu", async () => {
+    mockGetMonitoring.mockResolvedValue(state({}));
+    const onRemove = jest.fn();
+    await renderControl(onRemove);
+    await fireEvent.press(await screen.findByText("Remove from Library"));
+
+    expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it("still says the artist is in the Library without monitoring", async () => {
+    mockGetMonitoring.mockResolvedValue(state({ added: false }));
+    await renderControl(jest.fn());
+
+    expect(await screen.findByLabelText("In Library")).toBeTruthy();
+    expect(screen.queryByLabelText("Default Rules")).toBeNull();
+    expect(screen.getByText("Remove from Library")).toBeTruthy();
   });
 });
