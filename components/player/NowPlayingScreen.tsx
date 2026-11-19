@@ -762,7 +762,7 @@ function TrackTitles({
         accessibilityLabel={
           onTitlePress ? `View album ${track.album || track.title}` : undefined
         }
-        style={styles.titlePress}
+        style={({ pressed }) => [styles.titlePress, pressed && styles.pressed]}
       >
         <MarqueeText
           variant="subtitle"
@@ -780,6 +780,8 @@ function TrackTitles({
         onPress={onArtistPress}
         disabled={!onArtistPress}
         hitSlop={8}
+        // Dims while held, as the title does, so the tap reads as a link.
+        style={({ pressed }) => pressed && styles.pressed}
         accessibilityRole={onArtistPress ? "button" : undefined}
         accessibilityLabel={
           onArtistPress ? `View artist ${track.artist}` : undefined
@@ -974,6 +976,9 @@ const styles = StyleSheet.create({
   },
   titlePress: {
     alignSelf: "stretch",
+  },
+  pressed: {
+    opacity: 0.6,
   },
   titleLarge: {
     fontSize: 24,
