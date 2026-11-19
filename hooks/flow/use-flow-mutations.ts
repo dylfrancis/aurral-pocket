@@ -81,7 +81,7 @@ export function useCreateFlow() {
 
 /**
  * Adds the new flow to the cached snapshot, so its page can open before the
- * next status poll lands.
+ * next status arrives.
  */
 export function useCreateFlowFromTemplate() {
   const queryClient = useQueryClient();
@@ -90,7 +90,8 @@ export function useCreateFlowFromTemplate() {
     mutationFn: (templateId: string) =>
       createFlowFromTemplate(templateId).catch(rethrowClearNameConflict),
     onSuccess: async (flow) => {
-      // A poll already in flight would put back a snapshot without the flow.
+      // A status fetch already in flight would put back a snapshot without
+      // the flow.
       await queryClient.cancelQueries({ queryKey: flowKeys.status() });
       queryClient.setQueryData<FlowStatusSnapshot>(flowKeys.status(), (prev) =>
         prev && !prev.flows.some((entry) => entry.id === flow.id)

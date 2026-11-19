@@ -28,8 +28,22 @@ export type LiveChannelMessages = {
 
 export type LiveChannel = keyof LiveChannelMessages;
 
+/**
+ * The only types pocket can listen for. The contract check probes the socket
+ * with this list.
+ */
+export const LIVE_MESSAGE_TYPES = {
+  library: ["library_scan_completed", "release_metadata_refreshed"],
+  playlists: ["playlist_status"],
+  discovery: ["discovery_update"],
+  plugins: ["plugin_action_finished"],
+  "play-queue": ["play_queue_changed"],
+} as const satisfies {
+  [C in LiveChannel]: readonly LiveChannelMessages[C]["type"][];
+};
+
 export type LiveMessageType<C extends LiveChannel> =
-  LiveChannelMessages[C]["type"];
+  (typeof LIVE_MESSAGE_TYPES)[C][number];
 
 export type LiveMessage<
   C extends LiveChannel,

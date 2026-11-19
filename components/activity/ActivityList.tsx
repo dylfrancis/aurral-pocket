@@ -164,7 +164,7 @@ export function ActivityList({ view }: ActivityListProps) {
     [downloadEntryFor, rowHasActions, rowPressHandler, handleLongPress],
   );
 
-  // The feed polls while the sheet is open, so it offers what the entry
+  // The feed updates while the sheet is open, so it offers what the entry
   // allows now, not what it allowed when it was pressed.
   const sheetItem = selected
     ? (items.find((item) => item.id === selected.id) ?? selected)

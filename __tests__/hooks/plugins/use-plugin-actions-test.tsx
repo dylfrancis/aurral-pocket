@@ -10,27 +10,7 @@ jest.mock("@/lib/api/plugins", () => ({
   runPluginAction: jest.fn(),
 }));
 
-// The socket's listeners, so a test can send a channel message as Aurral would.
-const mockLive: {
-  listeners: Set<{
-    channel: string;
-    types: string[];
-    listener: (message: unknown) => void;
-  }>;
-} = { listeners: new Set() };
-jest.mock("@/lib/api/live-socket", () => ({
-  subscribeToLiveChannel: (
-    channel: string,
-    types: string[],
-    listener: (message: unknown) => void,
-  ) => {
-    const entry = { channel, types, listener };
-    mockLive.listeners.add(entry);
-    return () => mockLive.listeners.delete(entry);
-  },
-  subscribeToLiveStatus: () => () => {},
-  isLiveSocketConnected: () => true,
-}));
+jest.mock("@/lib/api/live-socket", () => require("@/test-support/live-socket"));
 
 import type { ReactNode } from "react";
 import { act, renderHook } from "@testing-library/react-native";
@@ -43,6 +23,7 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { getPluginActions, runPluginAction } from "@/lib/api/plugins";
 import type { PluginAction } from "@/lib/types/plugins";
+import { mockLive } from "@/test-support/live-socket";
 
 const mockGetPluginActions = getPluginActions as jest.Mock;
 const mockRunPluginAction = runPluginAction as jest.Mock;
@@ -96,7 +77,7 @@ function deferred<T>() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockLive.listeners.clear();
+  mockLive.reset();
   client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Infinity },
@@ -183,19 +164,14 @@ describe("usePluginActionResults", () => {
   it("toasts a background action's result when it finishes", async () => {
     await renderHook(() => usePluginActionResults());
 
-    await act(async () => {
-      for (const { channel, types, listener } of mockLive.listeners) {
-        if (channel === "plugins" && types.includes("plugin_action_finished")) {
-          listener({
-            channel: "plugins",
-            type: "plugin_action_finished",
-            ok: false,
-            message: "Eden: the box is offline",
-            timestamp: 1,
-          });
-        }
-      }
-    });
+    await act(async () =>
+      mockLive.push({
+        channel: "plugins",
+        type: "plugin_action_finished",
+        ok: false,
+        message: "Eden: the box is offline",
+      }),
+    );
 
     expect(mockToast).toHaveBeenCalledWith({
       title: "Eden: the box is offline",
