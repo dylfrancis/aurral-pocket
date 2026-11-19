@@ -63,6 +63,7 @@ export const libraryKeys = {
   artistDetails: (mbid: string) => ["library", "artistDetails", mbid] as const,
   artistPreviews: (mbid: string) =>
     ["library", "artistPreviews", mbid] as const,
+  artistQueue: (mbid: string) => ["library", "artistQueue", mbid] as const,
   // A null release is the server's pick: the Library's edition, else the
   // standard one.
   releaseGroupTracks: (mbid: string, release: string | null) =>
