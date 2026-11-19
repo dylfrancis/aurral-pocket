@@ -3,6 +3,7 @@ import ArrowCircleDownIcon from "@expo/material-symbols/arrow_circle_down.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
 import DownloadIcon from "@expo/material-symbols/download.xml";
 import DownloadForOfflineIcon from "@expo/material-symbols/download_for_offline.xml";
+import ExtensionIcon from "@expo/material-symbols/extension.xml";
 import FileDownloadOffIcon from "@expo/material-symbols/file_download_off.xml";
 import MoreHorizIcon from "@expo/material-symbols/more_horiz.xml";
 import PersonIcon from "@expo/material-symbols/person.xml";
@@ -13,6 +14,7 @@ import { Host } from "@expo/ui";
 import {
   DropdownMenu,
   DropdownMenuItem,
+  HorizontalDivider,
   Icon,
   IconButton,
   Text,
@@ -45,6 +47,7 @@ const POPUP_PROPERTIES = { clippingEnabled: false };
 export function TrackMenu({
   actions,
   onAction,
+  pluginActions = [],
   triggerColor,
   compact = false,
   accessibilityLabel = "More actions",
@@ -89,6 +92,24 @@ export function TrackMenu({
               </DropdownMenuItem.Text>
               <DropdownMenuItem.LeadingIcon>
                 <Icon source={ICONS[action.id]} size={24} />
+              </DropdownMenuItem.LeadingIcon>
+            </DropdownMenuItem>
+          ))}
+          {pluginActions.length > 0 && <HorizontalDivider />}
+          {pluginActions.map((action) => (
+            <DropdownMenuItem
+              key={action.key}
+              enabled={!action.running}
+              onClick={() => {
+                setExpanded(false);
+                action.run();
+              }}
+            >
+              <DropdownMenuItem.Text>
+                <Text>{action.label}</Text>
+              </DropdownMenuItem.Text>
+              <DropdownMenuItem.LeadingIcon>
+                <Icon source={ExtensionIcon} size={24} />
               </DropdownMenuItem.LeadingIcon>
             </DropdownMenuItem>
           ))}

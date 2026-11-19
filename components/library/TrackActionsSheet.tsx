@@ -19,9 +19,11 @@ import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useSongSave } from "@/hooks/offline/use-song-save";
 import { useLibraryTrackDetails } from "@/hooks/player/use-library-track-details";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
+import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import { hasRadioSeed, radioSeedFor } from "@/lib/player/radio";
 import { Fonts } from "@/constants/theme";
 import {
+  libraryIdsOf,
   toPlayerTrack,
   type PlayerAlbumContext,
   type PlayerTrack,
@@ -156,6 +158,14 @@ function TrackActionsContent({
     item?.favorite ??
     null;
   const playerTrack = item ?? (track ? toPlayerTrack(track, album) : null);
+  // An album's track with no file has no stream path, but is still in the
+  // Library.
+  const libraryTrackId =
+    track?.id ?? libraryIdsOf(item?.streamPath ?? null)?.libraryTrackId;
+  const pluginActions = usePluginActions(
+    "track",
+    libraryTrackId ? { trackIds: [libraryTrackId] } : null,
+  );
   const canQueue = !!item || !!track;
   const saveAction =
     options.canSaveOffline === false ? null : songSave.actionFor(playerTrack);
@@ -293,6 +303,15 @@ function TrackActionsContent({
             onPress={closeThen(() => songSave.run(saveAction.id, playerTrack))}
           />
         ) : null}
+        {pluginActions.map((action) => (
+          <SheetAction
+            key={action.key}
+            icon="extension-puzzle-outline"
+            label={action.label}
+            disabled={action.running}
+            onPress={closeThen(action.run)}
+          />
+        ))}
         {options.extras?.actions.map((action) => (
           <SheetAction
             key={action.id}

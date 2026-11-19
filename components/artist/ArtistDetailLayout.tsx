@@ -10,6 +10,7 @@ import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection
 import { TopTracksSection } from "@/components/artist/TopTracksSection";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
+import { pluginMenuSection } from "@/components/plugins/PluginMenuActions";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { Fonts } from "@/constants/theme";
 import { HAS_LIQUID_GLASS } from "@/constants/navigation";
@@ -43,6 +44,7 @@ import {
 } from "@/hooks/search/use-library-lookup";
 import { useSimilarArtists } from "@/hooks/search/use-similar-artists";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
+import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import { deleteLibraryArtist } from "@/lib/api/library";
 import { invalidateLibraryLists } from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
@@ -124,6 +126,10 @@ export function ArtistDetailLayout({
     mbid,
   ]);
   const inLibrary = isInLibrary(mbid);
+  const pluginActions = usePluginActions(
+    "artist",
+    inLibrary ? { artistId: mbid } : null,
+  );
   const { data: libraryArtist, refetch: refetchArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,
   );
@@ -422,6 +428,7 @@ export function ArtistDetailLayout({
               {`Re-search Missing (${missingCount})`}
             </Stack.Toolbar.MenuAction>
           )}
+          {pluginMenuSection(pluginActions)}
           <Stack.Toolbar.MenuAction
             icon={
               IS_IOS

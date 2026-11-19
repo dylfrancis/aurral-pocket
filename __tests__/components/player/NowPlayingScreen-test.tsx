@@ -115,6 +115,11 @@ jest.mock("@/lib/player/queue-sync", () => ({
 
 jest.mock("@/lib/api/lyrics", () => ({ getLyrics: jest.fn() }));
 
+jest.mock("@/lib/api/plugins", () => ({
+  getPluginActions: jest.fn(),
+  runPluginAction: jest.fn(),
+}));
+
 const mockGetLibraryRadio = jest.fn((..._args: unknown[]) =>
   Promise.resolve<LibraryQueueTrack[]>([]),
 );
@@ -167,6 +172,7 @@ import {
   updateLibraryFavorites,
 } from "@/lib/api/library";
 import { getLyrics } from "@/lib/api/lyrics";
+import { getPluginActions, runPluginAction } from "@/lib/api/plugins";
 import {
   onTrackStarted,
   playAlbumFromTrack,
@@ -199,6 +205,8 @@ const mockGetLibraryFavorites = getLibraryFavorites as jest.Mock;
 const mockGetCanonicalAlbumTracks = getCanonicalAlbumTracks as jest.Mock;
 const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
 const mockGetLyrics = getLyrics as jest.Mock;
+const mockGetPluginActions = getPluginActions as jest.Mock;
+const mockRunPluginAction = runPluginAction as jest.Mock;
 
 function track(id: string, name: string): Track {
   return {
@@ -262,6 +270,7 @@ beforeEach(() => {
   mockGetCanonicalAlbumTracks.mockResolvedValue([]);
   mockUpdateLibraryFavorites.mockResolvedValue({ changedIds: [] });
   mockGetLyrics.mockResolvedValue(null);
+  mockGetPluginActions.mockResolvedValue([]);
 });
 
 // The player keeps its track between tests, so even a first render can show the
@@ -500,6 +509,30 @@ describe("NowPlayingScreen", () => {
         ref: "canonical-album-1",
         title: "Kid A",
       }),
+    });
+  });
+
+  it("runs a plugin's track action on the playing Library track", async () => {
+    const noteTracks = {
+      pluginId: "eden",
+      pluginName: "Eden",
+      id: "track",
+      label: "Note these tracks",
+      target: "track",
+    };
+    mockGetPluginActions.mockResolvedValue([noteTracks]);
+    mockRunPluginAction.mockResolvedValue("Noted");
+    const airbag = {
+      ...track("76", "Airbag"),
+      streamPath: "/library/stream/12/76",
+    };
+    const { findByLabelText } = await renderScreen();
+    await act(() => playAlbumFromTrack([airbag], airbag, album));
+
+    await fireEvent.press(await findByLabelText("Note these tracks"));
+
+    expect(mockRunPluginAction).toHaveBeenCalledWith(noteTracks, {
+      trackIds: ["76"],
     });
   });
 

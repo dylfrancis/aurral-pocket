@@ -306,6 +306,9 @@
       "paused": "boolean",
       "retryPausedPlaylistIds": []
     },
+    "GET /plugins/actions": {
+      "actions": []
+    },
     "GET /requests/page": {
       "cancelable": "number",
       "cause": "null",

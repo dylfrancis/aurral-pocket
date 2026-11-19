@@ -28,6 +28,7 @@ import DeleteIcon from "@expo/material-symbols/delete.xml";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
 import { CoverTintBackdrop } from "@/components/player/CoverTintBackdrop";
+import { pluginMenuSection } from "@/components/plugins/PluginMenuActions";
 import {
   ARTWORK_SHADOW,
   PlayerColors,
@@ -62,6 +63,7 @@ import { useSaveOffline } from "@/hooks/offline/use-save-offline";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
 import { useQueueActions } from "@/hooks/library/use-queue-actions";
 import { useCoverTint } from "@/hooks/player/use-cover-color";
+import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
@@ -201,6 +203,10 @@ export function AlbumDetailScreen() {
   const play = usePlayTrack();
   const { playNext, addToQueue, playAlbum, shuffleAlbum } = useQueueActions();
   const startRadio = useStartRadio();
+  const pluginActions = usePluginActions(
+    "album",
+    album ? { albumId: album.id } : null,
+  );
 
   const trackActions = useTrackActions();
   const toggleFavorite = useToggleFavorite();
@@ -574,6 +580,7 @@ export function AlbumDetailScreen() {
           >
             View on Last.fm
           </Stack.Toolbar.MenuAction>
+          {pluginMenuSection(pluginActions)}
           <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "trash" : DeleteIcon}
             // Native menus only offer the platform destructive style, so this
