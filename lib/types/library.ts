@@ -184,6 +184,8 @@ export type PreviewTrack = {
   id: string;
   title: string;
   album: string | null;
+  /** Deezer's album cover, an absolute URL. */
+  artworkUrl?: string | null;
   preview_url: string;
   duration_ms: number;
 };

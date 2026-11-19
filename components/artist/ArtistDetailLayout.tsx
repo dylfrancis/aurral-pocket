@@ -1,15 +1,15 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
 import { ArtistLibraryControl } from "@/components/artist/ArtistLibraryControl";
-import {
-  AddToPlaylistSheet,
-  useAddToPlaylist,
-} from "@/components/flow/AddToPlaylistSheet";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { TopTracksSection } from "@/components/artist/TopTracksSection";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
+import {
+  TrackActionsSheet,
+  useTrackActions,
+} from "@/components/library/TrackActionsSheet";
 import { pluginMenuSection } from "@/components/plugins/PluginMenuActions";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { Fonts } from "@/constants/theme";
@@ -17,7 +17,7 @@ import { HAS_LIQUID_GLASS } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetails } from "@/hooks/library/use-artist-details";
-import { useArtistQueue } from "@/hooks/library/use-artist-queue";
+import { useArtistTopTracks } from "@/hooks/library/use-artist-top-tracks";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import {
@@ -31,7 +31,6 @@ import {
   useLibraryArtist,
 } from "@/hooks/library/use-library-artist";
 import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
-import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
@@ -51,14 +50,19 @@ import { deleteLibraryArtist } from "@/lib/api/library";
 import { invalidateLibraryLists } from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
 import {
+  togglePlayback,
+  useCurrentTrack,
+  usePlaybackState,
+} from "@/lib/player/player";
+import {
   queueTrackToPlayerTrack,
   type PlayerAlbumContext,
   type PlayerTrack,
 } from "@/lib/player/track-item";
+import { topTrackClipId, topTrackItem } from "@/lib/top-tracks";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
 import type {
   Album,
-  PreviewTrack,
   PrimaryReleaseType,
   ReleaseGroup,
 } from "@/lib/types/library";
@@ -168,9 +172,12 @@ export function ArtistDetailLayout({
     error: albumsError,
     refetch: refetchAlbums,
   } = useLibraryAlbums(albumsRef);
-  const { stop: stopPreview, ...preview } = usePreviewPlayer(mbid, artistName);
+  const {
+    topTracks,
+    isLoading: topTracksLoading,
+    artistQueue,
+  } = useArtistTopTracks(mbid, artistName, inLibrary);
   const { data: details, isPending: detailsLoading } = useArtistDetails(mbid);
-  const { data: artistQueue } = useArtistQueue(inLibrary ? mbid : undefined);
   const { data: similarArtists } = useSimilarArtists(mbid);
 
   const allReleaseGroups = details?.["release-groups"];
@@ -256,26 +263,10 @@ export function ArtistDetailLayout({
     return map;
   }, [typedAlbums]);
 
-  const { canAddToPlaylist, ...addToPlaylist } = useAddToPlaylist();
-
-  const openAddToPlaylist = addToPlaylist.open;
-  const handleAddToPlaylist = useCallback(
-    (track: PreviewTrack) => {
-      openAddToPlaylist({
-        artistName,
-        trackName: track.title,
-        albumName: track.album,
-        artistMbid: mbid,
-      });
-    },
-    [openAddToPlaylist, artistName, mbid],
-  );
-
   const addArtistSheetRef = useRef<BottomSheetModal>(null);
 
   const openReleaseGroup = useCallback(
     (rg: ReleaseGroup) => {
-      stopPreview();
       router.push({
         pathname: "/release/[mbid]",
         params: releaseRouteParams({
@@ -290,7 +281,7 @@ export function ArtistDetailLayout({
         }),
       });
     },
-    [stopPreview, router, artistName, mbid, libraryArtist?.id],
+    [router, artistName, mbid, libraryArtist?.id],
   );
 
   // A bare path, so expo-router resolves it inside whichever tab group is
@@ -397,10 +388,77 @@ export function ArtistDetailLayout({
         albumMbid: null,
         artistMbid: mbid,
       };
-      stopPreview();
       void startQueue(items, context, { shuffled });
     },
-    [artistQueue, artistName, mbid, stopPreview, startQueue],
+    [artistQueue, artistName, mbid, startQueue],
+  );
+
+  // Top tracks play as one queue: the Library's files where it has them, the
+  // clips elsewhere.
+  const topTracksContext = useMemo<PlayerAlbumContext>(
+    () => ({
+      albumTitle: "Top Tracks",
+      artistName,
+      coverPath: null,
+      artworkUrl: null,
+      albumMbid: null,
+      artistMbid: mbid,
+    }),
+    [artistName, mbid],
+  );
+  const topTrackIds = useMemo(
+    () =>
+      topTracks.map((topTrack) =>
+        topTrack.library
+          ? topTrack.library.id
+          : topTrackClipId(topTrack.preview),
+      ),
+    [topTracks],
+  );
+  // Built at the tap: each Library URL carries the session token.
+  const topTrackItems = useCallback(
+    () =>
+      topTracks
+        .map((topTrack) => topTrackItem(topTrack, { name: artistName, mbid }))
+        .filter((item): item is PlayerTrack => item !== null),
+    [topTracks, artistName, mbid],
+  );
+  const currentTrack = useCurrentTrack();
+  const playbackState = usePlaybackState();
+  const playTopTracksFrom = useCallback(
+    (index: number) => {
+      const id = topTrackIds[index];
+      // The row already playing pauses or resumes, as a clip row did.
+      if (id === currentTrack?.id) {
+        void togglePlayback();
+        return;
+      }
+      void startQueue(topTrackItems(), topTracksContext, { startId: id });
+    },
+    [
+      topTrackIds,
+      currentTrack?.id,
+      startQueue,
+      topTrackItems,
+      topTracksContext,
+    ],
+  );
+  const trackActions = useTrackActions();
+  const openTopTrackActions = useCallback(
+    (index: number) => {
+      const topTrack = topTracks[index];
+      if (!topTrack) return;
+      trackActions.openItem(
+        topTrackItem(topTrack, { name: artistName, mbid }),
+        topTracksContext,
+        {
+          title: topTrack.library?.title ?? topTrack.preview.title,
+          // A clip is only a cut of the song, not a file to keep.
+          canSaveOffline: !!topTrack.library,
+        },
+      );
+    },
+    [topTracks, trackActions, artistName, mbid, topTracksContext],
   );
 
   const startRadio = useStartRadio();
@@ -412,14 +470,6 @@ export function ArtistDetailLayout({
       label: artistName,
     });
   }, [startRadio, canonicalArtist?.id, mbid, artistName]);
-
-  const handleSimilarPress = useCallback(
-    (artist: SimilarArtist) => {
-      stopPreview();
-      onSimilarArtistPress(artist);
-    },
-    [stopPreview, onSimilarArtistPress],
-  );
 
   // With Liquid Glass the scroll view insets below the header, as the album
   // page does, and the hero bleeds back up under it. iOS then sees the page at
@@ -542,13 +592,18 @@ export function ArtistDetailLayout({
         <ArtistTags mbid={mbid} />
 
         <TopTracksSection
-          tracks={preview.tracks ?? []}
-          isLoading={preview.isLoading}
-          playingId={preview.playingId}
-          loadingId={preview.loadingId}
-          progress={preview.progress}
-          onToggle={preview.toggle}
-          onAddToPlaylist={canAddToPlaylist ? handleAddToPlaylist : undefined}
+          topTracks={topTracks}
+          isLoading={topTracksLoading}
+          itemIds={topTrackIds}
+          currentId={currentTrack?.id ?? null}
+          isPlaying={playbackState === "playing"}
+          onPlayFrom={playTopTracksFrom}
+          onPlayAll={() =>
+            void startQueue(topTrackItems(), topTracksContext, {
+              startId: topTrackIds[0],
+            })
+          }
+          onOpenActions={openTopTrackActions}
         />
 
         {inLibrary && (
@@ -572,7 +627,7 @@ export function ArtistDetailLayout({
 
         <SimilarArtistsSection
           artists={similarArtists ?? []}
-          onPress={handleSimilarPress}
+          onPress={onSimilarArtistPress}
         />
 
         <ArtistBioSection
@@ -595,9 +650,9 @@ export function ArtistDetailLayout({
         />
       )}
 
-      <AddToPlaylistSheet
-        track={addToPlaylist.track}
-        onClose={addToPlaylist.close}
+      <TrackActionsSheet
+        target={trackActions.target}
+        onClose={trackActions.close}
       />
     </View>
   );

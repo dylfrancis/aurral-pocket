@@ -12,7 +12,8 @@ export function TopTracksSkeleton({ count = 5 }: TopTracksSkeletonProps) {
     <View>
       {Array.from({ length: count }).map((_, i) => (
         <View key={i} style={styles.row}>
-          <Skeleton width={32} height={32} borderRadius={16} />
+          <View style={styles.indexSlot} />
+          <Skeleton width={44} height={44} borderRadius={4} />
           <View style={styles.meta}>
             <Skeleton
               width={TITLE_WIDTHS[i % TITLE_WIDTHS.length]}
@@ -32,8 +33,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
+  // Lines the covers up with the rows' track numbers.
+  indexSlot: {
+    width: 20,
   },
   meta: {
     flex: 1,

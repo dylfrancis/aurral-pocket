@@ -35,6 +35,7 @@ export function PlayRow({
       />
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={`Play ${title}`}
         onPress={onPlay}
         disabled={disabled}
         style={({ pressed }) => [
