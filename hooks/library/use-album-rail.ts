@@ -7,9 +7,8 @@ import type { LibrarySort } from "@/lib/types/library";
 const RAIL_SIZE = 20;
 
 /**
- * The first albums of the Library in one order, for a rail on the Library
- * home. `availableOnly` leaves out albums with no file, as the web's Explore
- * and Recently Released rails do.
+ * `availableOnly` leaves out albums with no file, as the web's Explore and
+ * Recently Released rails do.
  */
 export function useAlbumRail(sort: LibrarySort, availableOnly = false) {
   return useQuery({

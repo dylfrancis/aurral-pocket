@@ -28,10 +28,8 @@ type Category = {
 };
 
 /**
- * The library home starts with a category list: every row pushes a screen and
- * needs no read, so the list paints at once however large the library is, and
- * works with no connection. The album rails come after it, and Shuffle Library
- * sits in the top bar.
+ * The category rows need no read, so they paint at once however large the
+ * Library is, and work with no connection.
  */
 const CATEGORIES: Category[] = [
   { icon: "people-outline", label: "Artists", route: "/artists" },
@@ -68,8 +66,7 @@ export default function LibraryScreen() {
   const rereadPlayed = useCallback(() => setPlayedKey((key) => key + 1), []);
   useRefreshOnFocus(rereadPlayed);
 
-  // About 500 songs drawn from across the whole Library. Stable, because a
-  // new handler rebuilds the native header.
+  // Stable, because a new handler rebuilds the native header.
   const { readAndPlay, isLoading: shuffleLoading } = usePlayLibrarySongs();
   const shuffleLibrary = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -84,7 +81,6 @@ export default function LibraryScreen() {
         <Stack.Toolbar.Button
           icon={IS_IOS ? "shuffle" : ShuffleIcon}
           accessibilityLabel="Shuffle Library"
-          // It reads the server, and a second tap while it reads does nothing.
           disabled={isOffline || shuffleLoading}
           onPress={shuffleLibrary}
         >

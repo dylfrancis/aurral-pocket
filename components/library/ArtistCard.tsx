@@ -11,7 +11,6 @@ type ArtistCardProps = {
   onPress: () => void;
 };
 
-/** An artist in the Library grid: a round photo with the name under it. */
 export const ArtistCard = React.memo(function ArtistCard({
   artist,
   onPress,

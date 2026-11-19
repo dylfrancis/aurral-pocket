@@ -393,8 +393,6 @@ export function ArtistDetailLayout({
     [artistQueue, artistName, mbid, startQueue],
   );
 
-  // Top tracks play as one queue: the Library's files where it has them, the
-  // clips elsewhere.
   const topTracksContext = useMemo<PlayerAlbumContext>(
     () => ({
       albumTitle: "Top Tracks",
@@ -428,7 +426,6 @@ export function ArtistDetailLayout({
   const playTopTracksFrom = useCallback(
     (index: number) => {
       const id = topTrackIds[index];
-      // The row already playing pauses or resumes, as a clip row did.
       if (id === currentTrack?.id) {
         void togglePlayback();
         return;

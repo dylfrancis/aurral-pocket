@@ -26,10 +26,6 @@ import {
   type ArtistLibraryCapsuleProps,
 } from "./artist-library-capsule-types";
 
-/**
- * "In Library · Monitored": a capsule that opens a SwiftUI menu with the
- * artist's monitoring and Remove from Library.
- */
 export function ArtistLibraryCapsule({
   choice,
   defaultSummary,

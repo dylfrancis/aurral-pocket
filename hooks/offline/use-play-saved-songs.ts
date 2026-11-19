@@ -60,7 +60,6 @@ export function usePlaySavedSongs() {
   );
 }
 
-/** Everything saved on the phone, played as one queue from Library › Offline. */
 export const OFFLINE: PlayerAlbumContext = {
   ...SAVED_SONGS,
   albumTitle: "Offline",

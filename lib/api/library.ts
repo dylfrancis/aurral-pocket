@@ -580,7 +580,6 @@ export async function getArtistPreviewTracks(
   return r.data.tracks;
 }
 
-/** One song to find and download into the Library. */
 export type TrackDownloadRequest = {
   artistName: string;
   trackName: string;

@@ -23,14 +23,12 @@ export const NOT_MONITORED_SUBTITLE = "Nothing new downloads";
 export const NO_CUSTOM_RULES_SUBTITLE = "Pick what downloads";
 export const REMOVE_FROM_LIBRARY = "Remove from Library";
 
-/** "In Library · Monitored": the capsule's text. */
 export function libraryCapsuleLabel(choice: MonitoringChoice | null) {
   return choice
     ? `In Library · ${MONITORING_CHOICE_LABELS[choice]}`
     : "In Library";
 }
 
-/** What VoiceOver and TalkBack read for the capsule. */
 export function libraryCapsuleAccessibilityLabel(
   choice: MonitoringChoice | null,
 ) {

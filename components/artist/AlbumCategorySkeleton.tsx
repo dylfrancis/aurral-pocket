@@ -7,13 +7,11 @@ const SQUARE_CARD_WIDTH = 150;
 const CIRCLE_CARD_WIDTH = 130;
 
 type AlbumCategorySkeletonProps = {
-  /** "circle" for a rail of artists, which draw round. */
   shape?: "square" | "circle";
   /** Off under a rail that already draws its real header while it loads. */
   header?: boolean;
 };
 
-/** A rail while it loads: its header, then a row of cards. */
 export function AlbumCategorySkeleton({
   shape = "square",
   header = true,

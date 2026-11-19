@@ -22,13 +22,9 @@ import type {
 /** The server's page cap. */
 const PAGE_SIZE = 100;
 
-/**
- * Pages of songs one play takes: up to 500 songs, so even a large Library
- * starts in a moment.
- */
+/** Up to 500 songs a play, so even a large Library starts in a moment. */
 const PLAY_PAGES = 5;
 
-/** Which songs to read: the whole Library, one genre, or the favorites. */
 export type SongFilter = { genre?: string; favorite?: boolean };
 
 function readSongPage(
@@ -61,10 +57,8 @@ export function randomPages(pageCount: number, count: number): number[] {
 }
 
 /**
- * Songs drawn from across the whole filter, for a shuffle. The server can't
- * shuffle songs, so the first page tells how many pages there are, then five
- * pages drawn at random are read together (the first is reused if drawn).
- * Songs come back in title order, so each page spans many artists and albums.
+ * The server can't shuffle songs, so page 1 gives the count and five random
+ * pages follow; title order makes each page span many artists and albums.
  */
 export async function readShuffleSongs(
   filter: SongFilter,
@@ -93,11 +87,7 @@ export async function readFirstSongs(
   return songsOfPages(pages);
 }
 
-/**
- * Play Library songs as one queue: songs a screen already holds, or songs
- * read at the tap. `isLoading` is true while a read is on its way, and a
- * second tap meanwhile does nothing.
- */
+/** `isLoading` is true while a read is on its way; a second tap meanwhile does nothing. */
 export function usePlayLibrarySongs() {
   const queryClient = useQueryClient();
   const startQueue = useStartQueue();

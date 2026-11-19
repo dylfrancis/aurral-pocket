@@ -15,7 +15,6 @@ type Props = {
   onPress: () => void;
   /** Draws a ▶ on the cover that plays the playlist without opening it. */
   onPlay?: () => void;
-  /** The playlist is loading for its ▶: the button becomes a spinner. */
   playLoading?: boolean;
 };
 

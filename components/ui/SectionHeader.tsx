@@ -14,9 +14,8 @@ type SectionHeaderProps = {
 };
 
 /**
- * A section's title. With `onNavigate` the title and its chevron are one tap
- * target, sized for a thumb, and the chevron sits right after the words so it
- * reads as part of them.
+ * With `onNavigate`, the title and its chevron are one thumb-sized tap target,
+ * the chevron right after the words so it reads as part of them.
  */
 export function SectionHeader({
   title,

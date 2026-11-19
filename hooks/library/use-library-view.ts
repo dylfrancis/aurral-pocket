@@ -67,9 +67,8 @@ function readView<Sort extends string>(
  * A Library list's sort and filters, remembered under `listKey` across
  * launches. `sorts` is every sort the list can offer, its default first.
  *
- * `openedSort` opens the list on that sort with no filters, as a Library home
- * rail's › does, without touching the remembered view. A change made there is
- * remembered as usual.
+ * `openedSort` opens the list on that sort with no filters, without changing
+ * the remembered view.
  *
  * Changes render in a transition, so a list read with Suspense keeps showing
  * the old view until the new one has loaded.

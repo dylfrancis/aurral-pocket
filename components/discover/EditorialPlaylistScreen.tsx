@@ -62,12 +62,7 @@ type RouteParams = {
   trackCount?: string;
 };
 
-/**
- * A Browse playlist (a mix, Made for You, or a Deezer playlist) laid out like
- * an album: Shuffle, Play and + up top, and rows that play when tapped. Play
- * takes the songs the Library has. The rest are grayed: a tap plays the clip,
- * and ↓ asks Aurral to download the song.
- */
+/** Laid out like an album: Play takes the Library's songs; the rest are grayed. */
 export function EditorialPlaylistScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -123,7 +118,6 @@ export function EditorialPlaylistScreen() {
     (item: EditorialTrackItem) => {
       void Haptics.selectionAsync();
       const playerId = rowPlayerId(item);
-      // The row already playing pauses or resumes.
       if (playerId === currentId) {
         void togglePlayback();
         return;
@@ -304,8 +298,8 @@ export function EditorialPlaylistScreen() {
               onPlay={() => playLibrarySongs()}
               onShuffle={() => playLibrarySongs({ shuffled: true })}
             >
-              {/* Where the album page's heart goes. The spacer keeps Play
-                  centered for someone who can't save playlists. */}
+              {/* The spacer keeps Play centered for someone who can't save
+                  playlists. */}
               {!hasPlaylistAccess ? (
                 <View style={styles.circleSpacer} />
               ) : libraryPlaylistId ? (

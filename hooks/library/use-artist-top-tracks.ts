@@ -6,9 +6,8 @@ import { libraryKeys } from "@/lib/query-keys";
 import { matchTopTracks } from "@/lib/top-tracks";
 
 /**
- * An artist's top tracks, each with the Library's copy when there is one.
- * A Library artist's rows wait for its tracks, so a row doesn't flip from
- * clip to Library file as they arrive.
+ * A Library artist's rows wait for its tracks, so a row doesn't flip from clip
+ * to Library file as they arrive.
  */
 export function useArtistTopTracks(
   mbid: string,

@@ -33,7 +33,6 @@ export function RecentlyAddedSection({ onArtistPress, onViewAll }: Props) {
       title="Recently Added"
       items={artists}
       keyOf={(artist) => artist.id}
-      // Every artist here is in the Library, so the cards carry no mark.
       renderItem={(artist) => (
         <HorizontalArtistCard
           mbid={recentlyAddedMbid(artist)}

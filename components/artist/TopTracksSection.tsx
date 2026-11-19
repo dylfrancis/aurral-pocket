@@ -19,7 +19,6 @@ type TopTracksSectionProps = {
   itemIds: string[];
   currentId: string | null;
   isPlaying: boolean;
-  /** Plays the top tracks from this row on. */
   onPlayFrom: (index: number) => void;
   onPlayAll: () => void;
   onOpenActions: (index: number) => void;

@@ -66,8 +66,6 @@ export function LibraryAlbumsScreen({
     },
     [router, showSaved, savedAlbums],
   );
-  // A genre plays its songs, read at the tap: Play takes them by artist,
-  // Shuffle draws them from across the whole genre.
   const { readAndPlay, isLoading: songsLoading } = usePlayLibrarySongs();
   const genreHeader = useMemo(
     () =>

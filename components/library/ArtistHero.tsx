@@ -99,7 +99,7 @@ export function ArtistHero({
           {artist.artistName}
         </Text>
         {inLibrary === undefined ? (
-          // A Library artist's capsule and Play row, the usual way here.
+          // A Library artist's capsule and Play row, the likelier case.
           <>
             <Skeleton
               width={CAPSULE_PLACEHOLDER.width}
