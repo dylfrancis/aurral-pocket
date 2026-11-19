@@ -20,7 +20,7 @@ Aurral keeps its database and settings in `./data/config`, mounted at `/config`,
 Then set Aurral up:
 
 1. Open `http://localhost:3001` and run the onboarding: create an admin account, then set **Library folder** to `/data/downloads/aurral`. On the host that's `./data/music/downloads/aurral`.
-2. Recommendations use ListenBrainz out of the box. For closer matches, add a Last.fm API key in Aurral → Settings → Discovery → Last.fm.
+2. Recommendations work out of the box, with no API keys.
 
 The built-in yt-dlp source needs no setup, so adding a monitored artist or requesting an album downloads real tracks into the Library folder. Cancel what you don't need from Activity.
 
@@ -83,7 +83,7 @@ The compose file uses `:latest` for ease of first setup. Once the stack works fo
 image: ghcr.io/lklynet/aurral:X.Y.Z # tags have no "v" prefix
 ```
 
-To test against the Aurral version the app is built for, use the one in [`.aurral-version`](../../.aurral-version). The `nightly` image is published for amd64 only, so on Apple silicon also add `platform: linux/amd64` under the `aurral` service.
+To test against the Aurral version the app is built for, use the one in [`.aurral-version`](../../.aurral-version).
 
 ## Tearing down
 
