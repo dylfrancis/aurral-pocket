@@ -12,6 +12,7 @@ import DeleteIcon from "@expo/material-symbols/delete.xml";
 import DownloadIcon from "@expo/material-symbols/download.xml";
 
 import { EmptyState } from "@/components/library/EmptyState";
+import { pluginMenuSection } from "@/components/plugins/PluginMenuActions";
 import { CircleButton } from "@/components/ui/CircleButton";
 import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
@@ -38,6 +39,7 @@ import {
   useTrackJobMenu,
 } from "@/hooks/flow";
 import { usePlaylistPlayback } from "@/hooks/flow/use-playlist-playback";
+import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import type {
   TrackMenuAction,
   TrackMenuActionId,
@@ -149,6 +151,7 @@ function FlowPage({
   const setAutoDownload = useSetFlowAutoDownload();
   const downloadSaved = useDownloadSavedFlowTracks();
   const addToPlaylist = useAddToPlaylist();
+  const pluginActions = usePluginActions("playlist", { playlistId: flow.id });
 
   const savedCount = useMemo(
     () => jobs.filter((job) => job.status === "saved").length,
@@ -322,6 +325,7 @@ function FlowPage({
           >
             Download Automatically
           </Stack.Toolbar.MenuAction>
+          {pluginMenuSection(pluginActions)}
           <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "trash" : DeleteIcon}
             destructive
@@ -339,6 +343,7 @@ function FlowPage({
       hasReadyTracks,
       savedCount,
       flow.autoDownload,
+      pluginActions,
       handleStartNow,
       handleDownloadSaved,
       handleConvert,

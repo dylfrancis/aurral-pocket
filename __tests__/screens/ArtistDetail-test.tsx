@@ -264,6 +264,11 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: jest.fn(() => () => true),
 }));
 
+jest.mock("@/lib/api/plugins", () => ({
+  getPluginActions: jest.fn(),
+  runPluginAction: jest.fn(),
+}));
+
 import React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -281,6 +286,7 @@ import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { ApiError, setBaseUrl } from "@/lib/api/client";
+import { getPluginActions, runPluginAction } from "@/lib/api/plugins";
 import type { Artist, Album } from "@/lib/types/library";
 
 const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
@@ -303,6 +309,16 @@ const mockUseLibraryArtist = useLibraryArtist as jest.Mock;
 const mockUseCanonicalArtist = useCanonicalArtist as jest.Mock;
 const mockUseLibraryAlbums = useLibraryAlbums as jest.Mock;
 const mockUseLibraryLookup = useLibraryLookup as jest.Mock;
+const mockGetPluginActions = getPluginActions as jest.Mock;
+const mockRunPluginAction = runPluginAction as jest.Mock;
+
+const NOTE_ARTIST = {
+  pluginId: "eden",
+  pluginName: "Eden",
+  id: "artist",
+  label: "Note this artist",
+  target: "artist",
+};
 
 const baseArtist: Artist = {
   id: "1",
@@ -362,6 +378,8 @@ beforeEach(() => {
     isInLibrary: () => true,
     isLoading: false,
   });
+  mockGetPluginActions.mockResolvedValue([NOTE_ARTIST]);
+  mockRunPluginAction.mockResolvedValue("Noted");
   consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -865,6 +883,31 @@ describe("ArtistDetailScreen", () => {
       );
       expect(queryByText("Albums & Releases")).toBeNull();
     });
+  });
+});
+
+describe("an artist's plugin actions", () => {
+  it("run on a Library artist by its MBID", async () => {
+    await renderScreen();
+
+    await fireEvent.press(await screen.findByText("Note this artist"));
+
+    expect(mockRunPluginAction).toHaveBeenCalledWith(NOTE_ARTIST, {
+      artistId: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    });
+  });
+
+  it("aren't offered for an artist outside the Library", async () => {
+    mockUseLibraryLookup.mockReturnValue({
+      isInLibrary: () => false,
+      isLoading: false,
+    });
+    mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook });
+
+    await renderScreen();
+
+    expect(await screen.findByText("Block Artist")).toBeTruthy();
+    expect(screen.queryByText("Note this artist")).toBeNull();
   });
 });
 

@@ -7,6 +7,7 @@ import MoreVert from "@expo/material-symbols/more_vert.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
 
 import { EmptyState } from "@/components/library/EmptyState";
+import { pluginMenuSection } from "@/components/plugins/PluginMenuActions";
 import { CircleButton } from "@/components/ui/CircleButton";
 import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
@@ -29,6 +30,7 @@ import {
 import { usePlaylistPlayback } from "@/hooks/flow/use-playlist-playback";
 import { useSaveOffline } from "@/hooks/offline/use-save-offline";
 import { cachedAlbumCover } from "@/hooks/player/queue-covers";
+import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import {
   collectionPlayerContext,
   jobToPlayerTrack,
@@ -123,6 +125,9 @@ function PlaylistPage({
     jobs,
   );
 
+  const pluginActions = usePluginActions("playlist", {
+    playlistId: playlist.id,
+  });
   const deletePlaylist = useDeleteSharedPlaylist();
   const deleteTrack = useDeleteSharedPlaylistTrack();
 
@@ -228,6 +233,7 @@ function PlaylistPage({
           icon={IS_IOS ? "ellipsis" : MoreVert}
           accessibilityLabel="More actions"
         >
+          {pluginMenuSection(pluginActions)}
           <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "trash" : DeleteIcon}
             destructive
@@ -239,6 +245,7 @@ function PlaylistPage({
       </Stack.Toolbar>
     ),
     [
+      pluginActions,
       handleDelete,
       saveOffline.icon,
       saveOffline.label,

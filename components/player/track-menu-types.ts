@@ -1,3 +1,5 @@
+import type { PluginMenuItem } from "@/hooks/plugins/use-plugin-actions";
+
 export type TrackMenuActionId =
   | "playlist"
   | "album"
@@ -22,6 +24,8 @@ export type TrackMenuProps = {
   /** Each platform file gives them their icons. */
   actions: TrackMenuAction[];
   onAction: (id: TrackMenuActionId) => void;
+  /** Set off from the actions by a divider. */
+  pluginActions?: PluginMenuItem[];
   triggerColor: string;
   /** A smaller glyph, for a track row. The target stays full size. */
   compact?: boolean;

@@ -172,3 +172,9 @@ export const meKeys = {
   listeningHistory: () => ["me", "listeningHistory"] as const,
   scrobbleStatus: () => ["me", "scrobbleStatus"] as const,
 };
+
+export const pluginKeys = {
+  actions: () => ["plugins", "actions"] as const,
+  // Every run shares this key, so a menu can tell which actions are running.
+  run: () => ["plugins", "run"] as const,
+};

@@ -28,27 +28,33 @@ jest.mock("expo/fetch", () => ({
 
 // The track menu is native SwiftUI or Compose, which can't render under Jest.
 // It stands in as a group labelled like its trigger, holding a plain button per
-// action that carries the action's title.
+// action that carries the action's title, then one per plugin action.
 jest.mock("@/components/player/TrackMenu", () => {
   /* eslint-disable @typescript-eslint/no-require-imports */
   const React = require("react");
   const { Pressable, Text, View } = require("react-native");
   /* eslint-enable @typescript-eslint/no-require-imports */
+  const button = (key: string, title: string, onPress: () => void) =>
+    React.createElement(
+      Pressable,
+      { key, accessibilityLabel: title, onPress },
+      React.createElement(Text, null, title),
+    );
   return {
-    TrackMenu: ({ actions, onAction, accessibilityLabel }: any) =>
+    TrackMenu: ({
+      actions,
+      onAction,
+      pluginActions = [],
+      accessibilityLabel,
+    }: any) =>
       React.createElement(
         View,
         { accessibilityLabel: accessibilityLabel ?? "More actions" },
         actions.map((action: any) =>
-          React.createElement(
-            Pressable,
-            {
-              key: action.id,
-              accessibilityLabel: action.title,
-              onPress: () => onAction(action.id),
-            },
-            React.createElement(Text, null, action.title),
-          ),
+          button(action.id, action.title, () => onAction(action.id)),
+        ),
+        pluginActions.map((action: any) =>
+          button(action.key, action.label, action.run),
         ),
       ),
   };
