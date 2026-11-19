@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, StyleSheet, View } from "react-native";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
@@ -10,10 +10,10 @@ import { NewPlaylistSheet } from "./NewPlaylistSheet";
 import { CollectionArtwork } from "./CollectionArtwork";
 import { useAddSharedPlaylistTracks } from "@/hooks/flow/use-flow-mutations";
 import { useSharedPlaylists } from "@/hooks/flow/use-flow-selectors";
+import { usePlaylistsContaining } from "@/hooks/flow/use-playlists-containing";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { SHEET_BOTTOM_PADDING } from "@/constants/navigation";
 import { Fonts } from "@/constants/theme";
-import { buildSharedTrackIdentity } from "@/lib/shared-track-identity";
 import type { ApiError } from "@/lib/api/client";
 import type { SharedPlaylist, SharedPlaylistTrack } from "@/lib/types/flow";
 import { useColors } from "@/hooks/use-colors";
@@ -74,9 +74,8 @@ function AddToPlaylistSheetContent({
   const isPending = addTracks.isPending;
 
   // The server skips an append when the playlist already contains the track,
-  // so a tap there would toast "Added" while changing nothing. Marking those
-  // rows uses the same dedup key the server uses.
-  const trackIdentity = useMemo(() => buildSharedTrackIdentity(track), [track]);
+  // so a tap there would toast "Added" while changing nothing.
+  const { data: containingIds } = usePlaylistsContaining(track);
 
   useEffect(() => {
     sheetRef.current?.present();
@@ -164,8 +163,7 @@ function AddToPlaylistSheetContent({
               </Text>
             </Pressable>
             {playlists.map((playlist) => {
-              const alreadyAdded =
-                !!playlist.trackIdentities?.includes(trackIdentity);
+              const alreadyAdded = !!containingIds?.includes(playlist.id);
               return (
                 <Pressable
                   key={playlist.id}

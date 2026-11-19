@@ -108,14 +108,16 @@ const SYNTHETIC = {
 
 /**
  * Query strings for routes that reject a bare probe. GET /library answers 400
- * without `kind` and `pageSize`, and GET /requests/page without `view`, so a
- * bare probe would drop the route out of shape coverage and out of the app
- * contract's field check. The values mirror what the client always sends, so
- * the recorded shape is the envelope pocket actually reads.
+ * without `kind` and `pageSize`, GET /requests/page without `view`, and GET
+ * /playlists/containing without `artistName` and `trackName`, so a bare probe
+ * would drop the route out of shape coverage and out of the app contract's
+ * field check. The values mirror what the client sends, so the recorded shape
+ * is the envelope pocket actually reads.
  */
 const REQUIRED_QUERY = new Map([
   ["GET /library", "kind=artists&pageSize=100"],
   ["GET /requests/page", "view=queue"],
+  ["GET /playlists/containing", "artistName=Radiohead&trackName=Nude"],
 ]);
 
 /**

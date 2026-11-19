@@ -227,6 +227,9 @@
     "GET /play-queue": {
       "queue": "null"
     },
+    "GET /playlists/containing": {
+      "playlists": []
+    },
     "GET /playlists/flow-templates": {
       "templates": [
         {

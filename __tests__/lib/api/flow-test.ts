@@ -15,6 +15,7 @@ import {
   getFlowTemplates,
   getFlowStreamPath,
   getFlowArtworkSource,
+  getPlaylistsContaining,
 } from "@/lib/api/flow";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 
@@ -101,6 +102,32 @@ describe("addSharedPlaylistTracks", () => {
       { tracks: [TRACK] },
     );
     expect(result).toEqual({ playlistId: "pl-1", operationId: "op-1" });
+  });
+});
+
+describe("getPlaylistsContaining", () => {
+  it("asks with the track's identity and returns the playlist ids", async () => {
+    (api.get as jest.Mock).mockResolvedValueOnce({
+      data: {
+        playlists: [
+          { id: "pl-1", jobId: "job-9" },
+          { id: "pl-3", jobId: null },
+        ],
+      },
+    });
+    const result = await getPlaylistsContaining({
+      ...TRACK,
+      reason: "Because you played Nude",
+    });
+    expect(api.get).toHaveBeenCalledWith("/playlists/containing", {
+      params: {
+        artistName: "Radiohead",
+        trackName: "Weird Fishes",
+        albumName: "In Rainbows",
+        artistMbid: "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+      },
+    });
+    expect(result).toEqual(["pl-1", "pl-3"]);
   });
 });
 

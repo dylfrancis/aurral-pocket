@@ -85,12 +85,6 @@ export type SharedPlaylist = {
   tracks?: SharedPlaylistTrack[];
   recordHistory: boolean;
   /**
-   * Dedup keys for the playlist's tracks, from the status snapshot. Compare
-   * with buildSharedTrackIdentity to tell whether a track is already in the
-   * playlist. Optional because older Aurral versions do not send it.
-   */
-  trackIdentities?: string[];
-  /**
    * Status snapshot only. Changes whenever the server writes new artwork, so
    * it versions the artwork URL. Unset until the playlist first has artwork.
    */

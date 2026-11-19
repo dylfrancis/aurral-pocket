@@ -3,15 +3,15 @@ const mockCreateMutate = jest.fn();
 const mockDismiss = jest.fn();
 const mockAddMutation = { mutate: mockAddMutate, isPending: false };
 const mockCreateMutation = { mutate: mockCreateMutate, isPending: false };
-let mockPlaylists: {
-  id: string;
-  name: string;
-  trackCount: number;
-  trackIdentities?: string[];
-}[] = [];
+let mockPlaylists: { id: string; name: string; trackCount: number }[] = [];
+let mockContainingIds: string[] | undefined;
 
 jest.mock("@/hooks/flow/use-flow-selectors", () => ({
   useSharedPlaylists: jest.fn(() => mockPlaylists),
+}));
+
+jest.mock("@/hooks/flow/use-playlists-containing", () => ({
+  usePlaylistsContaining: jest.fn(() => ({ data: mockContainingIds })),
 }));
 
 jest.mock("@/hooks/flow/use-flow-mutations", () => ({
@@ -70,7 +70,6 @@ import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import * as Burnt from "burnt";
 import { AddToPlaylistSheet } from "@/components/flow/AddToPlaylistSheet";
-import { buildSharedTrackIdentity } from "@/lib/shared-track-identity";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 
 const TRACK: SharedPlaylistTrack = {
@@ -83,6 +82,7 @@ const TRACK: SharedPlaylistTrack = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockPlaylists = [];
+  mockContainingIds = undefined;
   mockAddMutation.isPending = false;
   mockCreateMutation.isPending = false;
 });
@@ -219,14 +219,10 @@ describe("AddToPlaylistSheet", () => {
 
   it("marks and disables playlists that already contain the track", async () => {
     mockPlaylists = [
-      {
-        id: "pl-1",
-        name: "Keepers",
-        trackCount: 3,
-        trackIdentities: [buildSharedTrackIdentity(TRACK)],
-      },
-      { id: "pl-2", name: "Road Trip", trackCount: 12, trackIdentities: [] },
+      { id: "pl-1", name: "Keepers", trackCount: 3 },
+      { id: "pl-2", name: "Road Trip", trackCount: 12 },
     ];
+    mockContainingIds = ["pl-1"];
     const { getByText } = await render(
       <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
     );
@@ -238,16 +234,6 @@ describe("AddToPlaylistSheet", () => {
       { playlistId: "pl-2", tracks: [TRACK] },
       expect.any(Object),
     );
-  });
-
-  it("treats playlists without trackIdentities as addable", async () => {
-    mockPlaylists = [{ id: "pl-2", name: "Road Trip", trackCount: 12 }];
-    const { getByText, queryByText } = await render(
-      <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
-    );
-    expect(queryByText("Already added")).toBeNull();
-    await fireEvent.press(getByText("Road Trip"));
-    expect(mockAddMutate).toHaveBeenCalled();
   });
 
   it("toasts the server message when the append fails", async () => {
