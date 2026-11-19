@@ -13,6 +13,7 @@ jest.mock("expo-image", () => {
 jest.mock("@/lib/api/library", () => ({
   deleteLibraryArtist: jest.fn(),
   getArtistQueue: jest.fn(() => Promise.resolve([])),
+  getArtistPreviewTracks: jest.fn(() => Promise.resolve([])),
   updateLibraryFavorites: jest.fn(() => Promise.resolve({ changedIds: [] })),
   favoriteEntityId: jest.requireActual("@/lib/api/library").favoriteEntityId,
 }));
@@ -215,15 +216,10 @@ jest.mock("@/hooks/library/use-artist-details", () => ({
   })),
 }));
 
-jest.mock("@/hooks/library/use-preview-player", () => ({
-  usePreviewPlayer: jest.fn(() => ({
-    tracks: [],
-    isLoading: false,
-    playingId: null,
-    progress: 0,
-    toggle: jest.fn(),
-    stop: jest.fn(),
-  })),
+jest.mock("@/lib/player/player", () => ({
+  ...jest.requireActual("@/lib/player/player"),
+  playQueueFrom: jest.fn(() => Promise.resolve(true)),
+  setShuffle: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock("@/components/library/ArtistTags", () => {
@@ -274,7 +270,11 @@ import React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { updateLibraryFavorites } from "@/lib/api/library";
+import {
+  getArtistPreviewTracks,
+  getArtistQueue,
+  updateLibraryFavorites,
+} from "@/lib/api/library";
 import ArtistDetailScreen, {
   ErrorBoundary,
 } from "@/app/(app)/(tabs)/(library)/artist/[mbid]";
@@ -284,13 +284,21 @@ import {
   useLibraryArtist,
 } from "@/hooks/library/use-library-artist";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
-import { usePreviewPlayer } from "@/hooks/library/use-preview-player";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
-import { ApiError, setBaseUrl } from "@/lib/api/client";
+import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
+import { playQueueFrom, setShuffle } from "@/lib/player/player";
 import { getPluginActions, runPluginAction } from "@/lib/api/plugins";
-import type { Artist, Album } from "@/lib/types/library";
+import type {
+  Artist,
+  Album,
+  LibraryQueueTrack,
+  PreviewTrack,
+} from "@/lib/types/library";
 
-const mockUsePreviewPlayer = usePreviewPlayer as jest.Mock;
+const mockGetArtistQueue = getArtistQueue as jest.Mock;
+const mockGetArtistPreviewTracks = getArtistPreviewTracks as jest.Mock;
+const mockPlayQueueFrom = playQueueFrom as jest.Mock;
+const mockSetShuffle = setShuffle as jest.Mock;
 
 async function renderScreen(Screen: React.ComponentType = ArtistDetailScreen) {
   const queryClient = new QueryClient({
@@ -722,25 +730,84 @@ describe("ArtistDetailScreen", () => {
       expect(refetch).toHaveBeenCalledTimes(1);
     });
 
-    it("renders top tracks when available", async () => {
-      mockUsePreviewPlayer.mockReturnValue({
-        tracks: [
-          {
-            id: "t1",
-            title: "Hit Song",
-            album: "Best Of",
-            preview_url: "https://example.com/preview.mp3",
-          },
-        ],
-        isLoading: false,
-        playingId: null,
-        progress: 0,
-        toggle: jest.fn(),
-        stop: jest.fn(),
+    describe("playing", () => {
+      const queueTrack = (
+        id: string,
+        title: string,
+        album: string,
+      ): LibraryQueueTrack => ({
+        id,
+        title,
+        artist: "Test Artist",
+        album,
+        streamPath: `/library/stream/7/${id}`,
+        streamFormat: "flac",
+        quality: null,
+        durationMs: null,
+        artistMbid: null,
+        albumMbid: null,
+        trackMbid: null,
+        libraryTrackId: Number(id),
+        libraryAlbumId: 7,
+        libraryArtistId: 1,
+        artworkUrl: null,
+        artworkSource: "album",
       });
-      const { getByText } = await renderScreen();
-      expect(getByText("Top Tracks")).toBeTruthy();
-      expect(getByText("Hit Song")).toBeTruthy();
+      const topTrack = (id: string, title: string): PreviewTrack => ({
+        id,
+        title,
+        album: "Best Of",
+        preview_url: `/api/deezer/preview/${id}.mp3`,
+        duration_ms: 30_000,
+      });
+      const queuedIds = () =>
+        mockPlayQueueFrom.mock.calls[0][0].map(
+          (item: { id: string }) => item.id,
+        );
+
+      beforeEach(() => {
+        setBaseUrl("https://music.example");
+        setAuthToken("token");
+        mockGetArtistQueue.mockResolvedValue([
+          queueTrack("11", "Opener", "First Album"),
+          queueTrack("12", "Hit Song", "First Album"),
+        ]);
+        mockGetArtistPreviewTracks.mockResolvedValue([
+          topTrack("dz-1", "Hit Song"),
+          topTrack("dz-2", "Rarity"),
+        ]);
+      });
+
+      it("plays every Library track by the artist, in album order", async () => {
+        const { findByLabelText } = await renderScreen();
+        await fireEvent.press(await findByLabelText("Play Test Artist"));
+
+        expect(queuedIds()).toEqual(["11", "12"]);
+        expect(mockPlayQueueFrom.mock.calls[0][1]).toBe("11");
+        expect(mockSetShuffle).not.toHaveBeenCalled();
+      });
+
+      it("turns shuffle on before shuffling the artist", async () => {
+        const { findByLabelText } = await renderScreen();
+        await fireEvent.press(await findByLabelText("Shuffle Test Artist"));
+
+        expect(mockSetShuffle).toHaveBeenCalledWith(true);
+        expect(queuedIds()).toEqual(["11", "12"]);
+      });
+
+      it("plays top tracks from the tapped row: Library files where it has them, clips elsewhere", async () => {
+        const { findByLabelText } = await renderScreen();
+        await fireEvent.press(await findByLabelText("Rarity, preview"));
+
+        expect(queuedIds()).toEqual(["12", "preview:dz-2"]);
+        expect(mockPlayQueueFrom.mock.calls[0][1]).toBe("preview:dz-2");
+        const clip = mockPlayQueueFrom.mock.calls[0][0][1];
+        expect(clip).toMatchObject({
+          streamPath: null,
+          isPreview: true,
+          url: "https://music.example/api/deezer/preview/dz-2.mp3",
+        });
+      });
     });
 
     it("renders bio and external links", async () => {

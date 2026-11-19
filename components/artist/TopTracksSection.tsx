@@ -1,32 +1,40 @@
-import { StyleSheet, View } from "react-native";
-import { PreviewTrackRow } from "@/components/library/PreviewTrackRow";
-import { TopTracksSkeleton } from "@/components/artist/TopTracksSkeleton";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import type { PreviewTrack } from "@/lib/types/library";
+import { TopTrackRow } from "@/components/artist/TopTrackRow";
+import { TopTracksSkeleton } from "@/components/artist/TopTracksSkeleton";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Text } from "@/components/ui/Text";
+import { Fonts, Radius } from "@/constants/theme";
+import { useColors } from "@/hooks/use-colors";
+import type { TopTrack } from "@/lib/top-tracks";
 
 type TopTracksSectionProps = {
-  tracks: PreviewTrack[];
+  topTracks: TopTrack[];
   isLoading?: boolean;
-  playingId: string | null;
-  /** The clip the player is still downloading; its row shows a spinner. */
-  loadingId?: string | null;
-  progress: number;
-  onToggle: (track: PreviewTrack) => void;
-  /** Rows show a "+" button on the right when this is set. */
-  onAddToPlaylist?: (track: PreviewTrack) => void;
+  /** The queue id of each row, in the same order. */
+  itemIds: string[];
+  currentId: string | null;
+  isPlaying: boolean;
+  /** Plays the top tracks from this row on. */
+  onPlayFrom: (index: number) => void;
+  onPlayAll: () => void;
+  onOpenActions: (index: number) => void;
 };
 
 export function TopTracksSection({
-  tracks,
+  topTracks,
   isLoading,
-  playingId,
-  loadingId,
-  progress,
-  onToggle,
-  onAddToPlaylist,
+  itemIds,
+  currentId,
+  isPlaying,
+  onPlayFrom,
+  onPlayAll,
+  onOpenActions,
 }: TopTracksSectionProps) {
-  if (isLoading && tracks.length === 0) {
+  const colors = useColors();
+
+  if (isLoading && topTracks.length === 0) {
     return (
       <View style={styles.container}>
         <SectionLabel>Top Tracks</SectionLabel>
@@ -35,23 +43,46 @@ export function TopTracksSection({
     );
   }
 
-  if (tracks.length === 0) return null;
+  if (topTracks.length === 0) return null;
 
   return (
     <View style={styles.container}>
-      <SectionLabel>Top Tracks</SectionLabel>
-      {tracks.map((track) => (
-        <PreviewTrackRow
-          key={track.id}
-          track={track}
-          isPlaying={playingId === track.id}
-          isLoading={loadingId === track.id}
-          progress={playingId === track.id ? progress : 0}
-          onToggle={() => {
+      <View style={styles.header}>
+        <SectionLabel>Top Tracks</SectionLabel>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Play top tracks"
+          hitSlop={8}
+          onPress={() => {
             void Haptics.selectionAsync();
-            onToggle(track);
+            onPlayAll();
           }}
-          onAdd={onAddToPlaylist ? () => onAddToPlaylist(track) : undefined}
+          style={({ pressed }) => [
+            styles.playAll,
+            { backgroundColor: colors.brandMuted, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name="play" size={13} color={colors.brandStrong} />
+          <Text
+            variant="caption"
+            style={[styles.playAllLabel, { color: colors.brandStrong }]}
+          >
+            Play
+          </Text>
+        </Pressable>
+      </View>
+      {topTracks.map((topTrack, index) => (
+        <TopTrackRow
+          key={topTrack.preview.id}
+          topTrack={topTrack}
+          number={index + 1}
+          isCurrent={currentId !== null && itemIds[index] === currentId}
+          isPlaying={isPlaying}
+          onPress={() => {
+            void Haptics.selectionAsync();
+            onPlayFrom(index);
+          }}
+          onOpenActions={() => onOpenActions(index)}
         />
       ))}
     </View>
@@ -63,5 +94,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 8,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  playAll: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: Radius.round,
+  },
+  playAllLabel: {
+    ...Fonts.semiBold,
   },
 });
