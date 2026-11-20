@@ -40,22 +40,35 @@ export async function headlessSession(): Promise<{ userId: number } | null> {
   return { userId };
 }
 
-const clearedListeners = new Set<() => void>();
+/** What the auth provider just stored. */
+export type SessionChange = "signedIn" | "renewed" | "signedOut";
+
+const changeListeners = new Set<(change: SessionChange) => void>();
 
 /**
- * Hear when the phone signs out, once the stored session is gone: read any
- * sooner, headlessSession would bring it back. Returns unsubscribe.
+ * Hear when the phone signs in, renews its token or signs out, once storage
+ * holds the change: read any sooner, headlessSession would find the old
+ * session. Returns unsubscribe.
  */
-export function onSessionCleared(listener: () => void): () => void {
-  clearedListeners.add(listener);
+export function onSessionChanged(
+  listener: (change: SessionChange) => void,
+): () => void {
+  changeListeners.add(listener);
   return () => {
-    clearedListeners.delete(listener);
+    changeListeners.delete(listener);
   };
 }
 
-/** Called by the auth provider once sign-out has deleted the session. */
-export function sessionCleared(): void {
-  clearedListeners.forEach((listener) => listener());
+/**
+ * Called by the auth provider once a change is stored. A listener that throws
+ * is skipped, so it can't fail the sign-in or sign-out.
+ */
+export function sessionChanged(change: SessionChange): void {
+  changeListeners.forEach((listener) => {
+    try {
+      listener(change);
+    } catch {}
+  });
 }
 
 function userIdOf(userJson: string | null): number | null {

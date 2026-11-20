@@ -15,7 +15,7 @@ import {
   type CarRow,
 } from "@/hooks/car/car-library";
 import Constants from "expo-constants";
-import { headlessSession, onSessionCleared } from "@/lib/headless-session";
+import { headlessSession, onSessionChanged } from "@/lib/headless-session";
 import {
   preparePlayer,
   restoreSavedQueue,
@@ -32,15 +32,24 @@ export function registerCar(): void {
   const androidAuto = AndroidAutoMediaLibraryHelper.isAvailable();
   if (carPlay) registerCarPlay();
   if (androidAuto) registerAndroidAuto();
-  // After sign-out, the lists ask to sign in on the phone.
-  if (carPlay || androidAuto) onSessionCleared(refreshCar);
+  // Covers carry the session's token, so even a renewal reads lists again.
+  if (carPlay || androidAuto) {
+    onSessionChanged((change) => refreshCar(change !== "renewed"));
+  }
 }
 
-/** Read every list the car shows again, such as for another account. */
-export function refreshCar(): void {
+/**
+ * Read every list the car shows again. From the top, CarPlay goes back to its
+ * tabs: it doesn't read a screen pushed from a row again, so after another
+ * sign-in or a sign-out that screen would keep the old account's rows.
+ */
+function refreshCar(fromTheTop: boolean): void {
   forgetCarLists();
   shownLists.clear();
-  if (CarPlayHelper.isAvailable()) CarPlayHelper.reload();
+  if (CarPlayHelper.isAvailable()) {
+    if (fromTheTop) CarPlayHelper.popToRoot();
+    CarPlayHelper.reload();
+  }
   if (AndroidAutoMediaLibraryHelper.isAvailable()) setAndroidAutoRoot();
 }
 

@@ -7,7 +7,7 @@ jest.mock("@/hooks/car/car-library", () => ({
 
 jest.mock("@/lib/headless-session", () => ({
   headlessSession: jest.fn(),
-  onSessionCleared: jest.fn(),
+  onSessionChanged: jest.fn(),
 }));
 
 jest.mock("@/lib/player/player", () => ({
@@ -18,7 +18,7 @@ jest.mock("@/lib/player/player", () => ({
 
 import { loadCarList, type CarList } from "@/hooks/car/car-library";
 import { registerCar } from "@/hooks/car/car-screens";
-import { headlessSession, onSessionCleared } from "@/lib/headless-session";
+import { headlessSession, onSessionChanged } from "@/lib/headless-session";
 import { restoreSavedQueue, shelveForCar } from "@/lib/player/player";
 import {
   AndroidAutoMediaLibraryHelper,
@@ -110,11 +110,26 @@ describe("CarPlay", () => {
     });
   });
 
-  it("reads its lists again once sign-out has cleared the session", () => {
-    const signedOut = (onSessionCleared as jest.Mock).mock.calls[0][0];
+  /** Tell the car the stored session changed. */
+  const sessionChange = (change: string) =>
+    (onSessionChanged as jest.Mock).mock.calls[0][0](change);
 
-    signedOut();
+  it.each(["signedIn", "signedOut"])(
+    "goes back to its tabs and reads them again once the phone has %s",
+    (change) => {
+      sessionChange(change);
 
+      // A screen pushed from a row isn't read again, so it would keep the
+      // last account's rows.
+      expect(carPlay.popToRoot).toHaveBeenCalled();
+      expect(carPlay.reload).toHaveBeenCalled();
+    },
+  );
+
+  it("stays where it is for a renewed token, reading its tabs again for new covers", () => {
+    sessionChange("renewed");
+
+    expect(carPlay.popToRoot).not.toHaveBeenCalled();
     expect(carPlay.reload).toHaveBeenCalled();
   });
 

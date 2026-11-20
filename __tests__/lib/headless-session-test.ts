@@ -30,7 +30,11 @@ import {
 } from "@/lib/api/client";
 import { setSavedLibraryUser } from "@/lib/offline/saved-library";
 import { startPlayHistory } from "@/lib/player/play-history";
-import { headlessSession } from "@/lib/headless-session";
+import {
+  headlessSession,
+  onSessionChanged,
+  sessionChanged,
+} from "@/lib/headless-session";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
@@ -113,5 +117,22 @@ describe("headlessSession", () => {
 
     expect(getServerUrl()).toBe("");
     expect(startPlayHistory).not.toHaveBeenCalled();
+  });
+});
+
+describe("sessionChanged", () => {
+  it("tells every listener, even after one throws, without failing the caller", () => {
+    const failing = jest.fn(() => {
+      throw new Error("CarPlay went away");
+    });
+    const listening = jest.fn();
+    const stops = [onSessionChanged(failing), onSessionChanged(listening)];
+
+    try {
+      expect(() => sessionChanged("signedOut")).not.toThrow();
+      expect(listening).toHaveBeenCalledWith("signedOut");
+    } finally {
+      stops.forEach((stop) => stop());
+    }
   });
 });

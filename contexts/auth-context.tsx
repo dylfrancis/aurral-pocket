@@ -10,7 +10,7 @@ import {
   setOnSessionExpired,
 } from "@/lib/api/client";
 import { forgetDateTimeFormat, restoreDateTimeFormat } from "@/lib/date-time";
-import { sessionCleared } from "@/lib/headless-session";
+import { sessionChanged } from "@/lib/headless-session";
 import { forgetPlayHistory } from "@/lib/player/play-history";
 import { forgetQueue } from "@/lib/player/player";
 import { forgetQueueSync } from "@/lib/player/queue-sync";
@@ -253,6 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setOnSessionExpired(() => setSessionExpiredState(true));
     setOnAccountSuspended(() => setAccountSuspended(true));
+    // The client has stored the new session by the time it calls this.
     setOnAuthRefreshed((newToken, userJson, newExpiresAt) => {
       setToken(newToken);
       setAuthToken(newToken);
@@ -260,6 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setUser(JSON.parse(userJson));
       } catch {}
+      sessionChanged("renewed");
     });
     return () => {
       setOnSessionExpired(null);
@@ -294,6 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               SecureStorage.setUser(JSON.stringify(data.user)),
               SecureStorage.setExpiresAt(data.expiresAt),
             ]);
+            sessionChanged("renewed");
             return;
           } catch (error) {
             if (error instanceof ApiError && error.isAccountSuspended) {
@@ -357,7 +360,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         SecureStorage.setLastActiveAt(Date.now()),
       ];
       if (newExpiresAt) saves.push(SecureStorage.setExpiresAt(newExpiresAt));
-      await Promise.all(saves);
+      try {
+        await Promise.all(saves);
+      } finally {
+        sessionChanged("signedIn");
+      }
     },
     [],
   );
@@ -385,14 +392,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // over the login screen, and the requests waiting on it would never settle.
     setSessionExpiredState(false);
     notifyReAuthResult(false);
-    await Promise.all([
-      forgetPlayback(),
-      SecureStorage.deleteToken(),
-      SecureStorage.deleteUser(),
-      SecureStorage.deleteExpiresAt(),
-      AppStorage.deleteOidcSession(),
-    ]);
-    sessionCleared();
+    try {
+      await Promise.all([
+        forgetPlayback(),
+        SecureStorage.deleteToken(),
+        SecureStorage.deleteUser(),
+        SecureStorage.deleteExpiresAt(),
+        AppStorage.deleteOidcSession(),
+      ]);
+    } finally {
+      sessionChanged("signedOut");
+    }
   }, []);
 
   const clearAll = useCallback(async () => {
@@ -408,23 +418,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setBiometrics(false);
     setHasCredentials(false);
     setIsOidcSession(false);
-    await Promise.all([
-      AppStorage.deleteServerUrl(),
-      AppStorage.deleteOidcSession(),
-      forgetPlayback(),
-      forgetPlayHistory(),
-      forgetSavedLibrary(),
-      forgetDateTimeFormat(),
-      SecureStorage.deleteToken(),
-      SecureStorage.deleteUser(),
-      SecureStorage.deleteCredentials(),
-      SecureStorage.deleteRememberCredentials(),
-      SecureStorage.deleteUseBiometrics(),
-      SecureStorage.deleteExpiresAt(),
-      SecureStorage.deleteLastActiveAt(),
-      SecureStorage.deleteCustomHeaders(),
-    ]);
-    sessionCleared();
+    try {
+      await Promise.all([
+        AppStorage.deleteServerUrl(),
+        AppStorage.deleteOidcSession(),
+        forgetPlayback(),
+        forgetPlayHistory(),
+        forgetSavedLibrary(),
+        forgetDateTimeFormat(),
+        SecureStorage.deleteToken(),
+        SecureStorage.deleteUser(),
+        SecureStorage.deleteCredentials(),
+        SecureStorage.deleteRememberCredentials(),
+        SecureStorage.deleteUseBiometrics(),
+        SecureStorage.deleteExpiresAt(),
+        SecureStorage.deleteLastActiveAt(),
+        SecureStorage.deleteCustomHeaders(),
+      ]);
+    } finally {
+      sessionChanged("signedOut");
+    }
   }, []);
 
   const setRememberCredentials = useCallback(
