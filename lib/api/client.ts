@@ -285,7 +285,9 @@ async function handle401<T>(
           return false;
         }
       }
-      if (!authToken) return false;
+      // With no screen up, as when Siri wakes the app, no modal can open, and
+      // waiting for one would hold this request and every later 401.
+      if (!authToken || !onSessionExpired) return false;
       // Silent path unavailable or failed — open the modal and wait for the
       // user to finish re-auth (password or Face ID → setAuth → notify).
       const modalPromise = new Promise<boolean>((resolve) => {

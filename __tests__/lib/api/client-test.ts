@@ -622,6 +622,22 @@ describe("401 handling", () => {
     expect(onSuspended).not.toHaveBeenCalled();
   });
 
+  // Siri can start the app with no screen, so no modal can open, and a 401
+  // left waiting for one would hold every later 401 with it.
+  it("fails a 401 at once when no screen can ask for the password", async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    mockFetch.mockResolvedValueOnce(lostSession());
+    mockFetch.mockResolvedValueOnce(lostSession());
+    setOnSessionExpired(null);
+
+    await expect(api.get("/library/artists")).rejects.toMatchObject({
+      status: 401,
+    });
+    await expect(api.get("/library/albums")).rejects.toMatchObject({
+      status: 401,
+    });
+  });
+
   it("opens nothing for a 401 that lands after sign-out", async () => {
     rememberAlice();
     mockFetch.mockImplementationOnce(async () => {
