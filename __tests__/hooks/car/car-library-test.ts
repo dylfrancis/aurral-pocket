@@ -1,6 +1,8 @@
 jest.mock("@/lib/headless-session", () => ({ headlessSession: jest.fn() }));
 
 jest.mock("@/lib/api/library", () => ({
+  getArtistQueue: jest.fn(),
+  getCanonicalArtist: jest.fn(),
   getCanonicalAlbum: jest.fn(),
   getCanonicalAlbumTracks: jest.fn(),
   getCanonicalArtistAlbums: jest.fn(),
@@ -30,23 +32,38 @@ jest.mock("@/hooks/player/queue-covers", () => ({
   cachedAlbumCover: () => null,
 }));
 
+jest.mock("@/hooks/library/use-play-library-songs", () => ({
+  ...jest.requireActual("@/hooks/library/use-play-library-songs"),
+  readShuffleSongs: jest.fn(),
+}));
+
 jest.mock("@/hooks/player/use-start-queue", () => ({
   startQueue: jest.fn(async () => "started"),
 }));
 
 import { CAR_LISTS, loadCarList, searchCar } from "@/hooks/car/car-library";
+import { readShuffleSongs } from "@/hooks/library/use-play-library-songs";
 import { startQueue } from "@/hooks/player/use-start-queue";
 import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { getFlowStatus } from "@/lib/api/flow";
 import {
+  getArtistQueue,
   getCanonicalAlbum,
   getCanonicalAlbumTracks,
+  getCanonicalArtist,
+  getCanonicalArtistAlbums,
   getCanonicalLibraryPage,
 } from "@/lib/api/library";
 import { searchLibrary } from "@/lib/api/search";
 import { headlessSession } from "@/lib/headless-session";
 import { queryClient } from "@/lib/query-client";
-import type { Album, CanonicalPage, Track } from "@/lib/types/library";
+import type {
+  Album,
+  Artist,
+  CanonicalPage,
+  LibraryQueueTrack,
+  Track,
+} from "@/lib/types/library";
 import type { LibrarySearchTrack } from "@/lib/types/search";
 
 const session = headlessSession as jest.Mock;
@@ -236,6 +253,104 @@ describe("searchCar", () => {
       [expect.objectContaining({ id: "b", album: "Album b" })],
       expect.objectContaining({ albumTitle: "Album b", albumRef: "album-b" }),
       { startId: "b" },
+    );
+  });
+});
+
+describe("shuffle", () => {
+  function artist(mbid: string): Artist {
+    return {
+      id: "3",
+      mbid,
+      foreignArtistId: mbid,
+      artistName: "Radiohead",
+      monitored: true,
+      addedAt: null,
+      statistics: {} as Artist["statistics"],
+      canonicalId: "3",
+    };
+  }
+
+  function queueTrack(id: string): LibraryQueueTrack {
+    return {
+      id,
+      title: `Song ${id}`,
+      artist: "Radiohead",
+      album: "Kid A",
+      streamPath: `/library/stream/12/${id}`,
+      streamFormat: "flac",
+      quality: "FLAC",
+      durationMs: null,
+      artistMbid: "mb-radiohead",
+      albumMbid: null,
+      trackMbid: null,
+      libraryTrackId: Number(id),
+      libraryAlbumId: 12,
+      libraryArtistId: 3,
+      artworkUrl: null,
+      artworkSource: "album",
+    };
+  }
+
+  it("shuffles a list of songs as one queue", async () => {
+    (getCanonicalAlbum as jest.Mock).mockResolvedValue(album());
+    (getCanonicalAlbumTracks as jest.Mock).mockResolvedValue([
+      track("1"),
+      track("2", { trackNumber: 2 }),
+    ]);
+
+    const list = await loadCarList("album:12");
+    await expect(list.shuffle?.()).resolves.toBe(true);
+
+    expect(startQueue).toHaveBeenCalledWith(
+      queryClient,
+      [
+        expect.objectContaining({ id: "1" }),
+        expect.objectContaining({ id: "2" }),
+      ],
+      expect.objectContaining({ albumTitle: "Kid A" }),
+      { shuffled: true },
+    );
+  });
+
+  it("shuffles an artist's Library songs, as the artist page does", async () => {
+    (getCanonicalArtistAlbums as jest.Mock).mockResolvedValue([album()]);
+    (getCanonicalArtist as jest.Mock).mockResolvedValue(artist("mb-radiohead"));
+    (getArtistQueue as jest.Mock).mockResolvedValue([queueTrack("7")]);
+
+    const list = await loadCarList("artist:3");
+    await list.shuffle?.();
+
+    expect(getArtistQueue).toHaveBeenCalledWith("mb-radiohead");
+    expect(startQueue).toHaveBeenCalledWith(
+      queryClient,
+      [expect.objectContaining({ id: "7" })],
+      expect.objectContaining({ artistMbid: "mb-radiohead" }),
+      { shuffled: true },
+    );
+  });
+
+  it("offers no Shuffle for an artist without an MBID, since the queue is read by one", async () => {
+    (getCanonicalArtistAlbums as jest.Mock).mockResolvedValue([album()]);
+    (getCanonicalArtist as jest.Mock).mockResolvedValue(artist(""));
+
+    const list = await loadCarList("artist:4");
+
+    expect(list.shuffle).toBeUndefined();
+  });
+
+  it("shuffles the Library as Library home's Shuffle Library does", async () => {
+    (readShuffleSongs as jest.Mock).mockResolvedValue([track("9")]);
+
+    const list = await loadCarList(CAR_LISTS.library);
+    await list.shuffle?.();
+
+    expect(readShuffleSongs).toHaveBeenCalledWith({});
+    expect(startQueue).toHaveBeenCalledWith(
+      queryClient,
+      [expect.objectContaining({ id: "9" })],
+      expect.objectContaining({ albumTitle: "Library" }),
+      { shuffled: true },
     );
   });
 });

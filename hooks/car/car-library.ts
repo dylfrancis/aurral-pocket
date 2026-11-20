@@ -1,13 +1,23 @@
 import { flowStatusQueryOptions } from "@/hooks/flow/use-flow-status";
+import { albumTrackContext } from "@/hooks/library/album-track-context";
+import {
+  readShuffleSongs,
+  songListContext,
+} from "@/hooks/library/use-play-library-songs";
 import { cachedAlbumCover } from "@/hooks/player/queue-covers";
-import { startQueue } from "@/hooks/player/use-start-queue";
+import {
+  startQueue,
+  type StartQueueOptions,
+} from "@/hooks/player/use-start-queue";
 import { headlessSession } from "@/lib/headless-session";
 import { sortByDisc } from "@/lib/album-discs";
 import { ApiError, authenticatedImageUrl } from "@/lib/api/client";
 import { getPlaylistJobs } from "@/lib/api/flow";
 import {
+  getArtistQueue,
   getCanonicalAlbum,
   getCanonicalAlbumTracks,
+  getCanonicalArtist,
   getCanonicalArtistAlbums,
   getCanonicalLibraryPage,
 } from "@/lib/api/library";
@@ -23,6 +33,7 @@ import {
 import {
   collectionPlayerContext,
   jobToPlayerTrack,
+  queueTrackToPlayerTrack,
   searchTrackContext,
   searchTrackToPlayerTrack,
   toPlayerTrack,
@@ -32,7 +43,7 @@ import {
 } from "@/lib/player/track-item";
 import { queryClient } from "@/lib/query-client";
 import type { BrowseProvider, LibrarySearchTrack } from "@/lib/types/search";
-import type { Album, CanonicalPageParams } from "@/lib/types/library";
+import type { Album, Artist, CanonicalPageParams } from "@/lib/types/library";
 
 /**
  * A row in a car list, the same in CarPlay and Android Auto. Lists are read
@@ -53,6 +64,8 @@ export type CarList = {
   songs?: PlayerTrack[];
   /** Plays a song row. Resolves true once playback starts. */
   play?: (trackId: string) => Promise<boolean>;
+  /** Shuffles what the list holds, as its page's Shuffle does. */
+  shuffle?: () => Promise<boolean>;
   emptyTitle?: string;
   signedOut?: boolean;
 };
@@ -80,12 +93,14 @@ const SEARCH_LIMIT = 20;
  */
 const seenTitles = new Map<string, string>();
 const seenAlbums = new Map<string, Album>();
+const seenArtists = new Map<string, Artist>();
 const seenCollections = new Map<string, PlaybackCollection>();
 
 /** Forget what rows handed on, such as when another account signs in. */
 export function forgetCarLists(): void {
   seenTitles.clear();
   seenAlbums.clear();
+  seenArtists.clear();
   seenCollections.clear();
 }
 
@@ -134,7 +149,9 @@ export async function searchCar(query: string): Promise<CarList> {
     songs: songs.map(({ item }) => item),
     play: async (trackId) => {
       const song = songs.find(({ item }) => item.id === trackId);
-      return !!song && (await play([song.item], song.context, trackId));
+      return (
+        !!song && (await play([song.item], song.context, { startId: trackId }))
+      );
     },
   };
 }
@@ -191,7 +208,16 @@ function libraryList(): CarList {
       listRow(CAR_LISTS.artists, "Artists"),
       listRow(CAR_LISTS.albums, "Albums"),
     ],
+    shuffle: shuffleLibrary,
   };
+}
+
+/** Library home's Shuffle Library: songs from random pages of the Library. */
+async function shuffleLibrary(): Promise<boolean> {
+  const songs = (await readShuffleSongs({}))
+    .map((song) => toPlayerTrack(song, albumTrackContext(song, queryClient)))
+    .filter(isTrack);
+  return play(songs, songListContext("Library"), { shuffled: true });
 }
 
 /** The account's own playlists and flows, as Siri finds them. */
@@ -260,27 +286,49 @@ async function artistsList(): Promise<CarList> {
   );
   return {
     title: "Artists",
-    rows: artists.map((artist) =>
-      listRow(
-        `artist:${artist.canonicalId ?? artist.id}`,
+    rows: artists.map((artist) => {
+      const id = `artist:${artist.canonicalId ?? artist.id}`;
+      seenArtists.set(id, artist);
+      return listRow(
+        id,
         artist.artistName,
         authenticatedImageUrl(artist.coverUrl),
-      ),
-    ),
+      );
+    }),
     emptyTitle: "No artists",
   };
 }
 
 /** The artist's albums with music to play, as on their page. */
 async function artistList(id: string, artistRef: string): Promise<CarList> {
-  const albums = (await getCanonicalArtistAlbums(artistRef)).filter(
-    (album) => album.available !== false,
-  );
+  const [allAlbums, artist] = await Promise.all([
+    getCanonicalArtistAlbums(artistRef),
+    seenArtists.get(id) ?? getCanonicalArtist(artistRef),
+  ]);
+  const albums = allAlbums.filter((album) => album.available !== false);
   return {
-    title: titleOf(id),
+    title: titleOf(id) || (artist?.artistName ?? ""),
     rows: albums.flatMap(albumRow),
+    // The artist queue is read by MBID, which some artists don't have.
+    ...(artist?.mbid ? { shuffle: () => shuffleArtist(artist) } : {}),
     emptyTitle: "No albums",
   };
+}
+
+/** The artist page's Shuffle: every Library song by the artist. */
+async function shuffleArtist(artist: Artist): Promise<boolean> {
+  const songs = (await getArtistQueue(artist.mbid))
+    .map((track) => queueTrackToPlayerTrack(track, null))
+    .filter(isTrack);
+  const context: PlayerAlbumContext = {
+    albumTitle: artist.artistName,
+    artistName: artist.artistName,
+    coverPath: null,
+    artworkUrl: null,
+    albumMbid: null,
+    artistMbid: artist.mbid,
+  };
+  return play(songs, context, { shuffled: true });
 }
 
 async function albumsList(
@@ -369,7 +417,8 @@ function songList(
     title,
     rows: songs.map(songRow),
     songs,
-    play: (trackId) => play(songs, context, trackId),
+    play: (trackId) => play(songs, context, { startId: trackId }),
+    shuffle: () => play(songs, context, { shuffled: true }),
     emptyTitle: "No songs to play",
   };
 }
@@ -377,9 +426,9 @@ function songList(
 async function play(
   songs: PlayerTrack[],
   context: PlayerAlbumContext,
-  startId: string,
+  options: StartQueueOptions,
 ): Promise<boolean> {
-  const result = await startQueue(queryClient, songs, context, { startId });
+  const result = await startQueue(queryClient, songs, context, options);
   return result === "started";
 }
 
