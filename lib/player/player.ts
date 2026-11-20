@@ -1516,9 +1516,8 @@ async function loadQueueAt(queue: QueueToLoad): Promise<void> {
     );
     // loadPlaylist readies the track without playing it.
     await PlayerQueue.loadPlaylist(playlistId, items.indexOf(current));
-    if (repeatMode !== "off") {
-      await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[repeatMode]);
-    }
+    // The engine keeps its mode from the last queue, which may differ.
+    await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[repeatMode]);
     if (position > 0) {
       await TrackPlayer.seek(position);
     }
@@ -1732,6 +1731,9 @@ export function forgetQueue(): Promise<void> {
     // deleted by the next restore, at the next sign-in or launch.
     try {
       await TrackPlayer.pause();
+    } catch {}
+    try {
+      await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE.off);
     } catch {}
     // The car's shelves hold the account's songs, so they go too.
     carShelves.clear();
