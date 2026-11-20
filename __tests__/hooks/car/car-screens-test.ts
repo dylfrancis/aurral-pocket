@@ -135,6 +135,37 @@ describe("CarPlay", () => {
       expect(carPlay.showNowPlaying).toHaveBeenCalledTimes(nowPlayingCalls);
     },
   );
+
+  it("shuffles the list from a Shuffle row at its top, then opens Now Playing", async () => {
+    const shuffle = jest.fn(async () => true);
+    (loadCarList as jest.Mock).mockResolvedValue({ ...songList(), shuffle });
+
+    const template = await loader()("album:12");
+    const [first] =
+      template?.type === "list" ? template.sections![0].items : [];
+    onSelect()(first.id, "album:12");
+    await new Promise(process.nextTick);
+
+    expect(first).toMatchObject({ title: "Shuffle" });
+    expect(shuffle).toHaveBeenCalled();
+    expect(carPlay.showNowPlaying).toHaveBeenCalled();
+  });
+
+  it("leaves Shuffle out of an empty list, so it shows its empty title", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Kid A",
+      rows: [],
+      shuffle: jest.fn(),
+      emptyTitle: "No songs to play",
+    });
+
+    const template = await loader()("album:12");
+
+    expect(template).toMatchObject({
+      sections: [{ items: [] }],
+      emptyTitle: "No songs to play",
+    });
+  });
 });
 
 describe("Android Auto", () => {

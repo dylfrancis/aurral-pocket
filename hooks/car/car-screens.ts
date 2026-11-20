@@ -40,6 +40,8 @@ export function refreshCar(): void {
 }
 
 const QUEUE = "queue";
+/** Track ids are numbers or UUIDs, so this can't be one. */
+const SHUFFLE_ROW = "shuffle";
 const SIGNED_OUT_ROW = "signed-out";
 
 /** CarPlay's lists by template id, for playing a song picked in one. */
@@ -64,8 +66,8 @@ function registerCarPlay(): void {
   CarPlayHelper.setTemplateLoader(async (id) =>
     carPlayTemplate(id, await loadCarList(id)),
   );
-  CarPlayHelper.onSelect((trackId, templateId) => {
-    void playInCarPlay(templateId, trackId);
+  CarPlayHelper.onSelect((rowId, templateId) => {
+    void playInCarPlay(templateId, rowId);
   });
 }
 
@@ -86,29 +88,43 @@ function carPlayTemplate(id: string, list: CarList): CarPlayListTemplate {
     title: list.title,
     sections: [
       {
-        items: list.rows.map((row) => ({
-          id: row.id,
-          title: row.title,
-          ...(row.subtitle ? { subtitle: row.subtitle } : {}),
-          ...(row.image ? { image: row.image } : {}),
-          // A song row has no playlistId, so it reaches onSelect and plays
-          // through the facade; its trackId marks it while it plays.
-          ...(row.kind === "list"
-            ? { loadTemplate: true }
-            : { trackId: row.id }),
-        })),
+        items: [
+          // An empty list keeps its empty title rather than a lone Shuffle.
+          ...(list.shuffle && list.rows.length > 0
+            ? [
+                // A symbol as the row's image fills the whole artwork slot.
+                {
+                  id: SHUFFLE_ROW,
+                  title: "Shuffle",
+                  accessoryImage: "shuffle",
+                },
+              ]
+            : []),
+          ...list.rows.map((row) => ({
+            id: row.id,
+            title: row.title,
+            ...(row.subtitle ? { subtitle: row.subtitle } : {}),
+            ...(row.image ? { image: row.image } : {}),
+            // A song row has no playlistId, so it reaches onSelect and plays
+            // through the facade; its trackId marks it while it plays.
+            ...(row.kind === "list"
+              ? { loadTemplate: true }
+              : { trackId: row.id }),
+          })),
+        ],
       },
     ],
     ...(list.emptyTitle ? { emptyTitle: list.emptyTitle } : {}),
   };
 }
 
-async function playInCarPlay(templateId: string, trackId: string) {
+async function playInCarPlay(templateId: string, rowId: string) {
   // A list CarPlay kept on screen across a restart is read again.
   const list =
     shownLists.get(templateId) ??
     (await loadCarList(templateId).catch(() => null));
-  const started = await list?.play?.(trackId).catch(() => false);
+  const start = rowId === SHUFFLE_ROW ? list?.shuffle?.() : list?.play?.(rowId);
+  const started = await start?.catch(() => false);
   if (started) CarPlayHelper.showNowPlaying();
 }
 
