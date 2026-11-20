@@ -38,6 +38,7 @@ jest.mock("@/lib/offline/network", () => ({
   onNetworkChange: () => () => {},
 }));
 
+import { act, renderHook } from "@testing-library/react-native";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
   forgetQueue,
@@ -45,12 +46,16 @@ import {
   playQueueFrom,
   preparePlayer,
   restoreSavedQueue,
+  setShuffle,
   shelveForCar,
+  usePlayerModes,
 } from "@/lib/player/player";
 import type { PlayerTrack } from "@/lib/player/track-item";
 import {
   PlayerQueue,
   TrackPlayer,
+  type NotificationButtonEvent,
+  type PlayerConfig,
   type TrackItem,
 } from "react-native-nitro-player";
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
@@ -79,10 +84,26 @@ function song(id: string): PlayerTrack {
 
 /** The engine's ask for the URLs of the tracks it's about to play. */
 let needUrls: (tracks: TrackItem[], lookahead: number) => void;
+/** A press on a button CarPlay draws on its Now Playing screen. */
+let pressButton: (
+  buttonId: string,
+  track: TrackItem,
+  event: NotificationButtonEvent,
+) => void;
+
+/** What the facade configured the engine with, once per module. */
+let engineConfig: PlayerConfig | undefined;
 
 beforeAll(() => {
+  player.configure.mockImplementation(async (config) => {
+    engineConfig = config;
+  });
   player.onTracksNeedUpdate.mockImplementation((callback) => {
     needUrls = callback;
+  });
+  manager.subscribeToNotificationButtonPress.mockImplementation((callback) => {
+    pressButton = callback;
+    return () => {};
   });
 });
 
@@ -217,5 +238,48 @@ describe("preparePlayer", () => {
     await preparePlayer();
 
     expect(queue.deletePlaylist).toHaveBeenCalledWith("earlier");
+  });
+});
+
+describe("CarPlay's Now Playing buttons", () => {
+  /** The id of the button of this kind the engine was given. */
+  async function buttonId(type: "shuffle" | "repeat") {
+    await preparePlayer();
+    const button = engineConfig?.notificationButtons?.ios?.carPlay?.find(
+      (candidate) => candidate.type === type,
+    );
+    if (!button) throw new Error(`No CarPlay ${type} button`);
+    return button.id;
+  }
+
+  it("turns shuffle on from CarPlay's shuffle button", async () => {
+    const id = await buttonId("shuffle");
+    const { result } = await renderHook(() => usePlayerModes());
+
+    await act(async () => pressButton(id, song("71"), { isActive: true }));
+
+    expect(result.current.shuffle).toBe(true);
+  });
+
+  it("follows the repeat mode CarPlay's repeat button switched the engine to", async () => {
+    const id = await buttonId("repeat");
+    const { result } = await renderHook(() => usePlayerModes());
+
+    await act(async () =>
+      pressButton(id, song("71"), { repeatMode: "Playlist" }),
+    );
+
+    expect(result.current.repeat).toBe("all");
+  });
+
+  it("shows shuffle turned on from the phone on CarPlay's button", async () => {
+    const id = await buttonId("shuffle");
+
+    await setShuffle(true);
+
+    expect(player.setNotificationButtonState).toHaveBeenLastCalledWith({
+      buttonId: id,
+      isActive: true,
+    });
   });
 });
