@@ -7,6 +7,7 @@ import {
 } from "@/hooks/library/use-play-library-songs";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { getCanonicalLibraryPage } from "@/lib/api/library";
+import type { RadioStation } from "@/lib/player/radio";
 
 /** Autoplay builds on the last five plays, and so does Your Radio. */
 const SEED_TRACKS = 5;
@@ -26,20 +27,9 @@ export function useYourRadio() {
     starting.current = true;
     setIsStarting(true);
     try {
-      const played = await getCanonicalLibraryPage({
-        kind: "tracks",
-        source: "all",
-        availableOnly: true,
-        page: 1,
-        pageSize: SEED_TRACKS,
-        // Last played first; only songs that have been played come back.
-        sort: "played",
-        direction: "asc",
-      });
-      const trackIds = played.tracks.map((track) => track.id);
+      const trackIds = await lastPlayedTrackIds();
       if (trackIds.length > 0) {
-        // Named "Your Radio" in the queue: a station is "<label> Radio".
-        await startRadio({ seed: { trackIds }, label: "Your" });
+        await startRadio(yourRadio(trackIds));
       } else {
         await readAndPlay(
           () => readShuffleSongs({}),
@@ -56,4 +46,24 @@ export function useYourRadio() {
   }, [startRadio, readAndPlay]);
 
   return { start, isStarting };
+}
+
+/** The Library songs played last, newest first. None before the first play. */
+export async function lastPlayedTrackIds(): Promise<string[]> {
+  const played = await getCanonicalLibraryPage({
+    kind: "tracks",
+    source: "all",
+    availableOnly: true,
+    page: 1,
+    pageSize: SEED_TRACKS,
+    // Last played first; only songs that have been played come back.
+    sort: "played",
+    direction: "asc",
+  });
+  return played.tracks.map((track) => track.id);
+}
+
+/** Named "Your Radio" in the queue: a station is "<label> Radio". */
+export function yourRadio(trackIds: string[]): RadioStation {
+  return { seed: { trackIds }, label: "Your" };
 }

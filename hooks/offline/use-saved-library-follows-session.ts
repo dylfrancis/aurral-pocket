@@ -18,8 +18,8 @@ export function useSavedLibraryFollowsSession() {
 
   useEffect(() => {
     if (userId === undefined) return;
-    setSavedLibraryUser(userId);
-    return () => setSavedLibraryUser(null);
+    void setSavedLibraryUser(userId);
+    return () => void setSavedLibraryUser(null);
   }, [userId]);
 
   // A new token builds fresh URLs for whatever is still to save.

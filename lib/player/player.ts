@@ -1148,6 +1148,10 @@ export function isPlaybackActive(): boolean {
   return playbackState === "playing" || playbackState === "buffering";
 }
 
+export function hasQueue(): boolean {
+  return queueSnapshot.items.length > 0;
+}
+
 /**
  * Seconds into the current track, as of the engine's last report. For a
  * display that keeps its own clock between reports, which come once a second.
@@ -2040,7 +2044,7 @@ const getDisplayedTrack = () => displayedTrack;
 const getPlaybackState = () => playbackState;
 const getProgressSnapshot = () => progressSnapshot;
 const getQueueSnapshot = () => queueSnapshot;
-const getHasQueue = () => queueSnapshot.items.length > 0;
+const getHasQueue = () => hasQueue();
 const getModesSnapshot = () => modesSnapshot;
 
 /** The track the player is on. It stays visible after the queue runs out. */
