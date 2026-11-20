@@ -35,7 +35,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { setAuthToken, setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import { getMe } from "@/lib/api/auth";
-import { onSessionCleared } from "@/lib/headless-session";
+import { onSessionChanged } from "@/lib/headless-session";
 import { TrackPlayer } from "react-native-nitro-player";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
@@ -707,7 +707,7 @@ describe("AuthProvider — sign-out", () => {
           : Promise.resolve(),
       );
       const cleared = jest.fn();
-      const stop = onSessionCleared(cleared);
+      const stop = onSessionChanged(cleared);
 
       try {
         await act(async () => {
@@ -716,13 +716,44 @@ describe("AuthProvider — sign-out", () => {
         expect(cleared).not.toHaveBeenCalled();
 
         await act(async () => deleteToken());
-        await waitFor(() => expect(cleared).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(cleared).toHaveBeenCalledWith("signedOut"));
       } finally {
         stop();
         mockSecureStore.deleteItemAsync.mockReset();
       }
     },
   );
+});
+
+describe("AuthProvider — sign-in", () => {
+  it("tells the car once sign-in has stored the token", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    const { getByTestId } = await renderWithProvider();
+    let saveToken!: () => void;
+    mockSecureStore.setItemAsync.mockImplementation((key) =>
+      key === "auth_token"
+        ? new Promise<void>((resolve) => {
+            saveToken = resolve;
+          })
+        : Promise.resolve(),
+    );
+    const changed = jest.fn();
+    const stop = onSessionChanged(changed);
+
+    try {
+      await act(async () => {
+        void fireEvent.press(getByTestId("setAuth"));
+      });
+      expect(changed).not.toHaveBeenCalled();
+
+      await act(async () => saveToken());
+      await waitFor(() => expect(changed).toHaveBeenCalledWith("signedIn"));
+    } finally {
+      stop();
+      mockSecureStore.setItemAsync.mockReset();
+    }
+  });
 });
 
 describe("AuthProvider — user rehydration from /auth/me", () => {
