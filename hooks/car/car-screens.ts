@@ -14,12 +14,14 @@ import {
   type CarList,
   type CarRow,
 } from "@/hooks/car/car-library";
+import Constants from "expo-constants";
 import { headlessSession, onSessionCleared } from "@/lib/headless-session";
 import {
   preparePlayer,
   restoreSavedQueue,
   shelveForCar,
 } from "@/lib/player/player";
+import type { PlayerTrack } from "@/lib/player/track-item";
 
 /**
  * Draws pocket's lists in CarPlay and Android Auto through the audio engine.
@@ -223,30 +225,81 @@ async function androidAutoItems(list: CarList): Promise<MediaItem[]> {
       },
     ];
   }
-  const { songs, play } = list;
+  const { songs = [], play, shuffle } = list;
+  // Android Auto plays only songs from its lists, so Shuffle rides on the
+  // shelf as a stand-in song, and a pick of it shuffles the list instead.
+  const shelf =
+    shuffle && list.rows.length > 0
+      ? [shuffleStandIn(list.title), ...songs]
+      : songs;
   const shelvedIds =
-    songs?.length && play ? await shelveForCar(songs, play) : [];
-  const mediaIds = new Map(songs?.map(({ id }, i) => [id, shelvedIds[i]]));
-  return list.rows.flatMap((row): MediaItem[] => {
-    if (row.kind === "list") {
+    shelf.length > 0
+      ? await shelveForCar(shelf, (trackId) =>
+          trackId === SHUFFLE_ROW
+            ? (shuffle?.() ?? Promise.resolve(false))
+            : (play?.(trackId) ?? Promise.resolve(false)),
+        )
+      : [];
+  const mediaIds = new Map(shelf.map(({ id }, i) => [id, shelvedIds[i]]));
+  const shuffleId = mediaIds.get(SHUFFLE_ROW);
+  const shuffleItems: MediaItem[] = shuffleId
+    ? [
+        {
+          id: shuffleId,
+          title: "Shuffle",
+          ...(SHUFFLE_ICON ? { iconUrl: SHUFFLE_ICON } : {}),
+          isPlayable: true,
+          mediaType: "audio",
+        },
+      ]
+    : [];
+  return [
+    ...shuffleItems,
+    ...list.rows.flatMap((row): MediaItem[] => {
+      if (row.kind === "list") {
+        return [
+          folder(row.id, row.title, {
+            ...(row.subtitle ? { subtitle: row.subtitle } : {}),
+            ...(row.image ? { iconUrl: row.image } : {}),
+          }),
+        ];
+      }
+      const mediaId = mediaIds.get(row.id);
+      if (!mediaId) return [];
       return [
-        folder(row.id, row.title, {
+        {
+          id: mediaId,
+          title: row.title,
           ...(row.subtitle ? { subtitle: row.subtitle } : {}),
           ...(row.image ? { iconUrl: row.image } : {}),
-        }),
+          isPlayable: true,
+          mediaType: "audio",
+        },
       ];
-    }
-    const mediaId = mediaIds.get(row.id);
-    if (!mediaId) return [];
-    return [
-      {
-        id: mediaId,
-        title: row.title,
-        ...(row.subtitle ? { subtitle: row.subtitle } : {}),
-        ...(row.image ? { iconUrl: row.image } : {}),
-        isPlayable: true,
-        mediaType: "audio",
-      },
-    ];
-  });
+    }),
+  ];
+}
+
+/** Media3's own shuffle icon, which the app ships. */
+const SHUFFLE_ICON = Constants.expoConfig?.android?.package
+  ? `android.resource://${Constants.expoConfig.android.package}/drawable/media3_icon_shuffle_on`
+  : null;
+
+/** What Android Auto shows for Shuffle while the pick is handed off. */
+function shuffleStandIn(listTitle: string): PlayerTrack {
+  return {
+    id: SHUFFLE_ROW,
+    title: "Shuffle",
+    artist: listTitle,
+    album: listTitle,
+    duration: 0,
+    url: "",
+    artwork: null,
+    streamPath: null,
+    coverPath: null,
+    trackMbid: null,
+    artistMbid: null,
+    albumMbid: null,
+    favorite: null,
+  };
 }

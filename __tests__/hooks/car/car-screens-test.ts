@@ -206,8 +206,15 @@ describe("Android Auto", () => {
 
   const childrenLoader = () => androidAuto.setChildrenLoader.mock.calls[0][0];
 
-  it("lists a song by the shelf id it's picked by", async () => {
-    const list = songList();
+  /** The function a pick on the last shelf calls. */
+  const shelfPick = () =>
+    (shelveForCar as jest.Mock).mock.calls.at(-1)[1] as (
+      trackId: string,
+    ) => Promise<boolean>;
+
+  it("lists a song by the shelf id it's picked by, and plays it from its list", async () => {
+    const play = jest.fn(async () => true);
+    const list = songList(play);
     (loadCarList as jest.Mock).mockResolvedValue(list);
     (shelveForCar as jest.Mock).mockResolvedValue(["shelf-1:car1~77"]);
 
@@ -219,7 +226,27 @@ describe("Android Auto", () => {
         mediaType: "audio",
       },
     ]);
-    expect(shelveForCar).toHaveBeenCalledWith(list.songs, list.play);
+    expect(shelveForCar).toHaveBeenCalledWith(list.songs, expect.any(Function));
+    await shelfPick()("77");
+    expect(play).toHaveBeenCalledWith("77");
+  });
+
+  it("puts Shuffle first as a stand-in song, whose pick shuffles the list", async () => {
+    const shuffle = jest.fn(async () => true);
+    (loadCarList as jest.Mock).mockResolvedValue({ ...songList(), shuffle });
+    (shelveForCar as jest.Mock).mockResolvedValue([
+      "shelf-1:car1~shuffle",
+      "shelf-1:car1~77",
+    ]);
+
+    const items = await childrenLoader()("album:12");
+    await shelfPick()((shelveForCar as jest.Mock).mock.calls.at(-1)[0][0].id);
+
+    expect(items?.map(({ id, title }) => [id, title])).toEqual([
+      ["shelf-1:car1~shuffle", "Shuffle"],
+      ["shelf-1:car1~77", "Idioteque"],
+    ]);
+    expect(shuffle).toHaveBeenCalled();
   });
 
   it("lists a row that opens a list as a folder the car reads when opened", async () => {
