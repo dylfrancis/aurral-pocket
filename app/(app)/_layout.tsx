@@ -8,6 +8,7 @@ import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { IS_IOS } from "@/constants/platform";
 import { useAuth } from "@/contexts/auth-context";
 import { NowPlayingProvider } from "@/contexts/now-playing-context";
+import { useCarFollowsSession } from "@/hooks/car/use-car-follows-session";
 import { useDiscoveryUpdates } from "@/hooks/discover/use-discovery-updates";
 import { useLibraryUpdates } from "@/hooks/library/use-library-updates";
 import { useLiveSocketFollowsSession } from "@/hooks/live/use-live-socket-follows-session";
@@ -43,6 +44,7 @@ export default function AppLayout() {
   useLibraryUpdates();
   useDiscoveryUpdates();
   useSiriVocabulary();
+  useCarFollowsSession();
   const reduceMotion = useReducedMotion();
 
   return (

@@ -9,6 +9,7 @@ import {
   setOnSessionExpired,
 } from "@/lib/api/client";
 import { forgetDateTimeFormat, restoreDateTimeFormat } from "@/lib/date-time";
+import { sessionCleared } from "@/lib/headless-session";
 import { forgetPlayHistory } from "@/lib/player/play-history";
 import { forgetQueue } from "@/lib/player/player";
 import { forgetQueueSync } from "@/lib/player/queue-sync";
@@ -400,6 +401,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       SecureStorage.deleteExpiresAt(),
       AppStorage.deleteOidcSession(),
     ]);
+    sessionCleared();
   }, []);
 
   const clearAll = useCallback(async () => {
@@ -430,6 +432,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       SecureStorage.deleteLastActiveAt(),
       SecureStorage.deleteCustomHeaders(),
     ]);
+    sessionCleared();
   }, []);
 
   const setRememberCredentials = useCallback(
