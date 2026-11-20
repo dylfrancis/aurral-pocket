@@ -2,6 +2,7 @@ jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
+  AFTER_FIRST_UNLOCK: "after-first-unlock",
 }));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -159,6 +160,43 @@ describe("AuthProvider — restore on mount", () => {
     });
   });
 
+  // Saved before Siri, they kept the keychain's default, which a locked phone
+  // can't read, and Siri can start the app on a locked phone.
+  it("saves a restored session again, where a locked phone can read it", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+      if (key === "auth_token") return "my-token";
+      if (key === "user_json") return '{"id":1,"username":"alice"}';
+      if (key === "custom_headers")
+        return '{"CF-Access-Client-Id":"id.access"}';
+      return null;
+    });
+
+    const { getByTestId } = await renderWithProvider();
+
+    await waitFor(() => {
+      expect(getByTestId("token").props.children).toBe("my-token");
+    });
+    const readableWhileLocked = {
+      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+    };
+    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+      "auth_token",
+      "my-token",
+      readableWhileLocked,
+    );
+    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+      "user_json",
+      '{"id":1,"username":"alice"}',
+      readableWhileLocked,
+    );
+    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+      "custom_headers",
+      '{"CF-Access-Client-Id":"id.access"}',
+      readableWhileLocked,
+    );
+  });
+
   it("starts with null state when nothing stored", async () => {
     const { getByTestId } = await renderWithProvider();
 
@@ -286,6 +324,7 @@ describe("AuthProvider — setAuth bumps lastActiveAt", () => {
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "last_active_at",
       expect.stringMatching(/^\d+$/),
+      expect.anything(),
     );
   });
 });
@@ -703,6 +742,7 @@ describe("AuthProvider — user rehydration from /auth/me", () => {
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "user_json",
       JSON.stringify(alice),
+      expect.anything(),
     );
   });
 
@@ -754,6 +794,7 @@ describe("AuthProvider — user rehydration from /auth/me", () => {
       expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
         "user_json",
         JSON.stringify(alice),
+        expect.anything(),
       ),
     );
   });

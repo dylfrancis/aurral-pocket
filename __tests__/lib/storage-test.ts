@@ -2,6 +2,8 @@ jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
+  AFTER_FIRST_UNLOCK: "after-first-unlock",
+  AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: "after-first-unlock-this-device-only",
 }));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -32,11 +34,13 @@ describe("SecureStorage.token", () => {
     expect(await SecureStorage.getToken()).toBeNull();
   });
 
-  it("sets token", async () => {
+  // Siri can start the app on a locked phone, and needs the session to answer.
+  it("sets a token a locked phone can still read", async () => {
     await SecureStorage.setToken("new-token");
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "auth_token",
       "new-token",
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
   });
 
@@ -53,11 +57,12 @@ describe("SecureStorage.user", () => {
     expect(mockSecureStore.getItemAsync).toHaveBeenCalledWith("user_json");
   });
 
-  it("sets user JSON", async () => {
+  it("sets user JSON a locked phone can still read", async () => {
     await SecureStorage.setUser('{"id":1}');
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "user_json",
       '{"id":1}',
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
   });
 
@@ -68,11 +73,12 @@ describe("SecureStorage.user", () => {
 });
 
 describe("SecureStorage.customHeaders", () => {
-  it("keeps them in the keychain, as JSON", async () => {
+  it("keeps them in the keychain, as JSON a locked phone can still read", async () => {
     await SecureStorage.setCustomHeaders({ "CF-Access-Client-Id": "id" });
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "custom_headers",
       '{"CF-Access-Client-Id":"id"}',
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
   });
 

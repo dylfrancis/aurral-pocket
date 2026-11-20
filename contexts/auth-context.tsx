@@ -15,7 +15,7 @@ import { forgetQueue } from "@/lib/player/player";
 import { forgetQueueSync } from "@/lib/player/queue-sync";
 import { forgetAudioCache } from "@/lib/offline/audio-cache";
 import { forgetSavedLibrary } from "@/lib/offline/saved-library";
-import { AppStorage, SecureStorage } from "@/lib/storage";
+import { AppStorage, INACTIVITY_RESET_MS, SecureStorage } from "@/lib/storage";
 import type { HealthResponse, User } from "@/lib/types/auth";
 import React, {
   createContext,
@@ -154,8 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await restoreDateTimeFormat();
 
         // Hard expire after 30 days of inactivity with full reset to login screen
-        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-        if (lastActive && Date.now() - lastActive > THIRTY_DAYS_MS) {
+        if (lastActive && Date.now() - lastActive > INACTIVITY_RESET_MS) {
           await Promise.all([
             AppStorage.deleteServerUrl(),
             SecureStorage.deleteToken(),
@@ -190,6 +189,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Opening the app is activity. Otherwise a session that renews itself
           // is reset a month after its sign-in.
           void SecureStorage.setLastActiveAt(Date.now());
+          // Saved before Siri, these kept the keychain's default, which a
+          // locked phone can't read. Saving them again lets Siri use them.
+          void SecureStorage.setToken(storedToken);
+          if (storedUserJson) void SecureStorage.setUser(storedUserJson);
+          if (Object.keys(storedHeaders).length > 0) {
+            void SecureStorage.setCustomHeaders(storedHeaders);
+          }
         }
 
         if (storedUserJson) {

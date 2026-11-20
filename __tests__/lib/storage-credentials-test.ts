@@ -2,6 +2,7 @@ jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
+  AFTER_FIRST_UNLOCK: "after-first-unlock",
 }));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -175,11 +176,13 @@ describe("SecureStorage.lastActiveAt", () => {
     expect(await SecureStorage.getLastActiveAt()).toBeNull();
   });
 
-  it("sets last active timestamp", async () => {
+  // Siri checks the 30-day reset on a locked phone.
+  it("sets a last active timestamp a locked phone can still read", async () => {
     await SecureStorage.setLastActiveAt(1700000000000);
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "last_active_at",
       "1700000000000",
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
   });
 
