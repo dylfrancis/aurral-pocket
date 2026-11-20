@@ -217,8 +217,8 @@ const carShelves = new Map<number, CarShelf>();
 let carShelfCount = 0;
 
 /**
- * A pick calls `play` with the song's id, true once playback starts. Returns
- * each song's Android Auto media id, in order.
+ * A pick calls `play`, which resolves true once playback starts. Returns each
+ * song's Android Auto media id, in order.
  */
 export async function shelveForCar(
   items: PlayerTrack[],
@@ -243,7 +243,7 @@ export async function shelveForCar(
 
 /**
  * Plays a car pick as the queue. A pick that can't play, or whose shelf is
- * gone, returns the engine to the queue, or it waits forever for a URL.
+ * gone, returns the engine to the queue; left alone, it would wait for a URL.
  */
 async function handOffCarPick(engineTrackId: string): Promise<void> {
   const [, run, shelfNumber, trackId] = CAR_TRACK_ID.exec(engineTrackId) ?? [];
@@ -2006,7 +2006,10 @@ function followRepeatMode(mode: RepeatMode): void {
 const CARPLAY_SHUFFLE_BUTTON = "carplay-shuffle";
 const CARPLAY_REPEAT_BUTTON = "carplay-repeat";
 
-/** CarPlay's repeat button has already switched the engine's repeat mode. */
+/**
+ * Shuffle presses set the facade's shuffle. Repeat has already switched the
+ * engine's mode, so the facade follows it.
+ */
 function handleCarPlayButton(
   buttonId: string,
   _track: TrackItem,
