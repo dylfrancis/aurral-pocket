@@ -41,7 +41,12 @@ jest.mock("@/hooks/player/use-start-queue", () => ({
   startQueue: jest.fn(async () => "started"),
 }));
 
-import { CAR_LISTS, loadCarList, searchCar } from "@/hooks/car/car-library";
+import {
+  CAR_LISTS,
+  forgetCarLists,
+  loadCarList,
+  searchCar,
+} from "@/hooks/car/car-library";
 import { readShuffleSongs } from "@/hooks/library/use-play-library-songs";
 import { startQueue } from "@/hooks/player/use-start-queue";
 import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
@@ -133,6 +138,7 @@ function page(albums: Album[]): CanonicalPage {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  forgetCarLists();
   queryClient.clear();
   setBaseUrl("https://test.example");
   setAuthToken("t");
@@ -199,6 +205,129 @@ describe("loadCarList", () => {
       expect(!!list.alphabetical).toBe(alphabetical);
     },
   );
+
+  function libraryArtist(name: string, sortName: string): Artist {
+    return {
+      id: name,
+      mbid: "",
+      artistName: name,
+      monitored: false,
+      addedAt: null,
+      statistics: {} as Artist["statistics"],
+      canonicalId: name,
+      sortName,
+    };
+  }
+
+  it("files artists under the letter of the name the Library sorts them by", async () => {
+    (getCanonicalLibraryPage as jest.Mock).mockResolvedValue({
+      ...page([]),
+      kind: "artists",
+      // In the server's order: digits first, accents after Z.
+      artists: [
+        libraryArtist("2Pac", "2Pac"),
+        libraryArtist("ABBA", "ABBA"),
+        libraryArtist("The Beatles", "Beatles, The"),
+        libraryArtist("David Bowie", "Bowie, David"),
+        libraryArtist("Kate Bush", "Bush, Kate"),
+        libraryArtist("Ásgeir", "Ásgeir"),
+      ],
+    });
+
+    const list = await loadCarList(CAR_LISTS.artists);
+
+    // One run per letter, A to Z and then #.
+    expect(list.rows.map(({ title, letter }) => [letter, title])).toEqual([
+      ["A", "ABBA"],
+      ["A", "Ásgeir"],
+      ["B", "The Beatles"],
+      ["B", "David Bowie"],
+      ["B", "Kate Bush"],
+      ["#", "2Pac"],
+    ]);
+  });
+
+  /** A Library of `count` albums, A to E, served a page at a time. */
+  function serveAlbums(count: number) {
+    const albums = Array.from({ length: count }, (_, index) =>
+      album({
+        canonicalId: String(index),
+        title: `${"ABCDE"[Math.floor((index * 5) / count)]} ${index}`,
+      }),
+    );
+    (getCanonicalLibraryPage as jest.Mock).mockImplementation(
+      async ({ page: pageNumber, pageSize }) => ({
+        ...page(
+          albums.slice((pageNumber - 1) * pageSize, pageNumber * pageSize),
+        ),
+        total: count,
+        hasMore: pageNumber * pageSize < count,
+      }),
+    );
+  }
+
+  it("reads every page of a list after the first, several at once", async () => {
+    serveAlbums(250);
+
+    const list = await loadCarList(CAR_LISTS.albums);
+
+    expect(list.rows).toHaveLength(250);
+    expect(
+      (getCanonicalLibraryPage as jest.Mock).mock.calls.map(
+        ([{ page: pageNumber, pageSize }]) => [pageNumber, pageSize],
+      ),
+    ).toEqual([
+      [1, 100],
+      [2, 100],
+      [3, 100],
+    ]);
+  });
+
+  it("shows every album in one list, up to the most rows CarPlay shows", async () => {
+    serveAlbums(500);
+
+    const list = await loadCarList(CAR_LISTS.albums);
+
+    expect(list).toMatchObject({ alphabetical: true });
+    expect(list.rows).toHaveLength(500);
+  });
+
+  it("opens a longer list on a row per letter, each opening that letter's albums", async () => {
+    serveAlbums(501);
+
+    const list = await loadCarList(CAR_LISTS.albums);
+    const letters = list.rows.map(({ id, title, subtitle }) => [
+      id,
+      title,
+      subtitle,
+    ]);
+    const reads = (getCanonicalLibraryPage as jest.Mock).mock.calls.length;
+    const letterB = await loadCarList("albums:B");
+
+    expect(list.alphabetical).toBeFalsy();
+    expect(letters).toEqual([
+      ["albums:A", "A", "101 albums"],
+      ["albums:B", "B", "100 albums"],
+      ["albums:C", "C", "100 albums"],
+      ["albums:D", "D", "100 albums"],
+      ["albums:E", "E", "100 albums"],
+    ]);
+    expect(letterB.title).toBe("Albums · B");
+    expect(letterB.rows).toHaveLength(100);
+    expect(letterB.rows.every(({ title }) => title.startsWith("B "))).toBe(
+      true,
+    );
+    // The letter opens from the list already read.
+    expect(getCanonicalLibraryPage).toHaveBeenCalledTimes(reads);
+  });
+
+  it("reads the list again for a letter CarPlay kept on screen across a restart", async () => {
+    serveAlbums(501);
+
+    const letterC = await loadCarList("albums:C");
+
+    expect(letterC.rows).toHaveLength(100);
+  });
 
   it("plays an album's songs in disc order as one queue, from the one picked", async () => {
     (getCanonicalAlbum as jest.Mock).mockResolvedValue(album());

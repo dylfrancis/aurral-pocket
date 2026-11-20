@@ -77,6 +77,7 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
     identityKey: item.identityKey,
     userFavorite: item.userFavorite,
     coverUrl: item.coverUrl ?? undefined,
+    sortName: item.sortName ?? undefined,
   };
 }
 
