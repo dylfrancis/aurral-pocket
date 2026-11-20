@@ -94,8 +94,9 @@ import {
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
 
 /**
- * The player facade — the only module in the app that imports the audio
- * engine. Every sound goes through here: owned tracks and preview clips.
+ * The player facade — the only module in the app that plays through the audio
+ * engine; the car screens use it only to draw. Every sound goes through here:
+ * owned tracks and preview clips.
  * One engine holds one thing, so starting either replaces the other; no
  * coordination between them is needed.
  *
