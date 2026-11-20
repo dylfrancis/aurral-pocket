@@ -123,8 +123,9 @@ async function playInCarPlay(templateId: string, rowId: string) {
   const list =
     shownLists.get(templateId) ??
     (await loadCarList(templateId).catch(() => null));
-  const start = rowId === SHUFFLE_ROW ? list?.shuffle?.() : list?.play?.(rowId);
-  const started = await start?.catch(() => false);
+  const starting =
+    rowId === SHUFFLE_ROW ? list?.shuffle?.() : list?.play?.(rowId);
+  const started = await starting?.catch(() => false);
   if (started) CarPlayHelper.showNowPlaying();
 }
 
