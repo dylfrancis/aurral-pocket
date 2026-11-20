@@ -13,6 +13,7 @@ import { forgetDateTimeFormat, restoreDateTimeFormat } from "@/lib/date-time";
 import { forgetPlayHistory } from "@/lib/player/play-history";
 import { forgetQueue } from "@/lib/player/player";
 import { forgetQueueSync } from "@/lib/player/queue-sync";
+import { forgetAccount as forgetSiriAccount } from "@/modules/siri";
 import { forgetAudioCache } from "@/lib/offline/audio-cache";
 import { forgetSavedLibrary } from "@/lib/offline/saved-library";
 import { AppStorage, INACTIVITY_RESET_MS, SecureStorage } from "@/lib/storage";
@@ -93,6 +94,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  * sync stops first, so the emptied queue isn't sent there.
  */
 function forgetPlayback(): Promise<void> {
+  // Siri mustn't offer the next account this one's playlists and plays.
+  forgetSiriAccount();
   return forgetQueueSync()
     .then(() => forgetQueue())
     .catch(() => {})
@@ -155,6 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Hard expire after 30 days of inactivity with full reset to login screen
         if (lastActive && Date.now() - lastActive > INACTIVITY_RESET_MS) {
+          forgetSiriAccount();
           await Promise.all([
             AppStorage.deleteServerUrl(),
             SecureStorage.deleteToken(),

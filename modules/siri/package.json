@@ -1,0 +1,9 @@
+{
+  "name": "siri",
+  "version": "0.1.0",
+  "description": "Local Expo module that answers Siri's play requests (SiriKit INPlayMediaIntent) inside the app.",
+  "main": "index.ts",
+  "author": "Dylan Francis",
+  "license": "MIT",
+  "homepage": "https://github.com/dylfrancis/aurral-pocket"
+}

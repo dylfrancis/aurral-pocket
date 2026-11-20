@@ -12,6 +12,7 @@ import { useSavedLibraryFollowsSession } from "@/hooks/offline/use-saved-library
 import { usePluginActionResults } from "@/hooks/plugins/use-plugin-actions";
 import { useQueueFollowsSession } from "@/hooks/player/use-queue-follows-session";
 import { useQueueSync } from "@/hooks/player/use-queue-sync";
+import { useSiriVocabulary } from "@/hooks/siri/use-siri-vocabulary";
 import { startPlayHistory } from "@/lib/player/play-history";
 import { restoreSavedQueue } from "@/lib/player/player";
 
@@ -38,6 +39,7 @@ export default function AppLayout() {
   usePluginActionResults();
   useLibraryUpdates();
   useDiscoveryUpdates();
+  useSiriVocabulary();
   const reduceMotion = useReducedMotion();
 
   return (
