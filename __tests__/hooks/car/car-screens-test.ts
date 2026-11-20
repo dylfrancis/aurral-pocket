@@ -151,17 +151,24 @@ describe("CarPlay", () => {
     expect(carPlay.showNowPlaying).toHaveBeenCalled();
   });
 
-  it("splits a list sorted by name into letters CarPlay's side index jumps to", async () => {
-    const artist = (title: string) => ({
+  it("splits an alphabetical list into the letters its rows are filed under, for CarPlay's side index", async () => {
+    const artist = (title: string, letter: string) => ({
       id: `artist:${title}`,
       kind: "list" as const,
       title,
       image: null,
+      letter,
     });
     (loadCarList as jest.Mock).mockResolvedValue({
       title: "Artists",
       alphabetical: true,
-      rows: ["!!!", "2Pac", "ABBA", "Ásgeir", "Björk"].map(artist),
+      rows: [
+        artist("ABBA", "A"),
+        // Filed by sort name, "Bowie, David".
+        artist("David Bowie", "B"),
+        artist("Björk", "B"),
+        artist("2Pac", "#"),
+      ],
     });
 
     const template = await loader()("artists");
@@ -174,9 +181,9 @@ describe("CarPlay", () => {
         items.map((item) => ("title" in item ? item.title : "")),
       ]),
     ).toEqual([
-      ["#", "#", ["!!!", "2Pac"]],
-      ["A", "A", ["ABBA", "Ásgeir"]],
-      ["B", "B", ["Björk"]],
+      ["A", "A", ["ABBA"]],
+      ["B", "B", ["David Bowie", "Björk"]],
+      ["#", "#", ["2Pac"]],
     ]);
   });
 

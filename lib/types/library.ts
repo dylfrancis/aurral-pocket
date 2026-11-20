@@ -35,6 +35,8 @@ export type Artist = {
   userFavorite?: boolean;
   /** Canonical read path only. See CanonicalArtistItem. */
   coverUrl?: string;
+  /** Canonical read path only. What the Library sorts by, as "Beatles, The". */
+  sortName?: string;
 };
 
 export type AlbumStatistics = {

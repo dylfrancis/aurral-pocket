@@ -93,13 +93,12 @@ function carPlayTemplate(id: string, list: CarList): CarPlayListTemplate {
       ? // A symbol as the row's image fills the whole artwork slot.
         [{ id: SHUFFLE_ROW, title: "Shuffle", accessoryImage: "shuffle" }]
       : [];
-  const items = list.rows.map(carPlayItem);
   const sections: CarPlayListSection[] = list.alphabetical
     ? [
         ...(shuffleItems.length > 0 ? [{ items: shuffleItems }] : []),
-        ...byLetter(items),
+        ...byLetter(list.rows),
       ]
-    : [{ items: [...shuffleItems, ...items] }];
+    : [{ items: [...shuffleItems, ...list.rows.map(carPlayItem)] }];
   return {
     type: "list",
     id,
@@ -121,22 +120,22 @@ function carPlayItem(row: CarRow): CarPlayListItem {
   };
 }
 
-/** Runs of rows by first letter, so CarPlay's side index can jump to one. */
-function byLetter(items: CarPlayListItem[]): CarPlayListSection[] {
+/** A section per letter, so CarPlay's side index can jump to one. */
+function byLetter(rows: CarRow[]): CarPlayListSection[] {
   const sections: CarPlayListSection[] = [];
-  for (const item of items) {
-    const letter = letterOf(item.title);
+  for (const row of rows) {
+    const letter = row.letter ?? "#";
     const last = sections[sections.length - 1];
-    if (last?.header === letter) last.items.push(item);
-    else sections.push({ header: letter, indexTitle: letter, items: [item] });
+    if (last?.header === letter) last.items.push(carPlayItem(row));
+    else {
+      sections.push({
+        header: letter,
+        indexTitle: letter,
+        items: [carPlayItem(row)],
+      });
+    }
   }
   return sections;
-}
-
-/** Accented letters go under their letter; digits and symbols under #. */
-function letterOf(title: string): string {
-  const first = title.trim().normalize("NFD").charAt(0).toUpperCase();
-  return /^[A-Z]$/.test(first) ? first : "#";
 }
 
 async function playInCarPlay(templateId: string, rowId: string) {
@@ -150,10 +149,12 @@ async function playInCarPlay(templateId: string, rowId: string) {
   if (started) CarPlayHelper.showNowPlaying();
 }
 
-/** Lists of covers show as a grid; songs and artists as rows. */
+/**
+ * Lists of covers show as a grid; songs and artists as rows. Albums stay rows:
+ * a large Library opens them on letters, which have no cover.
+ */
 const GRID_LISTS = new Set<string>([
   CAR_LISTS.playlists,
-  CAR_LISTS.albums,
   CAR_LISTS.madeForYou,
   CAR_LISTS.recentlyPlayed,
 ]);

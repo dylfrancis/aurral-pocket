@@ -43,7 +43,12 @@ import {
 } from "@/lib/player/track-item";
 import { queryClient } from "@/lib/query-client";
 import type { BrowseProvider, LibrarySearchTrack } from "@/lib/types/search";
-import type { Album, Artist, CanonicalPageParams } from "@/lib/types/library";
+import type {
+  Album,
+  Artist,
+  CanonicalPage,
+  CanonicalPageParams,
+} from "@/lib/types/library";
 
 /**
  * A row in a car list, the same in CarPlay and Android Auto. Lists are read
@@ -56,6 +61,8 @@ export type CarRow = {
   title: string;
   subtitle?: string;
   image: string | null;
+  /** The letter an alphabetical list files the row under. */
+  letter?: string;
 };
 
 export type CarList = {
@@ -68,7 +75,7 @@ export type CarList = {
   shuffle?: () => Promise<boolean>;
   emptyTitle?: string;
   signedOut?: boolean;
-  /** Sorted by title, so it can jump by letter. */
+  /** Rows run in letter order, so the car can jump by letter. */
   alphabetical?: boolean;
 };
 
@@ -83,8 +90,17 @@ export const CAR_LISTS = {
 
 const SIGN_IN_PROMPT = "Sign in to Aurral on your phone";
 
-/** Long lists stop here: the car shows only so many rows. */
-const MAX_ROWS = 200;
+/**
+ * CarPlay's most rows in a list. An alphabetical list longer than this opens
+ * on a row per letter instead.
+ */
+const MAX_ROWS = 500;
+/** The server's largest page. */
+const PAGE_SIZE = 100;
+/** Pages read at once when a list needs every row. */
+const PAGES_AT_ONCE = 6;
+/** More would outlast the car's wait for a list. */
+const MAX_READ_ROWS = 10_000;
 /** As many as the Library's home rail shows. */
 const RECENTLY_PLAYED_COUNT = 20;
 const SEARCH_LIMIT = 20;
@@ -97,6 +113,8 @@ const seenTitles = new Map<string, string>();
 const seenAlbums = new Map<string, Album>();
 const seenArtists = new Map<string, Artist>();
 const seenCollections = new Map<string, PlaybackCollection>();
+/** Every row of an alphabetical list, for the letters it opens on. */
+const seenAlphabetical = new Map<string, CarRow[]>();
 
 /** Forget what rows handed on, such as when another account signs in. */
 export function forgetCarLists(): void {
@@ -104,6 +122,7 @@ export function forgetCarLists(): void {
   seenAlbums.clear();
   seenArtists.clear();
   seenCollections.clear();
+  seenAlphabetical.clear();
 }
 
 function isSessionLost(error: unknown): boolean {
@@ -167,24 +186,18 @@ function readList(id: string): Promise<CarList> {
     case CAR_LISTS.artists:
       return artistsList();
     case CAR_LISTS.albums:
-      return albumsList(
-        "Albums",
-        { sort: "name", availableOnly: true },
-        MAX_ROWS,
-      );
+      return albumsList();
     case CAR_LISTS.recentlyPlayed:
-      return albumsList(
-        "Recently Played",
-        // The server reads `asc` as most recent first.
-        { sort: "played", direction: "asc" },
-        RECENTLY_PLAYED_COUNT,
-      );
+      return recentlyPlayedList();
     case CAR_LISTS.madeForYou:
       return madeForYouList();
   }
   const [kind, ...rest] = id.split(":");
   const ref = rest.join(":");
   switch (kind) {
+    case CAR_LISTS.artists:
+    case CAR_LISTS.albums:
+      return letterList(kind, ref);
     case "artist":
       return artistList(id, ref);
     case "album":
@@ -279,27 +292,21 @@ async function findCollection(playlistId: string) {
   return seenCollections.get(`playlist:${playlistId}`) ?? null;
 }
 
-/** Artists with music to play, by name. */
+/** Artists with music to play, by the name the Library sorts them by. */
 async function artistsList(): Promise<CarList> {
   const artists = await readPages(
     { kind: "artists", source: "all", sort: "name", availableOnly: true },
-    MAX_ROWS,
     (page) => page.artists,
   );
-  return {
-    title: "Artists",
-    alphabetical: true,
-    rows: artists.map((artist) => {
-      const id = `artist:${artist.canonicalId ?? artist.id}`;
-      seenArtists.set(id, artist);
-      return listRow(
-        id,
-        artist.artistName,
-        authenticatedImageUrl(artist.coverUrl),
-      );
-    }),
-    emptyTitle: "No artists",
-  };
+  const rows = artists.map((artist) => {
+    const id = `artist:${artist.canonicalId ?? artist.id}`;
+    seenArtists.set(id, artist);
+    return {
+      ...listRow(id, artist.artistName, authenticatedImageUrl(artist.coverUrl)),
+      letter: letterOf(artist.sortName || artist.artistName),
+    };
+  });
+  return alphabeticalList(CAR_LISTS.artists, rows);
 }
 
 /** The artist's albums with music to play, as on their page. */
@@ -334,22 +341,108 @@ async function shuffleArtist(artist: Artist): Promise<boolean> {
   return play(songs, context, { shuffled: true });
 }
 
-async function albumsList(
-  title: string,
-  params: Pick<CanonicalPageParams, "sort" | "direction" | "availableOnly">,
-  limit: number,
-): Promise<CarList> {
+/** Albums with music to play, by title. */
+async function albumsList(): Promise<CarList> {
   const albums = await readPages(
-    { kind: "albums", source: "all", ...params },
-    limit,
+    { kind: "albums", source: "all", sort: "name", availableOnly: true },
     (page) => page.albums,
   );
+  const rows = albums
+    .flatMap(albumRow)
+    .map((row) => ({ ...row, letter: letterOf(row.title) }));
+  return alphabeticalList(CAR_LISTS.albums, rows);
+}
+
+async function recentlyPlayedList(): Promise<CarList> {
+  const albums = await readPages(
+    // The server reads `asc` as most recent first.
+    { kind: "albums", source: "all", sort: "played", direction: "asc" },
+    (page) => page.albums,
+    RECENTLY_PLAYED_COUNT,
+  );
   return {
-    title,
+    title: "Recently Played",
     rows: albums.flatMap(albumRow),
-    alphabetical: params.sort === "name",
     emptyTitle: "No albums",
   };
+}
+
+type AlphabeticalId = typeof CAR_LISTS.artists | typeof CAR_LISTS.albums;
+
+const ALPHABETICAL_NAMES: Record<
+  AlphabeticalId,
+  { title: string; one: string; many: string }
+> = {
+  [CAR_LISTS.artists]: { title: "Artists", one: "artist", many: "artists" },
+  [CAR_LISTS.albums]: { title: "Albums", one: "album", many: "albums" },
+};
+
+/**
+ * Rows filed by letter, A to Z and then #. A list too long for the car opens
+ * on a row per letter, each saying how many rows it holds.
+ */
+function alphabeticalList(id: AlphabeticalId, rows: CarRow[]): CarList {
+  const filed = fileByLetter(rows);
+  seenAlphabetical.set(id, filed);
+  const { title, one, many } = ALPHABETICAL_NAMES[id];
+  const emptyTitle = `No ${many}`;
+  if (filed.length <= MAX_ROWS) {
+    return { title, rows: filed, alphabetical: true, emptyTitle };
+  }
+  const counts = new Map<string, number>();
+  for (const { letter = "#" } of filed) {
+    counts.set(letter, (counts.get(letter) ?? 0) + 1);
+  }
+  return {
+    title,
+    rows: [...counts].map(([letter, count]) => ({
+      ...listRow(`${id}:${letter}`, letter),
+      subtitle: `${count} ${count === 1 ? one : many}`,
+    })),
+    emptyTitle,
+  };
+}
+
+/** One letter's rows of an alphabetical list, as its letter row opens them. */
+async function letterList(
+  id: AlphabeticalId,
+  letter: string,
+): Promise<CarList> {
+  // A letter CarPlay kept on screen across a restart reads the list again.
+  if (!seenAlphabetical.has(id)) await readList(id);
+  const { title, many } = ALPHABETICAL_NAMES[id];
+  return {
+    title: `${title} · ${letter}`,
+    rows: (seenAlphabetical.get(id) ?? []).filter(
+      (row) => row.letter === letter,
+    ),
+    emptyTitle: `No ${many} under ${letter}`,
+  };
+}
+
+/**
+ * Rows grouped by letter in the order they came, once each. The server sorts
+ * accented titles after Z, so they move up to their letter.
+ */
+function fileByLetter(rows: CarRow[]): CarRow[] {
+  const byLetter = new Map<string, CarRow[]>();
+  const seenIds = new Set<string>();
+  for (const row of rows) {
+    // A row can move between pages read at once while the Library changes.
+    if (seenIds.has(row.id)) continue;
+    seenIds.add(row.id);
+    const letter = row.letter ?? "#";
+    byLetter.set(letter, [...(byLetter.get(letter) ?? []), row]);
+  }
+  return [...byLetter.keys()]
+    .sort((a, b) => Number(a === "#") - Number(b === "#") || (a < b ? -1 : 1))
+    .flatMap((letter) => byLetter.get(letter) ?? []);
+}
+
+/** Accented letters go under their letter; digits and symbols under #. */
+export function letterOf(title: string): string {
+  const first = title.trim().normalize("NFD").charAt(0).toUpperCase();
+  return /^[A-Z]$/.test(first) ? first : "#";
 }
 
 function albumRow(album: Album): CarRow[] {
@@ -463,20 +556,41 @@ function titleOf(id: string): string {
   return seenTitles.get(id) ?? "";
 }
 
+/**
+ * A Library read in its order, up to `limit` rows. After the first page, the
+ * total says how many pages to ask for at once.
+ */
 async function readPages<T>(
   params: CanonicalPageParams,
-  limit: number,
-  pick: (page: Awaited<ReturnType<typeof getCanonicalLibraryPage>>) => T[],
+  pick: (page: CanonicalPage) => T[],
+  limit = MAX_READ_ROWS,
 ): Promise<T[]> {
-  const items: T[] = [];
-  for (let pageNumber = 1; items.length < limit; pageNumber++) {
-    const page = await getCanonicalLibraryPage({
-      ...params,
-      page: pageNumber,
-      pageSize: Math.min(100, limit),
-    });
-    items.push(...pick(page));
-    if (!page.hasMore) break;
+  const pageSize = Math.min(PAGE_SIZE, limit);
+  const read = (page: number) =>
+    getCanonicalLibraryPage({ ...params, page, pageSize }).then((result) => ({
+      items: pick(result),
+      hasMore: result.hasMore,
+    }));
+  const first = await getCanonicalLibraryPage({ ...params, page: 1, pageSize });
+  const items = pick(first);
+  const lastPage = Math.min(
+    Math.ceil(first.total / pageSize),
+    Math.ceil(limit / pageSize),
+  );
+  let hasMore = first.hasMore;
+  let next = 2;
+  while (hasMore && items.length < limit) {
+    // A total that came up short still reads on while pages say there's more.
+    const last = Math.max(next, Math.min(next + PAGES_AT_ONCE - 1, lastPage));
+    const pages = await Promise.all(
+      Array.from({ length: last - next + 1 }, (_, index) => read(next + index)),
+    );
+    for (const page of pages) {
+      items.push(...page.items);
+      hasMore = page.hasMore;
+      if (!hasMore) break;
+    }
+    next = last + 1;
   }
   return items.slice(0, limit);
 }
