@@ -1,6 +1,8 @@
 import {
   AndroidAutoMediaLibraryHelper,
   CarPlayHelper,
+  type CarPlayListItem,
+  type CarPlayListSection,
   type CarPlayListTemplate,
   type MediaItem,
 } from "react-native-nitro-player";
@@ -10,6 +12,7 @@ import {
   loadCarList,
   searchCar,
   type CarList,
+  type CarRow,
 } from "@/hooks/car/car-library";
 import { headlessSession, onSessionCleared } from "@/lib/headless-session";
 import {
@@ -82,40 +85,56 @@ function carPlayTemplate(id: string, list: CarList): CarPlayListTemplate {
     if (shownLists.size <= MAX_SHOWN_LISTS) break;
     shownLists.delete(oldestId);
   }
+  // An empty list keeps its empty title rather than a lone Shuffle.
+  const shuffleItems: CarPlayListItem[] =
+    list.shuffle && list.rows.length > 0
+      ? // A symbol as the row's image fills the whole artwork slot.
+        [{ id: SHUFFLE_ROW, title: "Shuffle", accessoryImage: "shuffle" }]
+      : [];
+  const items = list.rows.map(carPlayItem);
+  const sections: CarPlayListSection[] = list.alphabetical
+    ? [
+        ...(shuffleItems.length > 0 ? [{ items: shuffleItems }] : []),
+        ...byLetter(items),
+      ]
+    : [{ items: [...shuffleItems, ...items] }];
   return {
     type: "list",
     id,
     title: list.title,
-    sections: [
-      {
-        items: [
-          // An empty list keeps its empty title rather than a lone Shuffle.
-          ...(list.shuffle && list.rows.length > 0
-            ? [
-                // A symbol as the row's image fills the whole artwork slot.
-                {
-                  id: SHUFFLE_ROW,
-                  title: "Shuffle",
-                  accessoryImage: "shuffle",
-                },
-              ]
-            : []),
-          ...list.rows.map((row) => ({
-            id: row.id,
-            title: row.title,
-            ...(row.subtitle ? { subtitle: row.subtitle } : {}),
-            ...(row.image ? { image: row.image } : {}),
-            // A song row has no playlistId, so it reaches onSelect and plays
-            // through the facade; its trackId marks it while it plays.
-            ...(row.kind === "list"
-              ? { loadTemplate: true }
-              : { trackId: row.id }),
-          })),
-        ],
-      },
-    ],
+    sections,
     ...(list.emptyTitle ? { emptyTitle: list.emptyTitle } : {}),
   };
+}
+
+function carPlayItem(row: CarRow): CarPlayListItem {
+  return {
+    id: row.id,
+    title: row.title,
+    ...(row.subtitle ? { subtitle: row.subtitle } : {}),
+    ...(row.image ? { image: row.image } : {}),
+    // A song row has no playlistId, so it reaches onSelect and plays through
+    // the facade; its trackId marks it while it plays.
+    ...(row.kind === "list" ? { loadTemplate: true } : { trackId: row.id }),
+  };
+}
+
+/** Runs of rows by first letter, so CarPlay's side index can jump to one. */
+function byLetter(items: CarPlayListItem[]): CarPlayListSection[] {
+  const sections: CarPlayListSection[] = [];
+  for (const item of items) {
+    const letter = letterOf(item.title);
+    const last = sections[sections.length - 1];
+    if (last?.header === letter) last.items.push(item);
+    else sections.push({ header: letter, indexTitle: letter, items: [item] });
+  }
+  return sections;
+}
+
+/** Accented letters go under their letter; digits and symbols under #. */
+function letterOf(title: string): string {
+  const first = title.trim().normalize("NFD").charAt(0).toUpperCase();
+  return /^[A-Z]$/.test(first) ? first : "#";
 }
 
 async function playInCarPlay(templateId: string, rowId: string) {

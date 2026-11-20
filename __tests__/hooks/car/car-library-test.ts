@@ -185,6 +185,21 @@ describe("loadCarList", () => {
     ]);
   });
 
+  it.each([
+    [CAR_LISTS.artists, true],
+    [CAR_LISTS.albums, true],
+    [CAR_LISTS.recentlyPlayed, false],
+  ])(
+    "lets %s jump by letter only when it's sorted by name",
+    async (id, alphabetical) => {
+      (getCanonicalLibraryPage as jest.Mock).mockResolvedValue(page([album()]));
+
+      const list = await loadCarList(id);
+
+      expect(!!list.alphabetical).toBe(alphabetical);
+    },
+  );
+
   it("plays an album's songs in disc order as one queue, from the one picked", async () => {
     (getCanonicalAlbum as jest.Mock).mockResolvedValue(album());
     (getCanonicalAlbumTracks as jest.Mock).mockResolvedValue([
