@@ -385,6 +385,17 @@ describe("preparePlayer", () => {
   });
 });
 
+describe("repeat on sign-out", () => {
+  it("turns the engine's repeat off too, so the next account's queue doesn't loop", async () => {
+    await setRepeatMode("all");
+    player.setRepeatMode.mockClear();
+
+    await forgetQueue();
+
+    expect(player.setRepeatMode).toHaveBeenCalledWith("off");
+  });
+});
+
 describe("CarPlay's Now Playing buttons", () => {
   /** The id of the button of this kind the engine was given. */
   async function buttonId(type: "shuffle" | "repeat") {
