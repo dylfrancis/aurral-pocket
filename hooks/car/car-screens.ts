@@ -27,7 +27,7 @@ export function registerCar(): void {
   const androidAuto = AndroidAutoMediaLibraryHelper.isAvailable();
   if (carPlay) registerCarPlay();
   if (androidAuto) registerAndroidAuto();
-  // The lists then ask to sign in on the phone.
+  // After sign-out, the lists ask to sign in on the phone.
   if (carPlay || androidAuto) onSessionCleared(refreshCar);
 }
 

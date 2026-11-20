@@ -112,7 +112,7 @@ function signedOutList(title: string): CarList {
   return { title, rows: [], emptyTitle: SIGN_IN_PROMPT, signedOut: true };
 }
 
-/** The list with this id. Throws when Aurral can't be read. */
+/** Throws when Aurral can't be read; a lost session reads as signed out. */
 export async function loadCarList(id: string): Promise<CarList> {
   const session = await headlessSession();
   if (!session) return signedOutList(titleOf(id));
