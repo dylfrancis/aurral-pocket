@@ -1,4 +1,4 @@
-jest.mock("@/lib/siri/session", () => ({ siriSession: jest.fn() }));
+jest.mock("@/lib/headless-session", () => ({ headlessSession: jest.fn() }));
 
 jest.mock("@/lib/offline/saved-library", () => ({
   savedStatuses: jest.fn(),
@@ -74,7 +74,7 @@ import {
   togglePlayback,
 } from "@/lib/player/player";
 import { queryClient } from "@/lib/query-client";
-import { siriSession } from "@/lib/siri/session";
+import { headlessSession } from "@/lib/headless-session";
 import type { AlbumTrack, Track } from "@/lib/types/library";
 import type {
   LibrarySearchAlbum,
@@ -180,7 +180,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   setBaseUrl("https://aurral.test");
   setAuthToken("token");
-  (siriSession as jest.Mock).mockResolvedValue({ userId: 1 });
+  (headlessSession as jest.Mock).mockResolvedValue({ userId: 1 });
   mockSavedStatuses.mockResolvedValue([]);
   mockIsOffline.mockReturnValue(false);
   searchFinds([]);
@@ -334,7 +334,7 @@ describe("findForSiri", () => {
   it.each<[string, () => void, Partial<SiriSearch>, SiriFindAnswer]>([
     [
       "no one is signed in",
-      () => (siriSession as jest.Mock).mockResolvedValue(null),
+      () => (headlessSession as jest.Mock).mockResolvedValue(null),
       { name: "Kid A" },
       { status: "signedOut" },
     ],
@@ -415,7 +415,7 @@ describe("playForSiri", () => {
   it("plays another account's item only if this account has it too", async () => {
     mockSavedStatuses.mockResolvedValue([savedKidA()]);
     const answer = await findForSiri(heard({ name: "Kid A" }));
-    (siriSession as jest.Mock).mockResolvedValue({ userId: 2 });
+    (headlessSession as jest.Mock).mockResolvedValue({ userId: 2 });
     mockSavedStatuses.mockResolvedValue([]);
 
     await expect(

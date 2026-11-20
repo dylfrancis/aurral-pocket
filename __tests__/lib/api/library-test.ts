@@ -325,6 +325,7 @@ describe("getCanonicalLibraryPage", () => {
         available: true,
         identityKey: "artist:radiohead",
         coverUrl: "/api/library/artists/7/cover?v=abc",
+        sortName: "Radiohead",
       },
     ]);
   });

@@ -40,6 +40,7 @@ import {
   setCustomHeaders,
 } from "@/lib/api/client";
 import { getMe, login } from "@/lib/api/auth";
+import { onSessionChanged } from "@/lib/headless-session";
 import { TrackPlayer } from "react-native-nitro-player";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
@@ -581,6 +582,81 @@ describe("AuthProvider — clearAuth", () => {
     expect(getByTestId("serverUrl").props.children).toBe(
       "https://my-server.com",
     );
+  });
+});
+
+describe("AuthProvider — sign-out", () => {
+  // The car reads the stored session itself. Told any sooner, it would read
+  // the token sign-out is still deleting and bring the session back.
+  it.each(["clearAuth", "clearAll"])(
+    "tells the car once %s has deleted the stored token",
+    async (testID) => {
+      mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+      mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+        if (key === "auth_token") return "my-token";
+        if (key === "user_json")
+          return '{"id":1,"username":"alice","role":"user"}';
+        return null;
+      });
+      const { getByTestId } = await renderWithProvider();
+      await waitFor(() => {
+        expect(getByTestId("token").props.children).toBe("my-token");
+      });
+      let deleteToken!: () => void;
+      mockSecureStore.deleteItemAsync.mockImplementation((key) =>
+        key === "auth_token"
+          ? new Promise<void>((resolve) => {
+              deleteToken = resolve;
+            })
+          : Promise.resolve(),
+      );
+      const cleared = jest.fn();
+      const stop = onSessionChanged(cleared);
+
+      try {
+        await act(async () => {
+          void fireEvent.press(getByTestId(testID));
+        });
+        expect(cleared).not.toHaveBeenCalled();
+
+        await act(async () => deleteToken());
+        await waitFor(() => expect(cleared).toHaveBeenCalledWith("signedOut"));
+      } finally {
+        stop();
+        mockSecureStore.deleteItemAsync.mockReset();
+      }
+    },
+  );
+});
+
+describe("AuthProvider — sign-in", () => {
+  it("tells the car once sign-in has stored the token", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockResolvedValue(null);
+    const { getByTestId } = await renderWithProvider();
+    let saveToken!: () => void;
+    mockSecureStore.setItemAsync.mockImplementation((key) =>
+      key === "auth_token"
+        ? new Promise<void>((resolve) => {
+            saveToken = resolve;
+          })
+        : Promise.resolve(),
+    );
+    const changed = jest.fn();
+    const stop = onSessionChanged(changed);
+
+    try {
+      await act(async () => {
+        void fireEvent.press(getByTestId("setAuth"));
+      });
+      expect(changed).not.toHaveBeenCalled();
+
+      await act(async () => saveToken());
+      await waitFor(() => expect(changed).toHaveBeenCalledWith("signedIn"));
+    } finally {
+      stop();
+      mockSecureStore.setItemAsync.mockReset();
+    }
   });
 });
 

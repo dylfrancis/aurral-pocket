@@ -280,6 +280,7 @@ jest.mock("react-native-nitro-player", () => ({
     setVolume: jest.fn(() => Promise.resolve()),
     updateTracks: jest.fn(() => Promise.resolve()),
     onTracksNeedUpdate: jest.fn(),
+    setNotificationButtonState: jest.fn(),
     getState: jest.fn(() =>
       Promise.resolve({
         currentTrack: null,
@@ -301,6 +302,23 @@ jest.mock("react-native-nitro-player", () => ({
     currentIndex: -1,
     currentPlayingType: "not-playing",
   })),
+  // No car is available unless a test says so.
+  CarPlayHelper: {
+    isAvailable: jest.fn(() => false),
+    set: jest.fn(),
+    setTemplateLoader: jest.fn(),
+    onSelect: jest.fn(),
+    showNowPlaying: jest.fn(),
+    reload: jest.fn(),
+    popToRoot: jest.fn(),
+  },
+  AndroidAutoMediaLibraryHelper: {
+    isAvailable: jest.fn(() => false),
+    set: jest.fn(),
+    setChildrenLoader: jest.fn(),
+    setSearchHandler: jest.fn(),
+    onPlaybackResumption: jest.fn(),
+  },
 }));
 
 // The player facade deep-imports the engine's callback manager (see
@@ -311,6 +329,7 @@ jest.mock("react-native-nitro-player/src/hooks/callbackManager", () => ({
     subscribeToTrackChange: jest.fn(() => () => {}),
     subscribeToPlaybackState: jest.fn(() => () => {}),
     subscribeToPlaybackProgressChange: jest.fn(() => () => {}),
+    subscribeToNotificationButtonPress: jest.fn(() => () => {}),
   },
 }));
 
