@@ -280,10 +280,11 @@ export function savedLibraryReady(): Promise<void> {
 /**
  * The account whose saves are shown and played. Sign-out passes null: the
  * saves stay on the phone, hidden, and a download in progress stops.
+ * Resolves once the account's saves are in place.
  */
-export function setSavedLibraryUser(userId: number | null): void {
+export function setSavedLibraryUser(userId: number | null): Promise<void> {
   requestedUserId = userId;
-  void load().then(() => {
+  return load().then(() => {
     if (requestedUserId !== userId) return;
     if (snapshot.userId !== userId) {
       commit({ userId, blocked: null }, { persist: false });
@@ -833,13 +834,19 @@ export function useSavedBytes(): number {
 /** The signed-in account's saves, newest first. */
 export function useSavedItems(): SaveStatus[] {
   const state = useSnapshot();
-  return useMemo(
-    () =>
-      itemsOf(state)
-        .map((item) => statusOf(state, item))
-        .sort((a, b) => b.item.savedAt - a.item.savedAt),
-    [state],
-  );
+  return useMemo(() => statusesOf(state), [state]);
+}
+
+/** useSavedItems for callers with no screen. */
+export async function savedStatuses(): Promise<SaveStatus[]> {
+  await savedLibraryReady();
+  return statusesOf(snapshot);
+}
+
+function statusesOf(state: Snapshot): SaveStatus[] {
+  return itemsOf(state)
+    .map((item) => statusOf(state, item))
+    .sort((a, b) => b.item.savedAt - a.item.savedAt);
 }
 
 function parseRecord(raw: string | null): {

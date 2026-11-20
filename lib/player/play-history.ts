@@ -55,13 +55,18 @@ type PendingPlay = PlayEventInput & { userId?: number };
 let work: Promise<void> = Promise.resolve();
 
 let reportingUserId: number | null = null;
+let stopReporting: (() => void) | null = null;
 
 /**
  * Start reporting an account's plays, sending what it held over first. Call
  * once the session token and user are in place, and again when the account
  * changes. Returns a function that stops reporting.
+ *
+ * One start replaces the one before: Siri can start reporting before any
+ * screen does, and two reporters would send each play twice.
  */
 export function startPlayHistory(userId: number): () => void {
+  stopReporting?.();
   reportingUserId = userId;
   let reachesPlay = createPlayTracker();
   const stopStarted = onTrackStarted(() => {
@@ -74,11 +79,16 @@ export function startPlayHistory(userId: number): () => void {
   });
   flushSoon(userId);
 
-  return function stop(): void {
+  const stop = (): void => {
+    // A replaced start's stop leaves its replacement running.
+    if (stopReporting !== stop) return;
+    stopReporting = null;
     reportingUserId = null;
     stopStarted();
     stopProgress();
   };
+  stopReporting = stop;
+  return stop;
 }
 
 /**

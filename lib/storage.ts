@@ -15,6 +15,17 @@ const THIS_DEVICE: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
 };
 
+/**
+ * Readable on a locked phone once unlocked since it started, as Siri needs.
+ * Still moves to a new phone with a backup, as the keychain's default does.
+ */
+const WHILE_LOCKED: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+};
+
+/** After this long unopened, the app forgets the server and the account. */
+export const INACTIVITY_RESET_MS = 30 * 24 * 60 * 60 * 1000;
+
 const KEYS = {
   SERVER_URL: "server_url",
   THEME_PREFERENCE: "theme_preference",
@@ -52,7 +63,7 @@ export const SecureStorage = {
 
   async setToken(token: string): Promise<void> {
     try {
-      await SecureStore.setItemAsync(KEYS.AUTH_TOKEN, token);
+      await SecureStore.setItemAsync(KEYS.AUTH_TOKEN, token, WHILE_LOCKED);
     } catch {}
   },
 
@@ -72,7 +83,7 @@ export const SecureStorage = {
 
   async setUser(userJson: string): Promise<void> {
     try {
-      await SecureStore.setItemAsync(KEYS.USER, userJson);
+      await SecureStore.setItemAsync(KEYS.USER, userJson, WHILE_LOCKED);
     } catch {}
   },
 
@@ -114,7 +125,12 @@ export const SecureStorage = {
 
   async setLastActiveAt(ms: number): Promise<void> {
     try {
-      await SecureStore.setItemAsync(KEYS.LAST_ACTIVE_AT, String(ms));
+      // Siri checks it, as the 30-day reset does, on a locked phone.
+      await SecureStore.setItemAsync(
+        KEYS.LAST_ACTIVE_AT,
+        String(ms),
+        WHILE_LOCKED,
+      );
     } catch {}
   },
 
@@ -247,6 +263,7 @@ export const SecureStorage = {
       await SecureStore.setItemAsync(
         KEYS.CUSTOM_HEADERS,
         JSON.stringify(headers),
+        WHILE_LOCKED,
       );
     } catch {}
   },

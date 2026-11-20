@@ -70,6 +70,7 @@
           "microphonePermission": "Allow Aurral to use the microphone to identify the song playing around you."
         }
       ],
+      "./modules/siri/app.plugin.js",
       "./plugins/with-background-audio.js"
     ],
     "experiments": {
