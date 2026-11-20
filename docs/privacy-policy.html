@@ -213,8 +213,10 @@
         Aurral server address you enter. It contacts other services only for
         specific features: Apple's Shazam service and MusicBrainz when you
         identify a song, and your server's sign-in provider if your server
-        uses single sign-on. Credentials, your session token, and app
-        preferences are stored on your device. No analytics, telemetry,
+        uses single sign-on. On iPhone, it tells Siri your playlist names and
+        what Siri played for you, so you can ask Siri to play your music.
+        Credentials, your session token, and app preferences are stored on
+        your device. No analytics, telemetry,
         advertising SDKs, or third-party trackers are included.
       </div>
 
@@ -393,7 +395,34 @@
         device.
       </p>
 
-      <h3>2.5 Information automatically collected</h3>
+      <h3>2.5 Siri</h3>
+      <p>
+        On iPhone, you can ask Siri to play music in Aurral, for example "play
+        Kid A in Aurral". Siri works out what you asked for and hands the app
+        only that, such as an album or artist name. The app never receives
+        your voice. To answer, it looks in the music saved on your phone, then
+        searches your Aurral server, as a search in the app does. Apple
+        handles your Siri requests under
+        <a href="https://www.apple.com/legal/privacy/">its privacy policy</a>.
+      </p>
+      <p>
+        So that Siri hears your requests right and knows Aurral plays music,
+        the app gives Siri on your iPhone:
+      </p>
+      <ul>
+        <li>the names of your playlists and flows</li>
+        <li>how many songs your Library holds</li>
+        <li>
+          each song, album, artist or station Siri plays for you, with its
+          title and artist
+        </li>
+      </ul>
+      <p>
+        Signing out and changing server remove the playlist names and played
+        items from Siri.
+      </p>
+
+      <h3>2.6 Information automatically collected</h3>
       <p>
         <strong>None by the app.</strong> Aurral Pocket does not embed any
         analytics, crash reporting, advertising, attribution, or tracking SDKs.
@@ -434,6 +463,11 @@
         <li>
           Microphone audio is used only to identify the song playing around
           you, while you are identifying one.
+        </li>
+        <li>
+          On iPhone, your playlist and flow names, your Library's size, and
+          what Siri played are given to Siri only so it can understand and
+          play your requests.
         </li>
         <li>
           Biometric authentication (Face ID / Touch ID) is used only to
@@ -502,6 +536,11 @@
           change your answer in your phone's settings.
         </li>
         <li>
+          <strong>Siri</strong> (iPhone). The app doesn't ask for a Siri
+          permission: Siri can play from Aurral once you're signed in (see
+          2.5). You can turn Siri off for the app in your phone's settings.
+        </li>
+        <li>
           <strong>Location.</strong> The app does not request device location.
           The "Shows near you" feature uses IP-based geolocation performed by
           your Aurral server, or a postal code you type in - never GPS.
@@ -517,7 +556,8 @@
         The app authors do not receive, store, or share your data. The app
         sends data to the Aurral server whose address you enter, and, only for
         the features described in section 4, to Apple's Shazam service,
-        MusicBrainz, and your server's identity provider. How your server uses
+        MusicBrainz, and your server's identity provider. On iPhone, it also
+        gives Siri what section 2.5 lists. How your server uses
         or forwards data (for example, to Lidarr, MusicBrainz, ListenBrainz,
         Koito, or Navidrome) is determined by its operator and configuration,
         not by the app.
@@ -527,7 +567,8 @@
       <ul>
         <li>
           <strong>Signing out</strong> removes your session token, profile
-          info, playback queue, and audio loaded ahead of time. It keeps your
+          info, playback queue, audio loaded ahead of time, and the playlist
+          names and played items given to Siri. It keeps your
           server address, custom headers, saved sign-in (if you chose "Remember
           me"), songs saved offline, and plays not yet sent, which are sent
           when the same account signs back in.
@@ -566,7 +607,11 @@
         Sensitive values (session token, saved credentials if you enable
         "Remember me", custom headers, session metadata) are stored using the
         operating
-        system's secure keystore. Traffic between the app and your Aurral
+        system's secure keystore. On iPhone, the session token, profile info,
+        custom headers, and last-active time can be read while the phone is
+        locked, once it has been unlocked since it started, so Siri can play
+        music from a locked phone. Your saved password can still be read only
+        while the phone is unlocked. Traffic between the app and your Aurral
         server is only as secure as the address you configure; we strongly
         recommend using HTTPS.
       </p>
@@ -586,6 +631,9 @@
         <li>
           Decline microphone access, or turn it off later in your phone's
           settings. Only song identification needs it.
+        </li>
+        <li>
+          On iPhone, turn Siri off for the app in your phone's settings.
         </li>
         <li>
           Remove anything you saved offline with "Remove from Phone", and empty
