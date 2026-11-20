@@ -441,6 +441,33 @@ describe("startPlayHistory", () => {
     expect(mockRecord).not.toHaveBeenCalled();
   });
 
+  // Siri can start reporting before the app's screens do, and the screens
+  // start it again.
+  it("reports a play once when started again without a stop", async () => {
+    const listeners = new Set<(value: PlaybackProgress) => void>();
+    const subscribe = (listener: (value: PlaybackProgress) => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    };
+    (onProgress as jest.Mock)
+      .mockImplementationOnce(subscribe)
+      .mockImplementationOnce(subscribe);
+    const stopReplaced = startPlayHistory(ACCOUNT_A);
+    stopCurrent = startPlayHistory(ACCOUNT_A);
+
+    for (let position = 0; position <= 100; position += 1) {
+      listeners.forEach((listener) =>
+        listener({ track: track(), position, duration: 200, seeked: false }),
+      );
+    }
+    await settle();
+    expect(mockRecord).toHaveBeenCalledTimes(1);
+
+    // The replaced start's owner stopping late leaves the new one reporting.
+    stopReplaced();
+    expect(listeners.size).toBe(1);
+  });
+
   it("stops reporting once the listeners are removed", () => {
     const stopProgress = jest.fn();
     const stopStarted = jest.fn();
