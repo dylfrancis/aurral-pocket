@@ -68,6 +68,8 @@ export type CarList = {
   shuffle?: () => Promise<boolean>;
   emptyTitle?: string;
   signedOut?: boolean;
+  /** Sorted by title, so it can jump by letter. */
+  alphabetical?: boolean;
 };
 
 export const CAR_LISTS = {
@@ -286,6 +288,7 @@ async function artistsList(): Promise<CarList> {
   );
   return {
     title: "Artists",
+    alphabetical: true,
     rows: artists.map((artist) => {
       const id = `artist:${artist.canonicalId ?? artist.id}`;
       seenArtists.set(id, artist);
@@ -341,7 +344,12 @@ async function albumsList(
     limit,
     (page) => page.albums,
   );
-  return { title, rows: albums.flatMap(albumRow), emptyTitle: "No albums" };
+  return {
+    title,
+    rows: albums.flatMap(albumRow),
+    alphabetical: params.sort === "name",
+    emptyTitle: "No albums",
+  };
 }
 
 function albumRow(album: Album): CarRow[] {

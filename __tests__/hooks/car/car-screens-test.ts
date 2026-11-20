@@ -151,6 +151,35 @@ describe("CarPlay", () => {
     expect(carPlay.showNowPlaying).toHaveBeenCalled();
   });
 
+  it("splits a list sorted by name into letters CarPlay's side index jumps to", async () => {
+    const artist = (title: string) => ({
+      id: `artist:${title}`,
+      kind: "list" as const,
+      title,
+      image: null,
+    });
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Artists",
+      alphabetical: true,
+      rows: ["!!!", "2Pac", "ABBA", "Ásgeir", "Björk"].map(artist),
+    });
+
+    const template = await loader()("artists");
+    const sections = template?.type === "list" ? template.sections : [];
+
+    expect(
+      sections?.map(({ header, indexTitle, items }) => [
+        header,
+        indexTitle,
+        items.map((item) => ("title" in item ? item.title : "")),
+      ]),
+    ).toEqual([
+      ["#", "#", ["!!!", "2Pac"]],
+      ["A", "A", ["ABBA", "Ásgeir"]],
+      ["B", "B", ["Björk"]],
+    ]);
+  });
+
   it("leaves Shuffle out of an empty list, so it shows its empty title", async () => {
     (loadCarList as jest.Mock).mockResolvedValue({
       title: "Kid A",
