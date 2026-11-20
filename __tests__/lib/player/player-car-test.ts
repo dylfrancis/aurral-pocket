@@ -57,7 +57,9 @@ import {
   TrackPlayer,
   type NotificationButtonEvent,
   type PlayerConfig,
+  type PlayerState,
   type TrackItem,
+  type TrackPlayerState,
 } from "react-native-nitro-player";
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
 
@@ -95,6 +97,11 @@ let pressButton: (
 /** What the facade configured the engine with, once per module. */
 let engineConfig: PlayerConfig | undefined;
 
+/** The engine's reports, as the facade hears them. */
+let trackChanged: (track: TrackItem) => void;
+let progressed: (position: number, duration: number) => void;
+let stateChanged: (state: TrackPlayerState) => void;
+
 beforeAll(() => {
   player.configure.mockImplementation(async (config) => {
     engineConfig = config;
@@ -106,6 +113,20 @@ beforeAll(() => {
     pressButton = callback;
     return () => {};
   });
+  manager.subscribeToTrackChange.mockImplementation((callback) => {
+    trackChanged = callback;
+    return () => {};
+  });
+  manager.subscribeToPlaybackProgressChange.mockImplementation((callback) => {
+    progressed = (position, duration) => callback(position, duration);
+    return () => {};
+  });
+  manager.subscribeToPlaybackState.mockImplementation((callback) => {
+    stateChanged = (state) => callback(state);
+    return () => {};
+  });
+  // The facade listens to the engine once something listens to it.
+  onTrackStarted(() => {})();
 });
 
 beforeEach(() => {
@@ -114,6 +135,7 @@ beforeEach(() => {
   setAuthToken("t");
   queue.createPlaylist.mockResolvedValue("shelf-1");
   queue.getAllPlaylists.mockReturnValue([]);
+  player.getState.mockResolvedValue({ currentTrack: null } as PlayerState);
 });
 
 afterEach(async () => {
@@ -124,11 +146,27 @@ afterEach(async () => {
 async function shelve(
   songs: PlayerTrack[],
   play: (trackId: string) => Promise<boolean> = jest.fn(async () => true),
+  listId = "album:12",
 ) {
   queue.addTracksToPlaylist.mockClear();
-  const mediaIds = await shelveForCar(songs, play);
+  const mediaIds = await shelveForCar(listId, songs, play);
   const [, tracks] = queue.addTracksToPlaylist.mock.calls[0];
   return { mediaIds, tracks };
+}
+
+/** The engine reports this track as the one it holds. */
+function engineHolds(track: TrackItem) {
+  player.getState.mockResolvedValue({
+    currentTrack: track,
+  } as PlayerState);
+}
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -159,10 +197,9 @@ describe("shelveForCar", () => {
   it("leaves the queue's song on screen while a pick is handed off", async () => {
     const started = jest.fn();
     const unsubscribe = onTrackStarted(started);
-    const trackChange = manager.subscribeToTrackChange.mock.calls[0][0];
     const { tracks } = await shelve([song("71")]);
 
-    trackChange(tracks[0]);
+    trackChanged(tracks[0]);
 
     expect(started).not.toHaveBeenCalled();
     unsubscribe();
@@ -179,6 +216,79 @@ describe("shelveForCar", () => {
 
     expect(queue.deletePlaylist).toHaveBeenCalledWith("leftover");
     expect(queue.deletePlaylist).not.toHaveBeenCalledWith("shelf-1");
+  });
+
+  it("replaces a list's shelf when the list is read again, keeping other lists'", async () => {
+    queue.createPlaylist
+      .mockResolvedValueOnce("shelf-1")
+      .mockResolvedValueOnce("shelf-2")
+      .mockResolvedValueOnce("shelf-3");
+    await shelve([song("71")], undefined, "album:12");
+    await shelve([song("81")], undefined, "album:13");
+
+    await shelve([song("71")], undefined, "album:12");
+
+    expect(queue.deletePlaylist).toHaveBeenCalledWith("shelf-1");
+    expect(queue.deletePlaylist).not.toHaveBeenCalledWith("shelf-2");
+  });
+
+  it("keeps a list's shelf while the car opens up to 29 other lists", async () => {
+    queue.createPlaylist.mockImplementation(
+      async () => `shelf-${queue.createPlaylist.mock.calls.length}`,
+    );
+    await shelve([song("71")], undefined, "artist:3");
+    for (let other = 1; other <= 29; other++) {
+      await shelve([song("81")], undefined, `album:${other}`);
+    }
+    expect(queue.deletePlaylist).not.toHaveBeenCalled();
+
+    await shelve([song("81")], undefined, "album:30");
+
+    expect(queue.deletePlaylist).toHaveBeenCalledWith("shelf-1");
+    queue.createPlaylist.mockReset();
+  });
+
+  it("waits for a shelf being built, so a restore doesn't delete it", async () => {
+    const added = deferred();
+    queue.addTracksToPlaylist.mockReturnValueOnce(added.promise);
+    const shelving = shelveForCar("album:12", [song("71")], jest.fn());
+    await flush();
+    queue.getAllPlaylists.mockReturnValue([{ id: "shelf-1" }] as ReturnType<
+      typeof PlayerQueue.getAllPlaylists
+    >);
+
+    const restoring = restoreSavedQueue();
+    added.resolve();
+    await Promise.all([shelving, restoring]);
+
+    expect(queue.deletePlaylist).not.toHaveBeenCalledWith("shelf-1");
+  });
+
+  it("throws away a shelf that finishes after sign-out", async () => {
+    const added = deferred();
+    queue.addTracksToPlaylist.mockReturnValueOnce(added.promise);
+    const shelving = shelveForCar("album:12", [song("71")], jest.fn());
+    await flush();
+
+    const signingOut = forgetQueue();
+    added.resolve();
+    const [mediaIds] = await Promise.all([shelving, signingOut]);
+
+    expect(mediaIds).toEqual([]);
+    expect(queue.deletePlaylist).toHaveBeenCalledWith("shelf-1");
+  });
+
+  it("hands a pick to the queue once, however often the engine asks", async () => {
+    const started = deferred();
+    const play = jest.fn(() => started.promise.then(() => true));
+    const { tracks } = await shelve([song("71")], play);
+
+    needUrls([tracks[0]], 0);
+    needUrls([tracks[0]], 0);
+    started.resolve();
+    await flush();
+
+    expect(play).toHaveBeenCalledTimes(1);
   });
 
   it("goes with the account's other playlists on sign-out", async () => {
@@ -208,6 +318,7 @@ describe("shelveForCar", () => {
 
     it("puts the engine back on the queue when the song can't play", async () => {
       const { tracks } = await shelve([song("71")], async () => false);
+      engineHolds(tracks[0]);
 
       needUrls([tracks[0]], 0);
       await flush();
@@ -216,12 +327,44 @@ describe("shelveForCar", () => {
       expect(queue.loadPlaylist).toHaveBeenCalledWith("queue-1", 1);
     });
 
+    it("carries on the queue's song from where the pick cut in, playing as it was", async () => {
+      const { tracks } = await shelve([song("71")], async () => false);
+      trackChanged(song("q2") as TrackItem);
+      stateChanged("playing");
+      progressed(190, 240);
+      player.play.mockClear();
+
+      trackChanged(tracks[0]);
+      stateChanged("paused");
+      engineHolds(tracks[0]);
+      needUrls([tracks[0]], 0);
+      await flush();
+
+      expect(queue.loadPlaylist).toHaveBeenCalledWith("queue-1", 1);
+      expect(player.seek).toHaveBeenCalledWith(190);
+      expect(player.play).toHaveBeenCalled();
+    });
+
+    it("leaves alone what replaced a pick that didn't start", async () => {
+      const { tracks } = await shelve([song("71")], async () => false);
+      engineHolds(song("q1"));
+
+      needUrls([tracks[0]], 0);
+      await flush();
+
+      expect(queue.loadPlaylist).not.toHaveBeenCalled();
+    });
+
     it("plays nothing from an earlier run's shelf of the same number", async () => {
       const play = jest.fn(async () => true);
       const { tracks } = await shelve([song("71")], play);
-      const earlier = tracks[0].id.replace(/^car-[a-z0-9]+-/, "car-earlier-");
+      const earlier = {
+        ...tracks[0],
+        id: tracks[0].id.replace(/^car-[a-z0-9]+-/, "car-earlier-"),
+      };
+      engineHolds(earlier);
 
-      needUrls([{ ...tracks[0], id: earlier }], 0);
+      needUrls([earlier], 0);
       await flush();
 
       expect(play).not.toHaveBeenCalled();

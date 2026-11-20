@@ -164,17 +164,14 @@ function registerAndroidAuto(): void {
   // reaches the facade only through the engine.
   void preparePlayer().catch(() => {});
   setAndroidAutoRoot();
-  AndroidAutoMediaLibraryHelper.setChildrenLoader(async (parentId) =>
+  AndroidAutoMediaLibraryHelper.setChildrenLoader(async (parentId) => {
     // Android Auto lets any row be opened. The sign-in row opens the Library,
     // which asks again until an account signs in.
-    androidAutoItems(
-      await loadCarList(
-        parentId === SIGNED_OUT_ROW ? CAR_LISTS.library : parentId,
-      ),
-    ),
-  );
+    const listId = parentId === SIGNED_OUT_ROW ? CAR_LISTS.library : parentId;
+    return androidAutoItems(listId, await loadCarList(listId));
+  });
   AndroidAutoMediaLibraryHelper.setSearchHandler(async (query) =>
-    androidAutoItems(await searchCar(query)),
+    androidAutoItems(SEARCH_SHELF, await searchCar(query)),
   );
   // The car asked to play with nothing loaded: the last queue, where it
   // stopped. The engine plays it once it's loaded.
@@ -214,7 +211,13 @@ function folder(
   };
 }
 
-async function androidAutoItems(list: CarList): Promise<MediaItem[]> {
+/** Each search's songs take the last search's place. */
+const SEARCH_SHELF = "search";
+
+async function androidAutoItems(
+  listId: string,
+  list: CarList,
+): Promise<MediaItem[]> {
   // Android Auto has no text for an empty list, so signing in shows as a row.
   if (list.signedOut) {
     return [
@@ -235,7 +238,7 @@ async function androidAutoItems(list: CarList): Promise<MediaItem[]> {
       : songs;
   const shelvedIds =
     shelf.length > 0
-      ? await shelveForCar(shelf, (trackId) =>
+      ? await shelveForCar(listId, shelf, (trackId) =>
           trackId === SHUFFLE_ROW
             ? (shuffle?.() ?? Promise.resolve(false))
             : (play?.(trackId) ?? Promise.resolve(false)),
