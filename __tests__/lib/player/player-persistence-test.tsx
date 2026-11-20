@@ -53,6 +53,7 @@ const mockPlayer = {
   setVolume: jest.fn(() => Promise.resolve()),
   updateTracks: jest.fn(() => Promise.resolve()),
   onTracksNeedUpdate: jest.fn(),
+  setNotificationButtonState: jest.fn(),
   getState: jest.fn(() => Promise.resolve({ currentPosition: 0 })),
 };
 jest.mock("react-native-nitro-player", () => ({
@@ -65,6 +66,7 @@ const mockManager = {
   subscribeToTrackChange: jest.fn(() => () => {}),
   subscribeToPlaybackState: jest.fn(() => () => {}),
   subscribeToPlaybackProgressChange: jest.fn(() => () => {}),
+  subscribeToNotificationButtonPress: jest.fn(() => () => {}),
 };
 jest.mock("react-native-nitro-player/src/hooks/callbackManager", () => ({
   callbackManager: mockManager,

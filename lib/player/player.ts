@@ -82,6 +82,8 @@ import {
   PlayerQueue,
   TrackPlayer,
   useNowPlaying,
+  type NotificationButtonEvent,
+  type RepeatMode as EngineRepeatMode,
   type TrackItem,
 } from "react-native-nitro-player";
 // The engine's native callbacks hold a single listener each — registering
@@ -158,7 +160,16 @@ function configureEngine(): Promise<void> {
     // Pocket's cache already fetches the upcoming tracks the listener chose.
     // Ask for a missing source only once it becomes the current track.
     lookaheadCount: 0,
+    notificationButtons: {
+      ios: {
+        carPlay: [
+          { id: CARPLAY_SHUFFLE, type: "shuffle" },
+          { id: CARPLAY_REPEAT, type: "repeat" },
+        ],
+      },
+    },
   }).then(() => {
+    callbackManager.subscribeToNotificationButtonPress(handleCarPlayButton);
     TrackPlayer.onTracksNeedUpdate((tracks) => {
       const picked = tracks.find(({ id }) => CAR_TRACK_ID.test(id));
       if (picked) {
@@ -1064,6 +1075,13 @@ function refreshQueueSnapshot(): void {
 function notifyModesChanged(): void {
   modesSnapshot = { shuffle: shuffleOn, repeat: repeatMode };
   modesChangedListeners.forEach((listener) => listener());
+  // The engine draws CarPlay's repeat button from its own mode, not shuffle.
+  if (configureOnce) {
+    TrackPlayer.setNotificationButtonState({
+      buttonId: CARPLAY_SHUFFLE,
+      isActive: shuffleOn,
+    });
+  }
   persistQueue();
   updatePrefetchWindow();
   askQueueLoudness();
@@ -1966,12 +1984,39 @@ const ENGINE_REPEAT_MODE = {
   one: "track",
 } as const;
 
+const APP_REPEAT_MODE: Record<EngineRepeatMode, RepeatMode> = {
+  off: "off",
+  Playlist: "all",
+  track: "one",
+};
+
 export async function setRepeatMode(mode: RepeatMode): Promise<void> {
+  followRepeatMode(mode);
+  await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[mode]);
+}
+
+function followRepeatMode(mode: RepeatMode): void {
   repeatMode = mode;
   notifyModesChanged();
-  await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[mode]);
   // Repeat kept the queue going; without it a queue near its end needs more.
   if (mode === "off") topUpQueue();
+}
+
+/** CarPlay's Now Playing buttons, which CarPlay draws itself. */
+const CARPLAY_SHUFFLE = "carplay-shuffle";
+const CARPLAY_REPEAT = "carplay-repeat";
+
+/** CarPlay's repeat button has already switched the engine's repeat mode. */
+function handleCarPlayButton(
+  buttonId: string,
+  _track: TrackItem,
+  { isActive, repeatMode: engineMode }: NotificationButtonEvent,
+): void {
+  if (buttonId === CARPLAY_SHUFFLE && isActive !== undefined) {
+    if (isActive !== shuffleOn) void setShuffle(isActive);
+  } else if (buttonId === CARPLAY_REPEAT && engineMode) {
+    followRepeatMode(APP_REPEAT_MODE[engineMode]);
+  }
 }
 
 export async function previous(): Promise<void> {
