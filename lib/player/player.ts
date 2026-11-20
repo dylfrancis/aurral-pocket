@@ -163,8 +163,8 @@ function configureEngine(): Promise<void> {
     notificationButtons: {
       ios: {
         carPlay: [
-          { id: CARPLAY_SHUFFLE, type: "shuffle" },
-          { id: CARPLAY_REPEAT, type: "repeat" },
+          { id: CARPLAY_SHUFFLE_BUTTON, type: "shuffle" },
+          { id: CARPLAY_REPEAT_BUTTON, type: "repeat" },
         ],
       },
     },
@@ -1078,7 +1078,7 @@ function notifyModesChanged(): void {
   // The engine draws CarPlay's repeat button from its own mode, not shuffle.
   if (configureOnce) {
     TrackPlayer.setNotificationButtonState({
-      buttonId: CARPLAY_SHUFFLE,
+      buttonId: CARPLAY_SHUFFLE_BUTTON,
       isActive: shuffleOn,
     });
   }
@@ -2002,9 +2002,9 @@ function followRepeatMode(mode: RepeatMode): void {
   if (mode === "off") topUpQueue();
 }
 
-/** CarPlay's Now Playing buttons, which CarPlay draws itself. */
-const CARPLAY_SHUFFLE = "carplay-shuffle";
-const CARPLAY_REPEAT = "carplay-repeat";
+/** CarPlay draws these itself. */
+const CARPLAY_SHUFFLE_BUTTON = "carplay-shuffle";
+const CARPLAY_REPEAT_BUTTON = "carplay-repeat";
 
 /** CarPlay's repeat button has already switched the engine's repeat mode. */
 function handleCarPlayButton(
@@ -2012,9 +2012,9 @@ function handleCarPlayButton(
   _track: TrackItem,
   { isActive, repeatMode: engineMode }: NotificationButtonEvent,
 ): void {
-  if (buttonId === CARPLAY_SHUFFLE && isActive !== undefined) {
+  if (buttonId === CARPLAY_SHUFFLE_BUTTON && isActive !== undefined) {
     if (isActive !== shuffleOn) void setShuffle(isActive);
-  } else if (buttonId === CARPLAY_REPEAT && engineMode) {
+  } else if (buttonId === CARPLAY_REPEAT_BUTTON && engineMode) {
     followRepeatMode(APP_REPEAT_MODE[engineMode]);
   }
 }
