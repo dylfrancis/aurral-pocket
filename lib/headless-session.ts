@@ -11,10 +11,10 @@ import { AppStorage, INACTIVITY_RESET_MS, SecureStorage } from "@/lib/storage";
 /**
  * The signed-in account, with the API client and saved music ready for it, or
  * null when signed out or the phone hasn't been unlocked since it started.
- * When Siri wakes the app, no screen mounts the auth provider, so this reads
- * the session itself.
+ * When Siri or a car wakes the app, no screen mounts the auth provider, so
+ * this reads the session itself.
  */
-export async function siriSession(): Promise<{ userId: number } | null> {
+export async function headlessSession(): Promise<{ userId: number } | null> {
   const [serverUrl, token, userJson, headers, lastActive] = await Promise.all([
     AppStorage.getServerUrl(),
     SecureStorage.getToken(),

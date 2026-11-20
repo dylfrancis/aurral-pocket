@@ -71,7 +71,7 @@ import {
   type SiriMatch,
   type SiriQuery,
 } from "@/lib/siri/match";
-import { siriSession } from "@/lib/siri/session";
+import { headlessSession } from "@/lib/headless-session";
 import type { FlowJob } from "@/lib/types/flow";
 import type { AlbumTrack, Track } from "@/lib/types/library";
 import type {
@@ -125,7 +125,7 @@ export async function findForSiri(search: SiriSearch): Promise<SiriFindAnswer> {
   try {
     const ask = siriAsk(search);
     if (ask.ask === "unsupported") return { status: "unsupportedType" };
-    const session = await siriSession();
+    const session = await headlessSession();
     if (!session) return { status: "signedOut" };
     const { userId } = session;
     if (ask.ask === "anything") {
@@ -174,7 +174,7 @@ export async function playForSiri(
 async function foundFor(
   request: Omit<SiriPlayRequest, "id" | "type">,
 ): Promise<Found | null> {
-  const session = await siriSession();
+  const session = await headlessSession();
   if (!session) return null;
   const kept = found.get(request.itemId);
   if (kept?.userId === session.userId) return kept;
