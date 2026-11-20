@@ -188,7 +188,8 @@ function configureEngine(): Promise<void> {
     TrackPlayer.onTracksNeedUpdate((tracks) => {
       const picked = tracks.find(({ id }) => CAR_TRACK_ID.test(id));
       if (picked) {
-        void handOffCarPick(picked.id);
+        // The engine asks again while a pick waits, such as on a second tap.
+        if (!carPicksInFlight.has(picked.id)) void handOffCarPick(picked.id);
         return;
       }
       void resolveEngineTracks(tracks).catch(() => {});
@@ -215,12 +216,16 @@ export function preparePlayer(): Promise<void> {
  * songs have no URL: a pick asks for one, and the facade plays the list.
  */
 type CarShelf = {
+  listId: string;
   playlistId: string;
   play: (trackId: string) => Promise<boolean>;
 };
 
-/** Enough for the lists a car's back stack holds. */
-const MAX_CAR_SHELVES = 10;
+/**
+ * Enough for the lists a car's back stack and their neighbours hold. A list
+ * opened again replaces its own shelf, so only other lists count.
+ */
+const MAX_CAR_SHELVES = 30;
 const CAR_SHELF_NAME = "Aurral in the car";
 /**
  * Shelf songs carry the run and shelf they're on. The engine loads an earlier
@@ -228,17 +233,45 @@ const CAR_SHELF_NAME = "Aurral in the car";
  */
 const CAR_RUN = Math.random().toString(36).slice(2, 8);
 const CAR_TRACK_ID = /^car-([a-z0-9]+)-(\d+)~(.+)$/;
+/** By shelf number, oldest first. */
 const carShelves = new Map<number, CarShelf>();
 let carShelfCount = 0;
+/** Shelves still being built, which the playlist sweep waits for. */
+const carShelfBuilds = new Set<Promise<unknown>>();
+/** Moves on at sign-out, so a shelf built across it is thrown away. */
+let carShelfAccount = 0;
+/** Engine track ids of picks being handed to the queue. */
+const carPicksInFlight = new Set<string>();
+/** Where the queue was when a car pick took the engine off it. */
+let carPickFrom: {
+  trackId: string;
+  position: number;
+  playing: boolean;
+} | null = null;
 
 /**
+ * Shelve a list's songs for Android Auto, in place of the list's last shelf.
  * A pick calls `play`, which resolves true once playback starts. Returns each
- * song's Android Auto media id, in order.
+ * song's Android Auto media id, in order, or none after a sign-out.
  */
-export async function shelveForCar(
+export function shelveForCar(
+  listId: string,
   items: PlayerTrack[],
   play: (trackId: string) => Promise<boolean>,
 ): Promise<string[]> {
+  const build = buildCarShelf(listId, items, play);
+  const settled = build.catch(() => {});
+  carShelfBuilds.add(settled);
+  void settled.then(() => carShelfBuilds.delete(settled));
+  return build;
+}
+
+async function buildCarShelf(
+  listId: string,
+  items: PlayerTrack[],
+  play: (trackId: string) => Promise<boolean>,
+): Promise<string[]> {
+  const account = carShelfAccount;
   await configureEngine();
   const shelfNumber = ++carShelfCount;
   const playlistId = await PlayerQueue.createPlaylist(CAR_SHELF_NAME);
@@ -246,14 +279,41 @@ export async function shelveForCar(
     ...engineTrackWithUrl(item, ""),
     id: `car-${CAR_RUN}-${shelfNumber}~${item.id}`,
   }));
-  await PlayerQueue.addTracksToPlaylist(playlistId, tracks);
-  carShelves.set(shelfNumber, { playlistId, play });
-  for (const [oldNumber, { playlistId: oldPlaylistId }] of carShelves) {
+  try {
+    await PlayerQueue.addTracksToPlaylist(playlistId, tracks);
+  } catch (error) {
+    void PlayerQueue.deletePlaylist(playlistId).catch(() => {});
+    throw error;
+  }
+  if (account !== carShelfAccount) {
+    void PlayerQueue.deletePlaylist(playlistId).catch(() => {});
+    return [];
+  }
+  for (const [oldNumber, shelf] of carShelves) {
+    if (shelf.listId === listId) dropCarShelf(oldNumber);
+  }
+  carShelves.set(shelfNumber, { listId, playlistId, play });
+  for (const oldNumber of carShelves.keys()) {
     if (carShelves.size <= MAX_CAR_SHELVES) break;
-    carShelves.delete(oldNumber);
-    void PlayerQueue.deletePlaylist(oldPlaylistId).catch(() => {});
+    dropCarShelf(oldNumber);
   }
   return tracks.map(({ id }) => `${playlistId}:${id}`);
+}
+
+function dropCarShelf(shelfNumber: number): void {
+  const shelf = carShelves.get(shelfNumber);
+  carShelves.delete(shelfNumber);
+  if (shelf) void PlayerQueue.deletePlaylist(shelf.playlistId).catch(() => {});
+}
+
+/** Remember where the queue was, at the first sign of a pick. */
+function noteCarPick(): void {
+  if (carPickFrom || !displayedTrack) return;
+  carPickFrom = {
+    trackId: displayedTrack.id,
+    position: currentPosition(),
+    playing: isPlaybackActive(),
+  };
 }
 
 /**
@@ -261,23 +321,57 @@ export async function shelveForCar(
  * gone, returns the engine to the queue; left alone, it would wait for a URL.
  */
 async function handOffCarPick(engineTrackId: string): Promise<void> {
-  const [, run, shelfNumber, trackId] = CAR_TRACK_ID.exec(engineTrackId) ?? [];
-  const play =
-    run === CAR_RUN ? carShelves.get(Number(shelfNumber))?.play : null;
-  const started = await (play?.(trackId) ?? Promise.resolve(false)).catch(
-    () => false,
-  );
-  if (started) return;
+  carPicksInFlight.add(engineTrackId);
+  noteCarPick();
   try {
-    const shownIndex = queueOrder.findIndex(
-      ({ id }) => id === displayedTrack?.id,
+    const [, run, shelfNumber, trackId] =
+      CAR_TRACK_ID.exec(engineTrackId) ?? [];
+    const play =
+      run === CAR_RUN ? carShelves.get(Number(shelfNumber))?.play : null;
+    const started = await (play?.(trackId) ?? Promise.resolve(false)).catch(
+      () => false,
     );
-    if (currentPlaylistId && shownIndex >= 0) {
-      await PlayerQueue.loadPlaylist(currentPlaylistId, shownIndex);
-    } else {
+    if (!started) await returnFromCarPick(engineTrackId);
+  } finally {
+    carPicksInFlight.delete(engineTrackId);
+    if (carPicksInFlight.size === 0) carPickFrom = null;
+  }
+}
+
+/**
+ * Put the engine back on the queue where the pick took it from, playing if it
+ * was. Does nothing once something else has replaced the pick.
+ */
+function returnFromCarPick(engineTrackId: string): Promise<void> {
+  const from = carPickFrom;
+  const run = lastPlay.then(async () => {
+    const state = await TrackPlayer.getState();
+    if (state.currentTrack?.id !== engineTrackId) return;
+    const shown = displayedTrack;
+    const shownIndex = queueOrder.findIndex(({ id }) => id === shown?.id);
+    if (!currentPlaylistId || !shown || shownIndex < 0) {
       await TrackPlayer.pause();
+      return;
     }
-  } catch {}
+    const resume = from?.trackId === shown.id ? from : null;
+    const position = resume?.position ?? 0;
+    restoringQueue = true;
+    try {
+      pendingRestoreSeek = {
+        trackId: shown.id,
+        position,
+        duration: progressSnapshot.duration,
+        ...(resume?.playing ? { resumesPlaying: true } : {}),
+      };
+      await PlayerQueue.loadPlaylist(currentPlaylistId, shownIndex);
+      if (position > 0) await TrackPlayer.seek(position);
+      if (resume?.playing) await TrackPlayer.play();
+    } finally {
+      restoringQueue = false;
+    }
+  });
+  lastPlay = run.catch(() => {});
+  return run.catch(() => {});
 }
 
 /**
@@ -294,6 +388,8 @@ async function handOffCarPick(engineTrackId: string): Promise<void> {
  */
 async function deleteEnginePlaylists(): Promise<void> {
   // This run's car shelves are no leftovers: the car may still pick from them.
+  // One still being built would read as one, so the sweep waits for it.
+  await Promise.all(carShelfBuilds);
   const shelfPlaylistIds = new Set(
     [...carShelves.values()].map(({ playlistId }) => playlistId),
   );
@@ -1778,6 +1874,7 @@ export function forgetQueue(): Promise<void> {
   cancelTranscodes();
   forgetLoudness();
   queueClaims++;
+  carShelfAccount++;
   const run = lastPlay.then(async () => {
     clearQueueState();
     shuffleOn = false;
@@ -1870,7 +1967,11 @@ function wireEngineEvents(): void {
   callbackManager.subscribeToTrackChange(
     function handleTrackChange(engineTrack): void {
       // A car pick is about to become the queue; until then the old one stays.
-      if (CAR_TRACK_ID.test(engineTrack.id)) return;
+      if (CAR_TRACK_ID.test(engineTrack.id)) {
+        noteCarPick();
+        return;
+      }
+      if (carPicksInFlight.size === 0) carPickFrom = null;
       // Offline, a track that would only fail is passed over for the nearest
       // saved one, the way the player was going: "previous" moves one back.
       // A restored track is left where it is, paused, for a tap on play.

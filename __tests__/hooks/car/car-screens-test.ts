@@ -215,7 +215,7 @@ describe("Android Auto", () => {
 
   /** The function a pick on the last shelf calls. */
   const shelfPick = () =>
-    (shelveForCar as jest.Mock).mock.calls.at(-1)[1] as (
+    (shelveForCar as jest.Mock).mock.calls.at(-1)[2] as (
       trackId: string,
     ) => Promise<boolean>;
 
@@ -233,7 +233,12 @@ describe("Android Auto", () => {
         mediaType: "audio",
       },
     ]);
-    expect(shelveForCar).toHaveBeenCalledWith(list.songs, expect.any(Function));
+    // Each list keeps one shelf, replaced when the list is read again.
+    expect(shelveForCar).toHaveBeenCalledWith(
+      "album:12",
+      list.songs,
+      expect.any(Function),
+    );
     await shelfPick()("77");
     expect(play).toHaveBeenCalledWith("77");
   });
@@ -247,7 +252,7 @@ describe("Android Auto", () => {
     ]);
 
     const items = await childrenLoader()("album:12");
-    await shelfPick()((shelveForCar as jest.Mock).mock.calls.at(-1)[0][0].id);
+    await shelfPick()((shelveForCar as jest.Mock).mock.calls.at(-1)[1][0].id);
 
     expect(items?.map(({ id, title }) => [id, title])).toEqual([
       ["shelf-1:car1~shuffle", "Shuffle"],
