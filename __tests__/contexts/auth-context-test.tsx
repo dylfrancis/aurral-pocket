@@ -40,6 +40,7 @@ import {
   setCustomHeaders,
 } from "@/lib/api/client";
 import { getMe, login } from "@/lib/api/auth";
+import { onSessionCleared } from "@/lib/headless-session";
 import { TrackPlayer } from "react-native-nitro-player";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
@@ -582,6 +583,50 @@ describe("AuthProvider — clearAuth", () => {
       "https://my-server.com",
     );
   });
+});
+
+describe("AuthProvider — sign-out", () => {
+  // The car reads the stored session itself. Told any sooner, it would read
+  // the token sign-out is still deleting and bring the session back.
+  it.each(["clearAuth", "clearAll"])(
+    "tells the car once %s has deleted the stored token",
+    async (testID) => {
+      mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+      mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+        if (key === "auth_token") return "my-token";
+        if (key === "user_json")
+          return '{"id":1,"username":"alice","role":"user"}';
+        return null;
+      });
+      const { getByTestId } = await renderWithProvider();
+      await waitFor(() => {
+        expect(getByTestId("token").props.children).toBe("my-token");
+      });
+      let deleteToken!: () => void;
+      mockSecureStore.deleteItemAsync.mockImplementation((key) =>
+        key === "auth_token"
+          ? new Promise<void>((resolve) => {
+              deleteToken = resolve;
+            })
+          : Promise.resolve(),
+      );
+      const cleared = jest.fn();
+      const stop = onSessionCleared(cleared);
+
+      try {
+        await act(async () => {
+          void fireEvent.press(getByTestId(testID));
+        });
+        expect(cleared).not.toHaveBeenCalled();
+
+        await act(async () => deleteToken());
+        await waitFor(() => expect(cleared).toHaveBeenCalledTimes(1));
+      } finally {
+        stop();
+        mockSecureStore.deleteItemAsync.mockReset();
+      }
+    },
+  );
 });
 
 describe("AuthProvider — proactive expiry timer", () => {

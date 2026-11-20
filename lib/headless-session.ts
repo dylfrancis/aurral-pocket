@@ -40,6 +40,24 @@ export async function headlessSession(): Promise<{ userId: number } | null> {
   return { userId };
 }
 
+const clearedListeners = new Set<() => void>();
+
+/**
+ * Hear when the phone signs out, once the stored session is gone: read any
+ * sooner, headlessSession would bring it back. Returns unsubscribe.
+ */
+export function onSessionCleared(listener: () => void): () => void {
+  clearedListeners.add(listener);
+  return () => {
+    clearedListeners.delete(listener);
+  };
+}
+
+/** Called by the auth provider once sign-out has deleted the session. */
+export function sessionCleared(): void {
+  clearedListeners.forEach((listener) => listener());
+}
+
 function userIdOf(userJson: string | null): number | null {
   if (!userJson) return null;
   try {
