@@ -97,8 +97,10 @@ import { callbackManager } from "react-native-nitro-player/src/hooks/callbackMan
  * One engine holds one thing, so starting either replaces the other; no
  * coordination between them is needed.
  *
- * The facade keeps exactly one playlist — the queue — and rebuilds it per
- * play. Transport (next, previous, shuffle, repeat) operates on that queue.
+ * The facade keeps one playlist — the queue — and rebuilds it per play.
+ * Transport (next, previous, shuffle, repeat) operates on that queue. The
+ * only others are Android Auto's shelves (see shelveForCar), whose songs play
+ * once a pick hands them to the queue.
  */
 
 /** The name the engine shows for the current playlist. */
@@ -150,17 +152,106 @@ function configureEngine(): Promise<void> {
   configureOnce ??= TrackPlayer.configure({
     // The notification is what drives the lock screen and headset buttons.
     showInNotification: true,
-    androidAutoEnabled: false,
-    carPlayEnabled: false,
+    // The engine keeps this across launches. Off, Android Auto finds nothing
+    // to browse. CarPlay has no switch here.
+    androidAutoEnabled: true,
     // Pocket's cache already fetches the upcoming tracks the listener chose.
     // Ask for a missing source only once it becomes the current track.
     lookaheadCount: 0,
   }).then(() => {
     TrackPlayer.onTracksNeedUpdate((tracks) => {
+      const picked = tracks.find(({ id }) => CAR_TRACK_ID.test(id));
+      if (picked) {
+        void handOffCarPick(picked.id);
+        return;
+      }
       void resolveEngineTracks(tracks).catch(() => {});
     });
   });
   return configureOnce;
+}
+
+/**
+ * Ready the engine for a car that opened the app with no screen, and delete
+ * leftover playlists the car could still play while nothing is queued.
+ */
+export function preparePlayer(): Promise<void> {
+  const run = lastPlay.then(async () => {
+    await configureEngine();
+    if (queueOrder.length === 0) await deleteEnginePlaylists();
+  });
+  lastPlay = run.catch(() => {});
+  return run;
+}
+
+/**
+ * Android Auto plays only engine playlists, so each list it opens is one. Its
+ * songs have no URL: a pick asks for one, and the facade plays the list.
+ */
+type CarShelf = {
+  playlistId: string;
+  play: (trackId: string) => Promise<boolean>;
+};
+
+/** Enough for the lists a car's back stack holds. */
+const MAX_CAR_SHELVES = 10;
+const CAR_SHELF_NAME = "Aurral in the car";
+/**
+ * Shelf songs carry the run and shelf they're on. The engine loads an earlier
+ * run's playlists back, and their shelf numbers start over.
+ */
+const CAR_RUN = Math.random().toString(36).slice(2, 8);
+const CAR_TRACK_ID = /^car-([a-z0-9]+)-(\d+)~(.+)$/;
+const carShelves = new Map<number, CarShelf>();
+let carShelfCount = 0;
+
+/**
+ * A pick calls `play` with the song's id, true once playback starts. Returns
+ * each song's Android Auto media id, in order.
+ */
+export async function shelveForCar(
+  items: PlayerTrack[],
+  play: (trackId: string) => Promise<boolean>,
+): Promise<string[]> {
+  await configureEngine();
+  const shelfNumber = ++carShelfCount;
+  const playlistId = await PlayerQueue.createPlaylist(CAR_SHELF_NAME);
+  const tracks = items.map((item) => ({
+    ...engineTrackWithUrl(item, ""),
+    id: `car-${CAR_RUN}-${shelfNumber}~${item.id}`,
+  }));
+  await PlayerQueue.addTracksToPlaylist(playlistId, tracks);
+  carShelves.set(shelfNumber, { playlistId, play });
+  for (const [oldNumber, { playlistId: oldPlaylistId }] of carShelves) {
+    if (carShelves.size <= MAX_CAR_SHELVES) break;
+    carShelves.delete(oldNumber);
+    void PlayerQueue.deletePlaylist(oldPlaylistId).catch(() => {});
+  }
+  return tracks.map(({ id }) => `${playlistId}:${id}`);
+}
+
+/**
+ * Plays a car pick as the queue. A pick that can't play, or whose shelf is
+ * gone, returns the engine to the queue, or it waits forever for a URL.
+ */
+async function handOffCarPick(engineTrackId: string): Promise<void> {
+  const [, run, shelfNumber, trackId] = CAR_TRACK_ID.exec(engineTrackId) ?? [];
+  const play =
+    run === CAR_RUN ? carShelves.get(Number(shelfNumber))?.play : null;
+  const started = await (play?.(trackId) ?? Promise.resolve(false)).catch(
+    () => false,
+  );
+  if (started) return;
+  try {
+    const shownIndex = queueOrder.findIndex(
+      ({ id }) => id === displayedTrack?.id,
+    );
+    if (currentPlaylistId && shownIndex >= 0) {
+      await PlayerQueue.loadPlaylist(currentPlaylistId, shownIndex);
+    } else {
+      await TrackPlayer.pause();
+    }
+  } catch {}
 }
 
 /**
@@ -176,10 +267,14 @@ function configureEngine(): Promise<void> {
  * failure here must not stop the restore or the sign-out that asked for it.
  */
 async function deleteEnginePlaylists(): Promise<void> {
+  // This run's car shelves are no leftovers: the car may still pick from them.
+  const shelfPlaylistIds = new Set(
+    [...carShelves.values()].map(({ playlistId }) => playlistId),
+  );
   try {
-    const deletes = PlayerQueue.getAllPlaylists().map((playlist) =>
-      PlayerQueue.deletePlaylist(playlist.id),
-    );
+    const deletes = PlayerQueue.getAllPlaylists()
+      .filter((playlist) => !shelfPlaylistIds.has(playlist.id))
+      .map((playlist) => PlayerQueue.deletePlaylist(playlist.id));
     await Promise.allSettled(deletes);
   } catch {}
 }
@@ -1512,6 +1607,8 @@ export function forgetQueue(): Promise<void> {
     try {
       await TrackPlayer.pause();
     } catch {}
+    // The car's shelves hold the account's songs, so they go too.
+    carShelves.clear();
     await deleteEnginePlaylists();
     currentPlaylistId = null;
 
@@ -1586,6 +1683,8 @@ function wireEngineEvents(): void {
 
   callbackManager.subscribeToTrackChange(
     function handleTrackChange(engineTrack): void {
+      // A car pick is about to become the queue; until then the old one stays.
+      if (CAR_TRACK_ID.test(engineTrack.id)) return;
       // Offline, a track that would only fail is passed over for the nearest
       // saved one, the way the player was going: "previous" moves one back.
       // A restored track is left where it is, paused, for a tap on play.
