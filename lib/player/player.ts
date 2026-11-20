@@ -184,7 +184,7 @@ function configureEngine(): Promise<void> {
   }).then(() => {
     callbackManager.subscribeToNotificationButtonPress(handleCarButton);
     // Set once for every track, so a press flips it for every track.
-    showModesInCar();
+    showModesOnButtons();
     TrackPlayer.onTracksNeedUpdate((tracks) => {
       const picked = tracks.find(({ id }) => CAR_TRACK_ID.test(id));
       if (picked) {
@@ -1244,7 +1244,7 @@ function refreshQueueSnapshot(): void {
 function notifyModesChanged(): void {
   modesSnapshot = { shuffle: shuffleOn, repeat: repeatMode };
   modesChangedListeners.forEach((listener) => listener());
-  if (configureOnce) showModesInCar();
+  if (configureOnce) showModesOnButtons();
   persistQueue();
   updatePrefetchWindow();
   askQueueLoudness();
@@ -2292,7 +2292,7 @@ function handleCarButton(
 }
 
 /** CarPlay draws its repeat button from the engine's mode and ignores this. */
-function showModesInCar(): void {
+function showModesOnButtons(): void {
   TrackPlayer.setNotificationButtonState({
     buttonId: SHUFFLE_BUTTON,
     isActive: shuffleOn,
