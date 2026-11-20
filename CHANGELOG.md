@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.16.0...v0.17.0) (2026-11-20)
+
+
+### Features
+
+* **siri:** play Library music with Siri ([#380](https://github.com/dylfrancis/aurral-pocket/issues/380)) ([#414](https://github.com/dylfrancis/aurral-pocket/issues/414)) ([41a2050](https://github.com/dylfrancis/aurral-pocket/commit/41a20503c9d8c8056abe52c95958dc096f2fc2e6))
+
 ## [0.16.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.15.0...v0.16.0) (2026-11-19)
 
 
