@@ -163,9 +163,28 @@ function configureEngine(): Promise<void> {
     // Pocket's cache already fetches the upcoming tracks the listener chose.
     // Ask for a missing source only once it becomes the current track.
     lookaheadCount: 0,
-    notificationButtons: { ios: { carPlay: CARPLAY_BUTTONS } },
+    notificationButtons: {
+      ios: { carPlay: CARPLAY_BUTTONS },
+      // Android Auto and the media notification share these.
+      android: [
+        {
+          id: SHUFFLE_BUTTON,
+          title: "Shuffle",
+          icon: "shuffle_off",
+          activeIcon: "shuffle_on",
+        },
+        {
+          id: REPEAT_BUTTON,
+          title: "Repeat",
+          icon: "repeat_off",
+          activeIcon: "repeat_all",
+        },
+      ],
+    },
   }).then(() => {
-    callbackManager.subscribeToNotificationButtonPress(handleCarPlayButton);
+    callbackManager.subscribeToNotificationButtonPress(handleCarButton);
+    // Set once for every track, so a press flips it for every track.
+    showModesInCar();
     TrackPlayer.onTracksNeedUpdate((tracks) => {
       const picked = tracks.find(({ id }) => CAR_TRACK_ID.test(id));
       if (picked) {
@@ -1225,13 +1244,7 @@ function refreshQueueSnapshot(): void {
 function notifyModesChanged(): void {
   modesSnapshot = { shuffle: shuffleOn, repeat: repeatMode };
   modesChangedListeners.forEach((listener) => listener());
-  // The engine draws CarPlay's repeat button from its own mode, not shuffle.
-  if (configureOnce) {
-    TrackPlayer.setNotificationButtonState({
-      buttonId: CARPLAY_SHUFFLE_BUTTON,
-      isActive: shuffleOn,
-    });
-  }
+  if (configureOnce) showModesInCar();
   persistQueue();
   updatePrefetchWindow();
   askQueueLoudness();
@@ -2251,28 +2264,43 @@ function followRepeatMode(mode: RepeatMode): void {
   if (mode === "off") topUpQueue();
 }
 
+/** Shuffle and repeat in CarPlay, Android Auto and Android's notification. */
+const SHUFFLE_BUTTON = "car-shuffle";
+const REPEAT_BUTTON = "car-repeat";
 /** CarPlay draws these itself. */
-const CARPLAY_SHUFFLE_BUTTON = "carplay-shuffle";
-const CARPLAY_REPEAT_BUTTON = "carplay-repeat";
 const CARPLAY_BUTTONS: CarPlayButton[] = [
-  { id: CARPLAY_SHUFFLE_BUTTON, type: "shuffle" },
-  { id: CARPLAY_REPEAT_BUTTON, type: "repeat" },
+  { id: SHUFFLE_BUTTON, type: "shuffle" },
+  { id: REPEAT_BUTTON, type: "repeat" },
 ];
 
 /**
- * Shuffle presses set the facade's shuffle. Repeat has already switched the
- * engine's mode, so the facade follows it.
+ * CarPlay's repeat button has already switched the engine's mode, so the
+ * facade follows it. Android's is a toggle: on is repeat all.
  */
-function handleCarPlayButton(
+function handleCarButton(
   buttonId: string,
   _track: TrackItem,
   { isActive, repeatMode: engineMode }: NotificationButtonEvent,
 ): void {
-  if (buttonId === CARPLAY_SHUFFLE_BUTTON && isActive !== undefined) {
+  if (buttonId === SHUFFLE_BUTTON && isActive !== undefined) {
     if (isActive !== shuffleOn) void setShuffle(isActive);
-  } else if (buttonId === CARPLAY_REPEAT_BUTTON && engineMode) {
+  } else if (buttonId === REPEAT_BUTTON && engineMode) {
     followRepeatMode(APP_REPEAT_MODE[engineMode]);
+  } else if (buttonId === REPEAT_BUTTON && isActive !== undefined) {
+    void setRepeatMode(isActive ? "all" : "off");
   }
+}
+
+/** CarPlay draws its repeat button from the engine's mode and ignores this. */
+function showModesInCar(): void {
+  TrackPlayer.setNotificationButtonState({
+    buttonId: SHUFFLE_BUTTON,
+    isActive: shuffleOn,
+  });
+  TrackPlayer.setNotificationButtonState({
+    buttonId: REPEAT_BUTTON,
+    isActive: repeatMode !== "off",
+  });
 }
 
 export async function previous(): Promise<void> {

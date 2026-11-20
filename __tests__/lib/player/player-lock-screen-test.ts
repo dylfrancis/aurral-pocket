@@ -37,8 +37,8 @@ function starConfigs() {
 }
 
 const carPlay = [
-  { id: "carplay-shuffle", type: "shuffle" },
-  { id: "carplay-repeat", type: "repeat" },
+  { id: "car-shuffle", type: "shuffle" },
+  { id: "car-repeat", type: "repeat" },
 ];
 
 it("shows the star once, sets each track's state on it, and hides it", async () => {
@@ -65,7 +65,10 @@ it("shows the star once, sets each track's state on it, and hides it", async () 
         ]
       : [],
   );
-  expect(player.setNotificationButtonState.mock.calls).toEqual(
+  const starStates = player.setNotificationButtonState.mock.calls.filter(
+    ([state]) => state.buttonId === "favorite",
+  );
+  expect(starStates).toEqual(
     IS_IOS
       ? [
           [{ buttonId: "favorite", trackIds: ["77"], isActive: true }],

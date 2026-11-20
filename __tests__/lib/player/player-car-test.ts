@@ -46,6 +46,7 @@ import {
   playQueueFrom,
   preparePlayer,
   restoreSavedQueue,
+  setRepeatMode,
   setShuffle,
   shelveForCar,
   usePlayerModes,
@@ -277,7 +278,41 @@ describe("CarPlay's Now Playing buttons", () => {
 
     await setShuffle(true);
 
-    expect(player.setNotificationButtonState).toHaveBeenLastCalledWith({
+    expect(player.setNotificationButtonState).toHaveBeenCalledWith({
+      buttonId: id,
+      isActive: true,
+    });
+  });
+});
+
+describe("Android Auto's shuffle and repeat toggles", () => {
+  /** The id of Android's button whose icon starts with this. */
+  async function buttonId(icon: "shuffle" | "repeat") {
+    await preparePlayer();
+    const button = engineConfig?.notificationButtons?.android?.find(
+      (candidate) => candidate.icon.startsWith(icon),
+    );
+    if (!button) throw new Error(`No Android ${icon} button`);
+    return button.id;
+  }
+
+  it("turns repeat all on and off from Android's repeat toggle", async () => {
+    const id = await buttonId("repeat");
+    const { result } = await renderHook(() => usePlayerModes());
+
+    await act(async () => pressButton(id, song("71"), { isActive: true }));
+    expect(result.current.repeat).toBe("all");
+
+    await act(async () => pressButton(id, song("71"), { isActive: false }));
+    expect(result.current.repeat).toBe("off");
+  });
+
+  it("shows repeat set on the phone as on, whether it repeats all or one", async () => {
+    const id = await buttonId("repeat");
+
+    await setRepeatMode("one");
+
+    expect(player.setNotificationButtonState).toHaveBeenCalledWith({
       buttonId: id,
       isActive: true,
     });
