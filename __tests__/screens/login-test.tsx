@@ -63,25 +63,35 @@ function ProviderLogout() {
   return <Text testID="provider-logout">{pendingOidcLogoutUrl ?? "none"}</Text>;
 }
 
-async function renderLogin() {
+const HEALTH = {
+  status: "ok",
+  authRequired: true,
+  onboardingRequired: false,
+  oidcEnabled: true,
+  oidcLogoutUrl: LOGOUT_URL,
+};
+
+/**
+ * Answers each health request with the next of `answers`, then keeps giving
+ * the last one. An answer can be a promise held open.
+ */
+async function renderLogin(answers: unknown[] = [jsonResponse(200, HEALTH)]) {
+  let calls = 0;
   mockFetch.mockImplementation(async (url) =>
     String(url).endsWith("/auth/login")
       ? jsonResponse(403, { error: SUSPENDED })
-      : jsonResponse(200, {
-          status: "ok",
-          authRequired: true,
-          onboardingRequired: false,
-          oidcEnabled: true,
-          oidcLogoutUrl: LOGOUT_URL,
-        }),
+      : answers[Math.min(calls++, answers.length - 1)],
   );
   await AsyncStorage.setItem("server_url", SERVER);
 
   // gcTime keeps query and mutation timers from holding Jest open.
   const client = new QueryClient({
-    defaultOptions: { queries: { gcTime: 0 }, mutations: { gcTime: 0 } },
+    defaultOptions: {
+      queries: { gcTime: 0, retry: 1, retryDelay: 0 },
+      mutations: { gcTime: 0 },
+    },
   });
-  const utils = await render(
+  return render(
     <QueryClientProvider client={client}>
       <AuthProvider>
         <LoginScreen />
@@ -89,8 +99,6 @@ async function renderLogin() {
       </AuthProvider>
     </QueryClientProvider>,
   );
-  await utils.findByTestId("oidc-sign-in");
-  return utils;
 }
 
 beforeEach(async () => {
@@ -99,11 +107,62 @@ beforeEach(async () => {
   await AsyncStorage.clear();
 });
 
+describe("choosing how to sign in", () => {
+  it("waits for the server, then offers SSO and the password form on request", async () => {
+    let answer!: (response: unknown) => void;
+    const { getByTestId, queryByPlaceholderText, findByTestId, getByText } =
+      await renderLogin([new Promise((resolve) => (answer = resolve))]);
+
+    expect(getByTestId("sign-in-methods-loading")).toBeTruthy();
+    expect(queryByPlaceholderText("Username")).toBeNull();
+
+    await act(async () => answer(jsonResponse(200, HEALTH)));
+    await findByTestId("oidc-sign-in");
+    expect(queryByPlaceholderText("Username")).toBeNull();
+
+    await fireEvent.press(getByText("Sign in with a local account"));
+    expect(queryByPlaceholderText("Username")).toBeTruthy();
+    expect(queryByPlaceholderText("Password")).toBeTruthy();
+    expect(getByTestId("oidc-sign-in")).toBeTruthy();
+  });
+
+  it("shows only the password form on a server without SSO", async () => {
+    const { findByPlaceholderText, queryByTestId, queryByText } =
+      await renderLogin([
+        jsonResponse(200, {
+          ...HEALTH,
+          oidcEnabled: false,
+          oidcLogoutUrl: null,
+        }),
+      ]);
+
+    await findByPlaceholderText("Username");
+    expect(queryByTestId("oidc-sign-in")).toBeNull();
+    expect(queryByText("Sign in with a local account")).toBeNull();
+  });
+
+  it("falls back to the password form when health fails, and keeps it once a retry finds SSO", async () => {
+    let answer!: (response: unknown) => void;
+    const { findByPlaceholderText, findByTestId, getByPlaceholderText } =
+      await renderLogin([
+        jsonResponse(500, { error: "Internal Server Error" }),
+        new Promise((resolve) => (answer = resolve)),
+      ]);
+
+    await findByPlaceholderText("Username");
+
+    await act(async () => answer(jsonResponse(200, HEALTH)));
+    await findByTestId("oidc-sign-in");
+    expect(getByPlaceholderText("Username")).toBeTruthy();
+  });
+});
+
 describe("signing in to a suspended account", () => {
   it("says so when the password is refused", async () => {
-    const { getByPlaceholderText, getAllByText, findByText } =
+    const { findByText, getByPlaceholderText, getAllByText } =
       await renderLogin();
 
+    await fireEvent.press(await findByText("Sign in with a local account"));
     await fireEvent.changeText(getByPlaceholderText("Username"), "ada");
     await fireEvent.changeText(getByPlaceholderText("Password"), "secret");
     // The screen's heading reads the same, and comes first.
@@ -118,10 +177,11 @@ describe("signing in to a suspended account", () => {
       type: "success",
       url: `aurralpocket://sso#error=${encodeURIComponent(SUSPENDED)}`,
     });
-    const { getByTestId } = await renderLogin();
+    const { findByTestId, getByTestId } = await renderLogin();
+    const sso = await findByTestId("oidc-sign-in");
 
     await act(async () => {
-      fireEvent.press(getByTestId("oidc-sign-in"));
+      fireEvent.press(sso);
     });
 
     // Left open, the provider would sign this account straight back in, and no
