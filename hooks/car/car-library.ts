@@ -77,6 +77,8 @@ export type CarList = {
   signedOut?: boolean;
   /** Rows run in letter order, so the car can jump by letter. */
   alphabetical?: boolean;
+  /** More rows are on their way; onCarListGrew says when they land. */
+  loadingMore?: boolean;
 };
 
 export const CAR_LISTS = {
@@ -99,8 +101,10 @@ const MAX_ROWS = 500;
 const PAGE_SIZE = 100;
 /** Pages read at once when a list needs every row. */
 const PAGES_AT_ONCE = 6;
-/** More would outlast the car's wait for a list. */
+/** Stops a read whose pages never say they're the last. */
 const MAX_READ_ROWS = 10_000;
+/** A finished read serves its list again for this long, as on a car reload. */
+const READ_REUSE_MS = 60_000;
 /** As many as the Library's home rail shows. */
 const RECENTLY_PLAYED_COUNT = 20;
 const SEARCH_LIMIT = 20;
@@ -113,8 +117,6 @@ const seenTitles = new Map<string, string>();
 const seenAlbums = new Map<string, Album>();
 const seenArtists = new Map<string, Artist>();
 const seenCollections = new Map<string, PlaybackCollection>();
-/** Every row of an alphabetical list, for the letters it opens on. */
-const seenAlphabetical = new Map<string, CarRow[]>();
 
 /** Forget what rows handed on, such as when another account signs in. */
 export function forgetCarLists(): void {
@@ -122,7 +124,7 @@ export function forgetCarLists(): void {
   seenAlbums.clear();
   seenArtists.clear();
   seenCollections.clear();
-  seenAlphabetical.clear();
+  alphabeticalReads.clear();
 }
 
 function isSessionLost(error: unknown): boolean {
@@ -184,9 +186,8 @@ function readList(id: string): Promise<CarList> {
     case CAR_LISTS.playlists:
       return playlistsList();
     case CAR_LISTS.artists:
-      return artistsList();
     case CAR_LISTS.albums:
-      return albumsList();
+      return alphabeticalList(id);
     case CAR_LISTS.recentlyPlayed:
       return recentlyPlayedList();
     case CAR_LISTS.madeForYou:
@@ -292,21 +293,14 @@ async function findCollection(playlistId: string) {
   return seenCollections.get(`playlist:${playlistId}`) ?? null;
 }
 
-/** Artists with music to play, by the name the Library sorts them by. */
-async function artistsList(): Promise<CarList> {
-  const artists = await readPages(
-    { kind: "artists", source: "all", sort: "name", availableOnly: true },
-    (page) => page.artists,
-  );
-  const rows = artists.map((artist) => {
-    const id = `artist:${artist.canonicalId ?? artist.id}`;
-    seenArtists.set(id, artist);
-    return {
-      ...listRow(id, artist.artistName, authenticatedImageUrl(artist.coverUrl)),
-      letter: letterOf(artist.sortName || artist.artistName),
-    };
-  });
-  return alphabeticalList(CAR_LISTS.artists, rows);
+/** Filed under the name the Library sorts the artist by. */
+function artistRow(artist: Artist): CarRow {
+  const id = `artist:${artist.canonicalId ?? artist.id}`;
+  seenArtists.set(id, artist);
+  return {
+    ...listRow(id, artist.artistName, authenticatedImageUrl(artist.coverUrl)),
+    letter: letterOf(artist.sortName || artist.artistName),
+  };
 }
 
 /** The artist's albums with music to play, as on their page. */
@@ -341,25 +335,16 @@ async function shuffleArtist(artist: Artist): Promise<boolean> {
   return play(songs, context, { shuffled: true });
 }
 
-/** Albums with music to play, by title. */
-async function albumsList(): Promise<CarList> {
-  const albums = await readPages(
-    { kind: "albums", source: "all", sort: "name", availableOnly: true },
-    (page) => page.albums,
-  );
-  const rows = albums
-    .flatMap(albumRow)
-    .map((row) => ({ ...row, letter: letterOf(row.title) }));
-  return alphabeticalList(CAR_LISTS.albums, rows);
-}
-
 async function recentlyPlayedList(): Promise<CarList> {
-  const albums = await readPages(
+  const { albums } = await getCanonicalLibraryPage({
+    kind: "albums",
+    source: "all",
     // The server reads `asc` as most recent first.
-    { kind: "albums", source: "all", sort: "played", direction: "asc" },
-    (page) => page.albums,
-    RECENTLY_PLAYED_COUNT,
-  );
+    sort: "played",
+    direction: "asc",
+    page: 1,
+    pageSize: RECENTLY_PLAYED_COUNT,
+  });
   return {
     title: "Recently Played",
     rows: albums.flatMap(albumRow),
@@ -371,53 +356,156 @@ type AlphabeticalId = typeof CAR_LISTS.artists | typeof CAR_LISTS.albums;
 
 const ALPHABETICAL_NAMES: Record<
   AlphabeticalId,
-  { title: string; one: string; many: string }
+  { title: string; many: string }
 > = {
-  [CAR_LISTS.artists]: { title: "Artists", one: "artist", many: "artists" },
-  [CAR_LISTS.albums]: { title: "Albums", one: "album", many: "albums" },
+  [CAR_LISTS.artists]: { title: "Artists", many: "artists" },
+  [CAR_LISTS.albums]: { title: "Albums", many: "albums" },
 };
 
+/** Artists and albums with music to play, read in the Library's name order. */
+const ALPHABETICAL_SOURCES: Record<
+  AlphabeticalId,
+  (onBatch: (batch: PageBatch<CarRow>) => void) => Promise<void>
+> = {
+  [CAR_LISTS.artists]: (onBatch) =>
+    readPages(
+      { kind: "artists", source: "all", sort: "name", availableOnly: true },
+      (page) => page.artists.map(artistRow),
+      onBatch,
+    ),
+  [CAR_LISTS.albums]: (onBatch) =>
+    readPages(
+      { kind: "albums", source: "all", sort: "name", availableOnly: true },
+      (page) =>
+        page.albums
+          .flatMap(albumRow)
+          .map((row) => ({ ...row, letter: letterOf(row.title) })),
+      onBatch,
+    ),
+};
+
+const LETTERS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ", "#"];
+
+/** A read of every row of Artists or Albums, which its letters share. */
+type AlphabeticalRead = {
+  /** In the server's order, as the pages landed. */
+  rows: CarRow[];
+  total: number;
+  finished: boolean;
+  /** When it read every row; 0 while it runs or after it failed. */
+  finishedAt: number;
+  /** A list built from it said more rows were coming. */
+  promisedMore: boolean;
+  firstPage: Promise<void>;
+};
+
+const alphabeticalReads = new Map<AlphabeticalId, AlphabeticalRead>();
+
+export type CarListGrowth = {
+  listId: string;
+  finished: boolean;
+  /** A list the car was given said more rows were coming. */
+  promisedMore: boolean;
+};
+
+const growthListeners = new Set<(growth: CarListGrowth) => void>();
+
 /**
- * Rows filed by letter, A to Z and then #. A list too long for the car opens
- * on a row per letter, each saying how many rows it holds.
+ * Hear when Artists or Albums read more rows. The list and its letter lists
+ * then hold them. Returns unsubscribe.
  */
-function alphabeticalList(id: AlphabeticalId, rows: CarRow[]): CarList {
-  const filed = fileByLetter(rows);
-  seenAlphabetical.set(id, filed);
-  const { title, one, many } = ALPHABETICAL_NAMES[id];
-  const emptyTitle = `No ${many}`;
-  if (filed.length <= MAX_ROWS) {
-    return { title, rows: filed, alphabetical: true, emptyTitle };
+export function onCarListGrew(
+  listener: (growth: CarListGrowth) => void,
+): () => void {
+  growthListeners.add(listener);
+  return () => {
+    growthListeners.delete(listener);
+  };
+}
+
+/** The read of this list running now, or a new one. */
+function alphabeticalRead(id: AlphabeticalId): AlphabeticalRead {
+  const current = alphabeticalReads.get(id);
+  if (
+    current &&
+    (!current.finished || Date.now() - current.finishedAt < READ_REUSE_MS)
+  ) {
+    return current;
   }
-  const counts = new Map<string, number>();
-  for (const { letter = "#" } of filed) {
-    counts.set(letter, (counts.get(letter) ?? 0) + 1);
+  const read: AlphabeticalRead = {
+    rows: [],
+    total: 0,
+    finished: false,
+    finishedAt: 0,
+    promisedMore: false,
+    firstPage: Promise.resolve(),
+  };
+  read.firstPage = ALPHABETICAL_SOURCES[id]((batch) => {
+    // Another account's read, or one a newer read replaced.
+    if (alphabeticalReads.get(id) !== read) return;
+    read.rows.push(...batch.rows);
+    read.total = batch.total;
+    if (batch.finished) {
+      read.finished = true;
+      read.finishedAt = batch.failed ? 0 : Date.now();
+    }
+    const growth = {
+      listId: id,
+      finished: read.finished,
+      promisedMore: read.promisedMore,
+    };
+    growthListeners.forEach((listener) => listener(growth));
+  });
+  alphabeticalReads.set(id, read);
+  read.firstPage.catch(() => {
+    if (alphabeticalReads.get(id) === read) alphabeticalReads.delete(id);
+  });
+  return read;
+}
+
+/**
+ * Artists or Albums from their first page, filed by letter. A list too long
+ * for the car opens on a row per letter instead.
+ */
+async function alphabeticalList(id: AlphabeticalId): Promise<CarList> {
+  const read = alphabeticalRead(id);
+  await read.firstPage;
+  const { title, many } = ALPHABETICAL_NAMES[id];
+  const emptyTitle = `No ${many}`;
+  if (read.total <= MAX_ROWS) {
+    return withRowsToCome(read, {
+      title,
+      rows: fileByLetter(read.rows),
+      alphabetical: true,
+      emptyTitle,
+    });
   }
   return {
     title,
-    rows: [...counts].map(([letter, count]) => ({
-      ...listRow(`${id}:${letter}`, letter),
-      subtitle: `${count} ${count === 1 ? one : many}`,
-    })),
+    rows: LETTERS.map((letter) => listRow(`${id}:${letter}`, letter)),
     emptyTitle,
   };
 }
 
-/** One letter's rows of an alphabetical list, as its letter row opens them. */
+/** One letter's rows of Artists or Albums, as many as have landed. */
 async function letterList(
   id: AlphabeticalId,
   letter: string,
 ): Promise<CarList> {
-  // A letter CarPlay kept on screen across a restart reads the list again.
-  if (!seenAlphabetical.has(id)) await readList(id);
+  const read = alphabeticalRead(id);
+  await read.firstPage;
   const { title, many } = ALPHABETICAL_NAMES[id];
-  return {
+  return withRowsToCome(read, {
     title: `${title} · ${letter}`,
-    rows: (seenAlphabetical.get(id) ?? []).filter(
-      (row) => row.letter === letter,
-    ),
+    rows: fileByLetter(read.rows).filter((row) => row.letter === letter),
     emptyTitle: `No ${many} under ${letter}`,
-  };
+  });
+}
+
+function withRowsToCome(read: AlphabeticalRead, list: CarList): CarList {
+  if (read.finished) return list;
+  read.promisedMore = true;
+  return { ...list, loadingMore: true };
 }
 
 /**
@@ -432,7 +520,9 @@ function fileByLetter(rows: CarRow[]): CarRow[] {
     if (seenIds.has(row.id)) continue;
     seenIds.add(row.id);
     const letter = row.letter ?? "#";
-    byLetter.set(letter, [...(byLetter.get(letter) ?? []), row]);
+    const filed = byLetter.get(letter);
+    if (filed) filed.push(row);
+    else byLetter.set(letter, [row]);
   }
   return [...byLetter.keys()]
     .sort((a, b) => Number(a === "#") - Number(b === "#") || (a < b ? -1 : 1))
@@ -556,43 +646,59 @@ function titleOf(id: string): string {
   return seenTitles.get(id) ?? "";
 }
 
+type PageBatch<T> = {
+  rows: T[];
+  total: number;
+  finished: boolean;
+  failed?: boolean;
+};
+
 /**
- * A Library read in its order, up to `limit` rows. After the first page, the
- * total says how many pages to ask for at once.
+ * Read a Library list in its order, handing `onBatch` each batch of pages as
+ * it lands. Resolves with the first page; the rest reads on until a batch
+ * says it's finished. The first page's total says how many to ask for at once.
  */
 async function readPages<T>(
   params: CanonicalPageParams,
   pick: (page: CanonicalPage) => T[],
-  limit = MAX_READ_ROWS,
-): Promise<T[]> {
-  const pageSize = Math.min(PAGE_SIZE, limit);
+  onBatch: (batch: PageBatch<T>) => void,
+): Promise<void> {
   const read = (page: number) =>
-    getCanonicalLibraryPage({ ...params, page, pageSize }).then((result) => ({
-      items: pick(result),
-      hasMore: result.hasMore,
-    }));
-  const first = await getCanonicalLibraryPage({ ...params, page: 1, pageSize });
-  const items = pick(first);
-  const lastPage = Math.min(
-    Math.ceil(first.total / pageSize),
-    Math.ceil(limit / pageSize),
-  );
-  let hasMore = first.hasMore;
-  let next = 2;
-  while (hasMore && items.length < limit) {
-    // A total that came up short still reads on while pages say there's more.
-    const last = Math.max(next, Math.min(next + PAGES_AT_ONCE - 1, lastPage));
-    const pages = await Promise.all(
-      Array.from({ length: last - next + 1 }, (_, index) => read(next + index)),
-    );
-    for (const page of pages) {
-      items.push(...page.items);
-      hasMore = page.hasMore;
-      if (!hasMore) break;
+    getCanonicalLibraryPage({ ...params, page, pageSize: PAGE_SIZE });
+  const first = await read(1);
+  const { total } = first;
+  const firstRows = pick(first);
+  let count = firstRows.length;
+  onBatch({ rows: firstRows, total, finished: !first.hasMore });
+  if (!first.hasMore) return;
+
+  const lastPage = Math.ceil(total / PAGE_SIZE);
+  const readRest = async () => {
+    let hasMore = true;
+    let next = 2;
+    while (hasMore) {
+      // A total that came up short still reads on while pages say there's more.
+      const last = Math.max(next, Math.min(next + PAGES_AT_ONCE - 1, lastPage));
+      const pages = await Promise.all(
+        Array.from({ length: last - next + 1 }, (_, index) =>
+          read(next + index),
+        ),
+      );
+      const rows: T[] = [];
+      for (const page of pages) {
+        rows.push(...pick(page));
+        hasMore = page.hasMore;
+        if (!hasMore) break;
+      }
+      count += rows.length;
+      if (count >= MAX_READ_ROWS) hasMore = false;
+      onBatch({ rows, total, finished: !hasMore });
+      next = last + 1;
     }
-    next = last + 1;
-  }
-  return items.slice(0, limit);
+  };
+  void readRest().catch(() =>
+    onBatch({ rows: [], total, finished: true, failed: true }),
+  );
 }
 
 function isTrack(item: PlayerTrack | null): item is PlayerTrack {

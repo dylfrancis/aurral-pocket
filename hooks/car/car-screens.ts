@@ -10,7 +10,9 @@ import {
   CAR_LISTS,
   forgetCarLists,
   loadCarList,
+  onCarListGrew,
   searchCar,
+  type CarListGrowth,
   type CarList,
   type CarRow,
 } from "@/hooks/car/car-library";
@@ -35,6 +37,28 @@ export function registerCar(): void {
   // Covers carry the session's token, so even a renewal reads lists again.
   if (carPlay || androidAuto) {
     onSessionChanged((change) => refreshCar(change !== "renewed"));
+    onCarListGrew(showGrowth);
+  }
+}
+
+/**
+ * Show rows that landed after a list opened. CarPlay redraws the list and its
+ * letters on screen. Android Auto rereads every open folder, so it waits for
+ * the last rows.
+ */
+function showGrowth({ listId, finished, promisedMore }: CarListGrowth): void {
+  if (CarPlayHelper.isAvailable()) {
+    for (const templateId of [...shownLists.keys()]) {
+      if (templateId !== listId && !templateId.startsWith(`${listId}:`)) {
+        continue;
+      }
+      void loadCarList(templateId)
+        .then((list) => CarPlayHelper.update(carPlayTemplate(templateId, list)))
+        .catch(() => {});
+    }
+  }
+  if (AndroidAutoMediaLibraryHelper.isAvailable() && finished && promisedMore) {
+    setAndroidAutoRoot();
   }
 }
 
@@ -57,6 +81,9 @@ const QUEUE = "queue";
 /** Track ids are numbers or UUIDs, so this can't be one. */
 const SHUFFLE_ROW = "shuffle";
 const SIGNED_OUT_ROW = "signed-out";
+/** Ends a list while more rows load; Android Auto's opens its list again. */
+const LOADING_ROW = "loading";
+const LOADING_TITLE = "Loading more…";
 
 /** CarPlay's lists by template id, for playing a song picked in one. */
 const shownLists = new Map<string, CarList>();
@@ -102,12 +129,24 @@ function carPlayTemplate(id: string, list: CarList): CarPlayListTemplate {
       ? // A symbol as the row's image fills the whole artwork slot.
         [{ id: SHUFFLE_ROW, title: "Shuffle", accessoryImage: "shuffle" }]
       : [];
+  const loadingItems: CarPlayListItem[] = list.loadingMore
+    ? [{ id: LOADING_ROW, title: LOADING_TITLE }]
+    : [];
   const sections: CarPlayListSection[] = list.alphabetical
     ? [
         ...(shuffleItems.length > 0 ? [{ items: shuffleItems }] : []),
         ...byLetter(list.rows),
+        ...(loadingItems.length > 0 ? [{ items: loadingItems }] : []),
       ]
-    : [{ items: [...shuffleItems, ...list.rows.map(carPlayItem)] }];
+    : [
+        {
+          items: [
+            ...shuffleItems,
+            ...list.rows.map(carPlayItem),
+            ...loadingItems,
+          ],
+        },
+      ];
   return {
     type: "list",
     id,
@@ -148,6 +187,7 @@ function byLetter(rows: CarRow[]): CarPlayListSection[] {
 }
 
 async function playInCarPlay(templateId: string, rowId: string) {
+  if (rowId === LOADING_ROW) return;
   // A list CarPlay kept on screen across a restart is read again.
   const list =
     shownLists.get(templateId) ??
@@ -176,7 +216,12 @@ function registerAndroidAuto(): void {
   AndroidAutoMediaLibraryHelper.setChildrenLoader(async (parentId) => {
     // Android Auto lets any row be opened. The sign-in row opens the Library,
     // which asks again until an account signs in.
-    const listId = parentId === SIGNED_OUT_ROW ? CAR_LISTS.library : parentId;
+    const listId =
+      parentId === SIGNED_OUT_ROW
+        ? CAR_LISTS.library
+        : parentId.startsWith(`${LOADING_ROW}:`)
+          ? parentId.slice(LOADING_ROW.length + 1)
+          : parentId;
     return androidAutoItems(listId, await loadCarList(listId));
   });
   AndroidAutoMediaLibraryHelper.setSearchHandler(async (query) =>
@@ -266,6 +311,16 @@ async function androidAutoItems(
         },
       ]
     : [];
+  const loadingItems: MediaItem[] = list.loadingMore
+    ? [
+        {
+          id: `${LOADING_ROW}:${listId}`,
+          title: LOADING_TITLE,
+          isPlayable: false,
+          mediaType: "folder",
+        },
+      ]
+    : [];
   return [
     ...shuffleItems,
     ...list.rows.flatMap((row): MediaItem[] => {
@@ -290,6 +345,7 @@ async function androidAutoItems(
         },
       ];
     }),
+    ...loadingItems,
   ];
 }
 

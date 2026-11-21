@@ -45,7 +45,9 @@ import {
   CAR_LISTS,
   forgetCarLists,
   loadCarList,
+  onCarListGrew,
   searchCar,
+  type CarListGrowth,
 } from "@/hooks/car/car-library";
 import { readShuffleSongs } from "@/hooks/library/use-play-library-songs";
 import { startQueue } from "@/hooks/player/use-start-queue";
@@ -247,8 +249,14 @@ describe("loadCarList", () => {
     ]);
   });
 
-  /** A Library of `count` albums, A to E, served a page at a time. */
-  function serveAlbums(count: number) {
+  /**
+   * A Library of `count` albums, A to E, served a page at a time. Pages after
+   * the first wait for `later`, when given.
+   */
+  function serveAlbums(
+    count: number,
+    later: Promise<void> = Promise.resolve(),
+  ) {
     const albums = Array.from({ length: count }, (_, index) =>
       album({
         canonicalId: String(index),
@@ -256,22 +264,43 @@ describe("loadCarList", () => {
       }),
     );
     (getCanonicalLibraryPage as jest.Mock).mockImplementation(
-      async ({ page: pageNumber, pageSize }) => ({
-        ...page(
-          albums.slice((pageNumber - 1) * pageSize, pageNumber * pageSize),
-        ),
-        total: count,
-        hasMore: pageNumber * pageSize < count,
-      }),
+      async ({ page: pageNumber, pageSize }) => {
+        if (pageNumber > 1) await later;
+        return {
+          ...page(
+            albums.slice((pageNumber - 1) * pageSize, pageNumber * pageSize),
+          ),
+          total: count,
+          hasMore: pageNumber * pageSize < count,
+        };
+      },
     );
   }
 
-  it("reads every page of a list after the first, several at once", async () => {
+  /** Resolves once the list has read every row. */
+  function readFinished(listId: string) {
+    return new Promise<void>((resolve) => {
+      const stop = onCarListGrew((growth) => {
+        if (growth.listId !== listId || !growth.finished) return;
+        stop();
+        resolve();
+      });
+    });
+  }
+
+  it("shows the first page at once, then reads the rest several pages at a time", async () => {
     serveAlbums(250);
+    const finished = readFinished(CAR_LISTS.albums);
 
-    const list = await loadCarList(CAR_LISTS.albums);
+    const first = await loadCarList(CAR_LISTS.albums);
+    await finished;
+    const all = await loadCarList(CAR_LISTS.albums);
 
-    expect(list.rows).toHaveLength(250);
+    expect(first.rows).toHaveLength(100);
+    expect(first.loadingMore).toBe(true);
+    expect(all.rows).toHaveLength(250);
+    expect(all.loadingMore).toBeFalsy();
+    // The second open shares the first read.
     expect(
       (getCanonicalLibraryPage as jest.Mock).mock.calls.map(
         ([{ page: pageNumber, pageSize }]) => [pageNumber, pageSize],
@@ -283,47 +312,71 @@ describe("loadCarList", () => {
     ]);
   });
 
+  it("tells the car each time more rows land, and when it promised them", async () => {
+    serveAlbums(250);
+    const growths: CarListGrowth[] = [];
+    const stop = onCarListGrew((growth) => growths.push(growth));
+    const finished = readFinished(CAR_LISTS.albums);
+
+    await loadCarList(CAR_LISTS.albums);
+    await finished;
+    stop();
+
+    expect(growths.at(-1)).toEqual({
+      listId: CAR_LISTS.albums,
+      finished: true,
+      promisedMore: true,
+    });
+  });
+
   it("shows every album in one list, up to the most rows CarPlay shows", async () => {
     serveAlbums(500);
+    const finished = readFinished(CAR_LISTS.albums);
 
+    await loadCarList(CAR_LISTS.albums);
+    await finished;
     const list = await loadCarList(CAR_LISTS.albums);
 
     expect(list).toMatchObject({ alphabetical: true });
     expect(list.rows).toHaveLength(500);
   });
 
-  it("opens a longer list on a row per letter, each opening that letter's albums", async () => {
-    serveAlbums(501);
+  it("opens a longer list on its letters at once, each filling in as its albums land", async () => {
+    let letRestLand!: () => void;
+    serveAlbums(
+      501,
+      new Promise((resolve) => {
+        letRestLand = resolve;
+      }),
+    );
+    const finished = readFinished(CAR_LISTS.albums);
 
     const list = await loadCarList(CAR_LISTS.albums);
-    const letters = list.rows.map(({ id, title, subtitle }) => [
-      id,
-      title,
-      subtitle,
-    ]);
-    const reads = (getCanonicalLibraryPage as jest.Mock).mock.calls.length;
+    const letterBEarly = await loadCarList("albums:B");
+    letRestLand();
+    await finished;
     const letterB = await loadCarList("albums:B");
 
     expect(list.alphabetical).toBeFalsy();
-    expect(letters).toEqual([
-      ["albums:A", "A", "101 albums"],
-      ["albums:B", "B", "100 albums"],
-      ["albums:C", "C", "100 albums"],
-      ["albums:D", "D", "100 albums"],
-      ["albums:E", "E", "100 albums"],
-    ]);
+    expect(list.rows.map(({ id }) => id)).toEqual(
+      [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ#"].map((letter) => `albums:${letter}`),
+    );
+    // Only the first page had landed: A's albums, none of B's yet.
+    expect(letterBEarly).toMatchObject({ rows: [], loadingMore: true });
     expect(letterB.title).toBe("Albums · B");
     expect(letterB.rows).toHaveLength(100);
     expect(letterB.rows.every(({ title }) => title.startsWith("B "))).toBe(
       true,
     );
-    // The letter opens from the list already read.
-    expect(getCanonicalLibraryPage).toHaveBeenCalledTimes(reads);
+    expect(letterB.loadingMore).toBeFalsy();
   });
 
   it("reads the list again for a letter CarPlay kept on screen across a restart", async () => {
     serveAlbums(501);
+    const finished = readFinished(CAR_LISTS.albums);
 
+    await loadCarList("albums:C");
+    await finished;
     const letterC = await loadCarList("albums:C");
 
     expect(letterC.rows).toHaveLength(100);

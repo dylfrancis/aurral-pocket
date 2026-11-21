@@ -435,6 +435,7 @@ jest.mock("react-native-nitro-player", () => ({
     showNowPlaying: jest.fn(),
     reload: jest.fn(),
     popToRoot: jest.fn(),
+    update: jest.fn(),
   },
   AndroidAutoMediaLibraryHelper: {
     isAvailable: jest.fn(() => false),

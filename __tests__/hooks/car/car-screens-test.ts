@@ -2,6 +2,7 @@ jest.mock("@/hooks/car/car-library", () => ({
   ...jest.requireActual("@/hooks/car/car-library"),
   forgetCarLists: jest.fn(),
   loadCarList: jest.fn(),
+  onCarListGrew: jest.fn(),
   searchCar: jest.fn(),
 }));
 
@@ -16,7 +17,12 @@ jest.mock("@/lib/player/player", () => ({
   shelveForCar: jest.fn(),
 }));
 
-import { loadCarList, type CarList } from "@/hooks/car/car-library";
+import {
+  loadCarList,
+  onCarListGrew,
+  type CarList,
+  type CarListGrowth,
+} from "@/hooks/car/car-library";
 import { registerCar } from "@/hooks/car/car-screens";
 import { headlessSession, onSessionChanged } from "@/lib/headless-session";
 import { restoreSavedQueue, shelveForCar } from "@/lib/player/player";
@@ -66,6 +72,10 @@ function songList(play: CarList["play"] = jest.fn()): CarList {
 beforeEach(() => {
   jest.clearAllMocks();
 });
+
+/** Tell the car more rows of a list landed. */
+const grow = (growth: CarListGrowth) =>
+  (onCarListGrew as jest.Mock).mock.calls[0][0](growth);
 
 describe("CarPlay", () => {
   beforeEach(() => {
@@ -202,6 +212,40 @@ describe("CarPlay", () => {
     ]);
   });
 
+  it("ends a list with a row saying more are loading, which does nothing when tapped", async () => {
+    const play = jest.fn(async () => true);
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Albums",
+      alphabetical: true,
+      rows: [{ ...albumRow, letter: "K" }],
+      play,
+      loadingMore: true,
+    });
+
+    const template = await loader()("albums");
+    const sections = template?.type === "list" ? template.sections! : [];
+    const loading = sections.at(-1)!.items[0];
+    onSelect()(loading.id, "albums");
+    await new Promise(process.nextTick);
+
+    expect(loading).toMatchObject({ title: "Loading more…" });
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  it("redraws the list and its letters on screen as more rows land", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({ title: "", rows: [] });
+    await loader()("albums");
+    await loader()("albums:B");
+    await loader()("album:12");
+
+    grow({ listId: "albums", finished: false, promisedMore: true });
+    await new Promise(process.nextTick);
+
+    expect(
+      carPlay.update.mock.calls.map(([template]) => template.id).sort(),
+    ).toEqual(["albums", "albums:B"]);
+  });
+
   it("leaves Shuffle out of an empty list, so it shows its empty title", async () => {
     (loadCarList as jest.Mock).mockResolvedValue({
       title: "Kid A",
@@ -304,6 +348,35 @@ describe("Android Auto", () => {
       expect.objectContaining({ title: "Sign in to Aurral on your phone" }),
     ]);
   });
+
+  it("ends a folder with a row saying more are loading, which opens the list again", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Albums",
+      rows: [albumRow],
+      loadingMore: true,
+    });
+
+    const items = await childrenLoader()("albums");
+    await childrenLoader()(items!.at(-1)!.id);
+
+    expect(items?.at(-1)).toMatchObject({ title: "Loading more…" });
+    expect(loadCarList).toHaveBeenLastCalledWith("albums");
+  });
+
+  it.each([
+    [true, true, 1],
+    [true, false, 0],
+    [false, true, 0],
+  ])(
+    "rereads its open folders once the last rows land, if it said more were coming (finished %s, promised %s)",
+    (finished, promisedMore, publishes) => {
+      androidAuto.set.mockClear();
+
+      grow({ listId: "albums", finished, promisedMore });
+
+      expect(androidAuto.set).toHaveBeenCalledTimes(publishes);
+    },
+  );
 
   it("opens the Library from the row that asks to sign in", async () => {
     (loadCarList as jest.Mock).mockResolvedValue({
