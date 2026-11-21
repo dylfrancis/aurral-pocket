@@ -22,8 +22,12 @@ export function checkServerLive() {
  * contract, and `/health` adds and drops fields between releases.
  */
 export function getServerHealth() {
-  return api.get<HealthResponse>("/health/bootstrap").then((r) => {
-    setDateTimeFormat(r.data.dateTimeFormat);
-    return r.data;
-  });
+  // The sign-in screen waits on this to choose between SSO and the password
+  // form, so a server that never answers falls back to the form within 10 s.
+  return api
+    .get<HealthResponse>("/health/bootstrap", { timeout: 10_000 })
+    .then((r) => {
+      setDateTimeFormat(r.data.dateTimeFormat);
+      return r.data;
+    });
 }

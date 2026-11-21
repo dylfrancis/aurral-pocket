@@ -18,7 +18,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as Haptics from "expo-haptics";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  View,
+} from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { z } from "zod";
 
@@ -47,6 +54,7 @@ export default function LoginScreen() {
   const colors = Colors[colorScheme];
   const {
     serverUrl,
+    serverHealth,
     clearAll,
     rememberCredentials,
     useBiometrics,
@@ -56,13 +64,25 @@ export default function LoginScreen() {
   } = useAuth();
   const loginMutation = useLogin();
   const biometricLabel = useBiometricAvailability();
-  const { data: health } = useServerHealth();
+  const { data: health, failureCount } = useServerHealth();
   const applyOidcSession = useOidcSignIn();
   const [oidcVisible, setOidcVisible] = useState(false);
+  const [showLocalForm, setShowLocalForm] = useState(false);
+  const [formFallback, setFormFallback] = useState(false);
 
-  // The server sets the flag only once OIDC is fully configured, so an older
-  // server, or one with OIDC off, never shows the option.
-  const oidcEnabled = health?.oidcEnabled === true && !!serverUrl;
+  // Connect has just read the bootstrap, so the screen after it can lay out
+  // without waiting for this fetch. The server sets the flag only once OIDC is
+  // fully configured.
+  const bootstrap = health ?? serverHealth;
+  const oidcEnabled = bootstrap?.oidcEnabled === true && !!serverUrl;
+  // Until the server says whether it has SSO, the form would show and then
+  // vanish under the user's thumb. A failed fetch shows the form for good, so
+  // a retry that finds SSO adds the SSO link instead of taking the form away.
+  if (!bootstrap && failureCount > 0 && !formFallback) setFormFallback(true);
+  const methodsKnown = !!bootstrap || formFallback;
+  // Every Aurral server with SSO is SSO-only, so the password form waits until
+  // someone asks for it, as on the web.
+  const localFormVisible = !oidcEnabled || showLocalForm || formFallback;
 
   const {
     control,
@@ -115,120 +135,154 @@ export default function LoginScreen() {
           <Text variant="title" style={styles.title}>
             Sign In
           </Text>
-          <Text variant="subtitle" style={styles.subtitle}>
-            Enter your credentials to access Aurral
-          </Text>
+          {methodsKnown && (
+            <Text variant="subtitle" style={styles.subtitle}>
+              {localFormVisible
+                ? "Enter your credentials to access Aurral"
+                : "Use your SSO account to access Aurral"}
+            </Text>
+          )}
           <Text variant="caption" style={styles.serverUrl} numberOfLines={1}>
             {serverUrl}
           </Text>
 
-          <Controller
-            control={control}
-            name="username"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                placeholder="Username"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                textContentType="username"
-                returnKeyType="next"
-                editable={!loginMutation.isPending}
-                style={styles.input}
+          {!methodsKnown ? (
+            <ActivityIndicator
+              color={colors.subtle}
+              style={styles.loading}
+              testID="sign-in-methods-loading"
+            />
+          ) : localFormVisible ? (
+            <>
+              <Controller
+                control={control}
+                name="username"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    placeholder="Username"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    textContentType="username"
+                    returnKeyType="next"
+                    autoFocus={showLocalForm}
+                    editable={!loginMutation.isPending}
+                    style={styles.input}
+                  />
+                )}
               />
-            )}
-          />
 
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                placeholder="Password"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                secureTextEntry
-                textContentType="password"
-                returnKeyType="go"
-                onSubmitEditing={() => handleSubmit(onSubmit)()}
-                editable={!loginMutation.isPending}
-                style={styles.input}
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    placeholder="Password"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    secureTextEntry
+                    textContentType="password"
+                    returnKeyType="go"
+                    onSubmitEditing={() => handleSubmit(onSubmit)()}
+                    editable={!loginMutation.isPending}
+                    style={styles.input}
+                  />
+                )}
               />
-            )}
-          />
 
-          <View style={styles.toggleGroup}>
-            <Pressable
-              style={styles.toggleRow}
-              onPress={() => handleToggleRemember(!rememberCredentials)}
-            >
-              <Switch
-                value={rememberCredentials}
-                onValueChange={handleToggleRemember}
-                trackColor={{ false: colors.separator, true: colors.brand }}
-                thumbColor="#ffffff"
-                style={styles.switch}
-              />
-              <Text variant="body" style={{ flex: 1 }}>
-                Remember me
-              </Text>
-            </Pressable>
-
-            {biometricLabel && (
-              <View>
+              <View style={styles.toggleGroup}>
                 <Pressable
-                  style={[
-                    styles.toggleRow,
-                    rememberCredentials && styles.disabledRow,
-                  ]}
-                  onPress={() => handleToggleBiometrics(!useBiometrics)}
-                  disabled={rememberCredentials}
+                  style={styles.toggleRow}
+                  onPress={() => handleToggleRemember(!rememberCredentials)}
                 >
                   <Switch
-                    value={useBiometrics && !rememberCredentials}
-                    onValueChange={handleToggleBiometrics}
-                    disabled={rememberCredentials}
+                    value={rememberCredentials}
+                    onValueChange={handleToggleRemember}
                     trackColor={{ false: colors.separator, true: colors.brand }}
                     thumbColor="#ffffff"
                     style={styles.switch}
                   />
                   <Text variant="body" style={{ flex: 1 }}>
-                    Use {biometricLabel}
+                    Remember me
                   </Text>
                 </Pressable>
-                {rememberCredentials && (
-                  <Text variant="caption" style={styles.biometricHint}>
-                    Turn off Remember me to use {biometricLabel}
-                  </Text>
+
+                {biometricLabel && (
+                  <View>
+                    <Pressable
+                      style={[
+                        styles.toggleRow,
+                        rememberCredentials && styles.disabledRow,
+                      ]}
+                      onPress={() => handleToggleBiometrics(!useBiometrics)}
+                      disabled={rememberCredentials}
+                    >
+                      <Switch
+                        value={useBiometrics && !rememberCredentials}
+                        onValueChange={handleToggleBiometrics}
+                        disabled={rememberCredentials}
+                        trackColor={{
+                          false: colors.separator,
+                          true: colors.brand,
+                        }}
+                        thumbColor="#ffffff"
+                        style={styles.switch}
+                      />
+                      <Text variant="body" style={{ flex: 1 }}>
+                        Use {biometricLabel}
+                      </Text>
+                    </Pressable>
+                    {rememberCredentials && (
+                      <Text variant="caption" style={styles.biometricHint}>
+                        Turn off Remember me to use {biometricLabel}
+                      </Text>
+                    )}
+                  </View>
                 )}
               </View>
-            )}
-          </View>
 
-          {errorMessage && (
-            <Text variant="error" style={styles.error}>
-              {errorMessage}
-            </Text>
-          )}
+              {errorMessage && (
+                <Text variant="error" style={styles.error}>
+                  {errorMessage}
+                </Text>
+              )}
 
-          <Button
-            title="Sign In"
-            onPress={() => handleSubmit(onSubmit)()}
-            loading={loginMutation.isPending}
-            style={styles.button}
-          />
+              <Button
+                title="Sign In"
+                onPress={() => handleSubmit(onSubmit)()}
+                loading={loginMutation.isPending}
+                style={styles.button}
+              />
 
-          {oidcEnabled && (
-            <Button
-              title="Sign in with SSO"
-              variant="inline"
-              // Spins while the auth browser is up and the code is traded.
-              loading={oidcVisible}
-              onPress={() => setOidcVisible(true)}
-              style={styles.sso}
-              testID="oidc-sign-in"
-            />
+              {oidcEnabled && (
+                <Button
+                  title="Sign in with SSO"
+                  variant="inline"
+                  // Spins while the auth browser is up and the code is traded.
+                  loading={oidcVisible}
+                  onPress={() => setOidcVisible(true)}
+                  style={styles.sso}
+                  testID="oidc-sign-in"
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <Button
+                title="Sign in with SSO"
+                loading={oidcVisible}
+                onPress={() => setOidcVisible(true)}
+                style={styles.button}
+                testID="oidc-sign-in"
+              />
+              <Button
+                title="Sign in with a local account"
+                variant="inline"
+                onPress={() => setShowLocalForm(true)}
+                style={styles.sso}
+              />
+            </>
           )}
 
           <Button
@@ -252,7 +306,9 @@ export default function LoginScreen() {
           // The provider would otherwise sign this account straight back in,
           // and no other account could use SSO on this device.
           onAccountSuspended={() => {
-            if (health?.oidcLogoutUrl) requestOidcLogout(health.oidcLogoutUrl);
+            if (bootstrap?.oidcLogoutUrl) {
+              requestOidcLogout(bootstrap.oidcLogoutUrl);
+            }
           }}
         />
       )}
@@ -314,6 +370,9 @@ const styles = StyleSheet.create({
   },
   sso: {
     marginTop: 12,
+  },
+  loading: {
+    marginVertical: 24,
   },
   changeServer: {
     marginTop: 24,
