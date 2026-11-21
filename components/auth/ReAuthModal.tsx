@@ -237,6 +237,7 @@ export function ReAuthModal() {
           {isOidcSession ? (
             <Button
               title="Sign in with SSO"
+              loading={oidcVisible}
               onPress={() => setOidcVisible(true)}
               style={styles.button}
               testID="reauth-oidc-sign-in"

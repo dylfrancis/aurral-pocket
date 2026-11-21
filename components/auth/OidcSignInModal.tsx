@@ -1,6 +1,14 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   StyleSheet,
@@ -8,6 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as WebBrowser from "expo-web-browser";
 import { WebView } from "react-native-webview";
 import type {
   ShouldStartLoadRequest,
@@ -19,16 +28,25 @@ import type {
 
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
-import { customHeadersFor, isAccountSuspendedMessage } from "@/lib/api/client";
+import { exchangeOidcCode } from "@/lib/api/auth";
 import {
+  ApiError,
+  customHeadersFor,
+  isAccountSuspendedMessage,
+} from "@/lib/api/client";
+import {
+  OIDC_APP_REDIRECT,
+  buildOidcAppLoginUrl,
   buildOidcExchangePageUrl,
   buildOidcExchangeScript,
   buildOidcLoginUrl,
   isOidcCompleteUrl,
   isServerOrigin,
   parseOidcMessage,
+  parseOidcSession,
   readOidcCompletion,
 } from "@/lib/oidc";
+import { createPkcePair } from "@/lib/pkce";
 import type { OidcSession } from "@/lib/types/auth";
 import { useColors } from "@/hooks/use-colors";
 
@@ -44,19 +62,140 @@ type Props = {
 };
 
 /**
- * Runs the Aurral OIDC flow in a WebView and reports the session back. See
- * `lib/oidc.ts` for why it cannot go through `expo-auth-session`.
- *
+ * Runs the Aurral OIDC flow and reports the session back: in the system auth
+ * browser, where a provider's passkeys work, or in a WebView for a server
+ * behind a proxy that wants custom headers. `lib/oidc.ts` has the flow.
+ */
+export function OidcSignInModal(props: Props) {
+  // The auth browser sends a proxy's headers on no request, so the provider's
+  // redirect back to the server would be refused.
+  const needsHeaders =
+    Object.keys(customHeadersFor(props.serverUrl)).length > 0;
+  return needsHeaders ? (
+    <OidcWebViewSignIn {...props} />
+  ) : (
+    <OidcBrowserSignIn {...props} />
+  );
+}
+
+type BrowserOutcome =
+  | { kind: "cancel" }
+  | { kind: "session"; session: OidcSession }
+  | { kind: "error"; message: string };
+
+async function signInThroughBrowser(
+  serverUrl: string,
+): Promise<BrowserOutcome> {
+  const { verifier, challenge } = await createPkcePair();
+  // Ephemeral, so iOS asks no "wants to use … to sign in" question and keeps
+  // no provider session behind for sign-out to end.
+  const result = await WebBrowser.openAuthSessionAsync(
+    buildOidcAppLoginUrl(serverUrl, challenge),
+    OIDC_APP_REDIRECT,
+    { preferEphemeralSession: true },
+  );
+  if (result.type !== "success") return { kind: "cancel" };
+
+  const completion = readOidcCompletion(result.url);
+  if (!completion) {
+    return {
+      kind: "error",
+      message: "The server did not return a sign-in code.",
+    };
+  }
+  if (completion.kind === "error") return completion;
+
+  try {
+    const session = parseOidcSession(
+      await exchangeOidcCode(completion.code, verifier),
+    );
+    return session
+      ? { kind: "session", session }
+      : { kind: "error", message: "Sign-in could not be completed." };
+  } catch (error) {
+    return {
+      kind: "error",
+      message:
+        error instanceof ApiError
+          ? error.message
+          : "Sign-in could not be completed.",
+    };
+  }
+}
+
+function OidcBrowserSignIn({ visible, ...rest }: Props) {
+  // Mounted only while asked for, so each request opens one auth session.
+  return visible ? <OidcBrowserSession {...rest} /> : null;
+}
+
+function OidcBrowserSession({
+  serverUrl,
+  onClose,
+  onSession,
+  onAccountSuspended,
+}: Omit<Props, "visible">) {
+  const [attempt, setAttempt] = useState(0);
+
+  // An alert, not a screen: UIKit won't present a modal while the auth sheet
+  // is still animating away, and the alert has a window of its own.
+  const report = useEffectEvent((outcome: BrowserOutcome) => {
+    if (outcome.kind === "cancel") {
+      onClose();
+      return;
+    }
+    if (outcome.kind === "session") {
+      onSession(outcome.session);
+      return;
+    }
+    const suspended = isAccountSuspendedMessage(outcome.message);
+    if (suspended) onAccountSuspended();
+    Alert.alert(
+      "Couldn't Sign In",
+      outcome.message,
+      // Trying again would land on the same refusal.
+      suspended
+        ? [{ text: "OK", onPress: onClose }]
+        : [
+            { text: "Cancel", style: "cancel", onPress: onClose },
+            { text: "Try Again", onPress: () => setAttempt((n) => n + 1) },
+          ],
+      { cancelable: true, onDismiss: onClose },
+    );
+  });
+
+  useEffect(() => {
+    let active = true;
+    signInThroughBrowser(serverUrl).then(
+      (outcome) => {
+        if (active) report(outcome);
+      },
+      () => {
+        if (active) {
+          report({
+            kind: "error",
+            message: "Unable to open the sign-in page.",
+          });
+        }
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [serverUrl, attempt]);
+
+  return null;
+}
+
+/**
  * One WebView instance serves both phases: the exchange needs the transaction
  * cookie the login step set, and remounting would drop it.
  *
  * Its cookie store is deliberately persistent, so the provider can remember the
- * user. Aurral sessions run on a fixed 30-day clock with no refresh, and an
- * OIDC user has no stored password for pocket to replay, so without a provider
- * session every expiry would mean typing provider credentials again.
+ * user. An OIDC user has no stored password for pocket to replay, so without a
+ * provider session every expiry would mean typing provider credentials again.
  * `OidcLogoutWebView` ends that provider session at sign-out.
  */
-export function OidcSignInModal({
+function OidcWebViewSignIn({
   visible,
   serverUrl,
   onClose,

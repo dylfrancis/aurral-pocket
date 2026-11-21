@@ -15,17 +15,26 @@ import { originOf } from "@/lib/url";
  *   4. `POST /api/auth/oidc/exchange` trades the code for a session, and only
  *      accepts a request carrying the same cookie.
  *
- * Step 4 is why the whole flow runs in a WebView: the cookie belongs to the
- * browser that started step 1, so the app's HTTP client cannot make the
- * exchange. Pocket reads the code out of the step-3 redirect, blocks that page
- * from loading, and runs the exchange as a script inside the WebView. Blocking
- * the page also stops the web frontend spending the single-use code first.
+ * Pocket runs it one of two ways:
+ *
+ * - In the system auth browser, which can run a provider's passkeys. Step 1
+ *   carries `app_redirect` and a PKCE challenge, so step 3 redirects to
+ *   `aurralpocket://sso#code=...` instead, and the app's HTTP client makes the
+ *   exchange with the verifier in place of the cookie.
+ * - In a WebView, for a server behind a proxy that wants custom headers: the
+ *   auth browser can't send them. The cookie then belongs to the WebView, so
+ *   pocket reads the code out of the step-3 redirect, blocks that page from
+ *   loading, and runs the exchange as a script inside the WebView. Blocking the
+ *   page also stops the web frontend spending the single-use code first.
  */
 
 const LOGIN_PATH = "/api/auth/oidc/login";
 const EXCHANGE_PATH = "/api/auth/oidc/exchange";
 
 const COMPLETE_PATH = "/sso/complete";
+
+/** The one app redirect Aurral accepts for pocket. */
+export const OIDC_APP_REDIRECT = "aurralpocket://sso";
 
 export type OidcCompletion =
   { kind: "code"; code: string } | { kind: "error"; message: string };
@@ -63,6 +72,19 @@ function decodeParam(value: string): string {
 
 export function buildOidcLoginUrl(serverUrl: string): string {
   return `${serverUrl.replace(/\/+$/, "")}${LOGIN_PATH}`;
+}
+
+export function buildOidcAppLoginUrl(
+  serverUrl: string,
+  codeChallenge: string,
+): string {
+  const query = `app_redirect=${encodeURIComponent(OIDC_APP_REDIRECT)}&code_challenge=${codeChallenge}`;
+  return `${buildOidcLoginUrl(serverUrl)}?${query}`;
+}
+
+/** True for the auth browser's return to the app, which is no screen. */
+export function isOidcAppRedirectUrl(url: string): boolean {
+  return url === OIDC_APP_REDIRECT || /^aurralpocket:\/\/sso[?#/]/.test(url);
 }
 
 /**
@@ -189,19 +211,21 @@ export function parseOidcMessage(raw: string): OidcMessage | null {
   }
 
   if (message.type !== "session") return null;
-  const session = message.session as Record<string, unknown> | undefined;
-  if (typeof session !== "object" || session === null) return null;
+  const session = parseOidcSession(message.session);
+  return session ? { type: "session", session } : null;
+}
+
+/** Checks an exchange response's shape before it becomes a session. */
+export function parseOidcSession(value: unknown): OidcSession | null {
+  if (typeof value !== "object" || value === null) return null;
+  const session = value as Record<string, unknown>;
   if (typeof session.token !== "string" || !session.token) return null;
   if (typeof session.expiresAt !== "number") return null;
   if (!isUser(session.user)) return null;
-
   return {
-    type: "session",
-    session: {
-      token: session.token,
-      expiresAt: session.expiresAt,
-      user: session.user,
-    },
+    token: session.token,
+    expiresAt: session.expiresAt,
+    user: session.user,
   };
 }
 

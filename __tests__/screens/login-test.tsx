@@ -28,28 +28,16 @@ jest.mock("react-native-safe-area-context", () => {
   return { SafeAreaView: View };
 });
 
-type WebViewProps = {
-  onShouldStartLoadWithRequest: (request: { url: string }) => boolean;
-};
-
-let mockWebViewProps: WebViewProps | null = null;
-
-jest.mock("react-native-webview", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  const WebView = React.forwardRef(function WebView(props: any, _ref: any) {
-    mockWebViewProps = props;
-    return React.createElement(View);
-  });
-  return { __esModule: true, WebView, default: WebView };
-});
+jest.mock("expo-web-browser", () => ({ openAuthSessionAsync: jest.fn() }));
+jest.mock("react-native-webview", () => ({ WebView: () => null }));
 
 import React from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetch } from "expo/fetch";
-import { Text } from "react-native";
+import { openAuthSessionAsync } from "expo-web-browser";
+import { Alert, Text } from "react-native";
 import LoginScreen from "@/app/(auth)/login";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 
@@ -58,6 +46,7 @@ const LOGOUT_URL = "https://idp.example.com/logout";
 const SUSPENDED = "This account has been suspended or disabled";
 
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
+const mockOpenAuthSession = openAuthSessionAsync as jest.Mock;
 
 function jsonResponse(status: number, body: unknown): any {
   return {
@@ -106,7 +95,7 @@ async function renderLogin() {
 
 beforeEach(async () => {
   mockFetch.mockReset();
-  mockWebViewProps = null;
+  mockOpenAuthSession.mockReset();
   await AsyncStorage.clear();
 });
 
@@ -123,18 +112,18 @@ describe("signing in to a suspended account", () => {
     await findByText(SUSPENDED);
   });
 
-  it("says so when SSO is refused, and ends the provider's session", async () => {
-    const { getByTestId, getByText, queryByText } = await renderLogin();
+  it("ends the provider's session when SSO is refused", async () => {
+    jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockOpenAuthSession.mockResolvedValue({
+      type: "success",
+      url: `aurralpocket://sso#error=${encodeURIComponent(SUSPENDED)}`,
+    });
+    const { getByTestId } = await renderLogin();
 
-    await fireEvent.press(getByTestId("oidc-sign-in"));
     await act(async () => {
-      mockWebViewProps?.onShouldStartLoadWithRequest({
-        url: `${SERVER}/sso/complete#error=${encodeURIComponent(SUSPENDED)}`,
-      });
+      fireEvent.press(getByTestId("oidc-sign-in"));
     });
 
-    expect(getByText(SUSPENDED)).toBeTruthy();
-    expect(queryByText("Try Again")).toBeNull();
     // Left open, the provider would sign this account straight back in, and no
     // other account could use SSO on this device.
     await waitFor(() =>

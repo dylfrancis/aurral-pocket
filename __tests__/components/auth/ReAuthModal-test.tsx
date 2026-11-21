@@ -28,21 +28,8 @@ jest.mock("react-native-safe-area-context", () => {
   return { SafeAreaView: View };
 });
 
-type WebViewProps = {
-  onShouldStartLoadWithRequest: (request: { url: string }) => boolean;
-};
-
-let mockWebViewProps: WebViewProps | null = null;
-
-jest.mock("react-native-webview", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  const WebView = React.forwardRef(function WebView(props: any, _ref: any) {
-    mockWebViewProps = props;
-    return React.createElement(View);
-  });
-  return { __esModule: true, WebView, default: WebView };
-});
+jest.mock("expo-web-browser", () => ({ openAuthSessionAsync: jest.fn() }));
+jest.mock("react-native-webview", () => ({ WebView: () => null }));
 
 import React from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
@@ -50,7 +37,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { fetch } from "expo/fetch";
-import { Pressable, Text } from "react-native";
+import { openAuthSessionAsync } from "expo-web-browser";
+import { Alert, Pressable, Text } from "react-native";
 import { ReAuthModal } from "@/components/auth/ReAuthModal";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { api, notifyReAuthResult, setAuthToken } from "@/lib/api/client";
@@ -59,6 +47,7 @@ const SERVER = "https://aurral.example.com";
 const SUSPENDED = "This account has been suspended or disabled";
 
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
+const mockOpenAuthSession = openAuthSessionAsync as jest.Mock;
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 
 function jsonResponse(status: number, body: unknown): any {
@@ -149,7 +138,7 @@ async function hitLostSession() {
 beforeEach(async () => {
   jest.clearAllMocks();
   mockFetch.mockReset();
-  mockWebViewProps = null;
+  mockOpenAuthSession.mockReset();
   await AsyncStorage.clear();
   setAuthToken(null);
   // A prompt a test left open would hold the client's one re-auth in flight.
@@ -200,12 +189,16 @@ describe("ReAuthModal", () => {
     await AsyncStorage.setItem("oidc_logout_url", "https://idp.example/logout");
     const { getByTestId, findByText, findByTestId } = await renderSignedIn();
 
+    jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockOpenAuthSession.mockResolvedValue({
+      type: "success",
+      url: `aurralpocket://sso#error=${encodeURIComponent(SUSPENDED)}`,
+    });
+
     await hitLostSession();
-    await fireEvent.press(await findByTestId("reauth-oidc-sign-in"));
+    const signIn = await findByTestId("reauth-oidc-sign-in");
     await act(async () => {
-      mockWebViewProps?.onShouldStartLoadWithRequest({
-        url: `${SERVER}/sso/complete#error=${encodeURIComponent(SUSPENDED)}`,
-      });
+      fireEvent.press(signIn);
     });
 
     await findByText("Account Suspended");
