@@ -223,6 +223,8 @@ export default function LoginScreen() {
             <Button
               title="Sign in with SSO"
               variant="inline"
+              // Spins while the auth browser is up and the code is traded.
+              loading={oidcVisible}
               onPress={() => setOidcVisible(true)}
               style={styles.sso}
               testID="oidc-sign-in"

@@ -22,3 +22,13 @@ export function reauth(currentPassword: string) {
 export function logout() {
   return api.post("/auth/logout").then((r) => r.data);
 }
+
+/**
+ * Trades the code the auth browser brought back for a session. The verifier
+ * stands in for the browser's cookie, which the app never sees.
+ */
+export function exchangeOidcCode(code: string, codeVerifier: string) {
+  return api
+    .post<unknown>("/auth/oidc/exchange", { code, code_verifier: codeVerifier })
+    .then((r) => r.data);
+}

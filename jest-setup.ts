@@ -26,6 +26,15 @@ jest.mock("expo/fetch", () => ({
   fetch: jest.fn(),
 }));
 
+// The generated ExpoCrypto mock digests to "", which would give every PKCE pair
+// an empty challenge. Pocket only hashes with SHA-256, so Node's stands in.
+jest.mock("expo-crypto", () => ({
+  ...jest.requireActual("expo-crypto"),
+  digestStringAsync: async (_algorithm: string, data: string) =>
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("node:crypto").createHash("sha256").update(data).digest("base64"),
+}));
+
 // The track menu is native SwiftUI or Compose, which can't render under Jest.
 // It stands in as a group labelled like its trigger, holding a plain button per
 // action that carries the action's title, then one per plugin action.
