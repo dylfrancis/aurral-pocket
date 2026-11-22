@@ -11,6 +11,10 @@ jest.mock("@/lib/player/player", () => ({
   setShuffle: jest.fn(),
 }));
 
+jest.mock("@/hooks/library/use-library-view", () =>
+  require("@/test-support/library-view"),
+);
+
 jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: () => () => false,
 }));
@@ -77,6 +81,7 @@ import {
   waitFor,
 } from "expo-router/testing-library";
 import * as Burnt from "burnt";
+import { IS_IOS } from "@/constants/platform";
 import LibraryLayout from "@/app/(app)/(tabs)/(library)/_layout";
 import LibraryFavoritesScreen, {
   ErrorBoundary,
@@ -91,56 +96,160 @@ const mockGet = api.get as jest.Mock;
 const mockPost = api.post as jest.Mock;
 const mockPlayAlbumFromTrack = playAlbumFromTrack as jest.Mock;
 
-// The shape API version 2 sends: starred ids, plus the rows they name and
-// their parents.
-const favoritesResponse = {
-  artistIds: ["artist:mbid:sigur-ros"],
-  albumIds: ["album:release-group:second-album"],
-  songIds: ["song:recording:first-song"],
-  playlistSongs: [],
-  library: {
-    artists: [
-      {
-        id: 1,
-        name: "Sigur Ros",
-        identityKey: "mbid:sigur-ros",
-        mbid: "sigur-ros",
-      },
-      {
-        id: 3,
-        name: "Test Artist",
-        identityKey: "mbid:test-artist",
-        mbid: "test-artist",
-      },
-    ],
-    albums: [
-      {
-        id: 4,
-        artistId: 3,
-        title: "First Album",
-        identityKey: "release-group:first-album",
-        coverUrl: "/api/library/albums/4/cover",
-        mbid: "first-album",
-      },
-      {
-        id: 8,
-        artistId: 3,
-        title: "Second Album",
-        identityKey: "release-group:second-album",
-      },
-    ],
-    tracks: [
-      {
-        id: 30,
-        title: "First Song",
-        artistName: "Test Artist",
-        identityKey: "recording:first-song",
-        albums: [{ albumId: 4, trackNumber: 1 }],
-        files: [{ id: 1, albumId: 4, available: true }],
-      },
-    ],
-  },
+// Raw Library rows, as GET /library sends them to a signed-in user.
+const SIGUR_ROS = {
+  id: 1,
+  name: "Sigur Ros",
+  identityKey: "mbid:sigur-ros",
+  mbid: "sigur-ros",
+  userFavorite: true,
 };
+const TEST_ARTIST = {
+  id: 3,
+  name: "Test Artist",
+  identityKey: "mbid:test-artist",
+  mbid: "test-artist",
+  userFavorite: false,
+};
+const FIRST_ALBUM = {
+  id: 4,
+  artistId: 3,
+  title: "First Album",
+  identityKey: "release-group:first-album",
+  coverUrl: "/api/library/albums/4/cover",
+  mbid: "first-album",
+  userFavorite: false,
+};
+const SECOND_ALBUM = {
+  id: 8,
+  artistId: 3,
+  title: "Second Album",
+  identityKey: "release-group:second-album",
+  userFavorite: true,
+};
+
+function song(id: number, title: string, artistName = "Test Artist") {
+  return {
+    id,
+    title,
+    artistName,
+    identityKey: `recording:${title.toLowerCase().replace(/ /g, "-")}`,
+    albums: [{ albumId: 4, trackNumber: 1 }],
+    files: [{ id, albumId: 4, available: true }],
+    userFavorite: true,
+  };
+}
+
+type Kind = "artists" | "albums" | "tracks";
+type Rows = { artists?: object[]; albums?: object[]; tracks?: object[] };
+
+/** One page of a section, with the rows its items name. */
+function libraryPage(
+  kind: Kind,
+  rows: Rows = {},
+  { page = 1, total = rows[kind]?.length ?? 0 } = {},
+) {
+  return {
+    kind,
+    page,
+    pageSize: 100,
+    total,
+    hasMore: page * 100 < total,
+    artists: [],
+    albums: [],
+    tracks: [],
+    ...rows,
+  };
+}
+
+const FAVORITE_PAGES: Record<Kind, ReturnType<typeof libraryPage>> = {
+  artists: libraryPage("artists", { artists: [SIGUR_ROS] }),
+  albums: libraryPage("albums", {
+    albums: [SECOND_ALBUM],
+    artists: [TEST_ARTIST],
+  }),
+  tracks: libraryPage("tracks", {
+    tracks: [song(30, "First Song")],
+    albums: [FIRST_ALBUM],
+    artists: [TEST_ARTIST],
+  }),
+};
+
+type Params = Record<string, string>;
+
+/** Answer each section's favorites read with `pages`, by kind and page. */
+function answerFavorites(
+  pages: Partial<Record<Kind, ReturnType<typeof libraryPage>[]>> = {},
+) {
+  mockGet.mockImplementation((url: string, config?: { params?: Params }) => {
+    const params = config?.params ?? {};
+    const kind = params.kind as Kind;
+    if (url !== "/library") return Promise.resolve({ data: {} });
+    if (params.favorite !== "true") {
+      return Promise.resolve({ data: libraryPage(kind) });
+    }
+    const sectionPages = pages[kind] ?? [FAVORITE_PAGES[kind]];
+    const page =
+      sectionPages[Number(params.page) - 1] ??
+      libraryPage(kind, {}, { page: Number(params.page) });
+    return Promise.resolve({ data: page });
+  });
+}
+
+const favoriteReads = () =>
+  mockGet.mock.calls
+    .filter(
+      ([url, config]) =>
+        url === "/library" && config?.params?.favorite === "true",
+    )
+    .map(([, config]) => config.params as Params);
+
+// The native header and search bar render no text a query could find.
+const nativeElements = (type: string) =>
+  screen.container.queryAll((node) => node.type === type);
+
+const androidMenuNodes = () =>
+  screen.container.queryAll((node) => !!node.props.onItemPressed);
+
+type HeaderMenuItem = { title: string; isOn: boolean; press: () => void };
+
+// iOS hands the menu to the native header as data, and Android renders it as
+// Compose views. press() is what a real tap on the item fires on each.
+function headerMenuItems(): HeaderMenuItem[] {
+  if (!IS_IOS) {
+    return androidMenuNodes().map((item) => ({
+      title: item.queryAll((node) => typeof node.props.text === "string")[0]
+        .props.text,
+      isOn: item.props.selected === true,
+      press: () => item.props.onItemPressed({ nativeEvent: {} }),
+    }));
+  }
+  type IosMenuItem = {
+    title: string;
+    state?: "on" | "off";
+    menuId: string;
+    items?: IosMenuItem[];
+  };
+  const flattenMenu = (items: IosMenuItem[] = []): IosMenuItem[] =>
+    items.flatMap((item) => (item.items ? flattenMenu(item.items) : [item]));
+  return nativeElements("RNSScreenStackHeaderConfig").flatMap((header) =>
+    flattenMenu(header.props.headerRightBarButtonItems?.[0]?.menu.items).map(
+      (item) => ({
+        title: item.title,
+        isOn: item.state === "on",
+        press: () =>
+          header.props.onPressHeaderBarButtonMenuItem({
+            nativeEvent: { menuId: item.menuId },
+          }),
+      }),
+    ),
+  );
+}
+
+async function chooseSort(title: string) {
+  const { press } = headerMenuItems().find((item) => item.title === title)!;
+  await act(async () => press());
+}
 
 const OtherRoute = () => null;
 
@@ -189,7 +298,7 @@ async function openFavorites(initialUrl = "/favorites", client = makeClient()) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockGet.mockResolvedValue({ data: favoritesResponse });
+  answerFavorites();
   mockPost.mockResolvedValue({ data: { changedIds: [] } });
 });
 
@@ -242,14 +351,23 @@ describe("favorites screen", () => {
       expect(screen.getByText("No results matching “polka”")).toBeTruthy();
     });
 
-    it("keeps the search handler stable, so typing can't rebuild the header", async () => {
+    it("keeps the search handler and Sort menu stable, so typing can't rebuild the header", async () => {
       await openFavorites();
       await screen.findByText("Sigur Ros");
-      const before = searchBar().props.onChangeText;
+      const nativeHeaderProps = () => ({
+        menu: IS_IOS
+          ? nativeElements("RNSScreenStackHeaderConfig")[0].props
+              .headerRightBarButtonItems
+          : androidMenuNodes()[0].props.onItemPressed,
+        onChangeText: searchBar().props.onChangeText,
+      });
+      const before = nativeHeaderProps();
+      expect(before.menu).toBeDefined();
 
       await search("sigur");
 
-      expect(searchBar().props.onChangeText).toBe(before);
+      expect(nativeHeaderProps().menu).toBe(before.menu);
+      expect(nativeHeaderProps().onChangeText).toBe(before.onChangeText);
     });
 
     it("brings every row back when the search is cleared", async () => {
@@ -289,9 +407,170 @@ describe("favorites screen", () => {
     expect(renderedTitles).toEqual(rowTitles);
   });
 
+  describe("sort", () => {
+    const trackTitles = () =>
+      screen
+        .getAllByText(/ Song$/)
+        .map((node) => node.props.children as string);
+
+    it("asks for every section newest favorite first, as the web does", async () => {
+      await openFavorites();
+      await screen.findByText("First Song");
+
+      const reads = favoriteReads();
+      expect(reads.map((params) => params.kind)).toEqual([
+        "artists",
+        "albums",
+        "tracks",
+      ]);
+      for (const params of reads) {
+        expect(params).toMatchObject({
+          favorite: "true",
+          sort: "favorited",
+          direction: "asc",
+          source: "all",
+          page: "1",
+          pageSize: "100",
+        });
+      }
+      // Songs with no file can't play, so only they ask for playable rows.
+      expect(reads.map((params) => params.availableOnly)).toEqual([
+        undefined,
+        undefined,
+        "true",
+      ]);
+      expect(
+        headerMenuItems()
+          .filter((item) => item.isOn)
+          .map((item) => item.title),
+      ).toEqual(["Recently Favorited"]);
+    });
+
+    it("lists and plays the tracks in the server's order, not by artist", async () => {
+      setBaseUrl("https://music.example");
+      setAuthToken("token");
+      answerFavorites({
+        tracks: [
+          libraryPage("tracks", {
+            tracks: [
+              song(31, "Newest Song", "Zed"),
+              song(32, "Older Song", "Abba"),
+            ],
+            albums: [FIRST_ALBUM],
+            artists: [TEST_ARTIST],
+          }),
+        ],
+      });
+      await openFavorites();
+      await screen.findByText("Newest Song");
+
+      expect(trackTitles()).toEqual(["Newest Song", "Older Song"]);
+
+      await fireEvent.press(screen.getByLabelText("Play Favorites"));
+      const [queue] = (playQueueFrom as jest.Mock).mock.calls[0];
+      expect(queue.map((item: { title: string }) => item.title)).toEqual([
+        "Newest Song",
+        "Older Song",
+      ]);
+    });
+
+    it("rereads every section in the sort picked, and marks it chosen", async () => {
+      await openFavorites();
+      await screen.findByText("First Song");
+      mockGet.mockClear();
+      answerFavorites({
+        tracks: [
+          libraryPage("tracks", {
+            tracks: [song(32, "Older Song"), song(31, "Newest Song")],
+            albums: [FIRST_ALBUM],
+            artists: [TEST_ARTIST],
+          }),
+        ],
+      });
+
+      await chooseSort("Name Z-A");
+
+      await screen.findByText("Older Song");
+      expect(trackTitles()).toEqual(["Older Song", "Newest Song"]);
+      expect(
+        favoriteReads().map(({ kind, sort, direction }) => [
+          kind,
+          sort,
+          direction,
+        ]),
+      ).toEqual([
+        ["artists", "name", "desc"],
+        ["albums", "name", "desc"],
+        ["tracks", "name", "desc"],
+      ]);
+      expect(
+        headerMenuItems()
+          .filter((item) => item.isOn)
+          .map((item) => item.title),
+      ).toEqual(["Name Z-A"]);
+    });
+
+    it.each(["Recently Played", "Most Played"])(
+      "says so when %s leaves no favorites, since it skips the unplayed",
+      async (sortLabel) => {
+        await openFavorites();
+        await screen.findByText("First Song");
+        answerFavorites({
+          artists: [libraryPage("artists")],
+          albums: [libraryPage("albums")],
+          tracks: [libraryPage("tracks")],
+        });
+
+        await chooseSort(sortLabel);
+
+        expect(
+          await screen.findByText(
+            "You haven't played any of your favorites yet",
+          ),
+        ).toBeTruthy();
+      },
+    );
+
+    it("reads every page of a long section, so Play covers every favorite", async () => {
+      setBaseUrl("https://music.example");
+      setAuthToken("token");
+      const firstPageSongs = Array.from({ length: 100 }, (_, index) =>
+        song(100 + index, `Page One ${index} Song`),
+      );
+      const related = { albums: [FIRST_ALBUM], artists: [TEST_ARTIST] };
+      answerFavorites({
+        tracks: [
+          libraryPage(
+            "tracks",
+            { tracks: firstPageSongs, ...related },
+            { total: 101 },
+          ),
+          libraryPage(
+            "tracks",
+            { tracks: [song(500, "Last Song")], ...related },
+            { page: 2, total: 101 },
+          ),
+        ],
+      });
+      await openFavorites();
+      await screen.findByText("Page One 0 Song");
+
+      expect(
+        favoriteReads()
+          .filter((params) => params.kind === "tracks")
+          .map((params) => params.page),
+      ).toEqual(["1", "2"]);
+      await fireEvent.press(screen.getByLabelText("Play Favorites"));
+      const [queue] = (playQueueFrom as jest.Mock).mock.calls[0];
+      expect(queue).toHaveLength(101);
+      expect(queue.at(-1).title).toBe("Last Song");
+    });
+  });
+
   it("drops the header of a section with nothing in it", async () => {
-    mockGet.mockResolvedValue({
-      data: { ...favoritesResponse, artistIds: [], songIds: [] },
+    answerFavorites({
+      artists: [libraryPage("artists")],
+      tracks: [libraryPage("tracks")],
     });
     await openFavorites();
 
@@ -301,14 +580,10 @@ describe("favorites screen", () => {
   });
 
   it("shows an empty state when nothing is starred", async () => {
-    mockGet.mockResolvedValue({
-      data: {
-        artistIds: [],
-        albumIds: [],
-        songIds: [],
-        playlistSongs: [],
-        library: favoritesResponse.library,
-      },
+    answerFavorites({
+      artists: [libraryPage("artists")],
+      albums: [libraryPage("albums")],
+      tracks: [libraryPage("tracks")],
     });
     await openFavorites();
 
@@ -434,7 +709,11 @@ describe("favorites screen", () => {
     await act(async () => {
       finishPosts[1]({ data: { changedIds: [] } });
     });
-    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(favoriteReads().map((params) => params.kind)).toEqual([
+      "artists",
+      "albums",
+      "tracks",
+    ]);
   });
 
   it("hands the player the artwork a row's cover lookup already found", async () => {
@@ -511,7 +790,7 @@ describe("favorites screen", () => {
       },
     });
     client.setQueryData(
-      libraryKeys.favorites(),
+      libraryKeys.favoriteLists({ sort: "favorited", direction: "asc" }),
       { artists: [], albums: [], tracks: [] },
       { updatedAt: Date.now() - 60 * 1000 },
     );

@@ -23,9 +23,14 @@ const PAGE_SIZE = 100;
  * changes between two page reads, and Random shuffles again for every page.
  */
 function flattenAlbumPages(data: InfiniteData<CanonicalPage>): Album[] {
+  return albumsOfPages(data.pages);
+}
+
+/** Albums from pages of `GET /library?kind=albums`, named by their artist. */
+export function albumsOfPages(pages: readonly CanonicalPage[]): Album[] {
   const seenIds = new Set<string>();
   const albums: Album[] = [];
-  for (const page of data.pages) {
+  for (const page of pages) {
     const artistsById = new Map(page.artists.map((a) => [a.id, a]));
     for (const album of page.albums) {
       if (seenIds.has(album.id)) continue;
