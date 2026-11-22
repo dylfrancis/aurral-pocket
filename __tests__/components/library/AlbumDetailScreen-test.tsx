@@ -67,6 +67,7 @@ jest.mock("expo-haptics", () => ({
 }));
 
 let mockParams: Record<string, string> = {};
+const mockPush = jest.fn();
 jest.mock("expo-router", () => {
   const React = require("react");
   const { Pressable, Text } = require("react-native");
@@ -104,7 +105,7 @@ jest.mock("expo-router", () => {
   });
   return {
     useLocalSearchParams: () => mockParams,
-    useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
+    useRouter: () => ({ back: jest.fn(), push: mockPush }),
     Stack: { Screen: () => null, Toolbar },
   };
 });
@@ -244,8 +245,8 @@ const album: Album = {
 };
 
 /** Open the page the way every caller does: through albumRouteParams. */
-async function openAlbumPage(album: Album) {
-  mockParams = albumRouteParams(album, "Radiohead", "artist-mb");
+async function openAlbumPage(album: Album, artistMbid = "artist-mb") {
+  mockParams = albumRouteParams(album, "Radiohead", artistMbid);
   mockUseLibraryAlbum.mockReturnValue({ data: album });
   const queryClient = new QueryClient({
     // React Query's default 5-minute gc timer outlives the test and keeps
@@ -673,6 +674,17 @@ describe("AlbumDetailScreen", () => {
         { seed: { trackIds: ["100"], artists: [] }, label: "Nude" },
         expect.objectContaining({ id: "100", title: "Nude" }),
       );
+    });
+  });
+
+  it("opens an artist with no MBID by its Library id", async () => {
+    await openAlbumPage(album, "");
+
+    await fireEvent.press(screen.getByText("Radiohead"));
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/artist/[mbid]",
+      params: { mbid: "7", name: "Radiohead" },
     });
   });
 

@@ -9,7 +9,7 @@ const GENRE_SECTIONS_MAX = 4;
 const GENRE_SECTION_MIN_ARTISTS = 4;
 const GENRE_SECTION_MAX_ARTISTS = 6;
 
-/** The MBID a Recently Added entry addresses its artist by. */
+/** The id a Recently Added entry's artist image is looked up by. */
 export function recentlyAddedMbid(artist: RecentlyAddedArtist): string {
   return artist.mbid || artist.foreignArtistId || artist.id;
 }

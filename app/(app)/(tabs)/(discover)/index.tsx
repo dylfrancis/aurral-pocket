@@ -36,6 +36,7 @@ import {
   type RecommendedFilter,
 } from "@/lib/discover/recommended";
 import { discoverKeys } from "@/lib/query-keys";
+import { artistRouteId } from "@/lib/library-read";
 import type {
   ConcertEvent,
   DiscoveryArtist,
@@ -143,10 +144,8 @@ export default function DiscoverScreen() {
   const openArtist = useOpenArtist();
 
   const handleRecentlyAddedPress = useCallback(
-    (artist: RecentlyAddedArtist) => {
-      const mbid = artist.mbid || artist.foreignArtistId || artist.id;
-      openArtist({ mbid, name: artist.artistName });
-    },
+    (artist: RecentlyAddedArtist) =>
+      openArtist({ mbid: artistRouteId(artist), name: artist.artistName }),
     [openArtist],
   );
 

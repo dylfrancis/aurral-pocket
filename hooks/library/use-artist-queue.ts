@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { readArtistSongs } from "@/hooks/library/use-play-library-songs";
 import { getArtistQueue } from "@/lib/api/library";
 import { libraryKeys } from "@/lib/query-keys";
 
@@ -8,5 +9,14 @@ export function useArtistQueue(mbid: string | undefined) {
     queryKey: libraryKeys.artistQueue(mbid ?? ""),
     queryFn: () => getArtistQueue(mbid!),
     enabled: !!mbid,
+  });
+}
+
+/** A Library artist's songs to play, for an artist with no MBID. */
+export function useArtistSongs(libraryArtistId: string | undefined) {
+  return useQuery({
+    queryKey: libraryKeys.artistSongs(libraryArtistId ?? ""),
+    queryFn: () => readArtistSongs(libraryArtistId!),
+    enabled: !!libraryArtistId,
   });
 }

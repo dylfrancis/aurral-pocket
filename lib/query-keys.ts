@@ -35,8 +35,8 @@ export const libraryKeys = {
   artistMonitoring: (mbid: string) =>
     ["library", "artistMonitoring", mbid] as const,
   monitoringDefaults: () => ["library", "monitoringDefaults"] as const,
-  canonicalArtist: (mbid: string) =>
-    ["library", "canonicalArtist", mbid] as const,
+  canonicalArtist: (artistRef: string) =>
+    ["library", "canonicalArtist", artistRef] as const,
   // The prefix of every single-artist read, for invalidation.
   canonicalArtists: () => ["library", "canonicalArtist"] as const,
   albums: (artistId: string) => ["library", "albums", artistId] as const,
@@ -69,6 +69,8 @@ export const libraryKeys = {
   artistPreviews: (mbid: string) =>
     ["library", "artistPreviews", mbid] as const,
   artistQueue: (mbid: string) => ["library", "artistQueue", mbid] as const,
+  artistSongs: (libraryId: string) =>
+    ["library", "artistSongs", libraryId] as const,
   // A null release is the server's pick: the Library's edition, else the
   // standard one.
   releaseGroupTracks: (mbid: string, release: string | null) =>
@@ -107,6 +109,7 @@ export function isFilteredListKey(
 const LIBRARY_INDEX_LISTS = new Set([
   "artists",
   "artist",
+  "artistSongs",
   "canonicalArtist",
   "albums",
   "albumsAll",

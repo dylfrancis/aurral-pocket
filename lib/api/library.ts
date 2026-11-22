@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { discOf } from "@/lib/album-discs";
+import { isLibraryArtistId } from "@/lib/library-read";
 import type {
   Artist,
   ArtistDetails,
@@ -315,7 +316,7 @@ export async function lookupLibraryAlbums(
 }
 
 function canonicalArtistId(artistRef: string): Promise<string | null> {
-  return /^\d+$/.test(artistRef)
+  return isLibraryArtistId(artistRef)
     ? Promise.resolve(artistRef)
     : getLibraryArtistId(artistRef);
 }

@@ -25,7 +25,11 @@ const PAGE_SIZE = 100;
 /** Up to 500 songs a play, so even a large Library starts in a moment. */
 const PLAY_PAGES = 5;
 
-export type SongFilter = { genre?: string; favorite?: boolean };
+export type SongFilter = {
+  genre?: string;
+  favorite?: boolean;
+  artistId?: string;
+};
 
 function readSongPage(
   filter: SongFilter,
@@ -41,6 +45,7 @@ function readSongPage(
     pageSize: PAGE_SIZE,
     genre: filter.genre,
     favorite: filter.favorite,
+    artistId: filter.artistId,
     sort,
     direction: sort ? "asc" : undefined,
   });
@@ -85,6 +90,31 @@ export async function readFirstSongs(
     if (!result.hasMore) break;
   }
   return songsOfPages(pages);
+}
+
+function compareAlbumOrder(a: AlbumTrack, b: AlbumTrack) {
+  return (
+    (a.album?.releaseDate ?? "").localeCompare(b.album?.releaseDate ?? "") ||
+    (a.album?.albumName ?? "").localeCompare(b.album?.albumName ?? "") ||
+    (a.discNumber ?? 1) - (b.discNumber ?? 1) ||
+    a.trackNumber - b.trackNumber
+  );
+}
+
+/**
+ * Every playable song of one Library artist, in the artist queue's order. The
+ * queue route takes only an MBID.
+ */
+export async function readArtistSongs(
+  libraryArtistId: string,
+): Promise<AlbumTrack[]> {
+  const pages: CanonicalPage[] = [];
+  for (let page = 1; ; page++) {
+    const result = await readSongPage({ artistId: libraryArtistId }, page);
+    pages.push(result);
+    if (!result.hasMore || page * PAGE_SIZE >= result.total) break;
+  }
+  return songsOfPages(pages).sort(compareAlbumOrder);
 }
 
 /** `isLoading` is true while a read is on its way; a second tap meanwhile does nothing. */

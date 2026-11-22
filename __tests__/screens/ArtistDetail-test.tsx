@@ -15,6 +15,7 @@ jest.mock("@/lib/api/library", () => ({
   getArtistQueue: jest.fn(() => Promise.resolve([])),
   getArtistPreviewTracks: jest.fn(() => Promise.resolve([])),
   updateLibraryFavorites: jest.fn(() => Promise.resolve({ changedIds: [] })),
+  getCanonicalLibraryPage: jest.fn(),
   favoriteEntityId: jest.requireActual("@/lib/api/library").favoriteEntityId,
 }));
 
@@ -107,7 +108,10 @@ jest.mock("expo-router", () => {
     useLocalSearchParams: jest.fn(() => ({
       mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
     })),
-    useRouter: jest.fn(() => ({ back: jest.fn(), push: mockPush })),
+    useRouter: jest.fn(() => ({
+      back: jest.fn(),
+      push: mockPush,
+    })),
     Stack: { Screen: () => null, Toolbar },
   };
 });
@@ -273,6 +277,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   getArtistPreviewTracks,
   getArtistQueue,
+  getCanonicalLibraryPage,
   updateLibraryFavorites,
 } from "@/lib/api/library";
 import ArtistDetailScreen, {
@@ -297,6 +302,7 @@ import type {
 
 const mockGetArtistQueue = getArtistQueue as jest.Mock;
 const mockGetArtistPreviewTracks = getArtistPreviewTracks as jest.Mock;
+const mockGetCanonicalLibraryPage = getCanonicalLibraryPage as jest.Mock;
 const mockPlayQueueFrom = playQueueFrom as jest.Mock;
 const mockSetShuffle = setShuffle as jest.Mock;
 
@@ -1000,20 +1006,125 @@ describe.each([
   });
 });
 
-it("shows Artist not found for a library artist with no MusicBrainz id", async () => {
-  // The library list links such an artist by its library id. Without the
-  // check, the page offered Add to Library for an artist already in it.
-  (useLocalSearchParams as jest.Mock).mockReturnValue({
-    mbid: "1801056",
-    name: "Djo",
-  });
-  mockUseLibraryLookup.mockReturnValue({
-    isInLibrary: () => false,
-    isLoading: false,
+describe("a Library artist with no MBID", () => {
+  const LIBRARY_ID = "1801056";
+  const unmatched: Artist = {
+    ...baseArtist,
+    id: LIBRARY_ID,
+    mbid: "",
+    foreignArtistId: "name:artist:djo",
+    artistName: "Djo",
+    identityKey: "name:artist:djo",
+  };
+
+  beforeEach(() => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      mbid: LIBRARY_ID,
+      name: "Djo",
+    });
+    mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook });
+    mockUseCanonicalArtist.mockReturnValue({
+      data: unmatched,
+      isPending: false,
+      refetch: jest.fn().mockResolvedValue({}),
+    });
+    mockUseLibraryAlbums.mockReturnValue({
+      ...defaultAlbumHook,
+      data: [makeAlbum({ id: "5", artistId: LIBRARY_ID, albumName: "Twenty" })],
+    });
   });
 
-  await renderScreen();
+  it("opens by its Library id with what the Library holds", async () => {
+    await renderScreen();
 
-  expect(screen.getByText("Artist not found")).toBeTruthy();
-  expect(screen.queryByText("Add to Library")).toBeNull();
+    expect(screen.getAllByText("Djo").length).toBeGreaterThan(0);
+    expect(screen.getByText("Twenty")).toBeTruthy();
+    expect(mockUseLibraryAlbums).toHaveBeenLastCalledWith(LIBRARY_ID);
+    expect(screen.queryByText("Artist not found")).toBeNull();
+    expect(screen.queryByText("Add to Library")).toBeNull();
+    // These need an MBID, and the metadata routes refuse a Library id.
+    expect(screen.queryByText("Block Artist")).toBeNull();
+    expect(screen.queryByTestId("artist-tags")).toBeNull();
+    expect(screen.queryByText("Top Tracks")).toBeNull();
+    expect(mockGetArtistPreviewTracks).not.toHaveBeenCalled();
+  });
+
+  it("plays its Library songs in album order", async () => {
+    setBaseUrl("https://music.example");
+    setAuthToken("token");
+    // Untagged files give an album no MBID.
+    const album = (id: string, releaseDate: string) =>
+      makeAlbum({ id, artistId: LIBRARY_ID, releaseDate, mbid: "" });
+    const song = (id: string, albumId: string, trackNumber: number) => ({
+      id,
+      mbid: "",
+      trackName: `Song ${id}`,
+      trackNumber,
+      hasFile: true,
+      streamPath: `/library/stream/${albumId}/${id}`,
+    });
+    mockGetCanonicalLibraryPage.mockResolvedValue({
+      kind: "tracks",
+      page: 1,
+      pageSize: 100,
+      total: 3,
+      hasMore: false,
+      items: [],
+      artists: [unmatched],
+      albums: [album("8", "2001-01-01"), album("9", "1999-01-01")],
+      tracks: [song("21", "8", 2), song("20", "8", 1), song("30", "9", 1)],
+      genres: [],
+    });
+
+    await renderScreen();
+    await fireEvent.press(await screen.findByLabelText("Play Djo"));
+
+    expect(
+      mockPlayQueueFrom.mock.calls[0][0].map((item: { id: string }) => item.id),
+    ).toEqual(["30", "20", "21"]);
+  });
+
+  it("waits for the Library row before picking which page to show", async () => {
+    // A matched artist would otherwise flash the Library page first.
+    mockUseCanonicalArtist.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      refetch: jest.fn(),
+    });
+
+    await renderScreen();
+
+    expect(screen.queryByText("Twenty")).toBeNull();
+    expect(mockGetCanonicalLibraryPage).not.toHaveBeenCalled();
+  });
+
+  it("shows Artist not found for a Library id the Library doesn't hold", async () => {
+    mockUseCanonicalArtist.mockReturnValue({
+      data: null,
+      isPending: false,
+      refetch: jest.fn(),
+    });
+
+    await renderScreen();
+
+    expect(screen.getByText("Artist not found")).toBeTruthy();
+  });
+
+  it("opens the full page once Aurral has matched the artist", async () => {
+    // A link made by Library id, such as an album's, to an artist with an MBID.
+    mockUseCanonicalArtist.mockReturnValue({
+      data: { ...unmatched, mbid: baseArtist.mbid },
+      isPending: false,
+      refetch: jest.fn().mockResolvedValue({}),
+    });
+    mockUseLibraryArtist.mockReturnValue({
+      ...defaultArtistHook,
+      data: baseArtist,
+    });
+
+    await renderScreen();
+
+    expect(mockUseLibraryArtist).toHaveBeenLastCalledWith(baseArtist.mbid);
+    expect(await screen.findByText("Block Artist")).toBeTruthy();
+  });
 });

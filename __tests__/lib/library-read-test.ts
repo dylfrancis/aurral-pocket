@@ -29,23 +29,16 @@ describe("libraryAlbumsRef", () => {
 });
 
 describe("artistRouteId", () => {
-  it("prefers the MBID, the id the artist screen can load", () => {
-    expect(
-      artistRouteId({ id: "3", mbid: "mb-1", foreignArtistId: "f-1" }),
-    ).toBe("mb-1");
+  it("prefers the MBID, which opens the full artist page", () => {
+    expect(artistRouteId({ id: "3", mbid: "mb-1" })).toBe("mb-1");
   });
 
-  it("falls back to the foreign artist id when the MBID is null", () => {
-    // A file-scanned artist carries no MusicBrainz id. The route still has to
-    // be well formed; the artist screen shows its not-found state.
-    expect(artistRouteId({ id: "3", mbid: null, foreignArtistId: "f-1" })).toBe(
-      "f-1",
-    );
-  });
-
-  it("falls back to the canonical id when neither MusicBrainz id is set", () => {
-    expect(artistRouteId({ id: "3", mbid: "", foreignArtistId: "" })).toBe("3");
-  });
+  it.each([null, ""])(
+    "opens an artist with MBID %p by its Library id",
+    (mbid) => {
+      expect(artistRouteId({ id: "3", mbid })).toBe("3");
+    },
+  );
 });
 
 describe("libraryTracksRef", () => {

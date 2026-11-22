@@ -10,14 +10,15 @@ import { matchTopTracks } from "@/lib/top-tracks";
  * to Library file as they arrive.
  */
 export function useArtistTopTracks(
-  mbid: string,
+  mbid: string | undefined,
   artistName: string,
   inLibrary: boolean,
 ) {
   const previews = useQuery({
-    queryKey: libraryKeys.artistPreviews(mbid),
-    queryFn: () => getArtistPreviewTracks(mbid, artistName),
+    queryKey: libraryKeys.artistPreviews(mbid ?? ""),
+    queryFn: () => getArtistPreviewTracks(mbid!, artistName),
     staleTime: 30 * 60 * 1000,
+    enabled: !!mbid,
   });
   const queue = useArtistQueue(inLibrary ? mbid : undefined);
 
