@@ -14,6 +14,27 @@ jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
 
+// The swipe to skip needs a real gesture system, so the bar renders at rest
+// here and the swipe itself is checked in use-swipe-to-skip-test.
+jest.mock("react-native-reanimated", () => {
+  const { View } = require("react-native");
+  return {
+    __esModule: true,
+    default: { View },
+    useReducedMotion: () => false,
+    useSharedValue: (initial: number) => {
+      let current = initial;
+      return { get: () => current, set: (next: number) => (current = next) };
+    },
+    useAnimatedStyle: (fn: () => object) => fn(),
+  };
+});
+jest.mock("react-native-worklets", () => ({ scheduleOnRN: jest.fn() }));
+jest.mock("react-native-gesture-handler", () => ({
+  GestureDetector: ({ children }: any) => children,
+  usePanGesture: () => ({}),
+}));
+
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
   useRouter: jest.fn(() => ({ push: mockPush })),
