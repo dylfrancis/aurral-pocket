@@ -296,10 +296,76 @@ index ec788f4..4685e1e 100644
            let isPreload = offset < Constants.gaplessPreloadCount
            if let newItem = self.createGaplessPlayerItem(for: track, isPreload: isPreload) {
 diff --git a/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift b/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift
-index e224d7d..3fc0c91 100644
+index e224d7d..519bcb5 100644
 --- a/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift
 +++ b/node_modules/react-native-nitro-player/ios/media/MediaSessionManager.swift
-@@ -354,7 +354,7 @@ class MediaSessionManager {
+@@ -105,7 +105,7 @@ class MediaSessionManager {
+       self.remoteSkipBackwardInterval = interval
+     }
+     updateSkipCommandIntervals()
+-    refresh()
++    refreshFromPlayer()
+   }
+ 
+   // MARK: - Entry point from playerQueue (called via DispatchQueue.main.async)
+@@ -130,12 +130,12 @@ class MediaSessionManager {
+   func setNotificationButtons(_ config: IOSButtonConfig) {
+     lockScreenButtons = config.lockScreen
+     carPlayButtons = config.carPlay
+-    refreshInternal()
++    refreshButtons()
+   }
+ 
+   func setNotificationButtonState(buttonId: String, trackIds: [String]?, isActive: Bool) {
+     buttonStates.set(buttonId, trackIds: trackIds, isActive: isActive)
+-    refreshInternal()
++    refreshButtons()
+   }
+ 
+   private func lockScreenButton(for command: LockScreenCommand) -> LockScreenButton? {
+@@ -155,7 +155,7 @@ class MediaSessionManager {
+   private func pressToggle(_ buttonId: String, isActive: Bool) -> MPRemoteCommandHandlerStatus {
+     guard let track = cachedTrack else { return .commandFailed }
+     buttonStates.setFromPress(buttonId, trackId: track.id, isActive: isActive)
+-    refreshInternal()
++    refreshButtons()
+     trackPlayerCore?.notifyNotificationButtonPress(
+       buttonId, track, NotificationButtonEvent(isActive: isActive, rating: nil, repeatMode: nil))
+     return .success
+@@ -242,7 +242,7 @@ class MediaSessionManager {
+     case .repeat:
+       let mode = Self.nextRepeatMode(after: cachedRepeatMode)
+       cachedRepeatMode = mode
+-      refreshInternal()
++      refreshButtons()
+       guard let core = trackPlayerCore else { return }
+       Task {
+         await core.setRepeatMode(mode: mode)
+@@ -285,6 +285,23 @@ class MediaSessionManager {
+     }
+   }
+ 
++  /// Redraws the buttons alone. Now Playing info written from the cache would set the elapsed
++  /// time back to the last player event, and iOS counts on from whatever it is given.
++  private func refreshButtons() {
++    guard showInNotification, cachedTrack != nil, let state = cachedState else { return }
++    updateCommandCenterState(
++      state: state, queueCount: cachedQueueCount, positionInQueue: cachedPositionInQueue)
++    updateCarPlayButtons()
++  }
++
++  /// A full redraw that reads the player again, for the same reason as refreshButtons
++  private func refreshFromPlayer() {
++    guard showInNotification, cachedTrack != nil, let core = trackPlayerCore else {
++      return refreshInternal()
++    }
++    core.playerQueue.async { [weak core] in core?.refreshMediaSession() }
++  }
++
+   // MARK: - Core internal update (main thread only)
+ 
+   private func refreshInternal() {
+@@ -354,7 +371,7 @@ class MediaSessionManager {
        } else {
          // Write info first without artwork, then patch it in when loaded
          MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
@@ -308,7 +374,16 @@ index e224d7d..3fc0c91 100644
            guard let self = self, let image = image else { return }
            guard self.lastArtworkUrl == artworkUrl else { return }
            var updated = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-@@ -631,7 +631,24 @@ class MediaSessionManager {
+@@ -535,7 +552,7 @@ class MediaSessionManager {
+       }
+       let mode = Self.repeatMode(from: repeatEvent.repeatType)
+       self.cachedRepeatMode = mode
+-      self.refreshInternal()
++      self.refreshButtons()
+       let buttonId = button.id
+       Task {
+         await core.setRepeatMode(mode: mode)
+@@ -631,7 +648,24 @@ class MediaSessionManager {
      lastArtworkUrl = nil
    }
  
@@ -334,7 +409,7 @@ index e224d7d..3fc0c91 100644
      if let cached = artworkCache.object(forKey: url as NSString) {
        completion(cached)
        return
-@@ -642,7 +659,9 @@ class MediaSessionManager {
+@@ -642,7 +676,9 @@ class MediaSessionManager {
        return
      }
  

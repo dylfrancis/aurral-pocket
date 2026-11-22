@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { useReducedMotion } from "react-native-reanimated";
+import { LockScreenFavorite } from "@/components/player/LockScreenFavorite";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { IS_IOS } from "@/constants/platform";
 import { useAuth } from "@/contexts/auth-context";
@@ -44,6 +45,7 @@ export default function AppLayout() {
 
   return (
     <NowPlayingProvider>
+      {IS_IOS && <LockScreenFavorite />}
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         {/* Opened from the person button on each tab's first screen. */}

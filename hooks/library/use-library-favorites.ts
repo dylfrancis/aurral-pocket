@@ -33,13 +33,15 @@ export function useLibraryFavorites() {
  * reports as the library track it matched.
  */
 export function useIsFavoriteTrack(
-  favorite: TrackFavorite,
+  favorite: TrackFavorite | null,
   trackMbid: string | null,
 ) {
   return useQuery({
     queryKey: libraryKeys.favorites(),
     queryFn: getLibraryFavorites,
-    select: (favorites) => isFavoriteTrack(favorites, favorite, trackMbid),
+    enabled: favorite !== null,
+    select: (favorites) =>
+      favorite !== null && isFavoriteTrack(favorites, favorite, trackMbid),
   });
 }
 
@@ -76,7 +78,7 @@ function withoutFavorite(
   };
 }
 
-type ToggleFavorite = {
+export type ToggleFavorite = {
   kind: FavoriteKind;
   key: string;
   starred: boolean;

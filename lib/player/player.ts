@@ -77,6 +77,7 @@ import {
   type RadioStation,
 } from "@/lib/player/radio";
 import type { LibraryQueueTrack, Track } from "@/lib/types/library";
+import { IS_IOS } from "@/constants/platform";
 import { useSyncExternalStore } from "react";
 import {
   PlayerQueue,
@@ -1774,6 +1775,75 @@ export function onPlaybackFailed(listener: () => void): () => void {
   playbackFailedListeners.add(listener);
   return function unsubscribe(): void {
     playbackFailedListeners.delete(listener);
+  };
+}
+
+const FAVORITE_STAR_ID = "favorite";
+
+export type FavoriteStar = { trackId: string; isFavorite: boolean };
+
+let favoriteStarShown = false;
+let favoriteStarChange: Promise<void> = Promise.resolve();
+let favoriteStarPressWired = false;
+const favoriteStarPressListeners = new Set<Listener<FavoriteStar>>();
+
+/**
+ * Fill or empty the iOS Lock Screen star for `star.trackId`, or hide it with
+ * null. Call it per current track: the engine shows each track's last state.
+ */
+export function setLockScreenFavorite(star: FavoriteStar | null): void {
+  if (!IS_IOS) return;
+  if (star) {
+    try {
+      TrackPlayer.setNotificationButtonState({
+        buttonId: FAVORITE_STAR_ID,
+        trackIds: [star.trackId],
+        isActive: star.isFavorite,
+      });
+    } catch {}
+  }
+  const shown = star !== null;
+  if (shown === favoriteStarShown) return;
+  favoriteStarShown = shown;
+  // After the engine's first configure, and one at a time, so the last call
+  // decides. The other settings stay as they were, but the buttons are
+  // replaced whole, so any CarPlay buttons would have to be sent here too.
+  favoriteStarChange = favoriteStarChange
+    .then(configureEngine)
+    .then(() =>
+      TrackPlayer.configure({
+        notificationButtons: {
+          ios: {
+            lockScreen: shown
+              ? [{ id: FAVORITE_STAR_ID, command: "like", title: "Favorite" }]
+              : [],
+          },
+        },
+      }),
+    )
+    .catch(() => {});
+}
+
+/**
+ * Hear each tap on the star, already redrawn, and the state it gave. Put a
+ * refused tap back with setLockScreenFavorite. Returns unsubscribe.
+ */
+export function onLockScreenFavoritePress(
+  listener: Listener<FavoriteStar>,
+): () => void {
+  if (!favoriteStarPressWired) {
+    favoriteStarPressWired = true;
+    callbackManager.subscribeToNotificationButtonPress(
+      (buttonId, track, event) => {
+        if (buttonId !== FAVORITE_STAR_ID) return;
+        const press = { trackId: track.id, isFavorite: !!event.isActive };
+        favoriteStarPressListeners.forEach((each) => each(press));
+      },
+    );
+  }
+  favoriteStarPressListeners.add(listener);
+  return function unsubscribe(): void {
+    favoriteStarPressListeners.delete(listener);
   };
 }
 
