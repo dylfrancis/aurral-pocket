@@ -1,2 +1,8 @@
-export { default } from "@/app/(app)/(tabs)/(settings)/settings/about";
-export * from "@/app/(app)/(tabs)/(settings)/settings/about";
+import type { ErrorBoundaryProps } from "expo-router";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
+
+export { AboutScreen as default } from "@/components/settings/AboutScreen";
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <RouteErrorBoundary {...props} message="Failed to load About" />;
+}

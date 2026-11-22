@@ -28,14 +28,6 @@ export default function FlowLayout() {
             presentation: "card",
           }}
         />
-        <Stack.Screen
-          name="worker-settings"
-          options={{
-            title: "Worker Settings",
-            headerBackButtonDisplayMode: "minimal",
-            presentation: "card",
-          }}
-        />
       </Stack>
     </MiniPlayerHost>
   );

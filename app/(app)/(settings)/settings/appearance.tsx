@@ -1,2 +1,8 @@
-export { default } from "@/app/(app)/(tabs)/(settings)/settings/appearance";
-export * from "@/app/(app)/(tabs)/(settings)/settings/appearance";
+import type { ErrorBoundaryProps } from "expo-router";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
+
+export { AppearanceScreen as default } from "@/components/settings/AppearanceScreen";
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <RouteErrorBoundary {...props} message="Failed to load Appearance" />;
+}

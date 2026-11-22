@@ -34,8 +34,8 @@ import { useLibrarySearch } from "@/hooks/search/use-library-search";
 import { useSearchSongActions } from "@/hooks/search/use-search-song-actions";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { searchBarColors } from "@/constants/navigation";
-import { IS_ANDROID, IS_IOS } from "@/constants/platform";
-import { OverflowMenu } from "@/components/navigation/OverflowMenu";
+import { IS_IOS } from "@/constants/platform";
+import { SettingsToolbar } from "@/components/navigation/SettingsToolbar";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import type { SearchArtist } from "@/lib/types/search";
 import { useOpenArtist } from "@/hooks/use-open-artist";
@@ -382,6 +382,7 @@ export default function SearchScreen() {
         onCancelButtonPress={handleCancelSearch}
         onSearchButtonPress={handleSearchSubmit}
       />
+      <SettingsToolbar />
       <Stack.Toolbar placement="right">
         {isShazamAvailable && (
           <Stack.Toolbar.Button
@@ -392,7 +393,6 @@ export default function SearchScreen() {
             Identify song
           </Stack.Toolbar.Button>
         )}
-        {IS_ANDROID && <OverflowMenu />}
       </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"

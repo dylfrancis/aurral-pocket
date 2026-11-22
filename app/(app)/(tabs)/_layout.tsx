@@ -23,6 +23,13 @@ export default function TabsLayout() {
     return <ScreenCenter loading />;
   }
 
+  const searchTrigger = (
+    <NativeTabs.Trigger name="(search)">
+      <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
+      <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
+    </NativeTabs.Trigger>
+  );
+
   return (
     <NativeTabs
       tintColor={colors.tabIconSelected}
@@ -53,10 +60,9 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(search)" role="search">
-        <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
-        <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
+      {/* Search sits where each platform puts it: last on iOS, in the
+          middle of Android's bar. */}
+      {!IS_IOS && searchTrigger}
 
       <NativeTabs.Trigger
         name="(flow)"
@@ -66,18 +72,12 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Label>Flows</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      {/* On iPhone, UIKit folds a fifth tab and beyond into its More list.
-          Android's bar stops at five and has no More, so these two open
-          above the tabs from each tab's overflow menu instead. */}
-      <NativeTabs.Trigger name="(activity)" hidden={!IS_IOS}>
+      <NativeTabs.Trigger name="(activity)">
         <NativeTabs.Trigger.Icon sf="clock.arrow.circlepath" md="update" />
         <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(settings)" hidden={!IS_IOS}>
-        <NativeTabs.Trigger.Icon sf="gearshape" md="settings" />
-        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
+      {IS_IOS && searchTrigger}
     </NativeTabs>
   );
 }

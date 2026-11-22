@@ -35,7 +35,7 @@ import {
 } from "@/hooks/activity/use-queue-controls";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
-import { useNavigateToTab } from "@/hooks/use-navigate-to-tab";
+import { SettingsToolbar } from "@/components/navigation/SettingsToolbar";
 import {
   activityArtistMbid,
   albumRequestLibraryId,
@@ -79,7 +79,6 @@ export function ActivityList({ view }: ActivityListProps) {
   const isAdmin = user?.role === "admin";
   const hasPermission = useHasPermission();
   const openPlaylist = useOpenPlaylist();
-  const navigateToTab = useNavigateToTab();
   const sheetRef = useRef<BottomSheetModal>(null);
   const [selected, setSelected] = useState<ActivityItem | null>(null);
   const [statusFilter, setStatusFilter] = useState<ActivityStatus | null>(null);
@@ -232,6 +231,7 @@ export function ActivityList({ view }: ActivityListProps) {
 
   return (
     <>
+      <SettingsToolbar />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu
           icon={FILTER_MENU_ICON}
@@ -314,7 +314,7 @@ export function ActivityList({ view }: ActivityListProps) {
               actionLabel={showDiscoverAction ? "Start Discovering" : undefined}
               onAction={
                 showDiscoverAction
-                  ? () => navigateToTab("/(app)/(tabs)/(discover)")
+                  ? () => router.navigate("/(app)/(tabs)/(discover)")
                   : undefined
               }
             />

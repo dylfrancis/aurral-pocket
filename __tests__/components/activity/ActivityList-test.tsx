@@ -62,13 +62,12 @@ jest.mock("expo-router", () => {
           },
           React.createElement(Text, null, children),
         ),
-      Button: ({ children }: any) => React.createElement(View, null, children),
+      Button: () => null,
     },
   );
   return {
     useFocusEffect: jest.fn(),
     useNavigation: () => ({ isFocused: mockIsFocused }),
-    useSegments: () => ["(app)", "(tabs)", "(activity)", "history"],
     useRouter: jest.fn(() => ({
       push: mockPush,
       replace: mockReplace,

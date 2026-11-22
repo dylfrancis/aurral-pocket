@@ -22,9 +22,9 @@ import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
 import { Fonts } from "@/constants/theme";
-import { IS_ANDROID, IS_IOS } from "@/constants/platform";
-import { OverflowMenu } from "@/components/navigation/OverflowMenu";
-import { useOpenOverflowScreen } from "@/hooks/use-open-overflow-screen";
+import { IS_IOS } from "@/constants/platform";
+import { useOpenSettings } from "@/hooks/use-open-settings";
+import { SettingsToolbar } from "@/components/navigation/SettingsToolbar";
 import {
   useDiscovery,
   useDiscoverLayout,
@@ -187,11 +187,7 @@ export default function DiscoverScreen() {
     if (show.url) Linking.openURL(show.url).catch(() => {});
   }, []);
 
-  const openOverflowScreen = useOpenOverflowScreen();
-  const handleOpenSettings = useCallback(
-    () => openOverflowScreen("settings"),
-    [openOverflowScreen],
-  );
+  const handleOpenSettings = useOpenSettings();
 
   const shazamSheetRef = useRef<BottomSheetModal>(null);
 
@@ -254,6 +250,7 @@ export default function DiscoverScreen() {
 
   return (
     <>
+      <SettingsToolbar />
       <Stack.Toolbar placement="right">
         {isShazamAvailable && (
           <Stack.Toolbar.Button
@@ -264,7 +261,6 @@ export default function DiscoverScreen() {
             Identify song
           </Stack.Toolbar.Button>
         )}
-        {IS_ANDROID && <OverflowMenu />}
       </Stack.Toolbar>
       <ScrollView
         ref={scrollRef}
