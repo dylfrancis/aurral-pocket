@@ -14,3 +14,16 @@ export type SettingsSwitchProps = {
   /** For a switch outside a settings row, which names it there. */
   accessibilityLabel?: string;
 };
+
+export type SettingsAction = {
+  key: string;
+  label: string;
+  onPress: () => void;
+};
+
+export type SettingsActionMenuProps = {
+  triggerLabel: string;
+  accessibilityLabel: string;
+  actions: readonly SettingsAction[];
+  disabled?: boolean;
+};
