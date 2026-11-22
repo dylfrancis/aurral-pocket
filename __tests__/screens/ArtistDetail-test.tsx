@@ -84,6 +84,7 @@ jest.mock("@/hooks/library/use-cover-art-url", () => ({
 }));
 
 const mockPush = jest.fn();
+const mockSetParams = jest.fn();
 jest.mock("expo-router", () => {
   const React = require("react");
   const { Pressable, Text } = require("react-native");
@@ -111,6 +112,7 @@ jest.mock("expo-router", () => {
     useRouter: jest.fn(() => ({
       back: jest.fn(),
       push: mockPush,
+      setParams: mockSetParams,
     })),
     Stack: { Screen: () => null, Toolbar },
   };
@@ -265,6 +267,26 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: jest.fn(() => () => true),
 }));
 
+// The sheet has its own tests; this one hands back what a save returned.
+let mockMatchResult: unknown;
+jest.mock("@/components/artist/MatchArtistSheet", () => {
+  const React = require("react");
+  const { Pressable, Text } = require("react-native");
+  return {
+    MatchArtistSheet: ({ onSaved }: any) =>
+      React.createElement(
+        Pressable,
+        { onPress: () => onSaved(mockMatchResult) },
+        React.createElement(Text, null, "Save Match"),
+      ),
+  };
+});
+
+const mockScan = jest.fn();
+jest.mock("@/hooks/library/use-library-scan", () => ({
+  useLibraryScan: () => ({ scan: mockScan, isScanning: false }),
+}));
+
 jest.mock("@/lib/api/plugins", () => ({
   getPluginActions: jest.fn(),
   runPluginAction: jest.fn(),
@@ -290,7 +312,9 @@ import {
 } from "@/hooks/library/use-library-artist";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
+import * as Burnt from "burnt";
 import { playQueueFrom, setShuffle } from "@/lib/player/player";
 import { getPluginActions, runPluginAction } from "@/lib/api/plugins";
 import type {
@@ -395,6 +419,7 @@ beforeEach(() => {
   });
   mockGetPluginActions.mockResolvedValue([NOTE_ARTIST]);
   mockRunPluginAction.mockResolvedValue("Noted");
+  (useHasPermission as jest.Mock).mockReturnValue(() => true);
   consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -1015,6 +1040,7 @@ describe("a Library artist with no MBID", () => {
     foreignArtistId: "name:artist:djo",
     artistName: "Djo",
     identityKey: "name:artist:djo",
+    sources: ["readonly"],
   };
 
   beforeEach(() => {
@@ -1082,6 +1108,67 @@ describe("a Library artist with no MBID", () => {
     expect(
       mockPlayQueueFrom.mock.calls[0][0].map((item: { id: string }) => item.id),
     ).toEqual(["30", "20", "21"]);
+  });
+
+  it.each([
+    [
+      "a match",
+      {
+        id: 1801056,
+        mbid: baseArtist.mbid,
+        musicbrainzName: "Djo",
+        merged: false,
+      },
+      "Matched Djo to Djo",
+      baseArtist.mbid,
+    ],
+    [
+      "a merge",
+      { id: 5, mbid: baseArtist.mbid, name: "Djo", merged: true },
+      "Merged Djo into Djo",
+      baseArtist.mbid,
+    ],
+    [
+      "a removed match",
+      { id: 1801056, mbid: null, merged: false },
+      "Removed the match from Djo",
+      "1801056",
+    ],
+  ])("follows the artist after %s", async (_kind, result, toast, mbid) => {
+    mockMatchResult = { name: "Djo", musicbrainzName: null, ...result };
+    await renderScreen();
+
+    await fireEvent.press(screen.getByText("Match Artist"));
+    await fireEvent.press(screen.getByText("Save Match"));
+
+    expect(Burnt.toast).toHaveBeenCalledWith({ title: toast, preset: "done" });
+    expect(mockSetParams).toHaveBeenCalledWith({ mbid });
+  });
+
+  it("rescans the artist's files from its menu", async () => {
+    await renderScreen();
+
+    await fireEvent.press(screen.getByText("Rescan Files"));
+
+    expect(mockScan).toHaveBeenCalledWith(
+      { artistId: 1801056 },
+      {
+        started: "Rescanning Djo",
+        done: "Rescanned Djo",
+        failed: "Couldn't rescan Djo",
+      },
+    );
+  });
+
+  it("offers no match without permission to add artists", async () => {
+    (useHasPermission as jest.Mock).mockReturnValue(
+      (permission: string) => permission !== "addArtist",
+    );
+
+    await renderScreen();
+
+    expect(screen.getByText("Rescan Files")).toBeTruthy();
+    expect(screen.queryByText("Match Artist")).toBeNull();
   });
 
   it("waits for the Library row before picking which page to show", async () => {

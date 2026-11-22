@@ -23,7 +23,10 @@ import type {
   LibraryFavorites,
   LibraryFavoritesWire,
   LibraryQueueTrack,
+  ArtistMatch,
+  ArtistMatchResult,
   LibraryScanJob,
+  LibraryScanScope,
   LibraryScanStatus,
 } from "@/lib/types/library";
 import type {
@@ -75,6 +78,7 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
     identityKey: item.identityKey,
     userFavorite: item.userFavorite,
     coverUrl: item.coverUrl ?? undefined,
+    providerId: item.providerId,
   };
 }
 
@@ -511,9 +515,40 @@ export async function updateLibraryFavorites(ids: string[], starred: boolean) {
   return r.data;
 }
 
-/** Queue a rescan of the canonical library. Returns 202 with a job id. */
-export async function refreshCanonicalLibrary() {
-  const r = await api.post<LibraryScanJob>("/library/refresh");
+/** Answers 404 when an artist has no files to rescan. */
+export async function refreshCanonicalLibrary(scope: LibraryScanScope) {
+  const r = await api.post<LibraryScanJob>("/library/refresh", scope);
+  return r.data;
+}
+
+/**
+ * MusicBrainz artists that could be this Library artist, searched by `query`
+ * or else by its name. Answers 503 while the metadata server is down.
+ */
+export async function getArtistMatches(
+  libraryArtistId: string,
+  query: string,
+  signal?: AbortSignal,
+) {
+  const r = await api.get<{ items: ArtistMatch[] }>(
+    `/library/artists/${libraryArtistId}/matches`,
+    { params: query ? { q: query } : undefined, signal },
+  );
+  return r.data.items;
+}
+
+/**
+ * Match a Library artist to a MusicBrainz artist, or clear its match with
+ * null. A match to an artist already in the Library merges the two.
+ */
+export async function setLibraryArtistMbid(
+  libraryArtistId: string,
+  mbid: string | null,
+) {
+  const r = await api.put<ArtistMatchResult>(
+    `/library/artists/${libraryArtistId}/mbid`,
+    { mbid },
+  );
   return r.data;
 }
 

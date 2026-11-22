@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useLiveChannel } from "@/hooks/live/use-live-channel";
-import { discoverKeys, isLibraryIndexKey } from "@/lib/query-keys";
+import { invalidateLibraryIndex } from "@/hooks/library/library-lists";
+import { discoverKeys } from "@/lib/query-keys";
 
 /**
  * Refreshes the Library after any scan and the release rails after a metadata
@@ -13,9 +14,7 @@ export function useLibraryUpdates() {
     ["library_scan_completed", "release_metadata_refreshed"],
     (message) => {
       if (message.type === "library_scan_completed") {
-        void queryClient.invalidateQueries({
-          predicate: (query) => isLibraryIndexKey(query.queryKey),
-        });
+        void invalidateLibraryIndex(queryClient);
         void queryClient.invalidateQueries({
           queryKey: discoverKeys.recentlyAdded(),
         });

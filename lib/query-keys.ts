@@ -71,6 +71,8 @@ export const libraryKeys = {
   artistQueue: (mbid: string) => ["library", "artistQueue", mbid] as const,
   artistSongs: (libraryId: string) =>
     ["library", "artistSongs", libraryId] as const,
+  artistMatches: (libraryId: string, query: string) =>
+    ["library", "artistMatches", libraryId, query] as const,
   // A null release is the server's pick: the Library's edition, else the
   // standard one.
   releaseGroupTracks: (mbid: string, release: string | null) =>
@@ -109,6 +111,7 @@ export function isFilteredListKey(
 const LIBRARY_INDEX_LISTS = new Set([
   "artists",
   "artist",
+  "artistQueue",
   "artistSongs",
   "canonicalArtist",
   "albums",

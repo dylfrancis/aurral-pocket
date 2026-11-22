@@ -1,5 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { isFilteredListKey, libraryKeys, searchKeys } from "@/lib/query-keys";
+import {
+  isFilteredListKey,
+  isLibraryIndexKey,
+  libraryKeys,
+  searchKeys,
+} from "@/lib/query-keys";
 
 /**
  * Reread the Library's own lists after an artist or album joins or leaves it:
@@ -28,5 +33,11 @@ export function invalidateFilteredLists(
 ) {
   return queryClient.invalidateQueries({
     predicate: (query) => isFilteredListKey(query.queryKey, filter),
+  });
+}
+
+export function invalidateLibraryIndex(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({
+    predicate: (query) => isLibraryIndexKey(query.queryKey),
   });
 }

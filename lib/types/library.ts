@@ -12,7 +12,8 @@ export type ArtistStatistics = {
 };
 
 /** Which scanner owns the records in the canonical library. */
-export type LibrarySource = "aurral" | "lidarr" | "all";
+/** Where a Library file sits. "all" asks a read for every one. */
+export type LibrarySource = "aurral" | "readonly" | "flow" | "all";
 
 export type Artist = {
   id: string;
@@ -35,6 +36,8 @@ export type Artist = {
   userFavorite?: boolean;
   /** Canonical read path only. See CanonicalArtistItem. */
   coverUrl?: string;
+  /** Canonical read path only. See CanonicalArtistItem. */
+  providerId?: string | number | null;
 };
 
 export type AlbumStatistics = {
@@ -358,6 +361,10 @@ export type CanonicalArtistItem = {
    * neither.
    */
   coverUrl?: string | null;
+  /**
+   * Null for an artist Aurral scanned. The web offers Match artist only then.
+   */
+  providerId?: string | number | null;
 };
 
 /**
@@ -507,6 +514,36 @@ export type LibraryScanJob = {
   queued: boolean;
   jobId: number;
   status: LibraryScanStatus;
+};
+
+/**
+ * A quick scan reads new and changed files, and a full scan reads every file
+ * again. An artist's rescan reads only that artist's files.
+ */
+export type LibraryScanScope =
+  { mode: "quick" | "full" } | { artistId: number };
+
+/** A MusicBrainz artist that `GET /library/artists/:id/matches` offers. */
+export type ArtistMatch = {
+  /** The MBID. */
+  id: string;
+  name: string;
+  disambiguation: string | null;
+  type: string | null;
+  imageUrl: string | null;
+  /** The Library artist that already has this MBID. */
+  libraryArtistId: number | null;
+};
+
+/** Body of `PUT /library/artists/:id/mbid`. */
+export type ArtistMatchResult = {
+  /** The Library artist that now holds the files, which a merge changes. */
+  id: number;
+  mbid: string | null;
+  name: string;
+  musicbrainzName: string | null;
+  /** True when the match moved this artist into one already in the Library. */
+  merged: boolean;
 };
 
 /**

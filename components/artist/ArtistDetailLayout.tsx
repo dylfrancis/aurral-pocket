@@ -1,6 +1,7 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
 import { ArtistLibraryControl } from "@/components/artist/ArtistLibraryControl";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
+import { MatchArtistSheet } from "@/components/artist/MatchArtistSheet";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { TopTracksSection } from "@/components/artist/TopTracksSection";
@@ -33,6 +34,7 @@ import {
   useLibraryArtist,
 } from "@/hooks/library/use-library-artist";
 import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
+import { useLibraryScan } from "@/hooks/library/use-library-scan";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
@@ -66,6 +68,7 @@ import { topTrackClipId, topTrackItem } from "@/lib/top-tracks";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
 import type {
   Album,
+  ArtistMatchResult,
   PrimaryReleaseType,
   ReleaseGroup,
 } from "@/lib/types/library";
@@ -81,6 +84,8 @@ import SearchIcon from "@expo/material-symbols/search.xml";
 import BlockIcon from "@expo/material-symbols/block.xml";
 import CheckCircle from "@expo/material-symbols/check_circle.xml";
 import Sensors from "@expo/material-symbols/sensors.xml";
+import LinkIcon from "@expo/material-symbols/link.xml";
+import RefreshIcon from "@expo/material-symbols/refresh.xml";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -207,6 +212,51 @@ export function ArtistDetailLayout({
       mbid: mbid ?? "",
       name: libraryArtist?.artistName || artistName,
     });
+
+  // As on the web: only for an artist with no provider record.
+  const canMatch =
+    inLibrary &&
+    hasPermission("addArtist") &&
+    !!canonicalArtist &&
+    canonicalArtist.providerId == null;
+  const [matching, setMatching] = useState(false);
+  const handleMatched = useCallback(
+    (result: ArtistMatchResult) => {
+      const name = libraryArtist?.artistName || artistName || "Artist";
+      Burnt.toast({
+        title: result.merged
+          ? `Merged ${name} into ${result.name}`
+          : result.mbid
+            ? `Matched ${name} to ${result.musicbrainzName || "MusicBrainz"}`
+            : `Removed the match from ${name}`,
+        preset: "done",
+      });
+      // A merge moves the artist to another id, and a removed match leaves it
+      // only its Library id.
+      router.setParams({ mbid: result.mbid ?? String(result.id) });
+    },
+    [libraryArtist?.artistName, artistName, router],
+  );
+
+  // As on the web: only for files in the Library or a read-only folder.
+  const canRescan =
+    inLibrary &&
+    !!canonicalArtist?.sources?.some(
+      (source) => source === "aurral" || source === "readonly",
+    );
+  const libraryScan = useLibraryScan();
+  const handleRescan = useCallback(() => {
+    if (!canonicalArtist) return;
+    const name = canonicalArtist.artistName || artistName;
+    libraryScan.scan(
+      { artistId: Number(canonicalArtist.id) },
+      {
+        started: `Rescanning ${name}`,
+        done: `Rescanned ${name}`,
+        failed: `Couldn't rescan ${name}`,
+      },
+    );
+  }, [canonicalArtist, artistName, libraryScan]);
 
   const pollCount = useRef(0);
   useEffect(() => {
@@ -556,6 +606,23 @@ export function ArtistDetailLayout({
               {`Re-search Missing (${missingCount})`}
             </Stack.Toolbar.MenuAction>
           ) : null}
+          {canMatch ? (
+            <Stack.Toolbar.MenuAction
+              icon={IS_IOS ? "link" : LinkIcon}
+              onPress={() => setMatching(true)}
+            >
+              Match Artist
+            </Stack.Toolbar.MenuAction>
+          ) : null}
+          {canRescan ? (
+            <Stack.Toolbar.MenuAction
+              icon={IS_IOS ? "arrow.clockwise" : RefreshIcon}
+              disabled={libraryScan.isScanning}
+              onPress={handleRescan}
+            >
+              Rescan Files
+            </Stack.Toolbar.MenuAction>
+          ) : null}
           {pluginMenuSection(pluginActions)}
           {/* The blocklist names artists by MBID. */}
           {mbid ? (
@@ -703,6 +770,16 @@ export function ArtistDetailLayout({
               Haptics.NotificationFeedbackType.Success,
             );
           }}
+        />
+      ) : null}
+
+      {matching && canonicalArtist ? (
+        <MatchArtistSheet
+          libraryArtistId={canonicalArtist.id}
+          artistName={libraryArtist?.artistName || artistName}
+          currentMbid={mbid}
+          onSaved={handleMatched}
+          onDismiss={() => setMatching(false)}
         />
       ) : null}
 
