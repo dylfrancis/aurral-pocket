@@ -133,6 +133,7 @@ export function isLibraryIndexKey(queryKey: QueryKey): boolean {
 export const searchKeys = {
   artists: (query: string) => ["search", "artists", query] as const,
   albums: (query: string) => ["search", "albums", query] as const,
+  catalog: (query: string) => ["search", "catalog", query] as const,
   tagSuggestions: (query: string) => ["search", "tags", query] as const,
   artistsByTag: (tag: string, scope: string) =>
     ["search", "byTag", tag, scope] as const,

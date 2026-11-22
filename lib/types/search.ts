@@ -6,15 +6,9 @@ import type {
 } from "@/lib/types/monitoring";
 
 /**
- * An artist result from the app contract's `GET /search?scope=artist`.
- *
- * `id` is a MusicBrainz ID: every action pocket offers on a result (open the
- * detail screen, add to library) addresses the artist by MBID. The route's
- * `inLibrary` is always false in 2.12.0, so screens mark library artists with
- * useLibraryLookup instead.
- *
- * There is deliberately no artwork field. Aurral's own web UI shows no
- * thumbnails in search results either, and the row fetches none.
+ * An artist from `GET /search` or `GET /search/unified`. `id` is its MBID,
+ * which every action on a result uses. Screens mark Library artists with
+ * useLibraryLookup, since `GET /search` always sends `inLibrary: false`.
  */
 export type SearchArtist = {
   id: string;
@@ -148,13 +142,22 @@ export type SearchAlbum = {
   coverUrl: string | null;
 };
 
-export type SearchAlbumsResponse = {
-  scope: "album";
-  query: string;
-  count: number;
-  offset: number;
-  hasMore?: boolean;
-  items: SearchAlbum[];
+/**
+ * Body of `GET /search/unified`, as far as pocket reads it. The route also
+ * finds Deezer songs, which pocket leaves out: only Library songs play.
+ */
+export type CatalogSearchWire = {
+  /** "unavailable" when the metadata server didn't answer. */
+  status: "ok" | "unavailable";
+  artists: SearchArtist[];
+  albums: (Omit<SearchAlbum, "id" | "type"> & { id: string | null })[];
+};
+
+/** Catalog artists and albums for a search, best match first. */
+export type CatalogSearchResponse = {
+  status: "ok" | "unavailable";
+  artists: SearchArtist[];
+  albums: SearchAlbum[];
 };
 
 export type SimilarArtist = {

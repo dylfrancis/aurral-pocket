@@ -6,18 +6,22 @@ import type { SearchArtist } from "@/lib/types/search";
 type SearchArtistRowProps = {
   artist: SearchArtist;
   isInLibrary: boolean;
+  /** Server-relative Library artwork, for a Library artist. */
+  image?: string | null;
   onPress: () => void;
 };
 
 export const SearchArtistRow = React.memo(function SearchArtistRow({
   artist,
   isInLibrary,
+  image,
   onPress,
 }: SearchArtistRowProps) {
   return (
     <MediaRow
       imageType="artist"
       mbid={artist.id}
+      coverUrl={image ?? undefined}
       title={artist.name}
       trailing={
         isInLibrary ? <Chip label="In Library" variant="brand" /> : undefined

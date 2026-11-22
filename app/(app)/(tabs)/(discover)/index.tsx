@@ -425,7 +425,10 @@ export default function DiscoverScreen() {
           router.push({ pathname: "/release/[mbid]", params })
         }
         onSearchManually={(q) =>
-          router.push({ pathname: "/results", params: { q, scope: "artist" } })
+          router.push({
+            pathname: "/results",
+            params: { q, filter: "artists" },
+          })
         }
       />
     </>

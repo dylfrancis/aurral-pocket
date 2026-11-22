@@ -15,7 +15,7 @@ import {
   getEditorialShelf,
   getMadeForYou,
   searchArtists,
-  searchAlbums,
+  searchCatalog,
   searchLibrary,
   searchLibraryTracks,
   resolveStreamingLink,
@@ -160,64 +160,54 @@ describe("resolveStreamingLink", () => {
   });
 });
 
-describe("searchAlbums", () => {
-  const emptyResponse = {
-    scope: "album",
-    query: "abbey road",
-    count: 0,
-    offset: 0,
-    items: [],
-  };
-
-  it("calls GET /search with album scope and default limit/offset", async () => {
-    mockApi.get.mockResolvedValue({ data: emptyResponse });
-
-    await searchAlbums("abbey road");
-    expect(mockApi.get).toHaveBeenCalledWith("/search", {
-      params: { q: "abbey road", scope: "album", limit: 24, offset: 0 },
+describe("searchCatalog", () => {
+  it("reads catalog artists, albums and the outage status from GET /search/unified", async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        query: "abbey road",
+        status: "unavailable",
+        top: null,
+        artists: [{ id: "a-1", name: "The Beatles", inLibrary: true }],
+        albums: [
+          {
+            id: "rg-1",
+            title: "Abbey Road",
+            artistName: "The Beatles",
+            artistMbid: "a-1",
+            releaseDate: "1969-09-26",
+            primaryType: "Album",
+            secondaryTypes: [],
+            coverUrl: null,
+          },
+          // A Library album with no MBID has no release page to open.
+          { id: null, title: "Rips", artistName: "Unknown", artistMbid: null },
+        ],
+        tracks: [{ id: "deezer-1", title: "Come Together" }],
+      },
     });
-  });
 
-  it("passes custom limit and offset", async () => {
-    mockApi.get.mockResolvedValue({ data: emptyResponse });
+    const result = await searchCatalog("abbey road");
 
-    await searchAlbums("test", 10, 20);
-    expect(mockApi.get).toHaveBeenCalledWith("/search", {
-      params: { q: "test", scope: "album", limit: 10, offset: 20 },
+    expect(mockApi.get).toHaveBeenCalledWith("/search/unified", {
+      params: { q: "abbey road", limit: 30 },
     });
-  });
-
-  it("returns the response payload unchanged", async () => {
-    const response = {
-      scope: "album",
-      query: "abbey road",
-      count: 1,
-      offset: 0,
-      items: [
+    expect(result).toEqual({
+      status: "unavailable",
+      artists: [{ id: "a-1", name: "The Beatles", disambiguation: null }],
+      albums: [
         {
           type: "album",
           id: "rg-1",
           title: "Abbey Road",
           artistName: "The Beatles",
-          artistMbid: "artist-mbid",
+          artistMbid: "a-1",
           releaseDate: "1969-09-26",
           primaryType: "Album",
           secondaryTypes: [],
           coverUrl: null,
-          inLibrary: false,
-          status: "missing",
         },
       ],
-    };
-    mockApi.get.mockResolvedValue({ data: response });
-
-    const result = await searchAlbums("abbey road");
-    expect(result).toEqual(response);
-  });
-
-  it("propagates errors", async () => {
-    mockApi.get.mockRejectedValue(new Error("503"));
-    await expect(searchAlbums("test")).rejects.toThrow("503");
+    });
   });
 });
 

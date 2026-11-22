@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshControl, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import {
   Stack,
@@ -11,20 +11,11 @@ import {
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import Public from "@expo/material-symbols/public.xml";
 import Star from "@expo/material-symbols/star.xml";
-import Group from "@expo/material-symbols/group.xml";
-import Album from "@expo/material-symbols/album.xml";
-import MusicNote from "@expo/material-symbols/music_note.xml";
-import QueueMusic from "@expo/material-symbols/queue_music.xml";
-import { SearchArtistRow } from "@/components/search/SearchArtistRow";
-import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
-import { SearchAlbumCard } from "@/components/search/SearchAlbumCard";
-import { SearchSongRow } from "@/components/search/SearchSongRow";
 import {
-  SearchPlaylistRow,
-  searchPlaylistHref,
-  searchPlaylistKey,
-} from "@/components/search/SearchPlaylistRow";
-import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
+  SEARCH_FILTERS,
+  SearchResults,
+  type SearchFilter,
+} from "@/components/search/SearchResults";
 import { TagArtistRow } from "@/components/search/TagArtistRow";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
@@ -36,57 +27,15 @@ import {
   menuOptionActions,
   type MenuOption,
 } from "@/components/ui/MenuOptions";
-import { useArtistSearch } from "@/hooks/search/use-artist-search";
-import { useAlbumSearch } from "@/hooks/search/use-album-search";
 import { useArtistsByTag } from "@/hooks/search/use-artists-by-tag";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
-import { useLibraryAlbumLookup } from "@/hooks/search/use-library-album-lookup";
-import { useLibrarySearch } from "@/hooks/search/use-library-search";
-import { useSearchSongActions } from "@/hooks/search/use-search-song-actions";
+import { useSearchResults } from "@/hooks/search/use-search-results";
 import { useGridListView } from "@/hooks/use-grid-list-view";
 import { Fonts } from "@/constants/theme";
-import type {
-  LibrarySearchPlaylist,
-  LibrarySearchTrack,
-  SearchAlbum,
-  SearchArtist,
-  TagArtist,
-  TagSearchScope,
-} from "@/lib/types/search";
+import type { TagArtist, TagSearchScope } from "@/lib/types/search";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useOpenArtist } from "@/hooks/use-open-artist";
 import { useColors } from "@/hooks/use-colors";
-
-type ResultScope = "artist" | "album" | "song" | "playlist";
-
-const RESULT_SCOPES: readonly ResultScope[] = [
-  "artist",
-  "album",
-  "song",
-  "playlist",
-];
-
-const SCOPE_OPTIONS: MenuOption<ResultScope>[] = [
-  { key: "artist", label: "Artists", iosIcon: "person.2", androidIcon: Group },
-  {
-    key: "album",
-    label: "Albums",
-    iosIcon: "opticaldisc",
-    androidIcon: Album,
-  },
-  {
-    key: "song",
-    label: "Songs",
-    iosIcon: "music.note",
-    androidIcon: MusicNote,
-  },
-  {
-    key: "playlist",
-    label: "Playlists",
-    iosIcon: "music.note.list",
-    androidIcon: QueueMusic,
-  },
-];
 
 const TAG_SCOPE_OPTIONS: MenuOption<TagSearchScope>[] = [
   { key: "all", label: "All Artists", iosIcon: "globe", androidIcon: Public },
@@ -98,170 +47,95 @@ const TAG_SCOPE_OPTIONS: MenuOption<TagSearchScope>[] = [
   },
 ];
 
+/**
+ * A #tag's artists, or the full results for a search started outside the
+ * Search tab, such as Shazam's search by hand on Discover.
+ */
 export default function SearchResultsScreen() {
-  const { q, scope: scopeParam } = useLocalSearchParams<{
+  const { q, filter } = useLocalSearchParams<{
     q: string;
-    scope?: ResultScope;
+    filter?: SearchFilter;
   }>();
-  const openArtist = useOpenArtist();
-  const router = useRouter();
-  const colors = useColors();
-
   const query = q ?? "";
-  const isTagSearch = query.startsWith("#");
-  const tagQuery = isTagSearch ? query.slice(1).trim() : "";
-
-  const [tagScope, setTagScope] = useState<TagSearchScope>("recommended");
-  const [resultScope, setResultScope] = useState<ResultScope>(
-    scopeParam && RESULT_SCOPES.includes(scopeParam) ? scopeParam : "artist",
-  );
-  const isLibraryScope = resultScope === "song" || resultScope === "playlist";
-  const { isGrid, numColumns, viewMenuSection } = useGridListView(
-    "search-results",
-    "list",
-  );
-
-  const {
-    data: artistData,
-    isLoading: artistLoading,
-    refetch: refetchArtists,
-  } = useArtistSearch(isTagSearch || resultScope !== "artist" ? "" : query);
-
-  const {
-    data: albumData,
-    isLoading: albumLoading,
-    refetch: refetchAlbums,
-  } = useAlbumSearch(isTagSearch || resultScope !== "album" ? "" : query);
-
-  // Asked in every scope: Search already holds this answer, so switching to
-  // Songs or Playlists shows rows at once instead of an empty list.
-  const {
-    data: libraryData,
-    isLoading: libraryLoading,
-    refetch: refetchLibrary,
-  } = useLibrarySearch(isTagSearch ? "" : query);
-
-  const {
-    data: tagData,
-    isLoading: tagLoading,
-    refetch: refetchTags,
-  } = useArtistsByTag(
-    isTagSearch && tagQuery.length >= 2 ? tagQuery : null,
-    tagScope,
-  );
-
-  const refreshResults = useCallback(
-    () =>
-      isTagSearch
-        ? refetchTags()
-        : isLibraryScope
-          ? refetchLibrary()
-          : resultScope === "album"
-            ? refetchAlbums()
-            : refetchArtists(),
-    [
-      isTagSearch,
-      isLibraryScope,
-      resultScope,
-      refetchTags,
-      refetchLibrary,
-      refetchAlbums,
-      refetchArtists,
-    ],
-  );
-  const { refreshing, onRefresh } = usePullToRefresh(refreshResults);
-
-  const isLoading = isTagSearch
-    ? tagLoading
-    : isLibraryScope
-      ? libraryLoading
-      : resultScope === "album"
-        ? albumLoading
-        : artistLoading;
-
-  const artists = artistData?.artists;
-  const albums = albumData?.items;
-  const songs = libraryData?.tracks;
-  const playlists = libraryData?.playlists;
-  const tagArtists = tagData?.recommendations;
-  const { isInLibrary } = useLibraryLookup(
-    (isTagSearch ? tagArtists : artists)?.map((artist) => artist.id) ?? [],
-  );
-
-  const fullData = isTagSearch
-    ? tagArtists
-    : resultScope === "song"
-      ? songs
-      : resultScope === "playlist"
-        ? playlists
-        : resultScope === "album"
-          ? albums
-          : artists;
-  const resultCount = fullData?.length ?? 0;
-  const showResults = fullData !== undefined && resultCount > 0;
-  const showNoResults =
-    !isLoading && fullData !== undefined && resultCount === 0;
-
   const navigation = useNavigation();
+  const isTagSearch = query.startsWith("#");
+
   useEffect(() => {
     navigation.setOptions({
       headerTitle: isTagSearch ? "Tag Results" : `Results for "${query}"`,
     });
   }, [navigation, isTagSearch, query]);
 
+  return isTagSearch ? (
+    <TagResults tag={query.slice(1).trim()} />
+  ) : (
+    <TextResults
+      query={query}
+      initialFilter={filter && SEARCH_FILTERS.includes(filter) ? filter : "all"}
+    />
+  );
+}
+
+function TextResults({
+  query,
+  initialFilter,
+}: {
+  query: string;
+  initialFilter: SearchFilter;
+}) {
+  const router = useRouter();
+  const [filter, setFilter] = useState(initialFilter);
+  const results = useSearchResults(query);
+  const { refreshing, onRefresh } = usePullToRefresh(results.refetch);
+
+  return (
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      <SearchResults
+        query={query}
+        results={results}
+        view="full"
+        filter={filter}
+        onFilterChange={setFilter}
+        onTagPress={(tag) =>
+          router.push({ pathname: "/results", params: { q: `#${tag}` } })
+        }
+      />
+    </ScrollView>
+  );
+}
+
+function TagResults({ tag }: { tag: string }) {
+  const openArtist = useOpenArtist();
+  const colors = useColors();
+  const [tagScope, setTagScope] = useState<TagSearchScope>("recommended");
+  const { isGrid, numColumns, viewMenuSection } = useGridListView(
+    "search-results",
+    "list",
+  );
+
+  const {
+    data: tagData,
+    isLoading,
+    refetch,
+  } = useArtistsByTag(tag.length >= 2 ? tag : null, tagScope);
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
+
+  const tagArtists = tagData?.recommendations;
+  const { isInLibrary } = useLibraryLookup(
+    tagArtists?.map((artist) => artist.id) ?? [],
+  );
+  const resultCount = tagArtists?.length ?? 0;
+  const showNoResults =
+    !isLoading && tagArtists !== undefined && resultCount === 0;
+
   const handleArtistPress = useCallback(
-    (artist: SearchArtist | TagArtist) =>
-      openArtist({ mbid: artist.id, name: artist.name }),
+    (artist: TagArtist) => openArtist({ mbid: artist.id, name: artist.name }),
     [openArtist],
-  );
-
-  const { statusFor: albumStatusFor, openAlbum } = useLibraryAlbumLookup(
-    albums ?? [],
-  );
-
-  const renderArtistItem = useCallback(
-    ({ item }: { item: SearchArtist }) => (
-      <SearchArtistRow
-        artist={item}
-        isInLibrary={isInLibrary(item.id)}
-        onPress={() => handleArtistPress(item)}
-      />
-    ),
-    [isInLibrary, handleArtistPress],
-  );
-
-  const renderAlbumItem = useCallback(
-    ({ item }: { item: SearchAlbum }) => (
-      <SearchAlbumRow
-        album={item}
-        status={albumStatusFor(item)}
-        onPress={() => void openAlbum(item)}
-      />
-    ),
-    [albumStatusFor, openAlbum],
-  );
-
-  const songActions = useSearchSongActions();
-  const { play: playSong, openActions: openSongActions } = songActions;
-  const renderSongItem = useCallback(
-    ({ item }: { item: LibrarySearchTrack }) => (
-      <SearchSongRow
-        track={item}
-        onPress={() => void playSong(item)}
-        onOpenActions={() => openSongActions(item)}
-      />
-    ),
-    [playSong, openSongActions],
-  );
-
-  const renderPlaylistItem = useCallback(
-    ({ item }: { item: LibrarySearchPlaylist }) => (
-      <SearchPlaylistRow
-        playlist={item}
-        onPress={() => router.push(searchPlaylistHref(item))}
-      />
-    ),
-    [router],
   );
 
   const renderTagArtistItem = useCallback(
@@ -276,7 +150,7 @@ export default function SearchResultsScreen() {
   );
 
   const renderArtistGridItem = useCallback(
-    ({ item }: { item: SearchArtist | TagArtist }) => (
+    ({ item }: { item: TagArtist }) => (
       <GridCell>
         <HorizontalArtistCard
           mbid={item.id}
@@ -290,15 +164,6 @@ export default function SearchResultsScreen() {
     [isInLibrary, handleArtistPress],
   );
 
-  const renderAlbumGridItem = useCallback(
-    ({ item }: { item: SearchAlbum }) => (
-      <GridCell>
-        <SearchAlbumCard album={item} onPress={() => void openAlbum(item)} />
-      </GridCell>
-    ),
-    [openAlbum],
-  );
-
   const tagScopeLabel = tagScope === "recommended" ? "Recommended" : "All";
   const tagListHeader = (
     <View>
@@ -306,121 +171,46 @@ export default function SearchResultsScreen() {
         variant="caption"
         style={[styles.subtitle, { color: colors.subtle }]}
       >
-        {tagScopeLabel} artists for tag {`“${tagQuery}”`}
+        {tagScopeLabel} artists for tag {`“${tag}”`}
       </Text>
     </View>
   );
 
-  const canBroadenToAll =
-    isTagSearch && tagScope === "recommended" && showNoResults;
-  // Song and playlist rows have square artwork, as album rows do.
-  const skeletonVariant: "artist" | "album" =
-    !isTagSearch && resultScope !== "artist" ? "album" : "artist";
+  const canBroadenToAll = tagScope === "recommended" && showNoResults;
   const emptyComponent = isLoading ? (
-    <SkeletonRows count={8} variant={skeletonVariant} />
+    <SkeletonRows count={8} variant="artist" />
   ) : showNoResults ? (
     <EmptyState
       icon="search-outline"
-      message={`No results found for “${query}”`}
+      message={`No results found for “#${tag}”`}
       actionLabel={canBroadenToAll ? "Try searching all" : undefined}
       onAction={canBroadenToAll ? () => setTagScope("all") : undefined}
     />
   ) : null;
 
-  const albumKeyExtractor = useMemo(() => (item: SearchAlbum) => item.id, []);
-  const songKeyExtractor = useMemo(
-    () => (item: LibrarySearchTrack) => item.id,
-    [],
-  );
-  const playlistKeyExtractor = useMemo(() => searchPlaylistKey, []);
-  const artistKeyExtractor = useMemo(
-    () => (item: SearchArtist | TagArtist) => item.id,
-    [],
-  );
+  const artistKeyExtractor = useMemo(() => (item: TagArtist) => item.id, []);
 
   return (
     <>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu icon={FILTER_MENU_ICON} title="Scope">
-          {isTagSearch
-            ? menuOptionActions(TAG_SCOPE_OPTIONS, tagScope, setTagScope)
-            : menuOptionActions(SCOPE_OPTIONS, resultScope, setResultScope)}
-          {/* Songs and playlists are rows only. */}
-          {(isTagSearch || !isLibraryScope) && viewMenuSection}
+          {menuOptionActions(TAG_SCOPE_OPTIONS, tagScope, setTagScope)}
+          {viewMenuSection}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
-
-      {isTagSearch ? (
-        <FlashList
-          key={`tag-${isGrid}`}
-          data={showResults ? (tagArtists as TagArtist[]) : []}
-          renderItem={isGrid ? renderArtistGridItem : renderTagArtistItem}
-          keyExtractor={artistKeyExtractor}
-          numColumns={numColumns}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
-          ListHeaderComponent={tagListHeader}
-          ListEmptyComponent={emptyComponent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      ) : resultScope === "song" ? (
-        <FlashList
-          key="song"
-          data={showResults ? (songs as LibrarySearchTrack[]) : []}
-          renderItem={renderSongItem}
-          keyExtractor={songKeyExtractor}
-          contentInsetAdjustmentBehavior="automatic"
-          ListEmptyComponent={emptyComponent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      ) : resultScope === "playlist" ? (
-        <FlashList
-          key="playlist"
-          data={showResults ? (playlists as LibrarySearchPlaylist[]) : []}
-          renderItem={renderPlaylistItem}
-          keyExtractor={playlistKeyExtractor}
-          contentInsetAdjustmentBehavior="automatic"
-          ListEmptyComponent={emptyComponent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      ) : resultScope === "album" ? (
-        <FlashList
-          key={`album-${isGrid}`}
-          data={showResults ? (albums as SearchAlbum[]) : []}
-          renderItem={isGrid ? renderAlbumGridItem : renderAlbumItem}
-          keyExtractor={albumKeyExtractor}
-          numColumns={numColumns}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
-          ListEmptyComponent={emptyComponent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      ) : (
-        <FlashList
-          key={`artist-${isGrid}`}
-          data={showResults ? (artists as SearchArtist[]) : []}
-          renderItem={isGrid ? renderArtistGridItem : renderArtistItem}
-          keyExtractor={artistKeyExtractor}
-          numColumns={numColumns}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
-          ListEmptyComponent={emptyComponent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      )}
-      <TrackActionsSheet
-        target={songActions.actionsTarget}
-        onClose={songActions.closeActions}
+      <FlashList
+        key={`tag-${isGrid}`}
+        data={resultCount > 0 ? (tagArtists as TagArtist[]) : []}
+        renderItem={isGrid ? renderArtistGridItem : renderTagArtistItem}
+        keyExtractor={artistKeyExtractor}
+        numColumns={numColumns}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={isGrid ? gridListStyles.grid : undefined}
+        ListHeaderComponent={tagListHeader}
+        ListEmptyComponent={emptyComponent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
     </>
   );

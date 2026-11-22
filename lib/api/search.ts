@@ -2,7 +2,8 @@ import { api } from "./client";
 import type {
   SearchArtistsResponse,
   SearchArtistsWire,
-  SearchAlbumsResponse,
+  CatalogSearchResponse,
+  CatalogSearchWire,
   LibrarySearchResponse,
   StreamingLink,
   SimilarArtistsResponse,
@@ -47,6 +48,45 @@ export async function searchArtists(
 }
 
 /**
+ * Up to 30 catalog artists and albums for `query`, the server's most. Unlike
+ * `GET /search`, which answers an empty list when the metadata server is
+ * down, this route says so with `status: "unavailable"`.
+ */
+export async function searchCatalog(
+  query: string,
+  limit = 30,
+): Promise<CatalogSearchResponse> {
+  const r = await api.get<CatalogSearchWire>("/search/unified", {
+    params: { q: query, limit },
+  });
+  return {
+    status: r.data.status,
+    artists: r.data.artists.map(({ id, name, disambiguation }) => ({
+      id,
+      name,
+      disambiguation: disambiguation || null,
+    })),
+    albums: r.data.albums.flatMap((album) =>
+      album.id
+        ? [
+            {
+              type: "album" as const,
+              id: album.id,
+              title: album.title,
+              artistName: album.artistName,
+              artistMbid: album.artistMbid ?? null,
+              releaseDate: album.releaseDate ?? null,
+              primaryType: album.primaryType ?? null,
+              secondaryTypes: album.secondaryTypes ?? [],
+              coverUrl: album.coverUrl ?? null,
+            },
+          ]
+        : [],
+    ),
+  };
+}
+
+/**
  * Tracks in the library that match `query`. The server matches the query
  * against the title, artist and album separately, so a query that joins an
  * artist and a title finds nothing.
@@ -71,13 +111,6 @@ export async function searchLibrary(query: string, limit = 30) {
 /** What a Spotify, Apple Music, TIDAL, Deezer or YouTube Music link names. */
 export async function resolveStreamingLink(url: string) {
   const r = await api.get<StreamingLink>("/search/link", { params: { url } });
-  return r.data;
-}
-
-export async function searchAlbums(query: string, limit = 24, offset = 0) {
-  const r = await api.get<SearchAlbumsResponse>("/search", {
-    params: { q: query, scope: "album", limit, offset },
-  });
   return r.data;
 }
 
