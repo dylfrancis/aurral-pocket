@@ -150,14 +150,6 @@ jest.mock("@/components/discover/TrendingCharts", () => {
   return { TrendingCharts: () => <Text testID="tab-trending" /> };
 });
 
-jest.mock("@/hooks/use-open-overflow-screen", () => ({
-  useOpenOverflowScreen: () => jest.fn(),
-}));
-
-jest.mock("@/components/navigation/OverflowMenu", () => ({
-  OverflowMenu: () => null,
-}));
-
 jest.mock("@/components/shazam", () => ({
   ShazamSheet: () => null,
 }));

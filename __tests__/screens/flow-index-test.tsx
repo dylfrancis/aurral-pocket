@@ -2,17 +2,11 @@ jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
 
-jest.mock("@expo/material-symbols/settings.xml", () => "Settings");
 jest.mock("@expo/material-symbols/add.xml", () => "Add");
 jest.mock("@expo/material-symbols/tune.xml", () => "Tune");
 jest.mock("@expo/material-symbols/graphic_eq.xml", () => "GraphicEq");
 
 const mockPush = jest.fn();
-// Android's overflow menu is covered by the overflow screens suite.
-jest.mock("@/components/navigation/OverflowMenu", () => ({
-  OverflowMenu: () => null,
-}));
-
 jest.mock("expo-router", () => {
   const React = require("react");
   const { Pressable, Text } = require("react-native");

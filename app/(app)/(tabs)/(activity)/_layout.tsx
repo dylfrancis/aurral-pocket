@@ -5,7 +5,6 @@ import {
   artistListScreenOptions,
   stackScreenOptions,
 } from "@/constants/navigation";
-import { IS_ANDROID } from "@/constants/platform";
 import { useColors } from "@/hooks/use-colors";
 
 // Queue is the tab's landing route.
@@ -29,7 +28,7 @@ export default function ActivityLayout() {
   };
 
   return (
-    <MiniPlayerHost aboveTabs={IS_ANDROID}>
+    <MiniPlayerHost>
       <Stack screenOptions={stackScreenOptions(colors)}>
         <Stack.Screen name="queue" options={feedOptions} />
         <Stack.Screen name="review" options={feedOptions} />

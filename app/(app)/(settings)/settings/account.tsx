@@ -1,2 +1,8 @@
-export { default } from "@/app/(app)/(tabs)/(settings)/settings/account";
-export * from "@/app/(app)/(tabs)/(settings)/settings/account";
+import type { ErrorBoundaryProps } from "expo-router";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
+
+export { AccountScreen as default } from "@/components/settings/AccountScreen";
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <RouteErrorBoundary {...props} message="Failed to load Account" />;
+}

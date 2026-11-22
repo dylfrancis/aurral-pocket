@@ -182,7 +182,7 @@ export function NowPlayingScreen() {
   // The player sits over the tabs, so it must go before a page can show. The
   // paths name the library group — a bare /artist/[mbid] resolves into
   // (activity), the first group with the route. navigate, not push: repeated
-  // taps must not stack duplicate pages. On Android, Activity or Settings can
+  // taps must not stack duplicate pages. On Android, Settings can
   // sit between the player and the tabs, so it pops back down to the tabs.
   const leaveFor = useCallback(
     (href: Href) => {

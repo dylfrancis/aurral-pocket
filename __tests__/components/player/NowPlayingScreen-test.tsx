@@ -91,7 +91,7 @@ jest.mock("expo-router", () => ({
 }));
 
 /**
- * iOS closes the player and navigates. On Android, Activity or Settings can
+ * iOS closes the player and navigates. On Android, Settings can
  * sit between the player and the tabs, so it pops down to the tabs instead.
  */
 function expectLeftFor(href: unknown) {

@@ -19,8 +19,8 @@ import { useLibrarySearch } from "@/hooks/search/use-library-search";
 import { useSearchSongActions } from "@/hooks/search/use-search-song-actions";
 import { useOpenArtist } from "@/hooks/use-open-artist";
 import { releaseYear } from "@/lib/date-time";
-import { albumRouteParams } from "@/lib/library-read";
 import { useIsOffline } from "@/lib/offline/network";
+import { libraryAlbumHref } from "@/lib/search-results";
 import type {
   LibrarySearchAlbum,
   LibrarySearchArtist,
@@ -86,20 +86,7 @@ export function LibrarySearchResults({ query }: { query: string }) {
   };
 
   const openAlbum = (album: LibrarySearchAlbum) =>
-    router.push({
-      pathname: "/album/[ref]",
-      params: albumRouteParams(
-        {
-          id: album.libraryId,
-          canonicalId: album.libraryId,
-          mbid: album.id ?? undefined,
-          albumName: album.title,
-          coverUrl: album.coverUrl ?? undefined,
-        },
-        album.artistName,
-        album.artistMbid ?? undefined,
-      ),
-    });
+    router.push(libraryAlbumHref(album));
 
   const artistRow = (artist: LibrarySearchArtist) => (
     <MediaRow

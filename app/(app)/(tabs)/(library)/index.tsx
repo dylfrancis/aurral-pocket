@@ -11,7 +11,6 @@ import {
   LibrarySearchResults,
   isLibrarySearchQuery,
 } from "@/components/library/LibrarySearchResults";
-import { OverflowMenu } from "@/components/navigation/OverflowMenu";
 import { Text } from "@/components/ui/Text";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { preloadLibraryViews } from "@/hooks/library/use-library-view";
@@ -21,8 +20,9 @@ import {
   usePlayLibrarySongs,
 } from "@/hooks/library/use-play-library-songs";
 import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
+import { SettingsToolbar } from "@/components/navigation/SettingsToolbar";
 import { SEARCH_PLACEHOLDERS, headerSearchBar } from "@/constants/navigation";
-import { IS_ANDROID, IS_IOS } from "@/constants/platform";
+import { IS_IOS } from "@/constants/platform";
 import { Fonts } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useIsOffline } from "@/lib/offline/network";
@@ -96,10 +96,13 @@ export default function LibraryScreen() {
   return (
     <>
       <Stack.SearchBar
-        {...headerSearchBar(SEARCH_PLACEHOLDERS.library, colors)}
+        {...headerSearchBar(SEARCH_PLACEHOLDERS.library, colors, {
+          asButton: true,
+        })}
         onChangeText={changeQuery}
         onCancelButtonPress={cancelSearch}
       />
+      <SettingsToolbar />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon={IS_IOS ? "shuffle" : ShuffleIcon}
@@ -109,7 +112,6 @@ export default function LibraryScreen() {
         >
           Shuffle Library
         </Stack.Toolbar.Button>
-        {IS_ANDROID && <OverflowMenu />}
       </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"

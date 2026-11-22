@@ -11,21 +11,39 @@ jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
 
-jest.mock("@/hooks/search/use-artist-search", () => ({
-  useArtistSearch: jest.fn(() => ({
+jest.mock("@/hooks/search/use-catalog-search", () => ({
+  useCatalogSearch: jest.fn(() => ({
     data: undefined,
     isLoading: false,
     refetch: jest.fn(),
   })),
 }));
 
-jest.mock("@/hooks/search/use-album-search", () => ({
-  useAlbumSearch: jest.fn(() => ({
-    data: undefined,
-    isLoading: false,
-    refetch: jest.fn(),
-  })),
+jest.mock("@/hooks/auth/use-has-permission", () => ({
+  useHasPermission: () => () => true,
 }));
+
+// The real pills are SwiftUI and Compose views.
+jest.mock("@/components/ui/PillRow", () => {
+  const { Pressable, Text, View } = require("react-native");
+  return {
+    PillRow: ({ items, selected, onSelect }: any) => (
+      <View>
+        {items.map((item: any) => (
+          <Pressable
+            key={item.id}
+            accessibilityRole="tab"
+            accessibilityLabel={item.label}
+            accessibilityState={{ selected: item.id === selected }}
+            onPress={() => onSelect(item.id)}
+          >
+            <Text>{item.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    ),
+  };
+});
 
 jest.mock("@/hooks/search/use-artists-by-tag", () => ({
   useArtistsByTag: jest.fn(() => ({
@@ -115,14 +133,18 @@ import { render, fireEvent, screen } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import SearchResultsScreen from "@/app/(app)/(tabs)/(search)/results";
-import { useLibrarySearch } from "@/hooks/search/use-library-search";
+import { useCatalogSearch } from "@/hooks/search/use-catalog-search";
 
 const mockUseLocalSearchParams = useLocalSearchParams as jest.Mock;
-const mockUseLibrarySearch = useLibrarySearch as jest.Mock;
+const mockUseCatalogSearch = useCatalogSearch as jest.Mock;
 
 async function renderResults() {
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    // Artist rows read their artwork through the cache, and a default gcTime
+    // timer would hold the Jest process open for five minutes after the run.
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { gcTime: 0 } } })}
+    >
       <SearchResultsScreen />
     </QueryClientProvider>,
   );
@@ -141,36 +163,30 @@ describe("SearchResultsScreen — empty tag results", () => {
   });
 });
 
-describe("SearchResultsScreen — songs", () => {
-  it("lists the Library songs when See all songs opened it", async () => {
-    mockUseLocalSearchParams.mockReturnValue({ q: "karma", scope: "song" });
-    mockUseLibrarySearch.mockReturnValue({
+describe("SearchResultsScreen — a search from outside Search", () => {
+  it("opens on the filter it was sent with", async () => {
+    mockUseLocalSearchParams.mockReturnValue({
+      q: "massive attack",
+      filter: "artists",
+    });
+    mockUseCatalogSearch.mockReturnValue({
       data: {
-        tracks: [
-          {
-            id: "77",
-            title: "Karma Police",
-            artistName: "Radiohead",
-            albumTitle: "OK Computer",
-            albumMbid: null,
-            libraryAlbumId: "12",
-            trackMbid: null,
-            artistMbid: null,
-            releaseYear: null,
-            durationMs: null,
-            streamPath: "/library/stream/12/77",
-            coverUrl: null,
-          },
-        ],
-        playlists: [],
+        status: "ok",
+        artists: [{ id: "a1", name: "Massive Attack" }],
+        albums: [],
       },
       isLoading: false,
+      isPlaceholderData: false,
+      isError: false,
       refetch: jest.fn(),
     });
 
     await renderResults();
 
-    expect(mockUseLibrarySearch).toHaveBeenLastCalledWith("karma");
-    expect(screen.getByText("Karma Police")).toBeTruthy();
+    expect(
+      screen.getByRole("tab", { name: "Artists" }).props.accessibilityState
+        .selected,
+    ).toBe(true);
+    expect(screen.getByText("Massive Attack")).toBeTruthy();
   });
 });

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { useReducedMotion } from "react-native-reanimated";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
-import { IS_ANDROID } from "@/constants/platform";
+import { IS_IOS } from "@/constants/platform";
 import { useAuth } from "@/contexts/auth-context";
 import { NowPlayingProvider } from "@/contexts/now-playing-context";
 import { useDiscoveryUpdates } from "@/hooks/discover/use-discovery-updates";
@@ -46,13 +46,11 @@ export default function AppLayout() {
     <NowPlayingProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
-        {/* Activity and Settings are tabs on iOS. Android's bar has no room for
-          them, so the same routes open here, above the tabs, from each tab's
-          overflow menu. */}
-        <Stack.Protected guard={IS_ANDROID}>
-          <Stack.Screen name="(activity)" />
-          <Stack.Screen name="(settings)" />
-        </Stack.Protected>
+        {/* Opened from the person button on each tab's first screen. */}
+        <Stack.Screen
+          name="(settings)"
+          options={{ presentation: IS_IOS ? "modal" : "card" }}
+        />
         {/* A native sheet stops short of the top edge, so the full player is a
           transparent modal that draws its own sheet and drag-to-close. */}
         <Stack.Screen

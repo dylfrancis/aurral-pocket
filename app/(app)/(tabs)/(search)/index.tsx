@@ -1,112 +1,87 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Keyboard, ScrollView, StyleSheet, View } from "react-native";
 import type { NativeSyntheticEvent } from "react-native";
-import type { SearchBarTextEventData } from "react-native-screens";
+import type {
+  SearchBarCommands,
+  SearchBarTextEventData,
+} from "react-native-screens";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { EmptyState } from "@/components/library/EmptyState";
-import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
 import {
   SearchSectionLabel,
   SeeAllRow,
 } from "@/components/search/SearchSections";
-import { SearchArtistRow } from "@/components/search/SearchArtistRow";
-import { SearchAlbumRow } from "@/components/search/SearchAlbumRow";
-import { SearchSongRow } from "@/components/search/SearchSongRow";
 import {
-  SearchPlaylistRow,
-  searchPlaylistHref,
-  searchPlaylistKey,
-} from "@/components/search/SearchPlaylistRow";
-import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
+  SearchResults,
+  type SearchFilter,
+} from "@/components/search/SearchResults";
 import Mic from "@expo/material-symbols/mic.xml";
 import { ShazamSheet } from "@/components/shazam";
 import { isShazamAvailable } from "@/modules/shazam";
 import { RecentSearches } from "@/components/search/RecentSearches";
-import { useArtistSearch } from "@/hooks/search/use-artist-search";
-import { useAlbumSearch } from "@/hooks/search/use-album-search";
-import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
-import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
-import { useLibraryAlbumLookup } from "@/hooks/search/use-library-album-lookup";
-import { useLibrarySearch } from "@/hooks/search/use-library-search";
-import { useSearchSongActions } from "@/hooks/search/use-search-song-actions";
+import {
+  searchQueryKind,
+  useSearchResults,
+} from "@/hooks/search/use-search-results";
 import { useRecentSearches } from "@/hooks/search/use-recent-searches";
 import { searchBarColors } from "@/constants/navigation";
-import { IS_ANDROID, IS_IOS } from "@/constants/platform";
-import { OverflowMenu } from "@/components/navigation/OverflowMenu";
+import { IS_IOS } from "@/constants/platform";
+import { SettingsToolbar } from "@/components/navigation/SettingsToolbar";
 import type { RecentSearch } from "@/hooks/search/use-recent-searches";
 import type { SearchArtist } from "@/lib/types/search";
 import { useOpenArtist } from "@/hooks/use-open-artist";
 import { useColors } from "@/hooks/use-colors";
 
-const ARTIST_PREVIEW_LIMIT = 3;
-const ALBUM_PREVIEW_LIMIT = 3;
-const SONG_PREVIEW_LIMIT = 3;
-const PLAYLIST_PREVIEW_LIMIT = 3;
 const TAG_PREVIEW_LIMIT = 5;
 
 export default function SearchScreen() {
   const router = useRouter();
   const openArtist = useOpenArtist();
   const colors = useColors();
+  const searchBarRef = useRef<SearchBarCommands>(null);
 
   const [query, setQuery] = useState("");
+  // The type-ahead until Search is pressed or a See all row is tapped. Then
+  // the same screen shows the full results, with filter pills.
+  const [view, setView] = useState<"preview" | "full">("preview");
+  const [filter, setFilter] = useState<SearchFilter>("all");
   const recentSearches = useRecentSearches();
-
-  const isTagSearch = query.trimStart().startsWith("#");
-  const tagQuery = isTagSearch ? query.trimStart().slice(1).trim() : "";
-  const artistQuery = isTagSearch ? "" : query;
-  const hasQuery =
-    query.trim().length >= 2 || (isTagSearch && tagQuery.length >= 2);
-
-  const {
-    data: artistData,
-    isLoading: artistLoading,
-    isPlaceholderData: artistIsStale,
-  } = useArtistSearch(artistQuery);
-
-  const {
-    data: albumData,
-    isLoading: albumLoading,
-    isPlaceholderData: albumIsStale,
-  } = useAlbumSearch(artistQuery);
-
-  const {
-    data: libraryData,
-    isLoading: libraryLoading,
-    isPlaceholderData: libraryIsStale,
-  } = useLibrarySearch(artistQuery);
-
-  const { data: tags } = useTagSuggestions(
-    isTagSearch ? tagQuery : artistQuery,
-  );
-  const artists = artistData?.artists;
-  const { isInLibrary } = useLibraryLookup(
-    artists?.map((artist) => artist.id) ?? [],
-  );
-  const albums = albumData?.items;
-  const songs = libraryData?.tracks;
-  const playlists = libraryData?.playlists;
-  const songActions = useSearchSongActions();
-
   const { add: addRecentSearch } = recentSearches;
 
-  const pushResults = useCallback(
-    (q: string, scope?: "artist" | "album" | "song" | "playlist") => {
+  const results = useSearchResults(query);
+  const { isTagSearch, hasQuery, tags } = results;
+
+  const pushTagResults = useCallback(
+    (tag: string) => {
       Keyboard.dismiss();
-      if (q.startsWith("#")) {
-        addRecentSearch({ type: "tag", text: q.slice(1) });
-      } else {
-        addRecentSearch({ type: "query", text: q });
-      }
-      router.push({
-        pathname: "/results",
-        params: scope ? { q, scope } : { q },
-      });
+      addRecentSearch({ type: "tag", text: tag });
+      router.push({ pathname: "/results", params: { q: `#${tag}` } });
     },
     [router, addRecentSearch],
+  );
+
+  const showFullResults = useCallback(
+    (q: string, next: SearchFilter) => {
+      searchBarRef.current?.blur();
+      addRecentSearch({ type: "query", text: q });
+      setFilter(next);
+      setView("full");
+    },
+    [addRecentSearch],
+  );
+
+  // A search started from a recent search or Shazam fills the bar, as if
+  // typed, and goes straight to the full results.
+  const searchFor = useCallback(
+    (q: string, next: SearchFilter) => {
+      searchBarRef.current?.setText(q);
+      setQuery(q);
+      showFullResults(q, next);
+    },
+    [showFullResults],
   );
 
   // Stack.SearchBar re-registers its native header options whenever a prop
@@ -115,87 +90,40 @@ export default function SearchScreen() {
   // rebuilt from it, and rebuilds can drop the icon (react-native-screens
   // issue #2271).
   const handleChangeText = useCallback(
-    (e: NativeSyntheticEvent<SearchBarTextEventData>) =>
-      setQuery(e.nativeEvent.text),
+    (e: NativeSyntheticEvent<SearchBarTextEventData>) => {
+      const text = e.nativeEvent.text;
+      setQuery(text);
+      if (!text.trim()) setView("preview");
+    },
     [],
   );
 
-  const handleCancelSearch = useCallback(() => setQuery(""), []);
+  const handleCancelSearch = useCallback(() => {
+    setQuery("");
+    setView("preview");
+  }, []);
 
   const handleSearchSubmit = useCallback(
     (e: NativeSyntheticEvent<SearchBarTextEventData>) => {
       const q = e.nativeEvent.text.trim();
-      if (q) pushResults(q);
+      const kind = searchQueryKind(q);
+      if (kind.isTagSearch) {
+        if (kind.hasQuery) pushTagResults(kind.tag);
+      } else if (kind.hasQuery) {
+        showFullResults(q, "all");
+      }
     },
-    [pushResults],
+    [pushTagResults, showFullResults],
   );
 
-  const handleTagSelect = useCallback(
-    (tag: string) => pushResults(`#${tag}`),
-    [pushResults],
+  const handleFilterChange = (next: SearchFilter) =>
+    view === "full" ? setFilter(next) : showFullResults(query.trim(), next);
+
+  const rememberArtist = useCallback(
+    (artist: SearchArtist) =>
+      addRecentSearch({ type: "artist", text: artist.name, mbid: artist.id }),
+    [addRecentSearch],
   );
-
-  const handleArtistPress = useCallback(
-    (artist: SearchArtist) => {
-      addRecentSearch({
-        type: "artist",
-        text: artist.name,
-        mbid: artist.id,
-      });
-      openArtist({ mbid: artist.id, name: artist.name });
-    },
-    [openArtist, addRecentSearch],
-  );
-
-  const previewTags = hasQuery
-    ? (tags ?? []).slice(0, isTagSearch ? TAG_PREVIEW_LIMIT : 3)
-    : [];
-  const previewArtists =
-    hasQuery && !isTagSearch
-      ? (artists ?? []).slice(0, ARTIST_PREVIEW_LIMIT)
-      : [];
-  const previewAlbums =
-    hasQuery && !isTagSearch
-      ? (albums ?? []).slice(0, ALBUM_PREVIEW_LIMIT)
-      : [];
-  const previewSongs =
-    hasQuery && !isTagSearch ? (songs ?? []).slice(0, SONG_PREVIEW_LIMIT) : [];
-  // Most queries match no playlist, so the section gets no skeleton. It
-  // waits for this query's answer instead of showing the last one's.
-  const previewPlaylists =
-    hasQuery && !isTagSearch && !libraryIsStale
-      ? (playlists ?? []).slice(0, PLAYLIST_PREVIEW_LIMIT)
-      : [];
-
-  const showArtistSkeleton =
-    hasQuery && !isTagSearch && (artistLoading || artistIsStale);
-  const showAlbumSkeleton =
-    hasQuery && !isTagSearch && (albumLoading || albumIsStale);
-  const showSongSkeleton =
-    hasQuery && !isTagSearch && (libraryLoading || libraryIsStale);
-  const showArtistSection = showArtistSkeleton || previewArtists.length > 0;
-  const showAlbumSection = showAlbumSkeleton || previewAlbums.length > 0;
-  const showSongSection = showSongSkeleton || previewSongs.length > 0;
-
-  const noResults =
-    hasQuery &&
-    !isTagSearch &&
-    !artistLoading &&
-    !albumLoading &&
-    !libraryLoading &&
-    !artistIsStale &&
-    !albumIsStale &&
-    !libraryIsStale &&
-    previewArtists.length === 0 &&
-    previewAlbums.length === 0 &&
-    previewSongs.length === 0 &&
-    previewPlaylists.length === 0 &&
-    previewTags.length === 0;
-
-  const noTagResults = hasQuery && isTagSearch && previewTags.length === 0;
-
-  const { statusFor: albumStatusFor, openAlbum } =
-    useLibraryAlbumLookup(previewAlbums);
 
   const shazamSheetRef = useRef<BottomSheetModal | null>(null);
   const handleShazamArtist = useCallback(
@@ -203,177 +131,63 @@ export default function SearchScreen() {
     [openArtist],
   );
 
-  let content;
-
-  if (noResults || noTagResults) {
-    content = (
-      <EmptyState
-        icon="search-outline"
-        message={`No results for \u201C${query.trim()}\u201D`}
-      />
-    );
-  } else if (hasQuery) {
-    const hasMoreArtists =
-      !isTagSearch && (artists?.length ?? 0) > ARTIST_PREVIEW_LIMIT;
-    const hasMoreAlbums =
-      !isTagSearch && (albums?.length ?? 0) > ALBUM_PREVIEW_LIMIT;
-    const hasMoreSongs =
-      !isTagSearch && (songs?.length ?? 0) > SONG_PREVIEW_LIMIT;
-    const hasMorePlaylists =
-      !isTagSearch && (playlists?.length ?? 0) > PLAYLIST_PREVIEW_LIMIT;
-    const hasMoreTags = isTagSearch && (tags?.length ?? 0) > TAG_PREVIEW_LIMIT;
-
-    content = (
-      <View style={styles.previewSection}>
-        {previewTags.length > 0 && (
-          <View>
-            <SearchSectionLabel text="Tags" />
-            {previewTags.map((tag) => (
-              <SearchPreviewRow
-                key={`tag-${tag}`}
-                icon="pricetag-outline"
-                iconColor={colors.brandStrong}
-                label={`#${tag}`}
-                onPress={() => handleTagSelect(tag)}
-              />
-            ))}
-          </View>
-        )}
-
-        {showArtistSection && (
-          <View>
-            <SearchSectionLabel text="Artists" />
-            {showArtistSkeleton ? (
-              <SkeletonRows count={ARTIST_PREVIEW_LIMIT} variant="artist" />
-            ) : (
-              <>
-                {previewArtists.map((artist) => (
-                  <SearchArtistRow
-                    key={`artist-${artist.id}`}
-                    artist={artist}
-                    isInLibrary={isInLibrary(artist.id)}
-                    onPress={() => handleArtistPress(artist)}
-                  />
-                ))}
-                {hasMoreArtists && (
-                  <SeeAllRow
-                    label="See all artists"
-                    onPress={() => pushResults(query.trim(), "artist")}
-                  />
-                )}
-              </>
-            )}
-          </View>
-        )}
-
-        {showSongSection && (
-          <View>
-            <SearchSectionLabel text="Songs" />
-            {showSongSkeleton ? (
-              <SkeletonRows count={SONG_PREVIEW_LIMIT} variant="album" />
-            ) : (
-              <>
-                {previewSongs.map((track) => (
-                  <SearchSongRow
-                    key={`song-${track.id}`}
-                    track={track}
-                    onPress={() => void songActions.play(track)}
-                    onOpenActions={() => songActions.openActions(track)}
-                  />
-                ))}
-                {hasMoreSongs && (
-                  <SeeAllRow
-                    label="See all songs"
-                    onPress={() => pushResults(query.trim(), "song")}
-                  />
-                )}
-              </>
-            )}
-          </View>
-        )}
-
-        {previewPlaylists.length > 0 && (
-          <View>
-            <SearchSectionLabel text="Playlists" />
-            {previewPlaylists.map((playlist) => (
-              <SearchPlaylistRow
-                key={searchPlaylistKey(playlist)}
-                playlist={playlist}
-                onPress={() => router.push(searchPlaylistHref(playlist))}
-              />
-            ))}
-            {hasMorePlaylists && (
-              <SeeAllRow
-                label="See all playlists"
-                onPress={() => pushResults(query.trim(), "playlist")}
-              />
-            )}
-          </View>
-        )}
-
-        {showAlbumSection && (
-          <View>
-            <SearchSectionLabel text="Albums" />
-            {showAlbumSkeleton ? (
-              <SkeletonRows count={ALBUM_PREVIEW_LIMIT} variant="album" />
-            ) : (
-              <>
-                {previewAlbums.map((album) => (
-                  <SearchAlbumRow
-                    key={`album-${album.id}`}
-                    album={album}
-                    status={albumStatusFor(album)}
-                    onPress={() => void openAlbum(album)}
-                  />
-                ))}
-                {hasMoreAlbums && (
-                  <SeeAllRow
-                    label="See all albums"
-                    onPress={() => pushResults(query.trim(), "album")}
-                  />
-                )}
-              </>
-            )}
-          </View>
-        )}
-
-        {hasMoreTags && (
-          <SeeAllRow
-            label="See all tag results"
-            onPress={() => pushResults(query.trim())}
-          />
-        )}
-      </View>
-    );
-  } else if (recentSearches.searches.length > 0) {
-    content = (
-      <RecentSearches
-        searches={recentSearches.searches}
-        onSelect={(entry: RecentSearch) => {
-          if (entry.type === "artist") {
-            openArtist({ mbid: entry.mbid, name: entry.text });
-          } else if (entry.type === "tag") {
-            pushResults(`#${entry.text}`);
-          } else {
-            pushResults(entry.text);
-          }
-        }}
-        onRemove={recentSearches.remove}
-        onClear={recentSearches.clear}
-      />
-    );
-  } else {
-    content = (
-      <EmptyState
-        icon="search-outline"
-        message="Search for artists, songs, playlists or #tags"
-      />
-    );
+  let content: ReactNode = null;
+  if (!hasQuery) {
+    content =
+      recentSearches.searches.length > 0 ? (
+        <RecentSearches
+          searches={recentSearches.searches}
+          onSelect={(entry: RecentSearch) => {
+            if (entry.type === "artist") {
+              openArtist({ mbid: entry.mbid, name: entry.text });
+            } else if (entry.type === "tag") {
+              pushTagResults(entry.text);
+            } else {
+              searchFor(entry.text, "all");
+            }
+          }}
+          onRemove={recentSearches.remove}
+          onClear={recentSearches.clear}
+        />
+      ) : (
+        <EmptyState
+          icon="search-outline"
+          message="Search for artists, songs, playlists or #tags"
+        />
+      );
+  } else if (isTagSearch) {
+    content =
+      tags.length > 0 ? (
+        <View style={styles.tags}>
+          <SearchSectionLabel text="Tags" />
+          {tags.slice(0, TAG_PREVIEW_LIMIT).map((tag) => (
+            <SearchPreviewRow
+              key={`tag-${tag}`}
+              icon="pricetag-outline"
+              iconColor={colors.brandStrong}
+              label={`#${tag}`}
+              onPress={() => pushTagResults(tag)}
+            />
+          ))}
+          {tags.length > TAG_PREVIEW_LIMIT && (
+            <SeeAllRow
+              label="See all tag results"
+              onPress={() => pushTagResults(searchQueryKind(query).tag)}
+            />
+          )}
+        </View>
+      ) : (
+        <EmptyState
+          icon="search-outline"
+          message={`No results for “${query.trim()}”`}
+        />
+      );
   }
 
   return (
     <>
       <Stack.SearchBar
+        ref={searchBarRef}
         placeholder="Artists, songs, playlists, #tags..."
         hideWhenScrolling={false}
         autoCapitalize="none"
@@ -382,6 +196,7 @@ export default function SearchScreen() {
         onCancelButtonPress={handleCancelSearch}
         onSearchButtonPress={handleSearchSubmit}
       />
+      <SettingsToolbar />
       <Stack.Toolbar placement="right">
         {isShazamAvailable && (
           <Stack.Toolbar.Button
@@ -392,7 +207,6 @@ export default function SearchScreen() {
             Identify song
           </Stack.Toolbar.Button>
         )}
-        {IS_ANDROID && <OverflowMenu />}
       </Stack.Toolbar>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -401,6 +215,15 @@ export default function SearchScreen() {
         onScrollBeginDrag={Keyboard.dismiss}
       >
         {content}
+        <SearchResults
+          query={query}
+          results={results}
+          view={view}
+          filter={filter}
+          onFilterChange={handleFilterChange}
+          onTagPress={pushTagResults}
+          onArtistOpen={rememberArtist}
+        />
       </ScrollView>
       <ShazamSheet
         sheetRef={shazamSheetRef}
@@ -408,18 +231,14 @@ export default function SearchScreen() {
         onViewRelease={(params) =>
           router.push({ pathname: "/release/[mbid]", params })
         }
-        onSearchManually={(q) => pushResults(q, "artist")}
-      />
-      <TrackActionsSheet
-        target={songActions.actionsTarget}
-        onClose={songActions.closeActions}
+        onSearchManually={(q) => searchFor(q, "artists")}
       />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  previewSection: {
+  tags: {
     paddingTop: 4,
   },
 });

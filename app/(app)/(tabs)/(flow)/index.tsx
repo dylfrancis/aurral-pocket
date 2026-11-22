@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { Alert, RefreshControl, StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
-import Settings from "@expo/material-symbols/settings.xml";
 import Add from "@expo/material-symbols/add.xml";
 import Tune from "@expo/material-symbols/tune.xml";
 import GraphicEq from "@expo/material-symbols/graphic_eq.xml";
@@ -16,8 +15,8 @@ import {
   useFlowTemplates,
   useSetFlowEnabled,
 } from "@/hooks/flow";
-import { IS_ANDROID, IS_IOS } from "@/constants/platform";
-import { OverflowMenu } from "@/components/navigation/OverflowMenu";
+import { IS_IOS } from "@/constants/platform";
+import { SettingsToolbar } from "@/components/navigation/SettingsToolbar";
 import type { Flow } from "@/lib/types/flow";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useColors } from "@/hooks/use-colors";
@@ -66,10 +65,6 @@ function FlowScreenContent() {
     [flowStats, router, setEnabled],
   );
 
-  const openWorkerSettings = useCallback(
-    () => router.push("/(app)/(tabs)/(flow)/worker-settings"),
-    [router],
-  );
   const openCreateFlow = useCallback(
     () => router.push("/(app)/(tabs)/(flow)/flow-edit"),
     [router],
@@ -86,14 +81,8 @@ function FlowScreenContent() {
 
   return (
     <>
+      <SettingsToolbar />
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon={IS_IOS ? "gearshape" : Settings}
-          accessibilityLabel="Worker settings"
-          onPress={openWorkerSettings}
-        >
-          Worker settings
-        </Stack.Toolbar.Button>
         <Stack.Toolbar.Menu
           icon={IS_IOS ? "plus" : Add}
           accessibilityLabel="Create flow"
@@ -120,7 +109,6 @@ function FlowScreenContent() {
             </Stack.Toolbar.Menu>
           ) : null}
         </Stack.Toolbar.Menu>
-        {IS_ANDROID && <OverflowMenu />}
       </Stack.Toolbar>
       <FlashList
         data={data.flows}
