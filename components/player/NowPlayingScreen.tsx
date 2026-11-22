@@ -29,6 +29,7 @@ import Animated, {
   interpolate,
   LayoutAnimationConfig,
   ReduceMotion,
+  type SharedValue,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -69,6 +70,7 @@ import { useSongSave } from "@/hooks/offline/use-song-save";
 import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useDragToClose } from "@/hooks/player/use-drag-to-close";
 import { useLibraryTrackDetails } from "@/hooks/player/use-library-track-details";
+import { useSwipeToSkip } from "@/hooks/player/use-swipe-to-skip";
 import { useTrackLyrics } from "@/hooks/player/use-track-lyrics";
 import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -148,12 +150,15 @@ export function NowPlayingScreen() {
   const [lyricsOpen, setLyricsOpen] = useLyricsOpen();
   const lyrics = useTrackLyrics(track);
   const details = useLibraryTrackDetails(track);
-  const art = useArtFrame();
   // Left on, the lyrics panel gives way to the art for a track without lyrics
   // and comes back for the next one that has them.
   const showLyrics = lyricsOpen && lyrics.available;
   // The queue and the lyrics both shrink the art into the header row.
   const compact = showQueue || showLyrics;
+  // Only the full-size art swipes. It leaves by the screen's edge.
+  const swipe = useSwipeToSkip(track, { travel: width, enabled: !compact });
+  const skipPan = usePanGesture(swipe.panConfig);
+  const art = useArtFrame(swipe.offset);
 
   const close = useCallback(() => router.back(), [router]);
   const drag = useDragToClose(close);
@@ -338,7 +343,13 @@ export function NowPlayingScreen() {
                         { maxHeight: width - GUTTER * 2 },
                       ]}
                       onLayout={art.onArtSlotLayout}
-                    />
+                    >
+                      {/* Inside the slot: a detector around it shifts the
+                        frame the slot measures, and the art is placed by it. */}
+                      <GestureDetector gesture={skipPan}>
+                        <View style={StyleSheet.absoluteFill} />
+                      </GestureDetector>
+                    </View>
                     <Animated.View entering={SWAP_FADE} style={styles.titleRow}>
                       <TrackTitles
                         track={track}
@@ -562,6 +573,7 @@ export function NowPlayingScreen() {
                     coverPath={track.coverPath}
                     size={art.size}
                     borderRadius={0}
+                    onLoad={swipe.onCoverLoad}
                   />
                 )}
               </Animated.View>
@@ -592,9 +604,9 @@ function describeFileQuality(
 
 /**
  * The art renders at the player view's size and is scaled, not resized, into
- * the queue header.
+ * the queue header. `swipeOffset` slides it sideways for a skip.
  */
-function useArtFrame() {
+function useArtFrame(swipeOffset: SharedValue<number>) {
   const [size, setSize] = useState(0);
   const fullSize = useSharedValue(0);
   const shownSize = useSharedValue(0);
@@ -657,7 +669,7 @@ function useArtFrame() {
       // The corner scales with the art, so it is set pre-scale.
       borderRadius: radius / scale,
       transform: [
-        { translateX: left.get() + offset },
+        { translateX: left.get() + offset + swipeOffset.get() },
         { translateY: top.get() + offset },
         { scale },
       ],

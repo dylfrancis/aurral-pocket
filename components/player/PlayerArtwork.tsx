@@ -11,6 +11,7 @@ type PlayerArtworkProps = {
   coverPath?: string | null;
   size: number | "fill";
   borderRadius?: number;
+  onLoad?: () => void;
 };
 
 /**
@@ -22,6 +23,7 @@ export function PlayerArtwork({
   coverPath,
   size,
   borderRadius = 8,
+  onLoad,
 }: PlayerArtworkProps) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const serverSource = serverImageSource(coverPath);
@@ -61,6 +63,7 @@ export function PlayerArtwork({
       style={[sizeStyle, { borderRadius }]}
       contentFit="cover"
       transition={150}
+      onLoad={onLoad}
       onError={() => {
         if (source === serverSource) setFailedUri(serverSource.uri);
       }}
