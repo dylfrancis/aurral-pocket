@@ -20,7 +20,9 @@ export default function LibraryLayout() {
           options={{
             title: "Library",
             headerLargeTitleEnabled: true,
-            ...layoutSearchBar(SEARCH_PLACEHOLDERS.library, colors),
+            ...layoutSearchBar(SEARCH_PLACEHOLDERS.library, colors, {
+              asButton: true,
+            }),
           }}
         />
         <Stack.Screen

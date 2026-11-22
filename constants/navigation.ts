@@ -57,16 +57,31 @@ export const SEARCH_PLACEHOLDERS = {
   artistReleases: "Search releases",
 } as const;
 
-/** The search bar a list screen keeps under its header. */
+type SearchBarShape = {
+  /**
+   * On iOS 26+, a nav bar button until tapped. Earlier iOS keeps the bar
+   * under the header.
+   */
+  asButton?: boolean;
+};
+
+// Off the toolbar, or an iPhone moves the button to the bottom of the screen.
+const SEARCH_BUTTON = HAS_LIQUID_GLASS
+  ? ({ placement: "integratedButton", allowToolbarIntegration: false } as const)
+  : {};
+
+/** The search bar a list screen keeps in its header. */
 export function headerSearchBar(
   placeholder: string,
   colors: { text: string; subtle: string },
+  { asButton = false }: SearchBarShape = {},
 ) {
   return {
     placeholder,
     hideWhenScrolling: false,
     autoCapitalize: "none",
     ...searchBarColors(colors),
+    ...(asButton ? SEARCH_BUTTON : {}),
   } as const;
 }
 
@@ -83,9 +98,10 @@ export function headerSearchBar(
 export function layoutSearchBar(
   placeholder: string,
   colors: { text: string; subtle: string },
+  shape?: SearchBarShape,
 ) {
   return IS_IOS
-    ? { headerSearchBarOptions: headerSearchBar(placeholder, colors) }
+    ? { headerSearchBarOptions: headerSearchBar(placeholder, colors, shape) }
     : {};
 }
 

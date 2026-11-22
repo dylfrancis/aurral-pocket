@@ -96,7 +96,9 @@ export default function LibraryScreen() {
   return (
     <>
       <Stack.SearchBar
-        {...headerSearchBar(SEARCH_PLACEHOLDERS.library, colors)}
+        {...headerSearchBar(SEARCH_PLACEHOLDERS.library, colors, {
+          asButton: true,
+        })}
         onChangeText={changeQuery}
         onCancelButtonPress={cancelSearch}
       />
