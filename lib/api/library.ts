@@ -587,11 +587,19 @@ export type TrackDownloadRequest = {
   artistMbid?: string | null;
   albumMbid?: string | null;
   trackMbid?: string | null;
+  releaseMbid?: string | null;
+  releaseYear?: string | number | null;
+  durationMs?: number | null;
+  trackNumber?: number | null;
+  discNumber?: number | null;
+  albumTrackCount?: number | null;
+  albumTrackTitles?: string[] | null;
 };
 
 /**
  * What a song request did: queued a download, found the song already in the
- * Library, or reused a file Aurral already had.
+ * Library, or reused a file Aurral already had. A finished flow track's file
+ * moves into the Library.
  */
 export type TrackDownloadResult = {
   success: boolean;
@@ -600,7 +608,7 @@ export type TrackDownloadResult = {
   reused?: boolean;
 };
 
-/** Ask Aurral to search for one song and download it, as the web's Add to Library does. */
+/** Ask Aurral to add one song to the Library, as the web's Add to Library does. */
 export async function requestTrackDownload(track: TrackDownloadRequest) {
   const r = await api.post<TrackDownloadResult>(
     "/library/downloads/track",

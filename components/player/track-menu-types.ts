@@ -1,6 +1,7 @@
 import type { PluginMenuItem } from "@/hooks/plugins/use-plugin-actions";
 
 export type TrackMenuActionId =
+  | "library"
   | "playlist"
   | "album"
   | "artist"

@@ -58,12 +58,16 @@ function setCachedJobStatus(
   );
 }
 
-function cachedJobStatus(queryClient: QueryClient, jobId: string) {
+/** A flow or playlist job as a page last loaded it. */
+export function cachedJob(
+  queryClient: QueryClient,
+  jobId: string,
+): FlowJob | undefined {
   for (const [, jobs] of queryClient.getQueriesData<FlowJob[]>({
     queryKey: flowKeys.jobsAll(),
   })) {
     const job = jobs?.find((entry) => entry.id === jobId);
-    if (job) return job.status;
+    if (job) return job;
   }
   return undefined;
 }
@@ -83,7 +87,7 @@ function useTrackJobControl(
     mutationFn: (jobId: string) => callApi(jobId),
     onMutate: async (jobId) => {
       await queryClient.cancelQueries({ queryKey: flowKeys.jobsAll() });
-      const previous = cachedJobStatus(queryClient, jobId);
+      const previous = cachedJob(queryClient, jobId)?.status;
       setCachedJobStatus(queryClient, jobId, optimisticStatus);
       return { previous };
     },

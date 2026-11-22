@@ -16,6 +16,7 @@ import type {
 type SFSymbol = NonNullable<ComponentProps<typeof Button>["systemImage"]>;
 
 const SYMBOLS: Record<TrackMenuActionId, SFSymbol> = {
+  library: "plus",
   playlist: "text.badge.plus",
   album: "square.stack",
   artist: "music.microphone",
