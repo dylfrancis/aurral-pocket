@@ -146,7 +146,13 @@ jest.mock("@/lib/api/library", () => ({
   ...jest.requireActual("@/lib/api/library"),
   getCanonicalAlbumTracks: jest.fn(),
   getLibraryFavorites: jest.fn(),
+  requestTrackDownload: jest.fn(),
   updateLibraryFavorites: jest.fn(),
+}));
+
+// The screen mounts without an AuthProvider, so it may do anything.
+jest.mock("@/hooks/auth/use-has-permission", () => ({
+  useHasPermission: () => () => true,
 }));
 
 // The community slider ships no Jest mock; a plain View exposes the same
@@ -169,6 +175,7 @@ import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
   getCanonicalAlbumTracks,
   getLibraryFavorites,
+  requestTrackDownload,
   updateLibraryFavorites,
 } from "@/lib/api/library";
 import { getLyrics } from "@/lib/api/lyrics";
@@ -188,7 +195,9 @@ import {
   queueTrackToPlayerTrack,
   type PlayerTrack,
 } from "@/lib/player/track-item";
+import type { FlowJob } from "@/lib/types/flow";
 import type { LibraryQueueTrack, Track } from "@/lib/types/library";
+import { flowKeys } from "@/lib/query-keys";
 import * as Burnt from "burnt";
 import {
   forgetSavedLibrary,
@@ -204,6 +213,7 @@ const manager = callbackManager as jest.Mocked<typeof callbackManager>;
 const mockGetLibraryFavorites = getLibraryFavorites as jest.Mock;
 const mockGetCanonicalAlbumTracks = getCanonicalAlbumTracks as jest.Mock;
 const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
+const mockRequestTrackDownload = requestTrackDownload as jest.Mock;
 const mockGetLyrics = getLyrics as jest.Mock;
 const mockGetPluginActions = getPluginActions as jest.Mock;
 const mockRunPluginAction = runPluginAction as jest.Mock;
@@ -293,6 +303,7 @@ async function renderScreen() {
   const utils = await render(app(true));
   return {
     ...utils,
+    client,
     closePlayer: () => utils.rerender(app(false)),
     reopenPlayer: () => utils.rerender(app(true)),
   };
@@ -301,6 +312,55 @@ async function renderScreen() {
 async function renderPlaying() {
   const utils = await renderScreen();
   await act(() => playAlbumFromTrack(albumTracks, albumTracks[0], album));
+  return utils;
+}
+
+const alison: PlayerTrack = {
+  id: "job-1",
+  title: "Alison",
+  artist: "Slowdive",
+  album: "Souvlaki",
+  duration: 0,
+  url: "https://test.example/api/playlists/stream/job-1",
+  artwork: null,
+  streamPath: "/playlists/stream/job-1",
+  coverPath: null,
+  trackMbid: "alison-mb",
+  artistMbid: "slowdive-mb",
+  albumMbid: null,
+  favorite: { kind: "flow-song", key: "flow-1:job-1" },
+};
+
+/** `job` is the flow page's copy of the track. */
+async function renderPlayingAlison(job?: Partial<FlowJob>) {
+  const utils = await renderScreen();
+  if (job) {
+    utils.client.setQueryData(flowKeys.jobs("flow-1"), [
+      {
+        id: "job-1",
+        playlistType: "flow-1",
+        artistName: "Slowdive",
+        trackName: "Alison",
+        albumName: "Souvlaki",
+        artistMbid: "slowdive-mb",
+        albumMbid: null,
+        trackMbid: "alison-mb",
+        status: "done",
+        libraryOwned: false,
+        ...job,
+      } satisfies FlowJob,
+    ]);
+  }
+  await act(() =>
+    playQueueFrom([alison], alison.id, {
+      albumTitle: "Weekly Flow",
+      artistName: "",
+      coverPath: null,
+      artworkUrl: null,
+      albumMbid: null,
+      artistMbid: null,
+    }),
+  );
   return utils;
 }
 
@@ -383,37 +443,6 @@ describe("NowPlayingScreen favorite button", () => {
   });
 
   describe("on a flow's own track", () => {
-    const alison: PlayerTrack = {
-      id: "job-1",
-      title: "Alison",
-      artist: "Slowdive",
-      album: "Souvlaki",
-      duration: 0,
-      url: "https://test.example/api/playlists/stream/job-1",
-      artwork: null,
-      streamPath: "/playlists/stream/job-1",
-      coverPath: null,
-      trackMbid: "alison-mb",
-      artistMbid: "slowdive-mb",
-      albumMbid: null,
-      favorite: { kind: "flow-song", key: "flow-1:job-1" },
-    };
-
-    async function renderPlayingAlison() {
-      const utils = await renderScreen();
-      await act(() =>
-        playQueueFrom([alison], alison.id, {
-          albumTitle: "Weekly Flow",
-          artistName: "",
-          coverPath: null,
-          artworkUrl: null,
-          albumMbid: null,
-          artistMbid: null,
-        }),
-      );
-      return utils;
-    }
-
     it("adds it to favorites by its place in the flow", async () => {
       const { findByLabelText } = await renderPlayingAlison();
 
@@ -800,6 +829,70 @@ describe("NowPlayingScreen", () => {
 
     await fireEvent.press(getByLabelText("Pause"));
     expect(player.pause).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("NowPlayingScreen Add to Library", () => {
+  it("adds a flow track from the menu, by what the player knows of it", async () => {
+    mockRequestTrackDownload.mockResolvedValue({
+      success: true,
+      queued: false,
+      reused: true,
+    });
+    const { findByLabelText } = await renderPlayingAlison();
+
+    await fireEvent.press(await findByLabelText("Add to Library"));
+
+    expect(mockRequestTrackDownload).toHaveBeenCalledWith({
+      artistName: "Slowdive",
+      trackName: "Alison",
+      albumName: "Souvlaki",
+      artistMbid: "slowdive-mb",
+      albumMbid: null,
+      trackMbid: "alison-mb",
+    });
+  });
+
+  it("sends the release the flow picked, once the flow's page has loaded the track", async () => {
+    mockRequestTrackDownload.mockResolvedValue({
+      success: true,
+      queued: true,
+    });
+    const { findByLabelText } = await renderPlayingAlison({
+      releaseMbid: "souvlaki-1993",
+      trackNumber: 2,
+    });
+
+    await fireEvent.press(await findByLabelText("Add to Library"));
+
+    expect(mockRequestTrackDownload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trackName: "Alison",
+        releaseMbid: "souvlaki-1993",
+        trackNumber: 2,
+      }),
+    );
+  });
+
+  it("isn't offered for a flow track the Library already has", async () => {
+    const { findByLabelText, queryByLabelText } = await renderPlayingAlison({
+      libraryOwned: true,
+    });
+
+    expect(await findByLabelText("Add to Playlist")).toBeTruthy();
+    expect(queryByLabelText("Add to Library")).toBeNull();
+  });
+
+  it("isn't offered for a track played from the Library", async () => {
+    const airbag = {
+      ...track("76", "Airbag"),
+      streamPath: "/library/stream/12/76",
+    };
+    const { getByLabelText, queryByLabelText } = await renderScreen();
+    await act(() => playAlbumFromTrack([airbag], airbag, album));
+
+    expect(getByLabelText("Add to Playlist")).toBeTruthy();
+    expect(queryByLabelText("Add to Library")).toBeNull();
   });
 });
 

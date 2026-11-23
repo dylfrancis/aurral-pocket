@@ -84,6 +84,9 @@ export const libraryKeys = {
   downloadStatusesAll: () => ["library", "downloadStatuses"] as const,
   downloadStatuses: (artistId: string) =>
     ["library", "downloadStatuses", artistId] as const,
+  // Every Add to Library shares this mutation key, so each menu can tell which
+  // songs are being sent.
+  addTrack: () => ["library", "addTrack"] as const,
 };
 
 /**

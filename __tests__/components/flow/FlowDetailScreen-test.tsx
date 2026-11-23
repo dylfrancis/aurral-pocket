@@ -1,6 +1,9 @@
 jest.mock("burnt", () => ({ toast: jest.fn() }));
 
-let mockUser: { role: string; permissions: { accessPlaylists: boolean } };
+let mockUser: {
+  role: string;
+  permissions: { accessPlaylists: boolean; addAlbum?: boolean };
+};
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => ({
     serverUrl: "http://server",
@@ -24,6 +27,11 @@ jest.mock("@/lib/api/flow", () => ({
   ),
   startFlow: jest.fn(() => Promise.resolve()),
   updateFlow: jest.fn(() => Promise.resolve({})),
+}));
+
+jest.mock("@/lib/api/library", () => ({
+  ...jest.requireActual("@/lib/api/library"),
+  requestTrackDownload: jest.fn(),
 }));
 
 jest.mock("@/lib/player/player", () => ({
@@ -135,10 +143,12 @@ import {
   startFlow,
   updateFlow,
 } from "@/lib/api/flow";
+import { requestTrackDownload } from "@/lib/api/library";
 import { playQueueFrom } from "@/lib/player/player";
 import type { FlowJob } from "@/lib/types/flow";
 
 const mockPlayQueueFrom = playQueueFrom as jest.Mock;
+const mockRequestTrackDownload = requestTrackDownload as jest.Mock;
 
 function job(id: string, overrides: Partial<FlowJob> = {}): FlowJob {
   return {
@@ -151,6 +161,7 @@ function job(id: string, overrides: Partial<FlowJob> = {}): FlowJob {
     albumMbid: null,
     trackMbid: null,
     status: "done",
+    libraryOwned: false,
     ...overrides,
   };
 }
@@ -404,6 +415,101 @@ describe("FlowDetailScreen", () => {
     );
 
     expect(screen.getByText("Adding Track a")).toBeTruthy();
+  });
+
+  describe("Add to Library", () => {
+    beforeEach(() => {
+      mockUser = {
+        role: "user",
+        permissions: { accessPlaylists: true, addAlbum: true },
+      };
+    });
+
+    const menuOf = (trackName: string) =>
+      within(screen.getByLabelText(`More actions for ${trackName}`));
+
+    it("sends a finished track with the flow's pick, and stops offering it once the file moves", async () => {
+      // Still unowned on the server: its scan of the moved file takes a
+      // moment longer.
+      serve({
+        jobs: [
+          job("a", {
+            trackMbid: "rec-a",
+            releaseMbid: "rel-a",
+            trackNumber: 3,
+            durationMs: 201_000,
+          }),
+        ],
+      });
+      mockRequestTrackDownload.mockResolvedValue({
+        success: true,
+        queued: false,
+        reused: true,
+      });
+      await open();
+
+      await fireEvent.press(menuOf("Track a").getByText("Add to Library"));
+
+      expect(mockRequestTrackDownload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          artistName: "Artist a",
+          trackName: "Track a",
+          albumName: "Album a",
+          trackMbid: "rec-a",
+          releaseMbid: "rel-a",
+          trackNumber: 3,
+          durationMs: 201_000,
+        }),
+      );
+      await waitFor(() =>
+        expect(Burnt.toast).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "Added Track a to your Library" }),
+        ),
+      );
+      expect(menuOf("Track a").queryByText("Add to Library")).toBeNull();
+      expect(menuOf("Track a").getByText("Add to Playlist")).toBeTruthy();
+    });
+
+    it("keeps offering a pick that was only queued to download", async () => {
+      serve({ jobs: [job("a"), job("s", { status: "saved" })] });
+      mockRequestTrackDownload.mockResolvedValue({
+        success: true,
+        queued: true,
+      });
+      await open();
+
+      await fireEvent.press(menuOf("Track s").getByText("Add to Library"));
+
+      await waitFor(() =>
+        expect(Burnt.toast).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "Adding Track s to your Library" }),
+        ),
+      );
+      expect(menuOf("Track s").getByText("Add to Library")).toBeTruthy();
+      expect(menuOf("Track s").getByText("Download")).toBeTruthy();
+    });
+
+    it("isn't offered for a song the Library has, or while the flow downloads it", async () => {
+      serve({
+        jobs: [
+          job("a", { libraryOwned: true }),
+          job("b", { status: "downloading" }),
+          job("c", { status: "failed" }),
+        ],
+      });
+      await open();
+
+      expect(menuOf("Track a").queryByText("Add to Library")).toBeNull();
+      expect(menuOf("Track b").queryByText("Add to Library")).toBeNull();
+      expect(menuOf("Track c").getByText("Add to Library")).toBeTruthy();
+    });
+
+    it("isn't offered without permission to add albums", async () => {
+      mockUser = { role: "user", permissions: { accessPlaylists: true } };
+      await open();
+
+      expect(menuOf("Track a").queryByText("Add to Library")).toBeNull();
+    });
   });
 
   it("offers no menu on a track waiting for review", async () => {

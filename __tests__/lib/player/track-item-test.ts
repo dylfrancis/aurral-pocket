@@ -130,6 +130,7 @@ describe("jobToPlayerTrack", () => {
     qualityFormat: "m4a",
     qualityBitrateKbps: 256,
     streamFormat: "m4a",
+    libraryOwned: false,
   };
   const playlist: PlaybackCollection = {
     kind: "shared",

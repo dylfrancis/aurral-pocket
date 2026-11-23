@@ -39,6 +39,10 @@ import {
   useTrackJobMenu,
 } from "@/hooks/flow";
 import { usePlaylistPlayback } from "@/hooks/flow/use-playlist-playback";
+import {
+  jobLibraryRequest,
+  useAddTrackToLibrary,
+} from "@/hooks/library/use-add-track-to-library";
 import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import type {
   TrackMenuAction,
@@ -50,6 +54,7 @@ import { flowKeys } from "@/lib/query-keys";
 import type {
   Flow,
   FlowJob,
+  FlowJobStatus,
   FlowStatusSnapshot,
   PlaylistStats,
   SharedPlaylist,
@@ -60,6 +65,15 @@ import { useColors } from "@/hooks/use-colors";
 const NO_JOBS: FlowJob[] = [];
 
 const BUSY_PHASES: StatusHintPhase[] = ["preparing", "downloading", "queued"];
+
+// Not while the flow's own download runs, as on the web. A track waiting for
+// review has no menu.
+const LIBRARY_ADDABLE: ReadonlySet<FlowJobStatus> = new Set([
+  "done",
+  "saved",
+  "failed",
+  "cancelled",
+]);
 
 /**
  * Numbered the way the web does. Otherwise a second conversion of the same flow
@@ -259,21 +273,48 @@ function FlowPage({
     );
   }, [flow.id, flow.name, router, deleteMutate]);
 
-  // A flow's tracks are regenerated on every run; saving one into a static
-  // playlist is how it survives the next refresh.
+  // A flow's tracks are regenerated on every run. Adding one to the Library
+  // or a static playlist is how it survives the next refresh.
   const openAddToPlaylist = addToPlaylist.open;
   const { actionsFor: jobActionsFor, runAction: runJobAction } =
     useTrackJobMenu("flow");
+  const {
+    canAdd: canAddToLibrary,
+    add: addToLibrary,
+    isSending: isAddingToLibrary,
+  } = useAddTrackToLibrary();
   const trackMenuActions = useCallback(
-    (job: FlowJob): TrackMenuAction[] =>
-      job.status === "done"
-        ? [{ id: "playlist", title: "Add to Playlist" }]
-        : jobActionsFor(job),
-    [jobActionsFor],
+    (job: FlowJob): TrackMenuAction[] => {
+      const actions: TrackMenuAction[] =
+        job.status === "done"
+          ? [{ id: "playlist", title: "Add to Playlist" }]
+          : jobActionsFor(job);
+      if (
+        !canAddToLibrary ||
+        job.libraryOwned ||
+        !LIBRARY_ADDABLE.has(job.status)
+      ) {
+        return actions;
+      }
+      return [
+        {
+          id: "library",
+          title: "Add to Library",
+          disabled: isAddingToLibrary(job.id),
+        },
+        ...actions,
+      ];
+    },
+    [jobActionsFor, canAddToLibrary, isAddingToLibrary],
   );
   const handleTrackMenuAction = useCallback(
     (job: FlowJob, id: TrackMenuActionId) => {
-      if (runJobAction(job, id) || id !== "playlist") return;
+      if (runJobAction(job, id)) return;
+      if (id === "library") {
+        addToLibrary(job.id, jobLibraryRequest(job));
+        return;
+      }
+      if (id !== "playlist") return;
       openAddToPlaylist({
         artistName: job.artistName,
         trackName: job.trackName,
@@ -282,7 +323,7 @@ function FlowPage({
         reason: job.reason ?? null,
       });
     },
-    [runJobAction, openAddToPlaylist],
+    [runJobAction, addToLibrary, openAddToPlaylist],
   );
 
   const isStartPending = startFlow.isPending;

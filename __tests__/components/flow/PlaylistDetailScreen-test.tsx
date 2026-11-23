@@ -226,6 +226,7 @@ function job(id: string, overrides: Partial<FlowJob> = {}): FlowJob {
     albumMbid: null,
     trackMbid: null,
     status: "done",
+    libraryOwned: false,
     ...overrides,
   };
 }

@@ -5,6 +5,7 @@ import DownloadIcon from "@expo/material-symbols/download.xml";
 import DownloadForOfflineIcon from "@expo/material-symbols/download_for_offline.xml";
 import ExtensionIcon from "@expo/material-symbols/extension.xml";
 import FileDownloadOffIcon from "@expo/material-symbols/file_download_off.xml";
+import LibraryAddIcon from "@expo/material-symbols/library_add.xml";
 import MoreHorizIcon from "@expo/material-symbols/more_horiz.xml";
 import PersonIcon from "@expo/material-symbols/person.xml";
 import PlaylistAddIcon from "@expo/material-symbols/playlist_add.xml";
@@ -28,6 +29,7 @@ import type {
 import { useColors } from "@/hooks/use-colors";
 
 const ICONS: Record<TrackMenuActionId, ImageSourcePropType> = {
+  library: LibraryAddIcon,
   playlist: PlaylistAddIcon,
   album: AlbumIcon,
   artist: PersonIcon,

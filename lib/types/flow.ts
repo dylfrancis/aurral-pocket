@@ -124,6 +124,17 @@ export type FlowJob = {
   qualityBitrateKbps?: number | null;
   /** The downloaded file's extension. */
   streamFormat?: string | null;
+  /** The Library has this song, from this job's file or another. */
+  libraryOwned: boolean;
+  // The release the track was picked from. Sent back with Add to Library, so
+  // a download searches for the same one.
+  releaseMbid?: string | null;
+  releaseYear?: string | number | null;
+  durationMs?: number | null;
+  trackNumber?: number | null;
+  discNumber?: number | null;
+  albumTrackCount?: number | null;
+  albumTrackTitles?: string[] | null;
 };
 
 export type PlaylistStats = {

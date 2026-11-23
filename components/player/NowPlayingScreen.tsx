@@ -62,6 +62,10 @@ import { IS_ANDROID } from "@/constants/platform";
 import { Fonts } from "@/constants/theme";
 import { useLyricsOpen } from "@/contexts/now-playing-context";
 import {
+  jobLibraryRequest,
+  useAddTrackToLibrary,
+} from "@/hooks/library/use-add-track-to-library";
+import {
   useIsFavoriteTrack,
   useToggleFavorite,
 } from "@/hooks/library/use-library-favorites";
@@ -228,7 +232,28 @@ export function NowPlayingScreen() {
   }, [track, artistMbid, leaveFor]);
 
   const addToPlaylist = useAddToPlaylist();
+  const addToLibrary = useAddTrackToLibrary();
+  const libraryTrackId = libraryIdsOf(
+    track?.streamPath ?? null,
+  )?.libraryTrackId;
+  const loadedJob =
+    track && !libraryTrackId ? addToLibrary.loadedJob(track.id) : undefined;
   const menuActions: TrackMenuAction[] = [];
+  // Any track not played from the Library, such as a flow's. Aurral says so
+  // when it already has the song.
+  if (
+    track &&
+    addToLibrary.canAdd &&
+    !libraryTrackId &&
+    !loadedJob?.libraryOwned &&
+    track.artist
+  ) {
+    menuActions.push({
+      id: "library",
+      title: "Add to Library",
+      disabled: addToLibrary.isSending(track.id),
+    });
+  }
   // A playlist track needs an artist name, so the permission alone is not
   // enough to offer the action.
   if (track && addToPlaylist.canAddToPlaylist && track.artist) {
@@ -243,9 +268,6 @@ export function NowPlayingScreen() {
   const songSave = useSongSave();
   const saveAction = songSave.actionFor(track);
   if (saveAction) menuActions.push(saveAction);
-  const libraryTrackId = libraryIdsOf(
-    track?.streamPath ?? null,
-  )?.libraryTrackId;
   const pluginActions = usePluginActions(
     "track",
     libraryTrackId ? { trackIds: [libraryTrackId] } : null,
@@ -254,7 +276,21 @@ export function NowPlayingScreen() {
   const onMenuAction = (id: TrackMenuActionId) => {
     if (!track) return;
     if (songSave.run(id, track)) return;
-    if (id === "playlist") {
+    if (id === "library") {
+      addToLibrary.add(
+        track.id,
+        loadedJob
+          ? jobLibraryRequest(loadedJob)
+          : {
+              artistName: track.artist,
+              trackName: track.title,
+              albumName: track.album || null,
+              artistMbid,
+              albumMbid: track.albumMbid,
+              trackMbid: track.trackMbid,
+            },
+      );
+    } else if (id === "playlist") {
       addToPlaylist.open({
         artistName: track.artist,
         trackName: track.title,
