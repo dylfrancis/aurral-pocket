@@ -35,7 +35,7 @@ export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
     secondary && secondary.length > 0
       ? `${type} · ${secondary.join(", ")}`
       : type;
-  const listeners = releaseGroup.listenerCount
+  const listenerLabel = releaseGroup.listenerCount
     ? formatCompactCount(releaseGroup.listenerCount)
     : null;
 
@@ -66,17 +66,17 @@ export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
           {year && `${year} · `}
           {typeLabel}
         </Text>
-        {listeners ? (
+        {listenerLabel ? (
           // Its own line, so a long type never cuts the count off.
           <View style={styles.listeners}>
             <Ionicons name="headset-outline" size={11} color={colors.subtle} />
             <Text
               variant="caption"
               numberOfLines={1}
-              accessibilityLabel={`${listeners} listeners`}
+              accessibilityLabel={`${listenerLabel} listeners`}
               style={{ color: colors.subtle }}
             >
-              {listeners}
+              {listenerLabel}
             </Text>
           </View>
         ) : null}
