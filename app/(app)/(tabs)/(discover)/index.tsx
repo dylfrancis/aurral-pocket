@@ -36,6 +36,7 @@ import {
   type RecommendedFilter,
 } from "@/lib/discover/recommended";
 import { getEventUrl } from "@/lib/discover/nearby-shows";
+import { recentReleaseRouteParams } from "@/lib/discover/releases";
 import { discoverKeys } from "@/lib/query-keys";
 import { artistRouteId } from "@/lib/library-read";
 import type {
@@ -176,11 +177,12 @@ export default function DiscoverScreen() {
 
   const handleAlbumPress = useCallback(
     (album: RecentReleaseAlbum) => {
-      const mbid =
-        album.artistMbid || album.foreignArtistId || album.artistId || "";
-      openArtist({ mbid, name: album.artistName });
+      router.push({
+        pathname: "/release/[mbid]",
+        params: recentReleaseRouteParams(album),
+      });
     },
-    [openArtist],
+    [router],
   );
 
   const handleShowPress = useCallback((show: ConcertEvent) => {
@@ -193,7 +195,7 @@ export default function DiscoverScreen() {
   const shazamSheetRef = useRef<BottomSheetModal>(null);
 
   const pushDiscoverList = useCallback(
-    (kind: "trending" | "recently-added" | "recent-releases") => {
+    (kind: "trending" | "recently-added") => {
       router.push({
         pathname: "/(app)/(tabs)/(discover)/list/[kind]",
         params: { kind },
@@ -210,10 +212,9 @@ export default function DiscoverScreen() {
     () => pushDiscoverList("recently-added"),
     [pushDiscoverList],
   );
-  const handleViewAllRecentReleases = useCallback(
-    () => pushDiscoverList("recent-releases"),
-    [pushDiscoverList],
-  );
+  const handleViewAllRecentReleases = useCallback(() => {
+    router.push("/(app)/(tabs)/(discover)/releases");
+  }, [router]);
   const handleViewAllNearbyShows = useCallback(() => {
     router.push("/(app)/(tabs)/(discover)/nearby-shows");
   }, [router]);

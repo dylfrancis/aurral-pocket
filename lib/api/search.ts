@@ -22,6 +22,8 @@ import type {
   MadeForYouResponse,
   RecentlyAddedResponse,
   RecentReleasesResponse,
+  ReleaseFeedResponse,
+  ReleaseWindow,
   NearbyShowsResponse,
   TrendingChartsResponse,
   TrendingGenreChart,
@@ -157,6 +159,18 @@ export async function getRecentlyAdded() {
 
 export async function getRecentReleases() {
   const r = await api.get<RecentReleasesResponse>("/library/recent-releases");
+  return r.data;
+}
+
+/** One page of the web's Releases page: released newest first, upcoming soonest first. */
+export async function getReleaseFeed(
+  when: ReleaseWindow,
+  offset: number,
+  limit: number,
+) {
+  const r = await api.get<ReleaseFeedResponse>("/library/releases", {
+    params: { when, offset, limit },
+  });
   return r.data;
 }
 

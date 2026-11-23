@@ -7,17 +7,12 @@ import {
   type ErrorBoundaryProps,
 } from "expo-router";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
-import {
-  useDiscovery,
-  useRecentlyAdded,
-  useRecentReleases,
-} from "@/hooks/discover";
+import { useDiscovery, useRecentlyAdded } from "@/hooks/discover";
 import { useRecommendations } from "@/hooks/discover/use-recommendations";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { useGridListView } from "@/hooks/use-grid-list-view";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
-import { DiscoverReleaseCard } from "@/components/discover/DiscoverReleaseCard";
 import { RECOMMENDED_SORT_OPTIONS } from "@/components/discover/recommended-sort";
 import { EmptyState } from "@/components/library/EmptyState";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
@@ -29,7 +24,7 @@ import {
   menuOptionSection,
 } from "@/components/ui/MenuOptions";
 import { formatDate } from "@/lib/date-time";
-import { formatReleaseStatus, recentlyAddedMbid } from "@/lib/discover/format";
+import { recentlyAddedMbid } from "@/lib/discover/format";
 import { artistRouteId } from "@/lib/library-read";
 import {
   filterKey,
@@ -42,7 +37,7 @@ import {
 import { useOpenArtist } from "@/hooks/use-open-artist";
 import { useColors } from "@/hooks/use-colors";
 
-type Kind = "recommended" | "trending" | "recently-added" | "recent-releases";
+type Kind = "recommended" | "trending" | "recently-added";
 
 const EDGE_PADDING = 16;
 
@@ -50,16 +45,10 @@ const TITLES: Record<Kind, string> = {
   recommended: "Recommended",
   trending: "Global Trending",
   "recently-added": "Recently Added",
-  "recent-releases": "Recent & Upcoming Releases",
 };
 
 function isValidKind(v: unknown): v is Kind {
-  return (
-    v === "recommended" ||
-    v === "trending" ||
-    v === "recently-added" ||
-    v === "recent-releases"
-  );
+  return v === "recommended" || v === "trending" || v === "recently-added";
 }
 
 function formatAdded(date?: string | null) {
@@ -98,7 +87,6 @@ export default function DiscoverListScreen() {
   useDateTimeFormat();
 
   const kind: Kind | null = isValidKind(kindParam) ? kindParam : null;
-  const artistKind = kind !== "recent-releases";
 
   const { isGrid, numColumns, viewMenuSection } = useGridListView(
     `discover-${kind ?? "unknown"}`,
@@ -108,7 +96,6 @@ export default function DiscoverListScreen() {
 
   const discovery = useDiscovery();
   const recentlyAdded = useRecentlyAdded();
-  const recentReleases = useRecentReleases();
 
   const {
     recommendations,
@@ -171,17 +158,10 @@ export default function DiscoverListScreen() {
         return discovery.isLoading;
       case "recently-added":
         return recentlyAdded.isLoading;
-      case "recent-releases":
-        return recentReleases.isLoading;
       default:
         return false;
     }
-  }, [
-    kind,
-    discovery.isLoading,
-    recentlyAdded.isLoading,
-    recentReleases.isLoading,
-  ]);
+  }, [kind, discovery.isLoading, recentlyAdded.isLoading]);
 
   const viewToolbar = (
     <Stack.Toolbar placement="right">
@@ -212,53 +192,9 @@ export default function DiscoverListScreen() {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
         {viewToolbar}
-        <AlbumCategorySkeleton shape={artistKind ? "circle" : "square"} />
-        <AlbumCategorySkeleton shape={artistKind ? "circle" : "square"} />
+        <AlbumCategorySkeleton shape="circle" />
+        <AlbumCategorySkeleton shape="circle" />
       </View>
-    );
-  }
-
-  if (kind === "recent-releases") {
-    return (
-      <>
-        {viewToolbar}
-        <KindList
-          items={recentReleases.data ?? []}
-          isGrid={isGrid}
-          columns={numColumns}
-          backgroundColor={colors.background}
-          keyOf={(item, index) =>
-            item.id ||
-            item.mbid ||
-            item.foreignAlbumId ||
-            `${item.albumName}-${index}`
-          }
-          renderCell={(item) => {
-            const onPress = () => {
-              const mbid =
-                item.artistMbid || item.foreignArtistId || item.artistId || "";
-              openArtist({ mbid, name: item.artistName });
-            };
-            if (!isGrid) {
-              return (
-                <MediaRow
-                  imageType="album"
-                  mbid={item.mbid || item.foreignAlbumId}
-                  title={item.albumName || item.title || "Untitled"}
-                  subtitle={[
-                    item.artistName || "Unknown Artist",
-                    formatReleaseStatus(item.releaseDate),
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                  onPress={onPress}
-                />
-              );
-            }
-            return <DiscoverReleaseCard album={item} fill onPress={onPress} />;
-          }}
-        />
-      </>
     );
   }
 

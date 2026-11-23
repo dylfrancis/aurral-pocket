@@ -35,7 +35,6 @@ jest.mock("expo-router", () => {
 jest.mock("@/hooks/discover", () => ({
   useDiscovery: jest.fn(),
   useRecentlyAdded: () => ({ data: undefined, isLoading: false }),
-  useRecentReleases: () => ({ data: undefined, isLoading: false }),
 }));
 
 jest.mock("@/hooks/search/use-library-lookup", () => ({

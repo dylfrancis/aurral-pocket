@@ -457,6 +457,13 @@ export type RecentReleaseAlbum = {
 
 export type RecentReleasesResponse = RecentReleaseAlbum[];
 
+export type ReleaseWindow = "released" | "upcoming";
+
+export type ReleaseFeedResponse = {
+  releases: RecentReleaseAlbum[];
+  hasMore: boolean;
+};
+
 export type NearbyShowSource = "library" | "recommended" | "trending";
 
 /**
