@@ -106,7 +106,8 @@ export function toPlayerTrack(
   return {
     id: String(track.id),
     title: track.trackName,
-    artist: album.artistName || "Unknown Artist",
+    // A compilation's track names its own artist, not "Various Artists".
+    artist: track.artistName || album.artistName || "Unknown Artist",
     album: album.albumTitle || "Unknown Album",
     duration: 0,
     url,

@@ -76,6 +76,15 @@ describe("toPlayerTrack", () => {
     });
   });
 
+  it("names a compilation track's own artist, not the album's", () => {
+    const item = toPlayerTrack(
+      track({ artistName: "Justice feat. Michael McDonald" }),
+      { ...album, artistName: "Various Artists" },
+    );
+
+    expect(item?.artist).toBe("Justice feat. Michael McDonald");
+  });
+
   it("carries the key the favorites API addresses the track by", () => {
     const item = toPlayerTrack(
       { ...track(), identityKey: "recording:mb-track" },
