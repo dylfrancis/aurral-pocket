@@ -444,10 +444,15 @@ export type RecentReleaseAlbum = {
   albumName: string;
   title?: string;
   artistName: string;
+  /** A Library artist id, or the artist's MBID for a recommended artist's release. */
   artistId?: string;
-  artistMbid?: string;
-  foreignArtistId?: string;
+  artistMbid?: string | null;
+  foreignArtistId?: string | null;
   releaseDate: string | null;
+  /** A server artwork path, or ListenBrainz's cover; null when none is known. */
+  coverUrl: string | null;
+  albumType: string | null;
+  secondaryTypes: string[];
 };
 
 export type RecentReleasesResponse = RecentReleaseAlbum[];
