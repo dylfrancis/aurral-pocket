@@ -961,6 +961,35 @@ describe("AlbumDetailScreen", () => {
     );
   });
 
+  it("names each track's artist under its title, else the album's", async () => {
+    const track = (id: string, title: string, artistName?: string) =>
+      ({
+        id,
+        mbid: "",
+        trackName: title,
+        title,
+        trackNumber: Number(id),
+        hasFile: true,
+        streamPath: `/library/stream/14/${id}`,
+        artistName,
+      }) as Track;
+    mockUseLibraryTracks.mockReturnValue({
+      data: [
+        track("1", "Starting from Zero", "Justice feat. Michael McDonald"),
+        track("2", "Nude"),
+      ],
+      isLoading: false,
+    });
+
+    await openAlbumPage(album);
+
+    expect(
+      await screen.findByText("Justice feat. Michael McDonald"),
+    ).toBeTruthy();
+    // The hero's artist line, and the uncredited track's row.
+    expect(screen.getAllByText("Radiohead")).toHaveLength(2);
+  });
+
   it("waits for the edition's places before listing the tracks", async () => {
     let answer!: (tracks: unknown[]) => void;
     mockGetReleaseGroupTracks.mockReturnValue(
