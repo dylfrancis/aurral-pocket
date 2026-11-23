@@ -358,61 +358,20 @@ describe("getNearbyShows", () => {
     });
   });
 
-  it("includes zip when provided", async () => {
+  it.each([
+    [{ zip: "10001" }, { zip: "10001" }],
+    [
+      { zip: "75001", country: "FR" },
+      { zip: "75001", country: "FR" },
+    ],
+    [{ zip: "", country: "" }, undefined],
+  ])("sends the location %o as %o", async (location, params) => {
     mockApi.get.mockResolvedValue({ data: emptyResponse });
 
-    await getNearbyShows("10001");
+    await getNearbyShows(location);
     expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
-      params: { zip: "10001" },
+      params,
     });
-  });
-
-  it("trims whitespace from zip", async () => {
-    mockApi.get.mockResolvedValue({ data: emptyResponse });
-
-    await getNearbyShows("  94110  ");
-    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
-      params: { zip: "94110" },
-    });
-  });
-
-  it("omits zip when blank or whitespace-only", async () => {
-    mockApi.get.mockResolvedValue({ data: emptyResponse });
-
-    await getNearbyShows("   ");
-    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
-      params: undefined,
-    });
-  });
-
-  it("includes limit when it is a positive finite number", async () => {
-    mockApi.get.mockResolvedValue({ data: emptyResponse });
-
-    await getNearbyShows("10001", 15);
-    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
-      params: { zip: "10001", limit: 15 },
-    });
-  });
-
-  it("floors fractional limits", async () => {
-    mockApi.get.mockResolvedValue({ data: emptyResponse });
-
-    await getNearbyShows(undefined, 12.7);
-    expect(mockApi.get).toHaveBeenCalledWith("/discover/nearby-shows", {
-      params: { limit: 12 },
-    });
-  });
-
-  it("omits limit when zero, negative, or non-finite", async () => {
-    mockApi.get.mockResolvedValue({ data: emptyResponse });
-
-    await getNearbyShows("10001", 0);
-    await getNearbyShows("10001", -5);
-    await getNearbyShows("10001", Number.NaN);
-
-    for (const call of mockApi.get.mock.calls) {
-      expect(call[1].params).not.toHaveProperty("limit");
-    }
   });
 
   it("propagates errors", async () => {

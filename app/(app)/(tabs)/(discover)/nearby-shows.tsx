@@ -1,36 +1,43 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
-  FlatList,
   Linking,
-  Pressable,
   RefreshControl,
+  ScrollView,
+  SectionList,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Stack, type ErrorBoundaryProps } from "expo-router";
-import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { EmptyState } from "@/components/library/EmptyState";
-import { NearbyShowRow } from "@/components/discover/NearbyShowRow";
+import { NearbyLocationMenu } from "@/components/discover/NearbyLocationMenu";
 import { NearbyZipEditorSheet } from "@/components/discover/NearbyZipEditorSheet";
 import {
   DATE_RANGE_OPTIONS,
-  SORT_OPTIONS,
   SOURCE_OPTIONS,
   type NearbyShowsDateRange,
-  type NearbyShowsSort,
   type NearbyShowsSource,
 } from "@/components/discover/NearbyShowsFilterSheet";
-import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
+import { ShowFeedTile } from "@/components/discover/ShowFeedTile";
+import { ShowLead } from "@/components/discover/ShowLead";
+import { useNearbyShows } from "@/hooks/discover";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { searchBarColors } from "@/constants/navigation";
 import { Fonts } from "@/constants/theme";
-import { filterNearbyShows } from "@/lib/discover/nearby-shows";
+import {
+  filterNearbyShows,
+  getEventUrl,
+  nearbyCityLabel,
+  SHOWS_PAGE_LIMIT,
+  splitShowFeed,
+  ticketmasterSetupMessage,
+} from "@/lib/discover/nearby-shows";
 import type { ConcertEvent } from "@/lib/types/search";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import {
@@ -39,222 +46,170 @@ import {
 } from "@/components/ui/MenuOptions";
 import { useColors } from "@/hooks/use-colors";
 
-const PAGE_LIMIT = 60;
+type MonthSection = { title: string; data: ConcertEvent[] };
 
 export default function NearbyShowsScreen() {
   const colors = useColors();
-  const { mode, appliedZip, setMode, setAppliedZip } = useNearbyLocationPref();
+  const canManageServer = useHasPermission()("accessSettings");
+  const {
+    data,
+    isLoading,
+    errorMessage,
+    refetch,
+    mode,
+    appliedZip,
+    appliedCountry,
+    setMode,
+    setAppliedZip,
+    locationLabel,
+  } = useNearbyShows();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<NearbyShowsSource>("all");
-  const [sort, setSort] = useState<NearbyShowsSort>("date");
   const [dateRange, setDateRange] = useState<NearbyShowsDateRange>("all");
   const [zipEditorVisible, setZipEditorVisible] = useState(false);
 
-  const zipModeActive = mode === "zip";
-  const zipQueryValue =
-    zipModeActive && appliedZip.trim() ? appliedZip.trim() : undefined;
-  const queryEnabled = !zipModeActive || !!appliedZip.trim();
-
-  const { data, isLoading, refetch } = useNearbyShows({
-    zipCode: zipQueryValue,
-    limit: PAGE_LIMIT,
-    enabled: queryEnabled,
-  });
-
-  const openZipEditor = useCallback(() => {
+  const openZipEditor = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setZipEditorVisible(true);
-  }, []);
+  };
 
-  const closeZipEditor = useCallback(() => setZipEditorVisible(false), []);
+  const handleZipSave = (zip: string, country: string) => {
+    setAppliedZip(zip, country);
+    setZipEditorVisible(false);
+  };
 
-  const handleZipSave = useCallback(
-    (zip: string) => {
-      setAppliedZip(zip);
-      setMode("zip");
-      setZipEditorVisible(false);
-    },
-    [setAppliedZip, setMode],
-  );
-
-  const handleSelectIp = useCallback(() => {
+  const handleSelectYourLocation = useCallback(() => {
     void Haptics.selectionAsync();
     setMode("ip");
-  }, [setMode]);
-
-  const handleSelectZip = useCallback(() => {
-    void Haptics.selectionAsync();
-    setMode("zip");
   }, [setMode]);
 
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
   const handleShowPress = useCallback((show: ConcertEvent) => {
-    if (show.url) {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      Linking.openURL(show.url).catch(() => {});
-    }
+    const url = getEventUrl(show.url);
+    if (!url) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Linking.openURL(url).catch(() => {});
   }, []);
 
-  const shows = useMemo(() => data?.shows ?? [], [data?.shows]);
-
-  const visibleShows = useMemo(
+  const allShows = useMemo(() => data?.shows ?? [], [data?.shows]);
+  const { lead, shelf, groups } = useMemo(
     () =>
-      filterNearbyShows(shows, {
-        source: sourceFilter,
-        dateRange,
-        query: searchQuery,
-        sort,
-      }),
-    [shows, sourceFilter, dateRange, searchQuery, sort],
+      splitShowFeed(
+        filterNearbyShows(allShows, {
+          source: sourceFilter,
+          dateRange,
+          query: searchQuery,
+        }).slice(0, SHOWS_PAGE_LIMIT),
+      ),
+    [allShows, sourceFilter, dateRange, searchQuery],
+  );
+  const sections = useMemo<MonthSection[]>(
+    () => groups.map((group) => ({ title: group.label, data: group.shows })),
+    [groups],
   );
 
-  const locationLabel =
-    data?.location?.label || data?.location?.postalCode || "";
+  const configured = data?.configured !== false;
 
-  const renderItem = useCallback(
-    ({ item }: { item: ConcertEvent }) => (
-      <View style={styles.rowWrapper}>
-        <NearbyShowRow show={item} onPress={() => handleShowPress(item)} />
-      </View>
-    ),
-    [handleShowPress],
-  );
+  const emptyMessage = searchQuery.trim()
+    ? `No shows match “${searchQuery.trim()}”.`
+    : sourceFilter === "library"
+      ? `No shows for Library artists near ${locationLabel}.`
+      : sourceFilter === "discover"
+        ? `No shows for recommended artists near ${locationLabel}.`
+        : `No shows for Library or recommended artists near ${locationLabel}.`;
 
-  const keyExtractor = useCallback((item: ConcertEvent) => item.id, []);
-
-  const renderListHeader = () => (
-    <View style={styles.listHeader}>
-      {data?.configured !== false && (
-        <View style={styles.locationRow}>
-          <Text
-            variant="body"
-            style={[styles.locationText, { color: colors.subtle }]}
-            numberOfLines={1}
-          >
-            {locationLabel ||
-              (zipModeActive ? "Set a ZIP code" : "Finding your area…")}
-          </Text>
-          <SegmentedControl
-            values={["Your Area", "ZIP"]}
-            selectedIndex={zipModeActive ? 1 : 0}
-            onChange={(event) => {
-              const index = event.nativeEvent.selectedSegmentIndex;
-              if (index === 0) handleSelectIp();
-              else handleSelectZip();
-            }}
-            fontStyle={{
-              ...Fonts.medium,
-              fontSize: 12,
-              color: colors.text,
-            }}
-            activeFontStyle={{
-              ...Fonts.semiBold,
-              fontSize: 12,
-              color: colors.background,
-            }}
-            tintColor={colors.brand}
-            backgroundColor={colors.background}
-            style={styles.segmentedControl}
-          />
-        </View>
-      )}
-      {zipModeActive && (
-        <Pressable
-          onPress={openZipEditor}
-          style={({ pressed }) => [
-            styles.zipEditRow,
-            { opacity: pressed ? 0.6 : 1 },
-          ]}
-          hitSlop={8}
-        >
-          <Ionicons name="pencil" size={12} color={colors.subtle} />
-          <Text
-            variant="caption"
-            style={[styles.zipEditText, { color: colors.subtle }]}
-          >
-            {appliedZip.trim()
-              ? `Edit ZIP (${appliedZip.trim()})`
-              : "Enter ZIP code"}
-          </Text>
-        </Pressable>
-      )}
-    </View>
-  );
-
-  const renderEmpty = () => {
-    if (isLoading) {
-      return (
-        <View style={styles.skeletons}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} width="100%" height={92} borderRadius={12} />
-          ))}
-        </View>
-      );
-    }
-
-    if (data?.configured === false) {
-      return (
-        <Card bordered style={styles.emptyCard}>
-          <Text
-            variant="body"
-            style={[
-              styles.emptyTitle,
-              { color: colors.text, ...Fonts.semiBold },
-            ]}
-          >
-            Ticketmaster not configured
-          </Text>
-          <Text
-            variant="caption"
-            style={[styles.emptyBody, { color: colors.subtle }]}
-          >
-            Add a Ticketmaster Consumer Key in Settings to see local shows.
-          </Text>
-        </Card>
-      );
-    }
-
-    if (zipModeActive && !appliedZip.trim()) {
-      return (
-        <Card bordered style={styles.emptyCard}>
-          <Text
-            variant="body"
-            style={[
-              styles.emptyTitle,
-              { color: colors.text, ...Fonts.semiBold },
-            ]}
-          >
-            ZIP not set
-          </Text>
-          <Text
-            variant="caption"
-            style={[styles.emptyBody, { color: colors.subtle }]}
-          >
-            Enter a ZIP code to search for shows in that area.
-          </Text>
-          <Button title="Set ZIP" onPress={openZipEditor} />
-        </Card>
-      );
-    }
-
-    if (shows.length === 0) {
-      return (
-        <EmptyState
-          icon="musical-notes-outline"
-          message="No nearby shows found for your library and recommendations."
-        />
-      );
-    }
-
-    return (
-      <EmptyState
-        icon="search-outline"
-        message="No shows match your filters."
+  let body: ReactNode;
+  if (!configured) {
+    body = (
+      <StatePanel
+        icon="location-outline"
+        title="Ticketmaster not configured"
+        message={ticketmasterSetupMessage(canManageServer)}
       />
     );
-  };
+  } else if (isLoading) {
+    body = <FeedSkeleton />;
+  } else if (errorMessage) {
+    body = (
+      <StatePanel
+        icon="alert-circle-outline"
+        title="Couldn’t load nearby shows"
+        message={errorMessage}
+      />
+    );
+  } else if (mode === "zip" && !appliedZip.trim()) {
+    body = (
+      <StatePanel
+        icon="location-outline"
+        title="Enter a ZIP or postal code"
+        message="Pick a place to see the shows near it."
+        actionLabel="Enter a Location"
+        onAction={openZipEditor}
+      />
+    );
+  } else if (lead) {
+    body = (
+      <>
+        <View style={styles.gutter}>
+          <ShowLead show={lead} onPress={handleShowPress} />
+        </View>
+        {shelf.length > 0 ? (
+          <View style={styles.shelf}>
+            <SectionHeader title="Coming Up" />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.shelfTiles}
+            >
+              {shelf.map((show) => (
+                <ShowFeedTile
+                  key={show.id}
+                  show={show}
+                  feedStyle="square"
+                  onPress={handleShowPress}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+      </>
+    );
+  } else {
+    body = (
+      <StatePanel
+        icon="musical-notes-outline"
+        title={
+          allShows.length > 0
+            ? "No matches in this filter"
+            : "No upcoming nearby matches"
+        }
+        message={emptyMessage}
+      />
+    );
+  }
+
+  const listHeader = (
+    <View style={styles.listHeader}>
+      {configured ? (
+        <View style={styles.gutter}>
+          <View style={styles.locationRow}>
+            <NearbyLocationMenu
+              cityLabel={nearbyCityLabel(data?.location)}
+              mode={mode}
+              appliedZip={appliedZip}
+              appliedCountry={appliedCountry}
+              onSelectYourLocation={handleSelectYourLocation}
+              onEnterLocation={openZipEditor}
+              triggerColor={colors.text}
+            />
+          </View>
+        </View>
+      ) : null}
+      {body}
+    </View>
+  );
 
   return (
     <>
@@ -269,7 +224,6 @@ export default function NearbyShowsScreen() {
       />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Menu icon={FILTER_MENU_ICON} title="Filters">
-          {menuOptionSection("Sort by", SORT_OPTIONS, sort, setSort)}
           {menuOptionSection(
             "Date range",
             DATE_RANGE_OPTIONS,
@@ -284,12 +238,25 @@ export default function NearbyShowsScreen() {
           )}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
-      <FlatList
-        data={visibleShows}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        ListHeaderComponent={renderListHeader}
-        ListEmptyComponent={renderEmpty}
+      <SectionList
+        sections={lead ? sections : []}
+        keyExtractor={(show) => show.id}
+        renderItem={({ item }) => (
+          <View style={styles.gutter}>
+            <ShowFeedTile
+              show={item}
+              feedStyle="list"
+              onPress={handleShowPress}
+            />
+          </View>
+        )}
+        renderSectionHeader={({ section }) => (
+          <View style={styles.monthHeader}>
+            <SectionHeader title={section.title} />
+          </View>
+        )}
+        stickySectionHeadersEnabled={false}
+        ListHeaderComponent={listHeader}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
         contentContainerStyle={[
@@ -308,60 +275,131 @@ export default function NearbyShowsScreen() {
       <NearbyZipEditorSheet
         visible={zipEditorVisible}
         currentZip={appliedZip}
+        currentCountry={appliedCountry}
         onSave={handleZipSave}
-        onClose={closeZipEditor}
+        onClose={() => setZipEditorVisible(false)}
       />
     </>
   );
 }
 
+function StatePanel({
+  icon,
+  title,
+  message,
+  actionLabel,
+  onAction,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <View style={styles.statePanel}>
+      <Ionicons name={icon} size={40} color={colors.subtle} />
+      <Text
+        variant="body"
+        style={[styles.stateTitle, { color: colors.text }]}
+        accessibilityRole="header"
+      >
+        {title}
+      </Text>
+      <Text variant="caption" style={styles.stateMessage}>
+        {message}
+      </Text>
+      {actionLabel && onAction ? (
+        <Button
+          title={actionLabel}
+          onPress={onAction}
+          style={styles.stateAction}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function FeedSkeleton() {
+  const { width } = useWindowDimensions();
+  const artWidth = width - 32;
+  return (
+    <View style={[styles.gutter, styles.skeleton]} testID="shows-skeleton">
+      <Skeleton width="100%" height={(artWidth * 9) / 16} borderRadius={12} />
+      <Skeleton width={260} height={22} borderRadius={6} />
+      <Skeleton width={200} height={14} borderRadius={4} />
+      <Skeleton width={180} height={14} borderRadius={4} />
+      {Array.from({ length: 4 }).map((_, i) => (
+        <View key={i} style={styles.skeletonRow}>
+          <Skeleton width={36} height={36} borderRadius={8} />
+          <Skeleton width={48} height={48} borderRadius={24} />
+          <View style={styles.skeletonText}>
+            <Skeleton width="100%" height={14} borderRadius={4} />
+            <Skeleton width={140} height={12} borderRadius={4} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   listContent: {
-    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 40,
   },
   listHeader: {
-    gap: 12,
-    paddingBottom: 12,
+    gap: 20,
+  },
+  gutter: {
+    paddingHorizontal: 16,
   },
   locationRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  },
+  shelf: {
+    marginBottom: 4,
+  },
+  shelfTiles: {
+    paddingHorizontal: 16,
     gap: 12,
   },
-  locationText: {
-    flex: 1,
-    fontSize: 15,
+  monthHeader: {
+    paddingTop: 20,
   },
-  segmentedControl: {
-    width: 160,
+  statePanel: {
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingVertical: 48,
+    gap: 8,
   },
-  zipEditRow: {
+  stateTitle: {
+    ...Fonts.semiBold,
+    fontSize: 17,
+    textAlign: "center",
+  },
+  stateMessage: {
+    textAlign: "center",
+  },
+  stateAction: {
+    width: "auto",
+    height: 44,
+    paddingHorizontal: 24,
+    marginTop: 8,
+  },
+  skeleton: {
+    gap: 10,
+  },
+  skeletonRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+  },
+  skeletonText: {
+    flex: 1,
     gap: 6,
-  },
-  zipEditText: {
-    fontSize: 12,
-  },
-  rowWrapper: {
-    paddingBottom: 10,
-  },
-  skeletons: {
-    gap: 10,
-  },
-  emptyCard: {
-    padding: 16,
-    gap: 10,
-  },
-  emptyTitle: {
-    fontSize: 15,
-  },
-  emptyBody: {
-    fontSize: 12,
-    lineHeight: 16,
   },
 });
 

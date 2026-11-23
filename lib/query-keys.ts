@@ -190,8 +190,8 @@ export const discoverKeys = {
   recentlyAdded: () => ["discover", "recentlyAdded"] as const,
   recentReleases: () => ["discover", "recentReleases"] as const,
   nearbyShowsAll: () => ["discover", "nearbyShows"] as const,
-  nearbyShows: (zipCode?: string, limit?: number) =>
-    ["discover", "nearbyShows", zipCode ?? "", limit ?? null] as const,
+  nearbyShows: (zip: string, country: string) =>
+    ["discover", "nearbyShows", zip, country] as const,
   editorialShelf: (scope?: EditorialShelfScope) =>
     ["discover", "editorial", "shelf", scope ?? "all"] as const,
   madeForYou: () => ["discover", "editorial", "made-for-you"] as const,

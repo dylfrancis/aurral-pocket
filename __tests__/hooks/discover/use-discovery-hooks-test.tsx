@@ -15,7 +15,12 @@ jest.mock("@/lib/api/search", () => ({
 }));
 
 import React from "react";
-import { cleanup, renderHook, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  cleanup,
+  renderHook,
+  waitFor,
+} from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   getDiscovery,
@@ -117,61 +122,73 @@ describe("useRecentReleases", () => {
 });
 
 describe("useNearbyShows", () => {
-  const emptyResponse = {
+  const response = (location: object | null = null) => ({
     configured: true,
-    location: null,
+    location,
     shows: [],
-  };
-
-  it("calls getNearbyShows with undefined args by default", async () => {
-    mockGetNearbyShows.mockResolvedValue(emptyResponse);
-
-    const { wrapper } = makeWrapper();
-    const { result } = await renderHook(() => useNearbyShows(), { wrapper });
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockGetNearbyShows).toHaveBeenCalledWith(undefined, undefined);
   });
 
-  it("forwards zipCode and limit to the API", async () => {
-    mockGetNearbyShows.mockResolvedValue(emptyResponse);
-
+  // The saved location is one store for the whole app, so each test sets the
+  // location it needs rather than relying on the one before.
+  async function renderNearby() {
     const { wrapper } = makeWrapper();
-    await renderHook(() => useNearbyShows({ zipCode: "10001", limit: 5 }), {
-      wrapper,
-    });
+    const hook = await renderHook(() => useNearbyShows(), { wrapper });
+    await waitFor(() => expect(hook.result.current.hydrated).toBe(true));
+    return hook;
+  }
+
+  it("asks for shows near the request's address in Your Location mode", async () => {
+    mockGetNearbyShows.mockResolvedValue(response());
+    const { result } = await renderNearby();
+
+    await act(() => result.current.setMode("ip"));
 
     await waitFor(() =>
-      expect(mockGetNearbyShows).toHaveBeenCalledWith("10001", 5),
+      expect(mockGetNearbyShows).toHaveBeenLastCalledWith({
+        zip: "",
+        country: "",
+      }),
     );
   });
 
-  it("respects enabled: false", async () => {
-    mockGetNearbyShows.mockResolvedValue(emptyResponse);
+  it("sends the entered ZIP with its country, trimmed and upper-cased", async () => {
+    mockGetNearbyShows.mockResolvedValue(response());
+    const { result } = await renderNearby();
 
-    const { wrapper } = makeWrapper();
-    await renderHook(() => useNearbyShows({ enabled: false }), { wrapper });
+    await act(() => result.current.setAppliedZip(" 75001 ", "fr"));
 
-    expect(mockGetNearbyShows).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(mockGetNearbyShows).toHaveBeenLastCalledWith({
+        zip: "75001",
+        country: "FR",
+      }),
+    );
   });
 
-  it("uses distinct query keys for different zip/limit pairs", async () => {
-    mockGetNearbyShows.mockResolvedValue(emptyResponse);
-    const { wrapper, client } = makeWrapper();
+  it("asks for nothing while a ZIP is picked but not entered", async () => {
+    mockGetNearbyShows.mockResolvedValue(response());
+    const { result } = await renderNearby();
 
-    await renderHook(() => useNearbyShows({ zipCode: "10001", limit: 10 }), {
-      wrapper,
-    });
-    await renderHook(() => useNearbyShows({ zipCode: "10001", limit: 20 }), {
-      wrapper,
-    });
+    await act(() => result.current.setAppliedZip(""));
+    mockGetNearbyShows.mockClear();
+    // Pull to refresh lands here too.
+    await act(() => result.current.refetch());
 
-    await waitFor(() => expect(mockGetNearbyShows.mock.calls.length).toBe(2));
+    expect(mockGetNearbyShows).not.toHaveBeenCalled();
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.data).toBeUndefined();
+  });
 
-    const keys = client
-      .getQueryCache()
-      .findAll()
-      .map((q) => q.queryKey);
-    expect(keys).toHaveLength(2);
+  it("reports a ZIP the server couldn't place", async () => {
+    mockGetNearbyShows.mockResolvedValue(
+      response({ resolved: false, label: "00000" }),
+    );
+    const { result } = await renderNearby();
+
+    await act(() => result.current.setAppliedZip("00000"));
+
+    await waitFor(() =>
+      expect(result.current.errorMessage).toBe("ZIP or postal code not found."),
+    );
   });
 });

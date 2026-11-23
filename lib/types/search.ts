@@ -477,6 +477,8 @@ export type ConcertEvent = {
 };
 
 export type NearbyShowsLocation = {
+  /** False when the server couldn't place the ZIP or postal code it was sent. */
+  resolved: boolean;
   label?: string | null;
   postalCode?: string | null;
   city?: string | null;
