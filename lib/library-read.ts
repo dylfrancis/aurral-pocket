@@ -25,19 +25,16 @@ export function libraryAlbumsRef({ artistId, artistMbid }: ArtistReference) {
 }
 
 /**
- * The identifier the artist route uses.
- *
- * The canonical read path leaves `mbid` null for artists it scanned from files
- * that carry no MusicBrainz id, so fall back to the identifiers the server
- * always sets. That keeps the route well formed. The artist screen still needs
- * a real MBID to load, so those artists open on its not-found state.
+ * The identifier the artist route uses: the MBID, or the Library id for an
+ * artist scanned from files with no MusicBrainz id that Aurral hasn't matched.
  */
-export function artistRouteId(artist: {
-  id: string;
-  mbid?: string | null;
-  foreignArtistId?: string | null;
-}) {
-  return artist.mbid || artist.foreignArtistId || artist.id;
+export function artistRouteId(artist: { id: string; mbid?: string | null }) {
+  return artist.mbid || artist.id;
+}
+
+/** Library ids are numeric, which tells them apart from MBIDs. */
+export function isLibraryArtistId(ref: string | null | undefined) {
+  return !!ref && /^\d+$/.test(ref);
 }
 
 type AlbumReference = {

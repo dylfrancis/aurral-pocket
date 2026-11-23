@@ -10,7 +10,7 @@ type ArtistTarget = {
 
 /**
  * Opens an artist page in the current tab, since a bare path resolves inside
- * the tab's own group. Does nothing without an MBID.
+ * the tab's own group. Does nothing without an MBID or Library id.
  */
 export function useOpenArtist() {
   const router = useRouter();

@@ -1,6 +1,7 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
 import { ArtistLibraryControl } from "@/components/artist/ArtistLibraryControl";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
+import { MatchArtistSheet } from "@/components/artist/MatchArtistSheet";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { TopTracksSection } from "@/components/artist/TopTracksSection";
@@ -15,8 +16,10 @@ import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { Fonts } from "@/constants/theme";
 import { HAS_LIQUID_GLASS } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
+import { albumTrackContext } from "@/hooks/library/album-track-context";
 import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetails } from "@/hooks/library/use-artist-details";
+import { useArtistSongs } from "@/hooks/library/use-artist-queue";
 import { useArtistTopTracks } from "@/hooks/library/use-artist-top-tracks";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
@@ -31,13 +34,14 @@ import {
   useLibraryArtist,
 } from "@/hooks/library/use-library-artist";
 import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
+import { useLibraryScan } from "@/hooks/library/use-library-scan";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import {
   useBlocklist,
   useBlocklistMutations,
 } from "@/hooks/discover/use-blocklist";
-import { findBlockedArtist } from "@/lib/blocklist";
+import { findBlockedArtist, isValidMbid } from "@/lib/blocklist";
 import {
   setArtistInLibrary,
   useLibraryLookup,
@@ -56,6 +60,7 @@ import {
 } from "@/lib/player/player";
 import {
   queueTrackToPlayerTrack,
+  toPlayerTrack,
   type PlayerAlbumContext,
   type PlayerTrack,
 } from "@/lib/player/track-item";
@@ -63,6 +68,7 @@ import { topTrackClipId, topTrackItem } from "@/lib/top-tracks";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
 import type {
   Album,
+  ArtistMatchResult,
   PrimaryReleaseType,
   ReleaseGroup,
 } from "@/lib/types/library";
@@ -78,6 +84,8 @@ import SearchIcon from "@expo/material-symbols/search.xml";
 import BlockIcon from "@expo/material-symbols/block.xml";
 import CheckCircle from "@expo/material-symbols/check_circle.xml";
 import Sensors from "@expo/material-symbols/sensors.xml";
+import LinkIcon from "@expo/material-symbols/link.xml";
+import RefreshIcon from "@expo/material-symbols/refresh.xml";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -111,7 +119,8 @@ function sortByDate(albums: Album[]): Album[] {
 }
 
 type ArtistDetailLayoutProps = {
-  mbid: string;
+  /** An MBID, or the Library id of an artist without one. */
+  artistRef: string;
   artistName: string;
   /** The cover the row that opened the page already has. */
   coverUrl?: string;
@@ -121,7 +130,7 @@ type ArtistDetailLayoutProps = {
 };
 
 export function ArtistDetailLayout({
-  mbid,
+  artistRef,
   artistName,
   coverUrl,
   onNavigateToReleases,
@@ -133,22 +142,26 @@ export function ArtistDetailLayout({
   const queryClient = useQueryClient();
   const router = useRouter();
 
+  // Every read that goes through the metadata server needs the MBID.
+  const mbid = isValidMbid(artistRef) ? artistRef : undefined;
   const { isInLibrary, isLoading: libraryStatusLoading } = useLibraryLookup([
     mbid,
   ]);
-  const inLibrary = isInLibrary(mbid);
+  // Only a Library artist has a Library id.
+  const inLibrary = mbid ? isInLibrary(mbid) : true;
   const pluginActions = usePluginActions(
     "artist",
-    inLibrary ? { artistId: mbid } : null,
+    inLibrary ? { artistId: artistRef } : null,
   );
   const { data: libraryArtist, refetch: refetchArtist } = useLibraryArtist(
     inLibrary ? mbid : undefined,
   );
+  const libraryArtistId = mbid ? libraryArtist?.id : artistRef;
   const {
     data: canonicalArtist,
     isPending: canonicalArtistLoading,
     refetch: refetchCanonicalArtist,
-  } = useCanonicalArtist(inLibrary ? mbid : undefined);
+  } = useCanonicalArtist(inLibrary ? artistRef : undefined);
   const toggleFavorite = useToggleFavorite();
   // Shows the tap at once. A refused toggle falls back to the artist's own flag.
   const isFavorite = toggleFavorite.isPending
@@ -163,7 +176,7 @@ export function ArtistDetailLayout({
     });
   };
   const albumsRef = libraryAlbumsRef({
-    artistId: libraryArtist?.id,
+    artistId: libraryArtistId,
     artistMbid: inLibrary ? mbid : undefined,
   });
   const {
@@ -177,6 +190,9 @@ export function ArtistDetailLayout({
     isLoading: topTracksLoading,
     artistQueue,
   } = useArtistTopTracks(mbid, artistName, inLibrary);
+  const { data: artistSongs, refetch: refetchArtistSongs } = useArtistSongs(
+    mbid ? undefined : artistRef,
+  );
   const { data: details, isPending: detailsLoading } = useArtistDetails(mbid);
   const { data: similarArtists } = useSimilarArtists(mbid);
 
@@ -193,13 +209,59 @@ export function ArtistDetailLayout({
   const canResearchMissing = hasPermission("addAlbum");
   const { missingCount, researchMissing, isResearching } =
     useResearchMissingAlbums(rawAlbums, downloadStatuses, {
-      mbid,
+      mbid: mbid ?? "",
       name: libraryArtist?.artistName || artistName,
     });
 
+  // As on the web: only for an artist with no provider record.
+  const canMatch =
+    inLibrary &&
+    hasPermission("addArtist") &&
+    !!canonicalArtist &&
+    canonicalArtist.providerId == null;
+  const [matching, setMatching] = useState(false);
+  const handleMatched = useCallback(
+    (result: ArtistMatchResult) => {
+      const name = libraryArtist?.artistName || artistName || "Artist";
+      Burnt.toast({
+        title: result.merged
+          ? `Merged ${name} into ${result.name}`
+          : result.mbid
+            ? `Matched ${name} to ${result.musicbrainzName || "MusicBrainz"}`
+            : `Removed the match from ${name}`,
+        preset: "done",
+      });
+      // A merge moves the artist to another id, and a removed match leaves it
+      // only its Library id.
+      router.setParams({ mbid: result.mbid ?? String(result.id) });
+    },
+    [libraryArtist?.artistName, artistName, router],
+  );
+
+  // As on the web: only for files in the Library or a read-only folder.
+  const canRescan =
+    inLibrary &&
+    !!canonicalArtist?.sources?.some(
+      (source) => source === "aurral" || source === "readonly",
+    );
+  const libraryScan = useLibraryScan();
+  const handleRescan = useCallback(() => {
+    if (!canonicalArtist) return;
+    const name = canonicalArtist.artistName || artistName;
+    libraryScan.scan(
+      { artistId: Number(canonicalArtist.id) },
+      {
+        started: `Rescanning ${name}`,
+        done: `Rescanned ${name}`,
+        failed: `Couldn't rescan ${name}`,
+      },
+    );
+  }, [canonicalArtist, artistName, libraryScan]);
+
   const pollCount = useRef(0);
   useEffect(() => {
-    if (!inLibrary) return;
+    // An artist opened by Library id is already indexed.
+    if (!inLibrary || !mbid) return;
     const hasRealId = libraryArtist?.id && libraryArtist.id !== "";
     const hasAlbums = rawAlbums && rawAlbums.length > 0;
     if (hasRealId && hasAlbums) {
@@ -220,7 +282,14 @@ export function ArtistDetailLayout({
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [inLibrary, libraryArtist?.id, rawAlbums, refetchArtist, refetchAlbums]);
+  }, [
+    inLibrary,
+    mbid,
+    libraryArtist?.id,
+    rawAlbums,
+    refetchArtist,
+    refetchAlbums,
+  ]);
 
   // An artist added from this page reads as null until its first album is
   // indexed, and nothing else would read it again.
@@ -304,7 +373,7 @@ export function ArtistDetailLayout({
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteLibraryArtist(id),
     onSuccess: () => {
-      setArtistInLibrary(queryClient, mbid, false);
+      if (mbid) setArtistInLibrary(queryClient, mbid, false);
       invalidateLibraryLists(queryClient);
     },
   });
@@ -331,11 +400,15 @@ export function ArtistDetailLayout({
   const { data: blockedArtists } = useBlocklist();
   const { blockArtist, unblockArtist } = useBlocklistMutations();
   const blockedEntry = useMemo(
-    () => findBlockedArtist(blockedArtists, { id: mbid, name: artistName }),
+    () =>
+      mbid
+        ? findBlockedArtist(blockedArtists, { id: mbid, name: artistName })
+        : undefined,
     [blockedArtists, mbid, artistName],
   );
 
   const handleToggleBlock = useCallback(() => {
+    if (!mbid) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (blockedEntry) {
       unblockArtist.mutate(blockedEntry, {
@@ -362,35 +435,52 @@ export function ArtistDetailLayout({
       Promise.all([
         refetchAlbums(),
         refetchCanonicalArtist(),
-        queryClient.invalidateQueries({
-          queryKey: libraryKeys.artistMonitoring(mbid),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: libraryKeys.artistQueue(mbid),
-        }),
+        ...(mbid
+          ? [
+              queryClient.invalidateQueries({
+                queryKey: libraryKeys.artistMonitoring(mbid),
+              }),
+              queryClient.invalidateQueries({
+                queryKey: libraryKeys.artistQueue(mbid),
+              }),
+            ]
+          : [refetchArtistSongs()]),
       ]),
-    [refetchAlbums, refetchCanonicalArtist, queryClient, mbid],
+    [
+      refetchAlbums,
+      refetchCanonicalArtist,
+      refetchArtistSongs,
+      queryClient,
+      mbid,
+    ],
   );
   const { refreshing, onRefresh } = usePullToRefresh(refreshArtist);
 
   const startQueue = useStartQueue();
   // Built at the tap: each URL carries the session token.
+  const playableCount = mbid ? artistQueue?.length : artistSongs?.length;
   const playArtist = useCallback(
     (shuffled: boolean) => {
-      const items = (artistQueue ?? [])
-        .map((track) => queueTrackToPlayerTrack(track, null))
-        .filter((item): item is PlayerTrack => item !== null);
+      const items = (
+        mbid
+          ? (artistQueue ?? []).map((track) =>
+              queueTrackToPlayerTrack(track, null),
+            )
+          : (artistSongs ?? []).map((song) =>
+              toPlayerTrack(song, albumTrackContext(song, queryClient)),
+            )
+      ).filter((item): item is PlayerTrack => item !== null);
       const context: PlayerAlbumContext = {
         albumTitle: artistName,
         artistName,
         coverPath: null,
         artworkUrl: null,
         albumMbid: null,
-        artistMbid: mbid,
+        artistMbid: mbid ?? null,
       };
       void startQueue(items, context, { shuffled });
     },
-    [artistQueue, artistName, mbid, startQueue],
+    [artistQueue, artistSongs, artistName, mbid, queryClient, startQueue],
   );
 
   const topTracksContext = useMemo<PlayerAlbumContext>(
@@ -400,7 +490,7 @@ export function ArtistDetailLayout({
       coverPath: null,
       artworkUrl: null,
       albumMbid: null,
-      artistMbid: mbid,
+      artistMbid: mbid ?? null,
     }),
     [artistName, mbid],
   );
@@ -417,7 +507,9 @@ export function ArtistDetailLayout({
   const topTrackItems = useCallback(
     () =>
       topTracks
-        .map((topTrack) => topTrackItem(topTrack, { name: artistName, mbid }))
+        .map((topTrack) =>
+          topTrackItem(topTrack, { name: artistName, mbid: mbid ?? "" }),
+        )
         .filter((item): item is PlayerTrack => item !== null),
     [topTracks, artistName, mbid],
   );
@@ -446,7 +538,7 @@ export function ArtistDetailLayout({
       const topTrack = topTracks[index];
       if (!topTrack) return;
       trackActions.openItem(
-        topTrackItem(topTrack, { name: artistName, mbid }),
+        topTrackItem(topTrack, { name: artistName, mbid: mbid ?? "" }),
         topTracksContext,
         {
           title: topTrack.library?.title ?? topTrack.preview.title,
@@ -463,10 +555,17 @@ export function ArtistDetailLayout({
   // who shares it.
   const handleStartRadio = useCallback(() => {
     void startRadio({
-      seed: { artists: [{ id: canonicalArtist?.id ?? null, mbid }] },
+      seed: {
+        artists: [
+          {
+            id: canonicalArtist?.id ?? libraryArtistId ?? null,
+            mbid: mbid ?? null,
+          },
+        ],
+      },
       label: artistName,
     });
-  }, [startRadio, canonicalArtist?.id, mbid, artistName]);
+  }, [startRadio, canonicalArtist?.id, libraryArtistId, mbid, artistName]);
 
   // With Liquid Glass the scroll view insets below the header, as the album
   // page does, and the hero bleeds back up under it. iOS then sees the page at
@@ -497,7 +596,7 @@ export function ArtistDetailLayout({
               Start Radio
             </Stack.Toolbar.MenuAction>
           )}
-          {inLibrary && canResearchMissing && (
+          {inLibrary && canResearchMissing && mbid ? (
             <Stack.Toolbar.MenuAction
               icon={IS_IOS ? "magnifyingglass" : SearchIcon}
               hidden={missingCount === 0}
@@ -506,26 +605,46 @@ export function ArtistDetailLayout({
             >
               {`Re-search Missing (${missingCount})`}
             </Stack.Toolbar.MenuAction>
-          )}
+          ) : null}
+          {canMatch ? (
+            <Stack.Toolbar.MenuAction
+              icon={IS_IOS ? "link" : LinkIcon}
+              onPress={() => setMatching(true)}
+            >
+              Match Artist
+            </Stack.Toolbar.MenuAction>
+          ) : null}
+          {canRescan ? (
+            <Stack.Toolbar.MenuAction
+              icon={IS_IOS ? "arrow.clockwise" : RefreshIcon}
+              disabled={libraryScan.isScanning}
+              onPress={handleRescan}
+            >
+              Rescan Files
+            </Stack.Toolbar.MenuAction>
+          ) : null}
           {pluginMenuSection(pluginActions)}
-          <Stack.Toolbar.MenuAction
-            icon={
-              IS_IOS
-                ? blockedEntry
-                  ? "checkmark.circle"
-                  : "nosign"
-                : blockedEntry
-                  ? CheckCircle
-                  : BlockIcon
-            }
-            // Native menus only offer the platform destructive style, so red
-            // here is the system red rather than the theme's error token.
-            destructive={!blockedEntry}
-            disabled={blockArtist.isPending || unblockArtist.isPending}
-            onPress={handleToggleBlock}
-          >
-            {blockedEntry ? "Unblock Artist" : "Block Artist"}
-          </Stack.Toolbar.MenuAction>
+          {/* The blocklist names artists by MBID. */}
+          {mbid ? (
+            <Stack.Toolbar.MenuAction
+              icon={
+                IS_IOS
+                  ? blockedEntry
+                    ? "checkmark.circle"
+                    : "nosign"
+                  : blockedEntry
+                    ? CheckCircle
+                    : BlockIcon
+              }
+              // Native menus only offer the platform destructive style, so red
+              // here is the system red rather than the theme's error token.
+              destructive={!blockedEntry}
+              disabled={blockArtist.isPending || unblockArtist.isPending}
+              onPress={handleToggleBlock}
+            >
+              {blockedEntry ? "Unblock Artist" : "Block Artist"}
+            </Stack.Toolbar.MenuAction>
+          ) : null}
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <Animated.ScrollView
@@ -553,22 +672,25 @@ export function ArtistDetailLayout({
             // The live record wins over the row that opened the page, which may
             // carry a cover version from before the artwork changed.
             artist={{
-              mbid,
+              mbid: mbid ?? "",
               artistName,
               coverUrl: canonicalArtist?.coverUrl || coverUrl,
             }}
             scrollY={scrollY}
             refreshing={refreshing}
             inLibrary={libraryStatusLoading ? undefined : inLibrary}
+            // The capsule's monitoring takes the MBID.
             libraryControl={
-              <ArtistLibraryControl
-                mbid={mbid}
-                artistName={libraryArtist?.artistName || artistName}
-                onRemove={libraryArtist ? handleRemove : undefined}
-              />
+              mbid ? (
+                <ArtistLibraryControl
+                  mbid={mbid}
+                  artistName={libraryArtist?.artistName || artistName}
+                  onRemove={libraryArtist ? handleRemove : undefined}
+                />
+              ) : undefined
             }
             play={{
-              disabled: !artistQueue?.length,
+              disabled: !playableCount,
               onPlay: () => playArtist(false),
               onShuffle: () => playArtist(true),
             }}
@@ -586,22 +708,24 @@ export function ArtistDetailLayout({
           />
         </View>
 
-        <ArtistTags mbid={mbid} />
+        {mbid ? <ArtistTags mbid={mbid} /> : null}
 
-        <TopTracksSection
-          topTracks={topTracks}
-          isLoading={topTracksLoading}
-          itemIds={topTrackIds}
-          currentId={currentTrack?.id ?? null}
-          isPlaying={playbackState === "playing"}
-          onPlayFrom={playTopTracksFrom}
-          onPlayAll={() =>
-            void startQueue(topTrackItems(), topTracksContext, {
-              startId: topTrackIds[0],
-            })
-          }
-          onOpenActions={openTopTrackActions}
-        />
+        {mbid ? (
+          <TopTracksSection
+            topTracks={topTracks}
+            isLoading={topTracksLoading}
+            itemIds={topTrackIds}
+            currentId={currentTrack?.id ?? null}
+            isPlaying={playbackState === "playing"}
+            onPlayFrom={playTopTracksFrom}
+            onPlayAll={() =>
+              void startQueue(topTrackItems(), topTracksContext, {
+                startId: topTrackIds[0],
+              })
+            }
+            onOpenActions={openTopTrackActions}
+          />
+        ) : null}
 
         {inLibrary && (
           <LibraryAlbumsSection
@@ -627,14 +751,16 @@ export function ArtistDetailLayout({
           onPress={onSimilarArtistPress}
         />
 
-        <ArtistBioSection
-          bio={details?.bio}
-          artistName={artistName}
-          mbid={mbid}
-        />
+        {mbid ? (
+          <ArtistBioSection
+            bio={details?.bio}
+            artistName={artistName}
+            mbid={mbid}
+          />
+        ) : null}
       </Animated.ScrollView>
 
-      {!inLibrary && (
+      {!inLibrary && mbid ? (
         <AddArtistSheet
           mbid={mbid}
           artistName={artistName}
@@ -645,7 +771,17 @@ export function ArtistDetailLayout({
             );
           }}
         />
-      )}
+      ) : null}
+
+      {matching && canonicalArtist ? (
+        <MatchArtistSheet
+          libraryArtistId={canonicalArtist.id}
+          artistName={libraryArtist?.artistName || artistName}
+          currentMbid={mbid}
+          onSaved={handleMatched}
+          onDismiss={() => setMatching(false)}
+        />
+      ) : null}
 
       <TrackActionsSheet
         target={trackActions.target}

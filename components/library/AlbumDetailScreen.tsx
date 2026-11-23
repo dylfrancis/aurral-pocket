@@ -334,9 +334,11 @@ export function AlbumDetailScreen() {
   }, [title, deleteMutation]);
 
   const openArtistPage = useOpenArtist();
+  // An artist with no MBID opens by its Library id.
+  const artistRef = artistMbid || params.artistId || album?.artistId || "";
   const openArtist = useCallback(
-    () => openArtistPage({ mbid: params.artistMbid, name: artistName }),
-    [openArtistPage, params.artistMbid, artistName],
+    () => openArtistPage({ mbid: artistRef, name: artistName }),
+    [openArtistPage, artistRef, artistName],
   );
 
   const scrollY = useSharedValue(0);
@@ -653,7 +655,7 @@ export function AlbumDetailScreen() {
           </Text>
           <Pressable
             onPress={openArtist}
-            disabled={!params.artistMbid}
+            disabled={!artistRef}
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
           >
             <Text

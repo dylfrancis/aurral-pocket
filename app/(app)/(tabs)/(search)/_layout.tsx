@@ -33,6 +33,10 @@ export default function SearchLayout() {
         <Stack.Screen name="flow/[id]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen name="playlist/[id]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen
+          name="artist/albums"
+          options={artistListScreenOptions("albums", colors)}
+        />
+        <Stack.Screen
           name="artist/releases"
           options={artistListScreenOptions("releases", colors)}
         />

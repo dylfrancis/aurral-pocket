@@ -24,6 +24,8 @@ type MediaRowProps = {
   showChevron?: boolean;
   /** Drawn in place of the cover, for art that comes from elsewhere. */
   image?: React.ReactNode;
+  /** For a row picked from a list, which screen readers announce. */
+  selected?: boolean;
 };
 
 const ARTIST_THUMB_SIZE = 48;
@@ -43,6 +45,7 @@ export const MediaRow = React.memo(function MediaRow({
   coverUrl,
   showChevron = true,
   image,
+  selected,
 }: MediaRowProps) {
   const colors = useColors();
   const thumbSize =
@@ -52,6 +55,7 @@ export const MediaRow = React.memo(function MediaRow({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={selected === undefined ? undefined : { selected }}
       onPress={onPress}
       onLongPress={onLongPress}
       style={({ pressed }) => [

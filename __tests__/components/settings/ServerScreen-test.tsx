@@ -30,6 +30,32 @@ jest.mock("@/hooks/auth/use-change-server", () => ({
   useChangeServer: () => ({ mutate: mockChangeServer, isPending: false }),
 }));
 
+const mockScan = jest.fn();
+jest.mock("@/hooks/library/use-library-scan", () => ({
+  useLibraryScan: () => ({ scan: mockScan, isScanning: false }),
+}));
+
+// The native menu renders nothing under Jest, so it stands in as a button per
+// action.
+jest.mock("@/components/settings/SettingsActionMenu", () => {
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  return {
+    SettingsActionMenu: ({ actions }: any) =>
+      React.createElement(
+        View,
+        null,
+        actions.map((action: any) =>
+          React.createElement(
+            Pressable,
+            { key: action.key, onPress: action.onPress },
+            React.createElement(Text, null, action.label),
+          ),
+        ),
+      ),
+  };
+});
+
 import { Alert, type AlertButton } from "react-native";
 import { fireEvent, render } from "@testing-library/react-native";
 import { ServerScreen } from "@/components/settings/ServerScreen";
@@ -91,6 +117,17 @@ describe("ServerScreen", () => {
     pressAlertButton("Remove");
 
     expect(mockSave).toHaveBeenCalledWith({}, expect.anything());
+  });
+
+  it.each([
+    ["Quick Scan", "quick"],
+    ["Full Scan", "full"],
+  ])("starts a library scan from %s", async (label, mode) => {
+    const utils = await render(<ServerScreen />);
+
+    await fireEvent.press(utils.getByText(label));
+
+    expect(mockScan).toHaveBeenCalledWith({ mode }, expect.anything());
   });
 
   it("changes server only once confirmed", async () => {

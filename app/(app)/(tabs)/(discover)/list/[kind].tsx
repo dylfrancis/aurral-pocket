@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/MenuOptions";
 import { formatDate } from "@/lib/date-time";
 import { formatReleaseStatus, recentlyAddedMbid } from "@/lib/discover/format";
+import { artistRouteId } from "@/lib/library-read";
 import {
   filterKey,
   parseRecommendedFilter,
@@ -273,6 +274,8 @@ export default function DiscoverListScreen() {
           keyOf={(item) => item.id}
           renderCell={(item) => {
             const mbid = recentlyAddedMbid(item);
+            const open = () =>
+              openArtist({ mbid: artistRouteId(item), name: item.artistName });
             if (!isGrid) {
               return (
                 <MediaRow
@@ -280,7 +283,7 @@ export default function DiscoverListScreen() {
                   mbid={mbid}
                   title={item.artistName}
                   subtitle={formatAdded(item.addedAt || item.added)}
-                  onPress={() => openArtist({ mbid, name: item.artistName })}
+                  onPress={open}
                 />
               );
             }
@@ -290,7 +293,7 @@ export default function DiscoverListScreen() {
                 name={item.artistName}
                 subtitle={formatAdded(item.addedAt || item.added)}
                 fill
-                onPress={() => openArtist({ mbid, name: item.artistName })}
+                onPress={open}
               />
             );
           }}

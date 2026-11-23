@@ -19,6 +19,8 @@ import {
   lookupLibraryAlbums,
   lookupLibraryArtists,
   refreshCanonicalLibrary,
+  getArtistMatches,
+  setLibraryArtistMbid,
   getCanonicalLibraryRefresh,
   getArtistCover,
   getAlbumCover,
@@ -226,7 +228,7 @@ describe("getCanonicalLibraryPage", () => {
 
     await getCanonicalLibraryPage({
       kind: "tracks",
-      source: "lidarr",
+      source: "readonly",
       availableOnly: true,
       page: 1,
       pageSize: 100,
@@ -242,7 +244,7 @@ describe("getCanonicalLibraryPage", () => {
     expect(mockApi.get).toHaveBeenCalledWith("/library", {
       params: {
         kind: "tracks",
-        source: "lidarr",
+        source: "readonly",
         availableOnly: "true",
         page: "1",
         pageSize: "100",
@@ -1073,8 +1075,10 @@ describe("canonical library scan", () => {
     };
     mockApi.post.mockResolvedValue({ data: job });
 
-    const result = await refreshCanonicalLibrary();
-    expect(mockApi.post).toHaveBeenCalledWith("/library/refresh");
+    const result = await refreshCanonicalLibrary({ artistId: 7 });
+    expect(mockApi.post).toHaveBeenCalledWith("/library/refresh", {
+      artistId: 7,
+    });
     expect(result).toEqual(job);
   });
 
@@ -1085,6 +1089,36 @@ describe("canonical library scan", () => {
     const result = await getCanonicalLibraryRefresh(1);
     expect(mockApi.get).toHaveBeenCalledWith("/library/refresh/1");
     expect(result).toEqual(status);
+  });
+});
+
+describe("artist matching", () => {
+  it("searches by the typed query, or by the artist's name when it's empty", async () => {
+    mockApi.get.mockResolvedValue({ data: { items: [] } });
+
+    await getArtistMatches("12", "AC/DC");
+    await getArtistMatches("12", "");
+
+    expect(mockApi.get).toHaveBeenNthCalledWith(
+      1,
+      "/library/artists/12/matches",
+      { params: { q: "AC/DC" }, signal: undefined },
+    );
+    expect(mockApi.get).toHaveBeenNthCalledWith(
+      2,
+      "/library/artists/12/matches",
+      { params: undefined, signal: undefined },
+    );
+  });
+
+  it("clears a match with a null MBID", async () => {
+    mockApi.put.mockResolvedValue({ data: {} });
+
+    await setLibraryArtistMbid("12", null);
+
+    expect(mockApi.put).toHaveBeenCalledWith("/library/artists/12/mbid", {
+      mbid: null,
+    });
   });
 });
 

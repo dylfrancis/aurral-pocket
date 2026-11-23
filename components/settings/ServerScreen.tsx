@@ -3,6 +3,7 @@ import { Alert } from "react-native";
 import { FieldGroup, Host, TextInput } from "@expo/ui";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
+import { SettingsActionMenu } from "@/components/settings/SettingsActionMenu";
 import {
   SettingsNote,
   useFieldColors,
@@ -10,9 +11,13 @@ import {
 } from "@/components/settings/SettingsRows";
 import { useAuth } from "@/contexts/auth-context";
 import { useChangeServer } from "@/hooks/auth/use-change-server";
+import { useLibraryScan } from "@/hooks/library/use-library-scan";
 import { useSaveCustomHeaders } from "@/hooks/auth/use-save-custom-headers";
 import { ApiError } from "@/lib/api/client";
 import { headerRowsSchema, newHeaderRow } from "@/lib/custom-headers";
+
+const SCAN_NOTE =
+  "A quick scan reads new and changed files. A full scan reads every file again, which takes longer. Either one also tries to match artists whose files have no MusicBrainz tags.";
 
 const HEADERS_NOTE =
   "Sent with every request, for a reverse proxy in front of your server. The server has to answer with a change before it’s kept.";
@@ -22,6 +27,7 @@ export function ServerScreen() {
   const { serverUrl } = useAuth();
   const changeServer = useChangeServer();
   const headersSections = useHeadersSections();
+  const libraryScan = useLibraryScan();
 
   const confirmChangeServer = () =>
     Alert.alert(
@@ -42,6 +48,47 @@ export function ServerScreen() {
       <FieldGroup>
         <FieldGroup.Section>
           {row({ label: "URL", value: serverUrl })}
+        </FieldGroup.Section>
+        <FieldGroup.Section title="Library">
+          {row({
+            label: "Scan Library",
+            trailing: (
+              <SettingsActionMenu
+                triggerLabel={libraryScan.isScanning ? "Scanning…" : "Scan"}
+                accessibilityLabel="Scan Library"
+                disabled={libraryScan.isScanning}
+                actions={[
+                  {
+                    key: "quick",
+                    label: "Quick Scan",
+                    onPress: () =>
+                      libraryScan.scan(
+                        { mode: "quick" },
+                        {
+                          done: "Library scan complete",
+                          failed: "Couldn't scan the library",
+                        },
+                      ),
+                  },
+                  {
+                    key: "full",
+                    label: "Full Scan",
+                    onPress: () =>
+                      libraryScan.scan(
+                        { mode: "full" },
+                        {
+                          done: "Full scan complete",
+                          failed: "Couldn't scan the library",
+                        },
+                      ),
+                  },
+                ]}
+              />
+            ),
+          })}
+          <FieldGroup.SectionFooter>
+            <SettingsNote>{SCAN_NOTE}</SettingsNote>
+          </FieldGroup.SectionFooter>
         </FieldGroup.Section>
         {headersSections}
         <FieldGroup.Section>
