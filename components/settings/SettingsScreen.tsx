@@ -1,6 +1,7 @@
 import { FieldGroup, Host, Icon } from "@expo/ui";
 import { Stack, useRouter } from "expo-router";
 import AccountCircle from "@expo/material-symbols/account_circle.xml";
+import Artist from "@expo/material-symbols/artist.xml";
 import Contrast from "@expo/material-symbols/contrast.xml";
 import Dns from "@expo/material-symbols/dns.xml";
 import Explore from "@expo/material-symbols/explore.xml";
@@ -16,6 +17,7 @@ import { useThemePreference } from "@/contexts/theme-context";
 import { useLogout } from "@/hooks/auth/use-logout";
 import { useSession } from "@/hooks/auth/use-session";
 import { useDiscoverLayout } from "@/hooks/discover/use-discover-layout";
+import { useArtistPageLayout } from "@/hooks/library/use-artist-page-layout";
 import { setAuthToken } from "@/lib/api/client";
 import { hostOf } from "@/lib/url";
 import { APPEARANCE_LABELS } from "@/components/settings/appearance";
@@ -26,6 +28,7 @@ const ICONS = {
   playback: Icon.select({ ios: "internaldrive", android: HardDrive }),
   appearance: Icon.select({ ios: "circle.lefthalf.filled", android: Contrast }),
   discover: Icon.select({ ios: "sparkles", android: Explore }),
+  artistPage: Icon.select({ ios: "music.mic", android: Artist }),
   flows: Icon.select({ ios: "waveform", android: GraphicEq }),
   server: Icon.select({ ios: "server.rack", android: Dns }),
   about: Icon.select({ ios: "info.circle", android: Info }),
@@ -43,6 +46,10 @@ export function SettingsScreen() {
   const row = useSettingsRow();
   const discoverLayout = useDiscoverLayout();
   const sectionsOn = discoverLayout.sections.filter((s) => s.enabled).length;
+  const artistPageLayout = useArtistPageLayout();
+  const artistSectionsOn = artistPageLayout.sections.filter(
+    (s) => s.enabled,
+  ).length;
   // Reads /auth/me, which renews the stored session expiry.
   useSession();
 
@@ -96,6 +103,15 @@ export function SettingsScreen() {
                 : null,
               opensPage: true,
               onPress: () => router.push("/settings/discover"),
+            })}
+            {row({
+              icon: ICONS.artistPage,
+              label: "Artist Page",
+              value: artistPageLayout.hydrated
+                ? `${artistSectionsOn} of ${artistPageLayout.sections.length}`
+                : null,
+              opensPage: true,
+              onPress: () => router.push("/settings/artist-page"),
             })}
             {/* Aurral lets only admins read or change the download worker. */}
             {user?.role === "admin"

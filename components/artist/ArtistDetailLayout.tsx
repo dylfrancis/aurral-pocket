@@ -25,6 +25,11 @@ import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetails } from "@/hooks/library/use-artist-details";
 import { useArtistSongs } from "@/hooks/library/use-artist-queue";
 import { useArtistTopTracks } from "@/hooks/library/use-artist-top-tracks";
+import {
+  DEFAULT_ARTIST_PAGE_SECTIONS,
+  useArtistPageLayout,
+  type ArtistPageSectionId,
+} from "@/hooks/library/use-artist-page-layout";
 import { useArtistSongViews } from "@/hooks/library/use-artist-song-views";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
@@ -81,7 +86,15 @@ import CheckCircle from "@expo/material-symbols/check_circle.xml";
 import Sensors from "@expo/material-symbols/sensors.xml";
 import LinkIcon from "@expo/material-symbols/link.xml";
 import RefreshIcon from "@expo/material-symbols/refresh.xml";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Alert,
   Dimensions,
@@ -437,6 +450,13 @@ export function ArtistDetailLayout({
     [artistQueue, artistSongs, artistName, mbid, queryClient, startQueue],
   );
 
+  const pageLayout = useArtistPageLayout();
+  // An artist outside the Library keeps every section, so a hidden one can't
+  // take away the way to add its albums.
+  const pageSectionOrder =
+    inLibrary || libraryStatusLoading
+      ? pageLayout.sections
+      : DEFAULT_ARTIST_PAGE_SECTIONS;
   const songs = useArtistSongViews({
     mbid,
     libraryArtistId: canonicalArtist?.id ?? (mbid ? undefined : artistRef),
@@ -478,6 +498,83 @@ export function ArtistDetailLayout({
       scrollY.value = event.contentOffset.y + heroBleed;
     },
   });
+
+  // The page's sections, drawn in the order Settings › Artist Page keeps.
+  const pageSections: Record<ArtistPageSectionId, ReactNode> = {
+    tags: mbid ? <ArtistTags mbid={mbid} /> : null,
+    songs: (
+      <ArtistSongsSection
+        title={songs.title}
+        currentLabel={songs.currentLabel}
+        pills={songs.pills}
+        selected={songs.selected}
+        onSelect={songs.select}
+        songs={songs.songs}
+        isLoading={songs.isLoading}
+        itemIds={songs.itemIds}
+        currentId={songs.currentId}
+        isPlaying={songs.isPlaying}
+        onPlayFrom={songs.playFrom}
+        onPlayAll={songs.playAll}
+        onOpenActions={songs.openActions}
+        onShowAll={songs.showAll}
+        filter={
+          songs.show ? (
+            <ArtistSongsFilter value={songs.show} onChange={songs.setShow} />
+          ) : null
+        }
+        emptyMessage={songs.emptyMessage}
+      />
+    ),
+    library: inLibrary && (
+      <LibraryAlbumsSection
+        grouped={groupedLibraryAlbums}
+        isLoading={albumsLoading || isLoadingTypes}
+        error={albumsError}
+        downloadStatuses={downloadStatuses}
+        onAlbumPress={openAlbum}
+        onAlbumLongPress={(album) =>
+          openAlbumActions(
+            libraryAlbumTarget(album, { name: artistName, mbid }),
+          )
+        }
+        onNavigate={onNavigateToAlbums}
+        onRetry={() => refetchAlbums()}
+      />
+    ),
+    releases: (
+      <ReleaseGroupsSection
+        grouped={groupedReleases}
+        isLoading={!inLibrary && detailsLoading}
+        onPress={openReleaseGroup}
+        onLongPress={(rg) =>
+          openAlbumActions({
+            mbid: rg.id,
+            title: rg.title,
+            artistName,
+            artistMbid: mbid,
+            artistId: libraryArtist?.id,
+            releaseDate: rg["first-release-date"],
+            showArtist: false,
+          })
+        }
+        onNavigate={onNavigateToReleases}
+      />
+    ),
+    similar: (
+      <SimilarArtistsSection
+        artists={similarArtists ?? []}
+        onPress={onSimilarArtistPress}
+      />
+    ),
+    about: mbid ? (
+      <ArtistBioSection
+        bio={details?.bio}
+        artistName={artistName}
+        mbid={mbid}
+      />
+    ) : null,
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -608,78 +705,11 @@ export function ArtistDetailLayout({
           />
         </View>
 
-        {mbid ? <ArtistTags mbid={mbid} /> : null}
-
-        <ArtistSongsSection
-          title={songs.title}
-          currentLabel={songs.currentLabel}
-          pills={songs.pills}
-          selected={songs.selected}
-          onSelect={songs.select}
-          songs={songs.songs}
-          isLoading={songs.isLoading}
-          itemIds={songs.itemIds}
-          currentId={songs.currentId}
-          isPlaying={songs.isPlaying}
-          onPlayFrom={songs.playFrom}
-          onPlayAll={songs.playAll}
-          onOpenActions={songs.openActions}
-          onShowAll={songs.showAll}
-          filter={
-            songs.show ? (
-              <ArtistSongsFilter value={songs.show} onChange={songs.setShow} />
-            ) : null
-          }
-          emptyMessage={songs.emptyMessage}
-        />
-
-        {inLibrary && (
-          <LibraryAlbumsSection
-            grouped={groupedLibraryAlbums}
-            isLoading={albumsLoading || isLoadingTypes}
-            error={albumsError}
-            downloadStatuses={downloadStatuses}
-            onAlbumPress={openAlbum}
-            onAlbumLongPress={(album) =>
-              openAlbumActions(
-                libraryAlbumTarget(album, { name: artistName, mbid }),
-              )
-            }
-            onNavigate={onNavigateToAlbums}
-            onRetry={() => refetchAlbums()}
-          />
+        {pageSectionOrder.map((section) =>
+          section.enabled ? (
+            <Fragment key={section.id}>{pageSections[section.id]}</Fragment>
+          ) : null,
         )}
-
-        <ReleaseGroupsSection
-          grouped={groupedReleases}
-          isLoading={!inLibrary && detailsLoading}
-          onPress={openReleaseGroup}
-          onLongPress={(rg) =>
-            openAlbumActions({
-              mbid: rg.id,
-              title: rg.title,
-              artistName,
-              artistMbid: mbid,
-              artistId: libraryArtist?.id,
-              releaseDate: rg["first-release-date"],
-              showArtist: false,
-            })
-          }
-          onNavigate={onNavigateToReleases}
-        />
-
-        <SimilarArtistsSection
-          artists={similarArtists ?? []}
-          onPress={onSimilarArtistPress}
-        />
-
-        {mbid ? (
-          <ArtistBioSection
-            bio={details?.bio}
-            artistName={artistName}
-            mbid={mbid}
-          />
-        ) : null}
       </Animated.ScrollView>
 
       {/* Kept once the artist is in, so the sheet can finish closing. */}

@@ -199,6 +199,16 @@ jest.mock("@/components/ui/PillRow", () => {
   };
 });
 
+let mockArtistPageSections: { id: string; label: string; enabled: boolean }[];
+jest.mock("@/hooks/library/use-artist-page-layout", () => ({
+  ...jest.requireActual("@/hooks/library/use-artist-page-layout"),
+  useArtistPageLayout: () => ({
+    sections: mockArtistPageSections,
+    hydrated: true,
+    saveLayout: jest.fn(),
+  }),
+}));
+
 let mockSavedTrackIds = new Set<string>();
 jest.mock("@/lib/offline/saved-library", () => ({
   ...jest.requireActual("@/lib/offline/saved-library"),
@@ -323,6 +333,7 @@ import {
   useCanonicalArtist,
   useLibraryArtist,
 } from "@/hooks/library/use-library-artist";
+import { DEFAULT_ARTIST_PAGE_SECTIONS } from "@/hooks/library/use-artist-page-layout";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -428,6 +439,9 @@ const defaultArtistHook = {
 let consoleErrorSpy: jest.SpyInstance | undefined;
 beforeEach(() => {
   jest.clearAllMocks();
+  mockArtistPageSections = DEFAULT_ARTIST_PAGE_SECTIONS.map((section) => ({
+    ...section,
+  }));
   (useLocalSearchParams as jest.Mock).mockReturnValue({
     mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
   });
@@ -891,6 +905,59 @@ describe("ArtistDetailScreen", () => {
           },
         });
       });
+    });
+
+    it("draws its sections in the saved order, leaving out those turned off", async () => {
+      mockUseLibraryAlbums.mockReturnValue({
+        ...defaultAlbumHook,
+        data: [makeAlbum({ id: "1" })],
+      });
+      const byId = new Map(
+        mockArtistPageSections.map((section) => [section.id, section]),
+      );
+      mockArtistPageSections = ["about", "library", "songs", "tags"].map(
+        (id) => ({ ...byId.get(id)!, enabled: id !== "tags" }),
+      );
+
+      await renderScreen();
+
+      expect(
+        screen
+          .queryAllByText(/^(About|In Your Library|Similar Artists)$/)
+          .map((label) => label.props.children),
+      ).toEqual(["About", "In Your Library"]);
+      expect(screen.queryByTestId("artist-tags")).toBeNull();
+    });
+
+    it("keeps every section, in the default order, for an artist outside the Library", async () => {
+      mockUseLibraryLookup.mockReturnValue({
+        isInLibrary: () => false,
+        isLoading: false,
+      });
+      mockUseLibraryArtist.mockReturnValue({ ...defaultArtistHook });
+      mockGetArtistPreviewTracks.mockResolvedValue([
+        {
+          id: "dz-1",
+          title: "Hit Song",
+          album: "Best Of",
+          preview_url: "/api/deezer/preview?artist=Test%20Artist&track=Hit",
+          duration_ms: 30_000,
+        },
+      ]);
+      mockArtistPageSections = [...mockArtistPageSections]
+        .reverse()
+        .map((section) => ({ ...section, enabled: section.id === "about" }));
+
+      await renderScreen();
+
+      expect(await screen.findByText("Top Tracks")).toBeTruthy();
+      expect(screen.getByTestId("artist-tags")).toBeTruthy();
+      expect(screen.getByText("A test biography.")).toBeTruthy();
+      expect(
+        screen
+          .queryAllByText(/^(Top Tracks|About)$/)
+          .map((label) => label.props.children),
+      ).toEqual(["Top Tracks", "About"]);
     });
 
     it("renders bio and external links", async () => {
