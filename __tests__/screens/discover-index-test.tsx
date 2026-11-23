@@ -12,6 +12,7 @@ jest.mock("@/hooks/use-color-scheme", () => ({
 }));
 
 jest.mock("@expo/material-symbols/mic.xml", () => "Mic");
+jest.mock("@expo/material-symbols/radio.xml", () => "Radio");
 
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
@@ -141,8 +142,8 @@ jest.mock("@/components/discover/RecommendedTab", () => {
   };
 });
 
-jest.mock("@/components/discover/YourRadioCard", () => ({
-  YourRadioCard: () => null,
+jest.mock("@/hooks/discover/use-your-radio", () => ({
+  useYourRadio: () => ({ start: jest.fn(), isStarting: false }),
 }));
 
 jest.mock("@/components/discover/TrendingCharts", () => {

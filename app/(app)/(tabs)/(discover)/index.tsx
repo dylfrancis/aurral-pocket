@@ -12,7 +12,6 @@ import {
 import { DiscoverTabPanel } from "@/components/discover/DiscoverTabPanel";
 import { RecommendedTab } from "@/components/discover/RecommendedTab";
 import { DiscoverTabs } from "@/components/discover/DiscoverTabs";
-import { YourRadioCard } from "@/components/discover/YourRadioCard";
 import type { DiscoverTab } from "@/components/discover/discover-tabs";
 import { EditorialShelf } from "@/components/discover/EditorialShelf";
 import { TrendingCharts } from "@/components/discover/TrendingCharts";
@@ -21,9 +20,12 @@ import { isShazamAvailable } from "@/modules/shazam";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
+import RadioIcon from "@expo/material-symbols/radio.xml";
 import { Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import { useOpenSettings } from "@/hooks/use-open-settings";
+import { useYourRadio } from "@/hooks/discover/use-your-radio";
+import { useIsOffline } from "@/lib/offline/network";
 import { SettingsToolbar } from "@/components/navigation/SettingsToolbar";
 import {
   useDiscovery,
@@ -46,6 +48,7 @@ import type {
   RecentReleaseAlbum,
 } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
@@ -194,6 +197,14 @@ export default function DiscoverScreen() {
 
   const shazamSheetRef = useRef<BottomSheetModal>(null);
 
+  const isOffline = useIsOffline();
+  const { start: startYourRadio, isStarting: yourRadioStarting } =
+    useYourRadio();
+  const playYourRadio = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void startYourRadio();
+  }, [startYourRadio]);
+
   const pushDiscoverList = useCallback(
     (kind: "trending" | "recently-added") => {
       router.push({
@@ -254,6 +265,14 @@ export default function DiscoverScreen() {
     <>
       <SettingsToolbar />
       <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon={IS_IOS ? "radio" : RadioIcon}
+          accessibilityLabel="Your Radio"
+          disabled={isOffline || yourRadioStarting}
+          onPress={playYourRadio}
+        >
+          Your Radio
+        </Stack.Toolbar.Button>
         {isShazamAvailable && (
           <Stack.Toolbar.Button
             icon={IS_IOS ? "mic" : Mic}
@@ -283,7 +302,6 @@ export default function DiscoverScreen() {
       >
         <DiscoverTabs selected={tab} onSelect={selectTab} />
         <DiscoverTabPanel active={tab === "forYou"}>
-          <YourRadioCard />
           {notConfigured ? (
             <Card bordered style={styles.emptyCard}>
               <Ionicons
