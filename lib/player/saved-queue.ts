@@ -1,5 +1,6 @@
 import { fetch } from "expo/fetch";
 import { buildAuthenticatedUrl, customHeadersFor } from "@/lib/api/client";
+import { mapWithLimit } from "@/lib/map-with-limit";
 import type { TrackFavorite } from "@/lib/api/library";
 import type { RadioArtist, RadioSeed } from "@/lib/api/radio";
 import type { RepeatMode } from "@/lib/player/player";
@@ -289,19 +290,6 @@ async function stillStreams(url: string): Promise<boolean> {
   } finally {
     clearTimeout(timeout);
   }
-}
-
-async function mapWithLimit<T, R>(
-  items: T[],
-  limit: number,
-  run: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = [];
-  for (let start = 0; start < items.length; start += limit) {
-    const batch = items.slice(start, start + limit);
-    results.push(...(await Promise.all(batch.map(run))));
-  }
-  return results;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

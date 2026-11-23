@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
 } from "react-native-reanimated";
-import { useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useMutation } from "@tanstack/react-query";
-import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
+import DownloadIcon from "@expo/material-symbols/download.xml";
+import MoreVert from "@expo/material-symbols/more_vert.xml";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
 import { CollectionHero, COVER_SIZE } from "@/components/flow/CollectionPage";
@@ -28,12 +28,12 @@ import {
   useAddEditorialPlaylist,
   useEditorialPlaylist,
 } from "@/hooks/discover/use-editorial-playlists";
+import { usePlaylistDownloads } from "@/hooks/discover/use-playlist-downloads";
 import { rowPlayerId, useRowLinks } from "@/hooks/discover/use-preview-rows";
 import { useOpenPlaylist } from "@/hooks/flow/use-open-playlist";
 import { stopPreviewClip } from "@/hooks/library/use-audio-preview";
 import { useStartQueue } from "@/hooks/player/use-start-queue";
 import { ApiError } from "@/lib/api/client";
-import { requestTrackDownload } from "@/lib/api/library";
 import {
   editorialClipItem,
   editorialContext,
@@ -43,7 +43,7 @@ import { formatTrackCount } from "@/lib/discover/format";
 import { playItem, togglePlayback, useCurrentTrack } from "@/lib/player/player";
 import { queueTrackToPlayerTrack } from "@/lib/player/track-item";
 import type { BrowseProvider } from "@/lib/types/search";
-import { BrowseTrackRow, type TrackDownloadState } from "./BrowseTrackRow";
+import { BrowseTrackRow } from "./BrowseTrackRow";
 import { EditorialArtwork } from "./EditorialArtwork";
 import type { EditorialTrackItem } from "./EditorialTrackRow";
 import { useColors } from "@/hooks/use-colors";
@@ -151,48 +151,8 @@ export function EditorialPlaylistScreen() {
     [trackActions, playlist?.name, params.name],
   );
 
-  // Each ↓ remembers its request, so a second tap can't ask twice.
-  const [downloads, setDownloads] = useState<
-    Record<string, TrackDownloadState>
-  >({});
-  const download = useMutation({
-    mutationFn: (item: EditorialTrackItem) =>
-      requestTrackDownload({
-        artistName: item.track.artistName,
-        trackName: item.track.trackName,
-        albumName: item.track.albumName,
-      }),
-    onMutate: (item) =>
-      setDownloads((current) => ({ ...current, [item.id]: "sending" })),
-    onSuccess: (result, item) => {
-      setDownloads((current) => ({ ...current, [item.id]: "queued" }));
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Android shows only a toast's title, so the song goes there.
-      Burnt.toast({
-        title: result.alreadyOwned
-          ? `${item.track.trackName} is in your Library`
-          : `Downloading ${item.track.trackName}`,
-        preset: "done",
-      });
-    },
-    onError: (requestError, item) => {
-      setDownloads((current) => ({ ...current, [item.id]: "idle" }));
-      Burnt.toast({
-        title: "Couldn't download this song",
-        message:
-          requestError instanceof ApiError ? requestError.message : undefined,
-        preset: "error",
-      });
-    },
-  });
-  const requestDownload = download.mutate;
-  const handleDownload = useCallback(
-    (item: EditorialTrackItem) => {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      requestDownload(item);
-    },
-    [requestDownload],
-  );
+  const downloads = usePlaylistDownloads(trackItems);
+  const { downloadOne } = downloads;
 
   const renderItem = useCallback(
     ({ item, index }: { item: EditorialTrackItem; index: number }) => (
@@ -205,8 +165,8 @@ export function EditorialPlaylistScreen() {
         onOpenActions={openRowActions}
         onOpenArtist={openRowArtist}
         onOpenAlbum={openRowAlbum}
-        onDownload={canDownload ? handleDownload : undefined}
-        downloadState={downloads[item.id]}
+        onDownload={canDownload ? downloadOne : undefined}
+        downloadState={downloads.states[item.id]}
       />
     ),
     [
@@ -216,8 +176,8 @@ export function EditorialPlaylistScreen() {
       openRowArtist,
       openRowAlbum,
       canDownload,
-      handleDownload,
-      downloads,
+      downloadOne,
+      downloads.states,
     ],
   );
 
@@ -261,6 +221,22 @@ export function EditorialPlaylistScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollHeaderTitle name={name} scrollY={scrollY} />
+      {canDownload && downloads.missingCount > 0 ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu
+            icon={IS_IOS ? "ellipsis" : MoreVert}
+            accessibilityLabel="More actions"
+          >
+            <Stack.Toolbar.MenuAction
+              icon={IS_IOS ? "arrow.down.circle" : DownloadIcon}
+              disabled={downloads.isDownloadingMissing}
+              onPress={downloads.downloadMissing}
+            >
+              {`Download Missing Songs (${downloads.missingCount})`}
+            </Stack.Toolbar.MenuAction>
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      ) : null}
       <Animated.FlatList
         data={trackItems}
         renderItem={renderItem}
