@@ -390,8 +390,11 @@ export function NowPlayingScreen() {
                 </Animated.View>
               ) : (
                 <>
+                  {/* Siblings, not a wrapper: the art is placed from the
+                      slot's frame in the top area. */}
+                  <View style={styles.artSpacer} />
                   <View
-                    style={[styles.artSlot, { maxHeight: width - GUTTER * 2 }]}
+                    style={[styles.artSlot, { height: width - GUTTER * 2 }]}
                     onLayout={art.onArtSlotLayout}
                   >
                     {/* Inside the slot: a detector around it shifts the
@@ -408,6 +411,7 @@ export function NowPlayingScreen() {
                       onArtistPress={artistMbid ? openArtist : undefined}
                     />
                   </Animated.View>
+                  <View style={styles.artSpacer} />
                 </>
               )}
             </View>
@@ -1026,6 +1030,9 @@ const styles = StyleSheet.create({
   },
   // Shrinks the art on a short screen rather than crowding the controls.
   artSlot: {
+    flexShrink: 1,
+  },
+  artSpacer: {
     flex: 1,
   },
   titleRow: {
@@ -1164,6 +1171,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 8,
+    marginTop: 16,
   },
   toolbarSpacer: {
     flex: 1,
