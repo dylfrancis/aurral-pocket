@@ -1,51 +1,59 @@
-import { Button } from "@/components/ui/Button";
+import { useCallback, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { Fonts } from "@/constants/theme";
-import { useNearbyLocationPref, useNearbyShows } from "@/hooks/discover";
-import { formatShowArtists } from "@/lib/discover/nearby-shows";
-import { formatShowDateLabel } from "@/lib/discover/show-dates";
-import type { ConcertEvent } from "@/lib/types/search";
-import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { useCallback } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { ViewAllCard } from "./ViewAllCard";
+import { useNearbyShows } from "@/hooks/discover";
+import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { useColors } from "@/hooks/use-colors";
+import {
+  nearbyCityLabel,
+  ticketmasterSetupMessage,
+} from "@/lib/discover/nearby-shows";
+import type { DiscoverFeedStyle } from "@/lib/types/me";
+import type { ConcertEvent } from "@/lib/types/search";
+import { NearbyLocationMenu } from "./NearbyLocationMenu";
+import { NearbyZipEditorSheet } from "./NearbyZipEditorSheet";
+import {
+  ShowFeedTile,
+  SQUARE_TILE_WIDTH,
+  WIDE_TILE_WIDTH,
+} from "./ShowFeedTile";
+import { ViewAllCard } from "./ViewAllCard";
 
 type Props = {
+  /** The style picked for this rail under Customize Discover on the web. */
+  feedStyle?: DiscoverFeedStyle;
   onShowPress: (show: ConcertEvent) => void;
-  onOpenSettings: () => void;
   onViewAll: () => void;
 };
 
-const CARD_WIDTH = 240;
-const PREVIEW_LIMIT = 8;
-
-function formatShowLocation(show: ConcertEvent) {
-  return [show.venueName, [show.city, show.region].filter(Boolean).join(", ")]
-    .filter(Boolean)
-    .join(" - ");
-}
+// The web's rail sizes on a phone.
+const LIST_LIMIT = 4;
+const TILE_LIMIT = 12;
 
 export function ShowsNearYouSection({
+  feedStyle = "list",
   onShowPress,
-  onOpenSettings,
   onViewAll,
 }: Props) {
   const colors = useColors();
-  const { mode, appliedZip } = useNearbyLocationPref();
-
-  const zipModeActive = mode === "zip";
-  const zipQueryValue =
-    zipModeActive && appliedZip.trim() ? appliedZip.trim() : undefined;
-
-  const { data, isLoading } = useNearbyShows({
-    zipCode: zipQueryValue,
-    enabled: !zipModeActive || !!appliedZip.trim(),
-  });
+  const canManageServer = useHasPermission()("accessSettings");
+  const {
+    data,
+    isLoading,
+    errorMessage,
+    mode,
+    appliedZip,
+    appliedCountry,
+    setMode,
+    setAppliedZip,
+    locationLabel,
+  } = useNearbyShows();
+  const [zipEditorVisible, setZipEditorVisible] = useState(false);
 
   const handleShowPress = useCallback(
     (show: ConcertEvent) => {
@@ -55,223 +63,145 @@ export function ShowsNearYouSection({
     [onShowPress],
   );
 
-  const handleOpenSettings = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onOpenSettings();
-  }, [onOpenSettings]);
+  const handleZipSave = (zip: string, country: string) => {
+    setAppliedZip(zip, country);
+    setZipEditorVisible(false);
+  };
 
-  const handleViewAll = useCallback(() => {
-    onViewAll();
-  }, [onViewAll]);
-
-  const locationLabel =
-    data?.location?.label || data?.location?.postalCode || "";
-
+  const configured = data?.configured !== false;
   const header = (
-    <SectionHeader title="Shows Near You" onNavigate={handleViewAll} />
+    <SectionHeader
+      title="Shows Near You"
+      onNavigate={onViewAll}
+      trailing={
+        configured ? (
+          <NearbyLocationMenu
+            cityLabel={nearbyCityLabel(data?.location)}
+            mode={mode}
+            appliedZip={appliedZip}
+            appliedCountry={appliedCountry}
+            onSelectYourLocation={() => setMode("ip")}
+            onEnterLocation={() => setZipEditorVisible(true)}
+            triggerColor={colors.text}
+          />
+        ) : null
+      }
+    />
   );
 
-  const locationRow = data?.configured !== false && (
-    <View style={styles.locationRow}>
-      <Text
-        variant="body"
-        style={[styles.locationText, { color: colors.subtle }]}
-        numberOfLines={1}
-      >
-        {locationLabel}
+  const status = (title: string, message?: string | null) => (
+    <Card bordered style={styles.statusCard}>
+      <Text variant="body" style={[styles.statusTitle, { color: colors.text }]}>
+        {title}
       </Text>
-    </View>
+      {message ? (
+        <Text
+          variant="caption"
+          style={[styles.statusBody, { color: colors.subtle }]}
+        >
+          {message}
+        </Text>
+      ) : null}
+    </Card>
   );
-
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        {header}
-        {locationRow}
-        <View style={styles.skeletons} testID="shows-near-you-skeleton">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Skeleton
-              key={i}
-              width={CARD_WIDTH}
-              height={180}
-              borderRadius={12}
-            />
-          ))}
-        </View>
-      </View>
-    );
-  }
-
-  if (data?.configured === false) {
-    return (
-      <View style={styles.container}>
-        {header}
-        <Card bordered style={styles.emptyCard}>
-          <Text
-            variant="body"
-            style={[
-              styles.emptyTitle,
-              { color: colors.text, ...Fonts.semiBold },
-            ]}
-          >
-            Ticketmaster not configured
-          </Text>
-          <Text
-            variant="caption"
-            style={[styles.emptyBody, { color: colors.subtle }]}
-          >
-            Add a Ticketmaster Consumer Key in Settings to see local shows.
-          </Text>
-          <Button title="Open Settings" onPress={handleOpenSettings} />
-        </Card>
-      </View>
-    );
-  }
-
-  if (zipModeActive && !appliedZip.trim()) {
-    return (
-      <View style={styles.container}>
-        {header}
-        <Card bordered style={styles.emptyCard}>
-          <Text
-            variant="body"
-            style={[
-              styles.emptyTitle,
-              { color: colors.text, ...Fonts.semiBold },
-            ]}
-          >
-            ZIP not set
-          </Text>
-          <Text
-            variant="caption"
-            style={[styles.emptyBody, { color: colors.subtle }]}
-          >
-            Enter a ZIP code on the Shows Near You page to search that area.
-          </Text>
-          <Button title="Open Shows Near You" onPress={handleViewAll} />
-        </Card>
-      </View>
-    );
-  }
 
   const shows = data?.shows ?? [];
-
-  if (shows.length === 0) {
-    return (
-      <View style={styles.container}>
-        {header}
-        {locationRow}
-        <Card bordered style={styles.emptyCard}>
-          <Text
-            variant="body"
-            style={[
-              styles.emptyTitle,
-              { color: colors.text, ...Fonts.semiBold },
-            ]}
-          >
-            No upcoming nearby matches
-          </Text>
-          <Text
-            variant="caption"
-            style={[styles.emptyBody, { color: colors.subtle }]}
-          >
-            We could not find local Ticketmaster shows for artists from your
-            library around {locationLabel}.
-          </Text>
-        </Card>
+  let content;
+  if (!configured) {
+    content = status(
+      "Ticketmaster not configured",
+      ticketmasterSetupMessage(canManageServer),
+    );
+  } else if (isLoading) {
+    content = <RailSkeleton feedStyle={feedStyle} />;
+  } else if (errorMessage) {
+    content = status("Could not load nearby shows.", errorMessage);
+  } else if (mode === "zip" && !appliedZip.trim()) {
+    content = status(
+      "Location not set",
+      "Enter a ZIP or postal code, or use your location.",
+    );
+  } else if (shows.length === 0) {
+    content = status(`No matching shows near ${locationLabel}.`);
+  } else if (feedStyle === "list") {
+    content = (
+      <View style={styles.list}>
+        {shows.slice(0, LIST_LIMIT).map((show) => (
+          <ShowFeedTile
+            key={show.id}
+            show={show}
+            feedStyle="list"
+            onPress={handleShowPress}
+          />
+        ))}
       </View>
     );
+  } else {
+    const tileWidth =
+      feedStyle === "wide" ? WIDE_TILE_WIDTH : SQUARE_TILE_WIDTH;
+    content = (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tiles}
+      >
+        {shows.slice(0, TILE_LIMIT).map((show) => (
+          <ShowFeedTile
+            key={show.id}
+            show={show}
+            feedStyle={feedStyle}
+            onPress={handleShowPress}
+          />
+        ))}
+        {shows.length > TILE_LIMIT ? (
+          <ViewAllCard
+            size={feedStyle === "wide" ? (tileWidth * 9) / 16 : tileWidth}
+            onPress={onViewAll}
+          />
+        ) : null}
+      </ScrollView>
+    );
   }
-
-  const hasMore = shows.length > PREVIEW_LIMIT;
 
   return (
     <View style={styles.container}>
       {header}
-      {locationRow}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.list}
-      >
-        {shows.slice(0, PREVIEW_LIMIT).map((show) => {
-          const artists = formatShowArtists(show);
-          const date = formatShowDateLabel(show);
-          const where = formatShowLocation(show);
-          return (
-            <Card
-              key={show.id}
-              bordered
-              pressedOpacity={0.85}
-              style={styles.showCard}
-              onPress={() => handleShowPress(show)}
-            >
-              <View style={styles.showHeader}>
-                <Text
-                  variant="caption"
-                  style={[styles.showArtist, { color: colors.subtle }]}
-                  numberOfLines={1}
-                >
-                  {artists}
-                </Text>
-                {Number.isFinite(show.distance) && (
-                  <Text
-                    variant="caption"
-                    style={[styles.showDistance, { color: colors.subtle }]}
-                  >
-                    {Math.round(show.distance as number)} mi
-                  </Text>
-                )}
-              </View>
-              <Text
-                variant="body"
-                style={[
-                  styles.showTitle,
-                  { color: colors.text, ...Fonts.semiBold },
-                ]}
-                numberOfLines={2}
-              >
-                {show.eventName || artists}
-              </Text>
-              {!!date && (
-                <View style={styles.showRow}>
-                  <Ionicons
-                    name="time-outline"
-                    size={14}
-                    color={colors.subtle}
-                  />
-                  <Text
-                    variant="caption"
-                    style={[styles.showMeta, { color: colors.subtle }]}
-                    numberOfLines={1}
-                  >
-                    {date}
-                  </Text>
-                </View>
-              )}
-              {!!where && (
-                <View style={styles.showRow}>
-                  <Ionicons
-                    name="location-outline"
-                    size={14}
-                    color={colors.subtle}
-                  />
-                  <Text
-                    variant="caption"
-                    style={[styles.showMeta, { color: colors.subtle }]}
-                    numberOfLines={2}
-                  >
-                    {where}
-                  </Text>
-                </View>
-              )}
-            </Card>
-          );
-        })}
-        {hasMore ? (
-          <ViewAllCard size={CARD_WIDTH * 0.6} onPress={handleViewAll} />
-        ) : null}
-      </ScrollView>
+      {content}
+      <NearbyZipEditorSheet
+        visible={zipEditorVisible}
+        currentZip={appliedZip}
+        currentCountry={appliedCountry}
+        onSave={handleZipSave}
+        onClose={() => setZipEditorVisible(false)}
+      />
+    </View>
+  );
+}
+
+function RailSkeleton({ feedStyle }: { feedStyle: DiscoverFeedStyle }) {
+  if (feedStyle === "list") {
+    return (
+      <View style={styles.list} testID="shows-near-you-skeleton">
+        {Array.from({ length: LIST_LIMIT }).map((_, i) => (
+          <View key={i} style={styles.skeletonRow}>
+            <Skeleton width={36} height={36} borderRadius={8} />
+            <Skeleton width={48} height={48} borderRadius={24} />
+            <View style={styles.skeletonText}>
+              <Skeleton width="100%" height={14} borderRadius={4} />
+              <Skeleton width={140} height={12} borderRadius={4} />
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }
+  const width = feedStyle === "wide" ? WIDE_TILE_WIDTH : SQUARE_TILE_WIDTH;
+  const height = feedStyle === "wide" ? (width * 9) / 16 : width;
+  return (
+    <View style={styles.tiles} testID="shows-near-you-skeleton">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton key={i} width={width} height={height} borderRadius={10} />
+      ))}
     </View>
   );
 }
@@ -280,69 +210,35 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 12,
   },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    marginBottom: 4,
-  },
-  locationText: {
-    fontSize: 15,
-  },
   list: {
     paddingHorizontal: 16,
-    gap: 12,
-    paddingBottom: 4,
   },
-  skeletons: {
+  tiles: {
     flexDirection: "row",
     paddingHorizontal: 16,
     gap: 12,
-    marginTop: 8,
   },
-  showCard: {
-    width: CARD_WIDTH,
-    padding: 12,
-    gap: 6,
-  },
-  showHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  showArtist: {
-    flex: 1,
-    fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  showDistance: {
-    fontSize: 11,
-  },
-  showTitle: {
-    fontSize: 14,
-  },
-  showRow: {
+  skeletonRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+  },
+  skeletonText: {
+    flex: 1,
     gap: 6,
   },
-  showMeta: {
-    flex: 1,
-    fontSize: 12,
-  },
-  emptyCard: {
+  statusCard: {
     marginHorizontal: 16,
     marginTop: 8,
     padding: 16,
-    gap: 10,
+    gap: 6,
   },
-  emptyTitle: {
+  statusTitle: {
+    ...Fonts.semiBold,
     fontSize: 15,
   },
-  emptyBody: {
+  statusBody: {
     fontSize: 12,
     lineHeight: 16,
   },

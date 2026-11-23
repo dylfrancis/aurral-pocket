@@ -125,6 +125,39 @@ jest.mock("@/components/library/EditionPicker", () => {
   };
 });
 
+// The Shows Near You location menu is a native menu as well. It stands in as a
+// group labelled like the capsule, holding a button per choice.
+jest.mock("@/components/discover/NearbyLocationMenu", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  const choice = (label: string, selected: boolean, onPress: () => void) =>
+    React.createElement(
+      Pressable,
+      {
+        accessibilityLabel: label,
+        accessibilityState: { selected },
+        onPress,
+      },
+      React.createElement(Text, null, label),
+    );
+  return {
+    NearbyLocationMenu: ({
+      cityLabel,
+      mode,
+      onSelectYourLocation,
+      onEnterLocation,
+    }: any) =>
+      React.createElement(
+        View,
+        { accessibilityLabel: `Location, ${cityLabel}` },
+        choice("Your Location", mode === "ip", onSelectYourLocation),
+        choice("Enter a Location…", mode === "zip", onEnterLocation),
+      ),
+  };
+});
+
 // The artist's library capsule is a native menu too. It stands in as a group
 // labelled like the capsule, holding a plain button per monitoring choice
 // (when it can change) and one for Remove from Library.

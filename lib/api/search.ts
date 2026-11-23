@@ -217,16 +217,16 @@ export async function getTrendingGenreChart(genreId: string) {
   return r.data;
 }
 
-export async function getNearbyShows(
-  zipCode?: string,
-  limit?: number,
-): Promise<NearbyShowsResponse> {
-  const params: Record<string, string | number> = {};
-  const trimmed = zipCode?.trim();
-  if (trimmed) params.zip = trimmed;
-  if (Number.isFinite(limit) && (limit as number) > 0) {
-    params.limit = Math.floor(limit as number);
-  }
+export async function getNearbyShows({
+  zip,
+  country,
+}: {
+  zip?: string;
+  country?: string;
+} = {}): Promise<NearbyShowsResponse> {
+  const params: Record<string, string> = {};
+  if (zip) params.zip = zip;
+  if (country) params.country = country;
   const r = await api.get<NearbyShowsResponse>("/discover/nearby-shows", {
     params: Object.keys(params).length > 0 ? params : undefined,
   });

@@ -22,41 +22,36 @@ import { Colors, Fonts } from "@/constants/theme";
 type Props = {
   visible: boolean;
   currentZip: string;
-  onSave: (zip: string) => void;
+  currentCountry: string;
+  onSave: (zip: string, country: string) => void;
   onClose: () => void;
 };
 
-export function NearbyZipEditorSheet({
-  visible,
-  currentZip,
-  onSave,
-  onClose,
-}: Props) {
+const COUNTRY_CODE_PATTERN = /^[A-Za-z]{2}$/;
+
+export function NearbyZipEditorSheet({ visible, ...props }: Props) {
   if (!visible) return null;
-  return (
-    <NearbyZipEditorSheetContent
-      currentZip={currentZip}
-      onSave={onSave}
-      onClose={onClose}
-    />
-  );
+  return <NearbyZipEditorSheetContent {...props} />;
 }
 
+/** A ZIP or postal code, and the two-letter country the web takes beside it. */
 function NearbyZipEditorSheetContent({
   currentZip,
+  currentCountry,
   onSave,
   onClose,
-}: {
-  currentZip: string;
-  onSave: (zip: string) => void;
-  onClose: () => void;
-}) {
+}: Omit<Props, "visible">) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInputInstance>(null);
+  const countryRef = useRef<TextInputInstance>(null);
   const sheetRef = useRef<BottomSheetModal>(null);
   const [draft, setDraft] = useState(currentZip);
+  const [countryDraft, setCountryDraft] = useState(currentCountry);
+  const country = countryDraft.trim();
+  const canSave =
+    !!draft.trim() && (!country || COUNTRY_CODE_PATTERN.test(country));
 
   useEffect(() => {
     sheetRef.current?.present();
@@ -74,11 +69,10 @@ function NearbyZipEditorSheetContent({
   }, []);
 
   const handleSave = useCallback(() => {
-    const trimmed = draft.trim();
-    if (!trimmed) return;
+    if (!canSave) return;
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onSave(trimmed);
-  }, [draft, onSave]);
+    onSave(draft.trim(), country.toUpperCase());
+  }, [canSave, country, draft, onSave]);
 
   return (
     <AppSheet
@@ -95,7 +89,7 @@ function NearbyZipEditorSheetContent({
         style={[styles.content, { paddingBottom: insets.bottom + 16 }]}
       >
         <Text variant="title" style={[styles.title, { ...Fonts.semiBold }]}>
-          Set ZIP code
+          Enter a Location
         </Text>
         <Text
           variant="caption"
@@ -114,12 +108,27 @@ function NearbyZipEditorSheetContent({
           autoCapitalize="characters"
           autoCorrect={false}
           keyboardType="default"
+          returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => countryRef.current?.focus()}
+        />
+
+        <BottomSheetTextInput
+          ref={countryRef as never}
+          style={[inputBaseStyle, inputThemedStyle(colorScheme), styles.input]}
+          placeholder="Country code (optional), e.g. FR"
+          placeholderTextColor={colors.placeholder}
+          value={countryDraft}
+          onChangeText={setCountryDraft}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={2}
           returnKeyType="done"
           onSubmitEditing={handleSave}
         />
 
         <View style={styles.actions}>
-          <Button title="Save" onPress={handleSave} disabled={!draft.trim()} />
+          <Button title="Save" onPress={handleSave} disabled={!canSave} />
         </View>
       </BottomSheetView>
     </AppSheet>

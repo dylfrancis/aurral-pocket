@@ -87,7 +87,9 @@ export function normalizeDiscoverLayout(
 const sectionsOf = (layout: DiscoverLayoutEntry[]): DiscoverSection[] =>
   layout.flatMap((entry) => {
     const section = POCKET_SECTIONS.get(entry.id);
-    return section ? [{ ...section, enabled: entry.enabled }] : [];
+    return section
+      ? [{ ...section, enabled: entry.enabled, style: entry.style }]
+      : [];
   });
 
 /**

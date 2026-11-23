@@ -49,6 +49,8 @@ export type DiscoverSection = {
   id: DiscoverSectionId;
   label: string;
   enabled: boolean;
+  /** The row style picked on the web, on the sections that take one. */
+  style?: DiscoverFeedStyle;
 };
 
 export type DiscoverLayoutResponse = {

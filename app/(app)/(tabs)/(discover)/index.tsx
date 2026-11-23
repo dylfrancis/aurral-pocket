@@ -35,6 +35,7 @@ import {
   recommendedFilterParams,
   type RecommendedFilter,
 } from "@/lib/discover/recommended";
+import { getEventUrl } from "@/lib/discover/nearby-shows";
 import { discoverKeys } from "@/lib/query-keys";
 import { artistRouteId } from "@/lib/library-read";
 import type {
@@ -183,7 +184,8 @@ export default function DiscoverScreen() {
   );
 
   const handleShowPress = useCallback((show: ConcertEvent) => {
-    if (show.url) Linking.openURL(show.url).catch(() => {});
+    const url = getEventUrl(show.url);
+    if (url) Linking.openURL(url).catch(() => {});
   }, []);
 
   const handleOpenSettings = useOpenSettings();
@@ -353,8 +355,8 @@ export default function DiscoverScreen() {
                           return (
                             <ShowsNearYouSection
                               key={section.id}
+                              feedStyle={section.style}
                               onShowPress={handleShowPress}
-                              onOpenSettings={handleOpenSettings}
                               onViewAll={handleViewAllNearbyShows}
                             />
                           );
