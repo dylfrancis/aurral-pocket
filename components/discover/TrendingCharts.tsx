@@ -1,12 +1,11 @@
 import { memo, useCallback, useEffect, useMemo } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ShowAllLink } from "@/components/ui/ShowAllLink";
 import { Text } from "@/components/ui/Text";
-import { Fonts } from "@/constants/theme";
 import {
   usePreviewPlayback,
   useRowLinks,
@@ -172,7 +171,6 @@ const TopSongs = memo(function TopSongs({
   links: ReturnType<typeof useRowLinks>;
   onShowAll: () => void;
 }) {
-  const colors = useColors();
   const { playingId, loadingId, progress, togglePreview } =
     usePreviewPlayback();
   const { lookupRowId, openRowArtist, openRowAlbum } = links;
@@ -223,22 +221,7 @@ const TopSongs = memo(function TopSongs({
           />
         ))}
         {songs.items.length > LAST_LISTED_RANK ? (
-          <Pressable
-            onPress={onShowAll}
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.showAll,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Text
-              variant="body"
-              style={[styles.showAllLabel, { color: colors.brand }]}
-            >
-              Show All {songs.items.length}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.brand} />
-          </Pressable>
+          <ShowAllLink count={songs.items.length} onPress={onShowAll} />
         ) : null}
       </View>
     </>
@@ -258,15 +241,5 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingTop: 20,
-  },
-  showAll: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 14,
-  },
-  showAllLabel: {
-    ...Fonts.medium,
   },
 });

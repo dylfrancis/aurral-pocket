@@ -3,6 +3,7 @@ import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import {
   DETAIL_SCREEN_OPTIONS,
   artistListScreenOptions,
+  TOP_TRACKS_SCREEN_OPTIONS,
   stackScreenOptions,
 } from "@/constants/navigation";
 import { useColors } from "@/hooks/use-colors";
@@ -43,6 +44,10 @@ export default function ActivityLayout() {
         <Stack.Screen
           name="artist/releases"
           options={artistListScreenOptions("releases", colors)}
+        />
+        <Stack.Screen
+          name="artist/top-tracks"
+          options={TOP_TRACKS_SCREEN_OPTIONS}
         />
       </Stack>
     </MiniPlayerHost>

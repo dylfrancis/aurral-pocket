@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import { TopTrackRow } from "@/components/artist/TopTrackRow";
 import { TopTracksSkeleton } from "@/components/artist/TopTracksSkeleton";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { ShowAllLink } from "@/components/ui/ShowAllLink";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { Fonts, Radius } from "@/constants/theme";
@@ -11,6 +12,7 @@ import { useColors } from "@/hooks/use-colors";
 import type { TopTrack } from "@/lib/top-tracks";
 
 const PLAY_ALL_PLACEHOLDER = { width: 68, height: 26 };
+const ROWS_BEFORE_SHOW_ALL = 5;
 
 type TopTracksSectionProps = {
   topTracks: TopTrack[];
@@ -22,6 +24,7 @@ type TopTracksSectionProps = {
   onPlayFrom: (index: number) => void;
   onPlayAll: () => void;
   onOpenActions: (index: number) => void;
+  onShowAll: () => void;
 };
 
 export function TopTracksSection({
@@ -33,6 +36,7 @@ export function TopTracksSection({
   onPlayFrom,
   onPlayAll,
   onOpenActions,
+  onShowAll,
 }: TopTracksSectionProps) {
   const colors = useColors();
 
@@ -80,7 +84,7 @@ export function TopTracksSection({
           </Text>
         </Pressable>
       </View>
-      {topTracks.map((topTrack, index) => (
+      {topTracks.slice(0, ROWS_BEFORE_SHOW_ALL).map((topTrack, index) => (
         <TopTrackRow
           key={topTrack.preview.id}
           topTrack={topTrack}
@@ -94,6 +98,9 @@ export function TopTracksSection({
           onOpenActions={() => onOpenActions(index)}
         />
       ))}
+      {topTracks.length > ROWS_BEFORE_SHOW_ALL ? (
+        <ShowAllLink count={topTracks.length} onPress={onShowAll} />
+      ) : null}
     </View>
   );
 }
