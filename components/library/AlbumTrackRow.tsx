@@ -105,7 +105,7 @@ export function AlbumTrackRow({
           </Text>
           {popular ? (
             <Ionicons
-              name="flame"
+              name="flame-outline"
               size={13}
               color={colors.subtle}
               accessibilityLabel={POPULAR_LABEL}
