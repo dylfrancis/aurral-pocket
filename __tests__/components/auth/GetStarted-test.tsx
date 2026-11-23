@@ -63,61 +63,14 @@ jest.mock("react-native/Libraries/Animated/Animated", () => {
   return jest.requireActual("react-native/Libraries/Animated/Animated");
 });
 
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-
-  const BottomSheet = React.forwardRef(function BottomSheet(
-    { children }: any,
-    ref: any,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      expand: jest.fn(),
-      close: jest.fn(),
-      present: jest.fn(),
-      dismiss: jest.fn(),
-    }));
-    return React.createElement(View, { testID: "bottom-sheet" }, children);
-  });
-
-  const BottomSheetTextInput = React.forwardRef(function BottomSheetTextInput(
-    props: any,
-    ref: any,
-  ) {
-    return React.createElement("TextInput", { ...props, ref });
-  });
-
-  return {
-    __esModule: true,
-    default: BottomSheet,
-    BottomSheetModal: BottomSheet,
-    BottomSheetBackdrop: function BottomSheetBackdrop(props: any) {
-      return React.createElement(View, props);
-    },
-    BottomSheetTextInput,
-    BottomSheetView: function BottomSheetView({ children, ...props }: any) {
-      return React.createElement(View, props, children);
-    },
-  };
-});
-
 jest.mock("@/components/auth/ConnectSheet", () => {
   const React = require("react");
   const { View } = require("react-native");
   return {
-    ConnectSheet: React.forwardRef(function ConnectSheet(_: any, ref: any) {
-      React.useImperativeHandle(ref, () => ({
-        expand: jest.fn(),
-        close: jest.fn(),
-        snapToIndex: jest.fn(),
-        snapToPosition: jest.fn(),
-        collapse: jest.fn(),
-        forceClose: jest.fn(),
-        present: jest.fn(),
-        dismiss: jest.fn(),
-      }));
-      return React.createElement(View, { testID: "connect-sheet" });
-    }),
+    ConnectSheet: ({ sheet }: { sheet: { isPresented: boolean } }) =>
+      sheet.isPresented
+        ? React.createElement(View, { testID: "connect-sheet" })
+        : null,
   };
 });
 
@@ -155,9 +108,15 @@ describe("GetStartedScreen", () => {
     expect(getByTestId("aurral-logo")).toBeTruthy();
   });
 
-  it("renders the ConnectSheet", async () => {
-    const { getByTestId } = await render(<GetStartedScreen />);
-    expect(getByTestId("connect-sheet")).toBeTruthy();
+  it("opens the Connect sheet from Get Started", async () => {
+    const { getByText, findByTestId, queryByTestId } = await render(
+      <GetStartedScreen />,
+    );
+    expect(queryByTestId("connect-sheet")).toBeNull();
+
+    await fireEvent.press(getByText("Get Started"));
+
+    expect(await findByTestId("connect-sheet")).toBeTruthy();
   });
 
   it("triggers haptic feedback on Get Started press", async () => {

@@ -1,8 +1,6 @@
-import { useRef } from "react";
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ArtistLibraryCapsule } from "@/components/artist/ArtistLibraryCapsule";
 import { MonitoringForm } from "@/components/artist/MonitoringForm";
-import { AppSheet } from "@/components/ui/AppSheet";
+import { AppSheet, useSheet } from "@/components/ui/AppSheet";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Radius } from "@/constants/theme";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -37,7 +35,7 @@ export function ArtistLibraryControl({
   const canChange = hasPermission("changeMonitoring");
   const { data: state, isPending } = useArtistMonitoring(mbid);
   const change = useSetArtistMonitoring(mbid, artistName);
-  const sheetRef = useRef<BottomSheetModal>(null);
+  const sheet = useSheet();
 
   if (isPending) {
     return (
@@ -57,7 +55,7 @@ export function ArtistLibraryControl({
 
   const select = (next: MonitoringChoice) => {
     if (next === "custom") {
-      sheetRef.current?.present();
+      sheet.present();
       return;
     }
     if (next === choice || change.isPending) return;
@@ -86,14 +84,7 @@ export function ArtistLibraryControl({
         triggerColor={colors.text}
       />
       {state?.added ? (
-        <AppSheet
-          ref={sheetRef}
-          snapPoints={["85%"]}
-          enablePanDownToClose
-          enableDynamicSizing={false}
-          keyboardBehavior="interactive"
-          keyboardBlurBehavior="restore"
-        >
+        <AppSheet sheet={sheet} snapPoints={["full"]}>
           <MonitoringForm
             title="Monitoring"
             artistName={artistName}
@@ -106,7 +97,7 @@ export function ArtistLibraryControl({
             submitting={change.isPending}
             onSubmit={(monitoring) =>
               change.mutate(monitoring, {
-                onSuccess: () => sheetRef.current?.dismiss(),
+                onSuccess: () => sheet.close(),
               })
             }
           />

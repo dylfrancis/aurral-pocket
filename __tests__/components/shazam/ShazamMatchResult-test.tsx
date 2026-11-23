@@ -34,19 +34,6 @@ jest.mock("@/hooks/search/use-add-artist", () => ({
   useAddArtist: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 
-// The sheet modules load for their hooks and helpers; their native parts
-// never render here.
-jest.mock("@gorhom/bottom-sheet", () => {
-  const { View } = require("react-native");
-  return {
-    BottomSheetModal: View,
-    BottomSheetView: View,
-    BottomSheetScrollView: View,
-    BottomSheetTextInput: View,
-    BottomSheetBackdrop: View,
-  };
-});
-
 // The two sheets own their own contents; these stand-ins show what the match
 // sheet hands them.
 jest.mock("@/components/flow/AddToPlaylistSheet", () => {

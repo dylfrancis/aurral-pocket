@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
-import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
+import { StyleSheet, TextInput, View } from "react-native";
 import { Host } from "@expo/ui";
 import { SettingsSwitch } from "@/components/settings/SettingsSwitch";
 import { MenuPicker } from "@/components/ui/MenuPicker";
@@ -204,7 +203,7 @@ function YearField({
   const [draft, setDraft] = useState<string | null>(null);
 
   return (
-    <BottomSheetTextInput
+    <TextInput
       accessibilityLabel="First Year"
       value={draft ?? (value == null ? "" : String(value))}
       onChangeText={(text) => {

@@ -1,18 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
-  Keyboard,
   StyleSheet,
+  TextInput,
   type TextInputInstance,
   View,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import {
-  BottomSheetModal,
-  BottomSheetTextInput,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
-import { AppSheet } from "@/components/ui/AppSheet";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppSheet, useSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
@@ -23,6 +17,7 @@ type Props = {
   visible: boolean;
   currentZip: string;
   currentCountry: string;
+  /** Once the sheet has gone, so hiding it then can't cut it off. */
   onSave: (zip: string, country: string) => void;
   onClose: () => void;
 };
@@ -43,51 +38,26 @@ function NearbyZipEditorSheetContent({
 }: Omit<Props, "visible">) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
-  const insets = useSafeAreaInsets();
-  const inputRef = useRef<TextInputInstance>(null);
   const countryRef = useRef<TextInputInstance>(null);
-  const sheetRef = useRef<BottomSheetModal>(null);
+  const sheet = useSheet({ presented: true, onClosed: onClose });
   const [draft, setDraft] = useState(currentZip);
   const [countryDraft, setCountryDraft] = useState(currentCountry);
   const country = countryDraft.trim();
   const canSave =
     !!draft.trim() && (!country || COUNTRY_CODE_PATTERN.test(country));
 
-  useEffect(() => {
-    sheetRef.current?.present();
-  }, []);
-
-  const handleDismiss = useCallback(() => {
-    Keyboard.dismiss();
-    onClose();
-  }, [onClose]);
-
-  const handleAnimate = useCallback((_fromIndex: number, toIndex: number) => {
-    if (toIndex === 0) {
-      setTimeout(() => inputRef.current?.focus(), 150);
-    }
-  }, []);
-
+  const closeSheet = sheet.close;
   const handleSave = useCallback(() => {
     if (!canSave) return;
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onSave(draft.trim(), country.toUpperCase());
-  }, [canSave, country, draft, onSave]);
+    const zip = draft.trim();
+    const code = country.toUpperCase();
+    closeSheet(() => onSave(zip, code));
+  }, [canSave, closeSheet, country, draft, onSave]);
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      background="card"
-      enableDynamicSizing
-      enablePanDownToClose
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      onAnimate={handleAnimate}
-      onDismiss={handleDismiss}
-    >
-      <BottomSheetView
-        style={[styles.content, { paddingBottom: insets.bottom + 16 }]}
-      >
+    <AppSheet sheet={sheet} background="card">
+      <View style={styles.content}>
         <Text variant="title" style={[styles.title, { ...Fonts.semiBold }]}>
           Enter a Location
         </Text>
@@ -98,13 +68,13 @@ function NearbyZipEditorSheetContent({
           Used to find Ticketmaster shows nearby.
         </Text>
 
-        <BottomSheetTextInput
-          ref={inputRef as never}
+        <TextInput
           style={[inputBaseStyle, inputThemedStyle(colorScheme), styles.input]}
           placeholder="ZIP or postal code"
           placeholderTextColor={colors.placeholder}
           value={draft}
           onChangeText={setDraft}
+          autoFocus
           autoCapitalize="characters"
           autoCorrect={false}
           keyboardType="default"
@@ -113,8 +83,8 @@ function NearbyZipEditorSheetContent({
           onSubmitEditing={() => countryRef.current?.focus()}
         />
 
-        <BottomSheetTextInput
-          ref={countryRef as never}
+        <TextInput
+          ref={countryRef}
           style={[inputBaseStyle, inputThemedStyle(colorScheme), styles.input]}
           placeholder="Country code (optional), e.g. FR"
           placeholderTextColor={colors.placeholder}
@@ -130,7 +100,7 @@ function NearbyZipEditorSheetContent({
         <View style={styles.actions}>
           <Button title="Save" onPress={handleSave} disabled={!canSave} />
         </View>
-      </BottomSheetView>
+      </View>
     </AppSheet>
   );
 }
@@ -139,6 +109,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
     paddingTop: 8,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 20,

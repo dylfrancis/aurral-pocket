@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MonitoringRulesFields } from "@/components/artist/MonitoringRulesFields";
+import { AppSheetScrollView } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import { Fonts } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
@@ -49,7 +48,6 @@ export function MonitoringForm({
   onSubmit,
 }: MonitoringFormProps) {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const [choice, setChoice] = useState(initialChoice);
   const [customRules, setCustomRules] = useState(initialRules ?? null);
   const rules = customRules ?? defaultRules;
@@ -89,9 +87,9 @@ export function MonitoringForm({
   const canSubmit = !!request && !problem && !submitting;
 
   return (
-    <BottomSheetScrollView
+    <AppSheetScrollView
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+      contentContainerStyle={styles.content}
     >
       <View style={styles.header}>
         <Text variant="title" style={styles.title}>
@@ -210,11 +208,14 @@ export function MonitoringForm({
           </Text>
         </Pressable>
       </View>
-    </BottomSheetScrollView>
+    </AppSheetScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingBottom: 16,
+  },
   header: {
     paddingHorizontal: 16,
     paddingTop: 4,

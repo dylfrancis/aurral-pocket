@@ -82,32 +82,6 @@ jest.mock("@shopify/flash-list", () => {
   return { FlashList: FlatList };
 });
 
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  const BottomSheet = React.forwardRef(function MockBottomSheet(
-    { children, ...props }: any,
-    ref: any,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      close: jest.fn(),
-      expand: jest.fn(),
-      snapToIndex: jest.fn(),
-      present: jest.fn(),
-      dismiss: jest.fn(),
-    }));
-    return React.createElement(View, props, children);
-  });
-  return {
-    __esModule: true,
-    default: BottomSheet,
-    BottomSheetModal: BottomSheet,
-    BottomSheetBackdrop: (props: any) => React.createElement(View, props),
-    BottomSheetView: ({ children, ...props }: any) =>
-      React.createElement(View, props, children),
-  };
-});
-
 const mockActivityActionsSheet = jest.fn();
 jest.mock("@/components/activity/ActivityActionsSheet", () => {
   const React = require("react");

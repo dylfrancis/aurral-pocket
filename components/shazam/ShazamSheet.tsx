@@ -1,11 +1,14 @@
-import React, { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
-import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { AppSheet } from "@/components/ui/AppSheet";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import {
+  AppSheet,
+  AppSheetScrollView,
+  type Sheet,
+} from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
+import { IS_IOS } from "@/constants/platform";
 import { useShazam } from "@/hooks/shazam/use-shazam";
 import { Fonts } from "@/constants/theme";
 import { ShazamListeningIndicator } from "./ShazamListeningIndicator";
@@ -13,7 +16,7 @@ import { ShazamMatchResult, type ReleaseRoute } from "./ShazamMatchResult";
 import { useColors } from "@/hooks/use-colors";
 
 type Props = {
-  sheetRef: React.RefObject<BottomSheetModal | null>;
+  sheet: Sheet;
   /** Navigate to an artist within the host tab's stack. */
   onViewArtist: (mbid: string, name: string) => void;
   /** Navigate to a release page within the host tab's stack. */
@@ -22,48 +25,52 @@ type Props = {
   onSearchManually: (query: string) => void;
 };
 
-export function ShazamSheet({
-  sheetRef,
+export function ShazamSheet({ sheet, ...props }: Props) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <AppSheet
+      sheet={sheet}
+      // A result that needs room grows the sheet. Android keeps the height a
+      // sheet opened at, so there it stays draggable instead.
+      snapPoints={IS_IOS && expanded ? ["full"] : ["half", "full"]}
+    >
+      <ShazamSession sheet={sheet} onExpand={setExpanded} {...props} />
+    </AppSheet>
+  );
+}
+
+/** Mounts only while the sheet is up, so it listens from each opening. */
+function ShazamSession({
+  sheet,
+  onExpand,
   onViewArtist,
   onViewRelease,
   onSearchManually,
-}: Props) {
+}: Props & { onExpand: (expanded: boolean) => void }) {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const shazam = useShazam();
   const { status, start, cancel, reset } = shazam;
+  const { close, isPresented } = sheet;
 
-  // Keep listening / no-match / error states compact at 55%.
   useEffect(() => {
-    if (status === "listening") {
-      sheetRef.current?.snapToIndex(0);
-    }
-  }, [status, sheetRef]);
+    start();
+  }, [start]);
 
-  // A result that needs room grows to 90%.
-  const handleResolved = useCallback(
-    (needsExpandedSheet: boolean) => {
-      sheetRef.current?.snapToIndex(needsExpandedSheet ? 1 : 0);
-    },
-    [sheetRef],
-  );
+  // The mic stops as the sheet starts to close, not once it has gone.
+  useEffect(() => {
+    if (!isPresented) cancel();
+  }, [isPresented, cancel]);
 
-  const handleChange = useCallback(
-    (index: number) => {
-      if (index >= 0 && status === "idle") {
-        start();
-      }
-    },
-    [status, start],
-  );
+  // The next opening starts compact.
+  useEffect(() => () => onExpand(false), [onExpand]);
 
-  const handleDismiss = useCallback(() => {
-    cancel();
-  }, [cancel]);
+  // Listening again, as after a retry, needs no room.
+  useEffect(() => {
+    if (status === "listening") onExpand(false);
+  }, [status, onExpand]);
 
-  const dismiss = useCallback(() => {
-    sheetRef.current?.dismiss();
-  }, [sheetRef]);
+  const dismiss = useCallback(() => close(), [close]);
 
   const handleRetry = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -71,110 +78,88 @@ export function ShazamSheet({
     start();
   }, [reset, start]);
 
+  // Each leaves the tab's page, so it waits for the sheet to go.
   const handleViewArtist = useCallback(
-    (mbid: string, name: string) => {
-      dismiss();
-      onViewArtist(mbid, name);
-    },
-    [dismiss, onViewArtist],
+    (mbid: string, name: string) => close(() => onViewArtist(mbid, name)),
+    [close, onViewArtist],
   );
 
   const handleViewRelease = useCallback(
-    (params: ReleaseRoute) => {
-      dismiss();
-      onViewRelease(params);
-    },
-    [dismiss, onViewRelease],
+    (params: ReleaseRoute) => close(() => onViewRelease(params)),
+    [close, onViewRelease],
   );
 
   const handleSearchManually = useCallback(
-    (query: string) => {
-      dismiss();
-      onSearchManually(query);
-    },
-    [dismiss, onSearchManually],
+    (query: string) => close(() => onSearchManually(query)),
+    [close, onSearchManually],
   );
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      snapPoints={["55%", "90%"]}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      onChange={handleChange}
-      onDismiss={handleDismiss}
-    >
-      <BottomSheetScrollView
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 24,
-          paddingTop: 8,
-        }}
-      >
-        {status === "matched" && shazam.match ? (
-          <ShazamMatchResult
-            match={shazam.match}
-            onViewArtist={handleViewArtist}
-            onViewRelease={handleViewRelease}
-            onSearchManually={handleSearchManually}
-            onResolved={handleResolved}
-          />
-        ) : status === "permission_denied" ? (
-          <CenteredState
-            icon="mic-off-outline"
-            title="Microphone access needed"
-            body="Aurral needs the microphone to identify the song playing around you."
-            primaryLabel="Open Settings"
-            onPrimary={() => Linking.openSettings()}
-            secondaryLabel="Not now"
-            onSecondary={dismiss}
-          />
-        ) : status === "no_match" ? (
-          <CenteredState
-            icon="help-circle-outline"
-            title="Couldn't recognize the song"
-            body="Move closer to the source, lower background noise, and try again."
-            primaryLabel="Try again"
-            onPrimary={handleRetry}
-            secondaryLabel="Done"
-            onSecondary={dismiss}
-          />
-        ) : status === "error" ? (
-          <CenteredState
-            icon="alert-circle-outline"
-            title="Something went wrong"
-            body={shazam.errorMessage ?? "Please try again."}
-            primaryLabel="Try again"
-            onPrimary={handleRetry}
-            secondaryLabel="Done"
-            onSecondary={dismiss}
-          />
-        ) : (
-          <View style={styles.listening}>
-            <ShazamListeningIndicator />
-            <Text variant="title" style={styles.listeningTitle}>
-              Listening…
+    <AppSheetScrollView contentContainerStyle={styles.content}>
+      {status === "matched" && shazam.match ? (
+        <ShazamMatchResult
+          match={shazam.match}
+          onViewArtist={handleViewArtist}
+          onViewRelease={handleViewRelease}
+          onSearchManually={handleSearchManually}
+          onResolved={onExpand}
+        />
+      ) : status === "permission_denied" ? (
+        <CenteredState
+          icon="mic-off-outline"
+          title="Microphone access needed"
+          body="Aurral needs the microphone to identify the song playing around you."
+          primaryLabel="Open Settings"
+          onPrimary={() => Linking.openSettings()}
+          secondaryLabel="Not now"
+          onSecondary={dismiss}
+        />
+      ) : status === "no_match" ? (
+        <CenteredState
+          icon="help-circle-outline"
+          title="Couldn't recognize the song"
+          body="Move closer to the source, lower background noise, and try again."
+          primaryLabel="Try again"
+          onPrimary={handleRetry}
+          secondaryLabel="Done"
+          onSecondary={dismiss}
+        />
+      ) : status === "error" ? (
+        <CenteredState
+          icon="alert-circle-outline"
+          title="Something went wrong"
+          body={shazam.errorMessage ?? "Please try again."}
+          primaryLabel="Try again"
+          onPrimary={handleRetry}
+          secondaryLabel="Done"
+          onSecondary={dismiss}
+        />
+      ) : (
+        <View style={styles.listening}>
+          <ShazamListeningIndicator />
+          <Text variant="title" style={styles.listeningTitle}>
+            Listening…
+          </Text>
+          <Text
+            variant="caption"
+            style={[styles.listeningHint, { color: colors.subtle }]}
+          >
+            Point your phone toward the music
+          </Text>
+          <Pressable
+            onPress={dismiss}
+            style={({ pressed }) => [
+              styles.cancelButton,
+              { borderColor: colors.separator, opacity: pressed ? 0.6 : 1 },
+            ]}
+          >
+            <Text variant="body" style={{ color: colors.text }}>
+              Cancel
             </Text>
-            <Text
-              variant="caption"
-              style={[styles.listeningHint, { color: colors.subtle }]}
-            >
-              Point your phone toward the music
-            </Text>
-            <Pressable
-              onPress={dismiss}
-              style={({ pressed }) => [
-                styles.cancelButton,
-                { borderColor: colors.separator, opacity: pressed ? 0.6 : 1 },
-              ]}
-            >
-              <Text variant="body" style={{ color: colors.text }}>
-                Cancel
-              </Text>
-            </Pressable>
-          </View>
-        )}
-      </BottomSheetScrollView>
-    </AppSheet>
+          </Pressable>
+        </View>
+      )}
+    </AppSheetScrollView>
   );
 }
 
@@ -241,6 +226,10 @@ function CenteredState({
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
   listening: {
     alignItems: "center",
     paddingTop: 16,

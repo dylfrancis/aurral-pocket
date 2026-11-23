@@ -17,6 +17,7 @@ import { EditorialShelf } from "@/components/discover/EditorialShelf";
 import { TrendingCharts } from "@/components/discover/TrendingCharts";
 import { ShazamSheet } from "@/components/shazam";
 import { isShazamAvailable } from "@/modules/shazam";
+import { useSheet } from "@/components/ui/AppSheet";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import Mic from "@expo/material-symbols/mic.xml";
@@ -49,7 +50,6 @@ import type {
 } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
@@ -195,7 +195,7 @@ export default function DiscoverScreen() {
 
   const handleOpenSettings = useOpenSettings();
 
-  const shazamSheetRef = useRef<BottomSheetModal>(null);
+  const shazamSheet = useSheet();
 
   const isOffline = useIsOffline();
   const { start: startYourRadio, isStarting: yourRadioStarting } =
@@ -277,7 +277,7 @@ export default function DiscoverScreen() {
           <Stack.Toolbar.Button
             icon={IS_IOS ? "mic" : Mic}
             accessibilityLabel="Identify song"
-            onPress={() => shazamSheetRef.current?.present()}
+            onPress={shazamSheet.present}
           >
             Identify song
           </Stack.Toolbar.Button>
@@ -439,7 +439,7 @@ export default function DiscoverScreen() {
         ) : null}
       </ScrollView>
       <ShazamSheet
-        sheetRef={shazamSheetRef}
+        sheet={shazamSheet}
         onViewArtist={(mbid, name) => openArtist({ mbid, name })}
         onViewRelease={(params) =>
           router.push({ pathname: "/release/[mbid]", params })

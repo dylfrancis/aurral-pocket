@@ -138,27 +138,6 @@ jest.mock("react-native-reanimated", () => {
   };
 });
 
-// The track sheet's native parts stand in as plain views.
-jest.mock("@/components/ui/AppSheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    AppSheet: React.forwardRef(function MockAppSheet(
-      { children }: { children: React.ReactNode },
-      _ref: unknown,
-    ) {
-      return React.createElement(View, null, children);
-    }),
-  };
-});
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    BottomSheetView: ({ children }: { children: React.ReactNode }) =>
-      React.createElement(View, null, children),
-  };
-});
 jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   AddToPlaylistSheet: () => null,
   useAddToPlaylist: () => ({
@@ -814,13 +793,13 @@ describe("a track's sheet", () => {
     await open();
 
     await openTrackSheet("Track a");
+    expect(screen.getByText("Remove Track")).toBeTruthy();
     await fireEvent.press(screen.getByText("Play Next"));
 
     expect(playItemsNext).toHaveBeenCalledWith(
       [expect.objectContaining({ id: "a" })],
       expect.objectContaining({ albumTitle: "Road Trip" }),
     );
-    expect(screen.getByText("Remove Track")).toBeTruthy();
   });
 
   it("offers only the playlist's own actions for a track that can't play yet", async () => {

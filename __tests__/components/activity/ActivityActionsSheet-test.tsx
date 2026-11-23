@@ -33,34 +33,11 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
-jest.mock("@/components/ui/AppSheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    AppSheet: React.forwardRef(function MockAppSheet(
-      { children }: any,
-      _ref: any,
-    ) {
-      return React.createElement(View, null, children);
-    }),
-  };
-});
-
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    BottomSheetView: ({ children }: any) =>
-      React.createElement(View, null, children),
-  };
-});
-
-import React from "react";
 import { Alert } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet";
+import { useSheet } from "@/components/ui/AppSheet";
 import { retryTrackJob } from "@/lib/api/flow";
 import { cancelAurralAlbum } from "@/lib/api/library";
 import type { ActivityItem } from "@/lib/types/activity";
@@ -122,9 +99,16 @@ const albumDownload: ActivityItem = {
   progressLabel: "3 of 10 tracks ready",
 };
 
+function OpenSheet(props: {
+  request: ActivityItem;
+  downloadStatus: DownloadStatusValue | undefined;
+}) {
+  const sheet = useSheet({ presented: true });
+  return <ActivityActionsSheet sheet={sheet} {...props} />;
+}
+
 async function openSheet(
   request: ActivityItem = aurralRequest,
-  sheetRef = React.createRef<BottomSheetModal>(),
   downloadStatus: DownloadStatusValue | undefined = "downloading",
 ) {
   const queryClient = new QueryClient({
@@ -132,11 +116,7 @@ async function openSheet(
   });
   await render(
     <QueryClientProvider client={queryClient}>
-      <ActivityActionsSheet
-        sheetRef={sheetRef}
-        request={request}
-        downloadStatus={downloadStatus}
-      />
+      <OpenSheet request={request} downloadStatus={downloadStatus} />
     </QueryClientProvider>,
   );
 }
@@ -172,7 +152,7 @@ describe("ActivityActionsSheet", () => {
       false,
     ],
   ])("offers Stop on an album download %s", async (_name, item, offered) => {
-    await openSheet(item, undefined, undefined);
+    await openSheet(item, undefined);
 
     if (!offered) {
       expect(screen.queryByText("Stop Download")).toBeNull();
@@ -195,10 +175,7 @@ describe("ActivityActionsSheet", () => {
   });
 
   it("retries a failed track download under its track name, then closes", async () => {
-    const dismiss = jest.fn();
-    await openSheet(failedDownload, {
-      current: { dismiss } as unknown as BottomSheetModal,
-    });
+    await openSheet(failedDownload);
     expect(screen.getByText("Idioteque")).toBeTruthy();
 
     await act(async () => {
@@ -206,6 +183,6 @@ describe("ActivityActionsSheet", () => {
     });
 
     expect(retryTrackJob).toHaveBeenCalledWith("j1");
-    expect(dismiss).toHaveBeenCalled();
+    expect(screen.queryByText("Idioteque")).toBeNull();
   });
 });

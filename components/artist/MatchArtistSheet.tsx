@@ -1,19 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Keyboard, StyleSheet, View } from "react-native";
-import {
-  BottomSheetModal,
-  BottomSheetScrollView,
-  BottomSheetTextInput,
-} from "@gorhom/bottom-sheet";
+import { useState } from "react";
+import { ActivityIndicator, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
-import { AppSheet } from "@/components/ui/AppSheet";
+import {
+  AppSheet,
+  AppSheetScrollView,
+  useSheet,
+} from "@/components/ui/AppSheet";
 import { Button } from "@/components/ui/Button";
 import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { Text } from "@/components/ui/Text";
-import { SHEET_BOTTOM_PADDING } from "@/constants/navigation";
 import { Fonts } from "@/constants/theme";
 import {
   useArtistMatches,
@@ -51,6 +49,7 @@ type Props = {
   artistName: string;
   /** The artist's MBID now, which Remove Match clears. */
   currentMbid?: string;
+  /** Once the sheet has gone, as the saved match can change the page. */
   onSaved: (result: ArtistMatchResult) => void;
   onDismiss: () => void;
 };
@@ -68,22 +67,13 @@ export function MatchArtistSheet({
 }: Props) {
   const colors = useColors();
   const colorScheme = useColorScheme();
-  const sheetRef = useRef<BottomSheetModal>(null);
+  const sheet = useSheet({ presented: true, onClosed: onDismiss });
   const [query, setQuery] = useState(artistName);
   const [picked, setPicked] = useState<string | null>(null);
   const search = useDebouncedValue(query.trim(), SEARCH_DELAY_MS);
   const pasted = pastedMbid(query);
   const matches = useArtistMatches(libraryArtistId, search, !pasted);
   const save = useMatchArtist(libraryArtistId);
-
-  useEffect(() => {
-    sheetRef.current?.present();
-  }, []);
-
-  const handleDismiss = useCallback(() => {
-    Keyboard.dismiss();
-    onDismiss();
-  }, [onDismiss]);
 
   const items = matches.data ?? [];
   const current = currentMbid || null;
@@ -99,8 +89,7 @@ export function MatchArtistSheet({
         void Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
         );
-        sheetRef.current?.dismiss();
-        onSaved(result);
+        sheet.close(() => onSaved(result));
       },
       onError: (error) => {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -180,16 +169,7 @@ export function MatchArtistSheet({
   };
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      background="card"
-      snapPoints={["85%"]}
-      enableDynamicSizing={false}
-      enablePanDownToClose
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      onDismiss={handleDismiss}
-    >
+    <AppSheet sheet={sheet} background="card" snapPoints={["full"]}>
       <View style={styles.header}>
         <Text variant="title" style={styles.title}>
           Match Artist
@@ -201,7 +181,7 @@ export function MatchArtistSheet({
         >
           {artistName}
         </Text>
-        <BottomSheetTextInput
+        <TextInput
           style={[inputBaseStyle, inputThemedStyle(colorScheme)]}
           placeholder="Search or paste a MusicBrainz link"
           placeholderTextColor={colors.placeholder}
@@ -214,18 +194,10 @@ export function MatchArtistSheet({
           returnKeyType="search"
         />
       </View>
-      <BottomSheetScrollView keyboardShouldPersistTaps="handled">
+      <AppSheetScrollView keyboardShouldPersistTaps="handled">
         {renderList()}
-      </BottomSheetScrollView>
-      <View
-        style={[
-          styles.footer,
-          {
-            borderTopColor: colors.separator,
-            paddingBottom: SHEET_BOTTOM_PADDING,
-          },
-        ]}
-      >
+      </AppSheetScrollView>
+      <View style={[styles.footer, { borderTopColor: colors.separator }]}>
         <Button
           title="Save"
           loading={save.isPending && save.variables !== null}
@@ -247,7 +219,7 @@ export function MatchArtistSheet({
             variant="inline"
             title="Cancel"
             disabled={save.isPending}
-            onPress={() => sheetRef.current?.dismiss()}
+            onPress={() => sheet.close()}
           />
         </View>
       </View>
@@ -277,6 +249,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   secondary: {

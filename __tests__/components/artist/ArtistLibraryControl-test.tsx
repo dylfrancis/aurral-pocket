@@ -23,31 +23,6 @@ jest.mock("@/components/settings/SettingsSwitch", () => ({
 jest.mock("@/components/ui/PillRow", () => ({ PillRow: () => null }));
 jest.mock("@/components/ui/Skeleton", () => ({ Skeleton: () => null }));
 
-const mockPresent = jest.fn();
-const mockDismiss = jest.fn();
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { TextInput, View } = require("react-native");
-  const BottomSheet = React.forwardRef(function MockBottomSheet(
-    { children }: any,
-    ref: any,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      present: mockPresent,
-      dismiss: mockDismiss,
-    }));
-    return <View>{children}</View>;
-  });
-  return {
-    __esModule: true,
-    default: BottomSheet,
-    BottomSheetModal: BottomSheet,
-    BottomSheetBackdrop: (props: any) => <View {...props} />,
-    BottomSheetScrollView: ({ children }: any) => <View>{children}</View>,
-    BottomSheetTextInput: (props: any) => <TextInput {...props} />,
-  };
-});
-
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -203,8 +178,9 @@ describe("ArtistLibraryControl", () => {
       defaultRules: DEFAULT_RULES,
     });
     await renderControl();
-    await fireEvent.press(await screen.findByLabelText("Custom Rules…"));
-    expect(mockPresent).toHaveBeenCalled();
+    const customRules = await screen.findByLabelText("Custom Rules…");
+    expect(screen.queryByText("Save")).toBeNull();
+    await fireEvent.press(customRules);
 
     await fireEvent.press(screen.getByLabelText("Top Tracks, more"));
     await fireEvent.press(screen.getByText("Save"));
@@ -214,7 +190,7 @@ describe("ArtistLibraryControl", () => {
       useDefault: false,
       rules: { ...OWN_RULES, topTracks: 11 },
     });
-    expect(mockDismiss).toHaveBeenCalled();
+    expect(screen.queryByText("Save")).toBeNull();
   });
 
   it("only shows the monitoring to someone who can't change it", async () => {

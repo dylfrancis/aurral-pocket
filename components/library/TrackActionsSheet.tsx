@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { BottomSheetView, type BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   AddToPlaylistSheet,
   useAddToPlaylist,
 } from "@/components/flow/AddToPlaylistSheet";
-import { AppSheet } from "@/components/ui/AppSheet";
+import { AppSheet, useSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import {
   useDeletableTrackId,
@@ -107,8 +105,8 @@ export function libraryPlaylistTrack(
 }
 
 /**
- * The playlist sheet stays outside the content, because it opens as this
- * closes. So does the delete, which is confirmed after the content has closed.
+ * The playlist sheet stays outside the content, because it opens once this
+ * has closed. So does the delete, which is confirmed then.
  */
 export function TrackActionsSheet({
   target,
@@ -157,8 +155,8 @@ function TrackActionsContent({
 }) {
   const { album } = target;
   const colors = useColors();
-  const insets = useSafeAreaInsets();
-  const sheetRef = useRef<BottomSheetModal>(null);
+  const sheet = useSheet({ presented: true, onClosed: onClose });
+  const { present } = sheet;
   const queue = useQueueActions();
   const songSave = useSongSave();
   const startRadio = useStartRadio();
@@ -228,27 +226,15 @@ function TrackActionsContent({
   // On every open, not just on mount: a row tapped while the sheet is still
   // closing reopens it for that row.
   useEffect(() => {
-    sheetRef.current?.present();
-  }, [target]);
+    present();
+  }, [target, present]);
 
-  const closeThen = (action: () => void) => () => {
-    sheetRef.current?.dismiss();
-    action();
-  };
+  // Once the sheet has gone, as an alert or another sheet can't open sooner.
+  const closeThen = (action: () => void) => () => sheet.close(action);
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      enableDynamicSizing
-      enablePanDownToClose
-      // Over another sheet, such as the Shazam match, "switch" would minimize
-      // that sheet, and the bottom-sheet library then dismisses it for good.
-      stackBehavior="push"
-      onDismiss={onClose}
-    >
-      <BottomSheetView
-        style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}
-      >
+    <AppSheet sheet={sheet}>
+      <View style={styles.sheet}>
         <View style={styles.sheetTitleRow}>
           <Text variant="subtitle" numberOfLines={1} style={styles.sheetTitle}>
             {title}
@@ -348,7 +334,7 @@ function TrackActionsContent({
             )}
           />
         ) : null}
-      </BottomSheetView>
+      </View>
     </AppSheet>
   );
 }
@@ -457,6 +443,7 @@ const styles = StyleSheet.create({
   sheet: {
     paddingHorizontal: 16,
     paddingTop: 4,
+    paddingBottom: 16,
     gap: 4,
   },
   sheetTitleRow: {

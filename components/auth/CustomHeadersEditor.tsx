@@ -1,7 +1,6 @@
 import { Fragment } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import type { FieldErrors } from "react-hook-form";
 import { Text } from "@/components/ui/Text";
 import { Separator } from "@/components/ui/Separator";
@@ -30,10 +29,6 @@ type Props = {
   editable?: boolean;
 };
 
-/**
- * Only for use inside a bottom sheet: its inputs are the sheet's own, so the
- * keyboard keeps them in view.
- */
 export function CustomHeadersEditor({
   rows,
   onChange,
@@ -54,7 +49,7 @@ export function CustomHeadersEditor({
           {index > 0 ? <Separator style={styles.separator} /> : null}
           <View style={styles.row}>
             <View style={styles.fields}>
-              <BottomSheetTextInput
+              <TextInput
                 style={inputStyle}
                 placeholder="Header name"
                 placeholderTextColor={colors.placeholder}
@@ -65,7 +60,7 @@ export function CustomHeadersEditor({
                 editable={editable}
                 accessibilityLabel="Header name"
               />
-              <BottomSheetTextInput
+              <TextInput
                 style={inputStyle}
                 placeholder="Value"
                 placeholderTextColor={colors.placeholder}

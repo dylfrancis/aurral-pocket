@@ -1,6 +1,5 @@
 const mockAddMutate = jest.fn();
 const mockCreateMutate = jest.fn();
-const mockDismiss = jest.fn();
 const mockAddMutation = { mutate: mockAddMutate, isPending: false };
 const mockCreateMutation = { mutate: mockCreateMutate, isPending: false };
 let mockPlaylists: { id: string; name: string; trackCount: number }[] = [];
@@ -35,36 +34,6 @@ jest.mock("@/components/flow/CollectionArtwork", () => {
 jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: jest.fn(() => "dark"),
 }));
-
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { View, TextInput } = require("react-native");
-  const BottomSheet = React.forwardRef(function MockBottomSheet(
-    { children, ...props }: any,
-    ref: any,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      close: jest.fn(),
-      snapToIndex: jest.fn(),
-      present: jest.fn(),
-      dismiss: mockDismiss,
-    }));
-    return <View {...props}>{children}</View>;
-  });
-  return {
-    __esModule: true,
-    default: BottomSheet,
-    BottomSheetModal: BottomSheet,
-    BottomSheetBackdrop: (props: any) => <View {...props} />,
-    BottomSheetScrollView: ({ children, ...props }: any) => (
-      <View {...props}>{children}</View>
-    ),
-    BottomSheetView: ({ children, ...props }: any) => (
-      <View {...props}>{children}</View>
-    ),
-    BottomSheetTextInput: (props: any) => <TextInput {...props} />,
-  };
-});
 
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
@@ -144,9 +113,9 @@ describe("AddToPlaylistSheet", () => {
   });
 
   describe("New Playlist", () => {
-    async function openNaming() {
+    async function openNaming(onClose = jest.fn()) {
       const utils = await render(
-        <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
+        <AddToPlaylistSheet track={TRACK} onClose={onClose} />,
       );
       await fireEvent.press(utils.getByText("New Playlist"));
       return utils;
@@ -183,14 +152,22 @@ describe("AddToPlaylistSheet", () => {
 
     it("closes both sheets and confirms once created", async () => {
       mockCreateMutate.mockImplementation((_vars, opts) => opts.onSuccess());
-      const { getByText, getByPlaceholderText } = await openNaming();
+      const onClose = jest.fn();
+      const {
+        getByText,
+        getByPlaceholderText,
+        queryByText,
+        queryByPlaceholderText,
+      } = await openNaming(onClose);
       await fireEvent.changeText(
         getByPlaceholderText("Playlist name"),
         "Keepers",
       );
       await fireEvent.press(getByText("Create and Add"));
 
-      expect(mockDismiss).toHaveBeenCalledTimes(2);
+      expect(queryByPlaceholderText("Playlist name")).toBeNull();
+      expect(queryByText("Add to Playlist")).toBeNull();
+      expect(onClose).toHaveBeenCalledTimes(1);
       expect(Burnt.toast).toHaveBeenCalledWith({
         title: 'Created "Keepers"',
         preset: "done",
@@ -208,7 +185,7 @@ describe("AddToPlaylistSheet", () => {
       );
       await fireEvent.press(getByText("Create and Add"));
 
-      expect(mockDismiss).not.toHaveBeenCalled();
+      expect(getByPlaceholderText("Playlist name")).toBeTruthy();
       expect(Burnt.toast).toHaveBeenCalledWith({
         title: "Couldn't create playlist",
         message: "Nope",

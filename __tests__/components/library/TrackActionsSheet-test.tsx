@@ -31,29 +31,6 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
-// The sheet's native parts never render here.
-jest.mock("@gorhom/bottom-sheet", () => {
-  const { View } = require("react-native");
-  const React = require("react");
-  const BottomSheetModal = React.forwardRef(function BottomSheetModal(
-    props: { children: React.ReactNode },
-    ref: React.Ref<unknown>,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      present: jest.fn(),
-      dismiss: jest.fn(),
-    }));
-    return <View>{props.children}</View>;
-  });
-  return {
-    BottomSheetModal,
-    BottomSheetView: View,
-    BottomSheetScrollView: View,
-    BottomSheetTextInput: View,
-    BottomSheetBackdrop: View,
-  };
-});
-
 jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   ...jest.requireActual("@/components/flow/AddToPlaylistSheet"),
   AddToPlaylistSheet: () => null,

@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, Pressable, StyleSheet, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
-import { BottomSheetModal, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
-import { AppSheet } from "@/components/ui/AppSheet";
+import {
+  AppSheet,
+  AppSheetScrollView,
+  useSheet,
+} from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import { NewPlaylistSheet } from "./NewPlaylistSheet";
 import { CollectionArtwork } from "./CollectionArtwork";
@@ -12,7 +15,6 @@ import { useAddSharedPlaylistTracks } from "@/hooks/flow/use-flow-mutations";
 import { useSharedPlaylists } from "@/hooks/flow/use-flow-selectors";
 import { usePlaylistsContaining } from "@/hooks/flow/use-playlists-containing";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import { SHEET_BOTTOM_PADDING } from "@/constants/navigation";
 import { Fonts } from "@/constants/theme";
 import type { ApiError } from "@/lib/api/client";
 import type { SharedPlaylist, SharedPlaylistTrack } from "@/lib/types/flow";
@@ -66,7 +68,8 @@ function AddToPlaylistSheetContent({
   onClose: () => void;
 }) {
   const colors = useColors();
-  const sheetRef = useRef<BottomSheetModal>(null);
+  const sheet = useSheet({ presented: true, onClosed: onClose });
+  const closeSheet = sheet.close;
   const [isNaming, setIsNaming] = useState(false);
 
   const playlists = useSharedPlaylists();
@@ -77,20 +80,14 @@ function AddToPlaylistSheetContent({
   // so a tap there would toast "Added" while changing nothing.
   const { data: containingIds } = usePlaylistsContaining(track);
 
-  useEffect(() => {
-    sheetRef.current?.present();
-  }, []);
-
-  const handleDismiss = useCallback(() => {
-    Keyboard.dismiss();
-    onClose();
-  }, [onClose]);
-
-  const finishSuccess = useCallback((title: string) => {
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Burnt.toast({ title, preset: "done" });
-    sheetRef.current?.dismiss();
-  }, []);
+  const finishSuccess = useCallback(
+    (title: string) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Burnt.toast({ title, preset: "done" });
+      closeSheet();
+    },
+    [closeSheet],
+  );
 
   const finishError = useCallback((title: string, err: unknown) => {
     Burnt.toast({
@@ -114,109 +111,95 @@ function AddToPlaylistSheetContent({
   const subtitle = `"${track.trackName}" · ${track.artistName}`;
 
   return (
-    <>
-      <AppSheet
-        ref={sheetRef}
-        background="card"
-        enableDynamicSizing
-        enablePanDownToClose
-        stackBehavior="push"
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        onDismiss={handleDismiss}
+    <AppSheet sheet={sheet} background="card">
+      <AppSheetScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
       >
-        <BottomSheetScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: SHEET_BOTTOM_PADDING },
-          ]}
-          keyboardShouldPersistTaps="handled"
+        <Text variant="title" style={[styles.title, { ...Fonts.semiBold }]}>
+          Add to Playlist
+        </Text>
+        <Text
+          variant="caption"
+          numberOfLines={1}
+          style={[styles.subtitle, { color: colors.subtle }]}
         >
-          <Text variant="title" style={[styles.title, { ...Fonts.semiBold }]}>
-            Add to Playlist
-          </Text>
-          <Text
-            variant="caption"
-            numberOfLines={1}
-            style={[styles.subtitle, { color: colors.subtle }]}
-          >
-            {subtitle}
-          </Text>
+          {subtitle}
+        </Text>
 
-          <View style={[styles.list, { borderColor: colors.separator }]}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setIsNaming(true)}
-              style={({ pressed }) => [
-                styles.playlistRow,
-                { borderBottomColor: colors.separator },
-                { opacity: pressed ? 0.6 : 1 },
-              ]}
+        <View style={[styles.list, { borderColor: colors.separator }]}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setIsNaming(true)}
+            style={({ pressed }) => [
+              styles.playlistRow,
+              { borderBottomColor: colors.separator },
+              { opacity: pressed ? 0.6 : 1 },
+            ]}
+          >
+            <View
+              style={[styles.newIcon, { backgroundColor: colors.brandMuted }]}
             >
-              <View
-                style={[styles.newIcon, { backgroundColor: colors.brandMuted }]}
+              <Ionicons name="add" size={24} color={colors.brandStrong} />
+            </View>
+            <Text variant="body" style={{ ...Fonts.medium }}>
+              New Playlist
+            </Text>
+          </Pressable>
+          {playlists.map((playlist) => {
+            const alreadyAdded = !!containingIds?.includes(playlist.id);
+            return (
+              <Pressable
+                key={playlist.id}
+                onPress={() => handlePick(playlist)}
+                disabled={isPending || alreadyAdded}
+                accessibilityLabel={
+                  alreadyAdded
+                    ? `Already in ${playlist.name}`
+                    : `Add to ${playlist.name}`
+                }
+                style={({ pressed }) => [
+                  styles.playlistRow,
+                  { borderBottomColor: colors.separator },
+                  {
+                    opacity: pressed || isPending || alreadyAdded ? 0.6 : 1,
+                  },
+                ]}
               >
-                <Ionicons name="add" size={24} color={colors.brandStrong} />
-              </View>
-              <Text variant="body" style={{ ...Fonts.medium }}>
-                New Playlist
-              </Text>
-            </Pressable>
-            {playlists.map((playlist) => {
-              const alreadyAdded = !!containingIds?.includes(playlist.id);
-              return (
-                <Pressable
-                  key={playlist.id}
-                  onPress={() => handlePick(playlist)}
-                  disabled={isPending || alreadyAdded}
-                  accessibilityLabel={
-                    alreadyAdded
-                      ? `Already in ${playlist.name}`
-                      : `Add to ${playlist.name}`
-                  }
-                  style={({ pressed }) => [
-                    styles.playlistRow,
-                    { borderBottomColor: colors.separator },
-                    {
-                      opacity: pressed || isPending || alreadyAdded ? 0.6 : 1,
-                    },
-                  ]}
-                >
-                  <CollectionArtwork
-                    collection={playlist}
-                    kind="playlist"
-                    size={ROW_ARTWORK_SIZE}
-                    radius={8}
+                <CollectionArtwork
+                  collection={playlist}
+                  kind="playlist"
+                  size={ROW_ARTWORK_SIZE}
+                  radius={8}
+                />
+                <View style={styles.playlistBody}>
+                  <Text
+                    variant="body"
+                    numberOfLines={1}
+                    style={{ ...Fonts.medium }}
+                  >
+                    {playlist.name}
+                  </Text>
+                  <Text variant="caption">
+                    {alreadyAdded
+                      ? "Already added"
+                      : playlist.trackCount === 1
+                        ? "1 track"
+                        : `${playlist.trackCount} tracks`}
+                  </Text>
+                </View>
+                {alreadyAdded ? (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={20}
+                    color={colors.brand}
                   />
-                  <View style={styles.playlistBody}>
-                    <Text
-                      variant="body"
-                      numberOfLines={1}
-                      style={{ ...Fonts.medium }}
-                    >
-                      {playlist.name}
-                    </Text>
-                    <Text variant="caption">
-                      {alreadyAdded
-                        ? "Already added"
-                        : playlist.trackCount === 1
-                          ? "1 track"
-                          : `${playlist.trackCount} tracks`}
-                    </Text>
-                  </View>
-                  {alreadyAdded ? (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={20}
-                      color={colors.brand}
-                    />
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        </BottomSheetScrollView>
-      </AppSheet>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      </AppSheetScrollView>
       {isNaming ? (
         <NewPlaylistSheet
           track={track}
@@ -226,7 +209,7 @@ function AddToPlaylistSheetContent({
           onDismiss={() => setIsNaming(false)}
         />
       ) : null}
-    </>
+    </AppSheet>
   );
 }
 
@@ -234,6 +217,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
     paddingTop: 8,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 20,

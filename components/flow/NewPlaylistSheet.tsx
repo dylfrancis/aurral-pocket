@@ -1,30 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, StyleSheet } from "react-native";
-import {
-  BottomSheetModal,
-  BottomSheetTextInput,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
-import { AppSheet } from "@/components/ui/AppSheet";
+import { useState } from "react";
+import { StyleSheet, TextInput, View } from "react-native";
+import { AppSheet, useSheet } from "@/components/ui/AppSheet";
 import { Button } from "@/components/ui/Button";
 import { inputBaseStyle, inputThemedStyle } from "@/components/ui/Input";
 import { Text } from "@/components/ui/Text";
 import { useCreateSharedPlaylist } from "@/hooks/flow/use-flow-mutations";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { SHEET_BOTTOM_PADDING } from "@/constants/navigation";
 import { Colors, Fonts } from "@/constants/theme";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 
 type Props = {
   track: SharedPlaylistTrack;
   subtitle: string;
-  /** The sheet closes itself first, so the one underneath can go with it. */
+  /** Once this sheet has gone, so the one underneath can close after it. */
   onCreated: (name: string) => void;
   onFailed: (err: unknown) => void;
   onDismiss: () => void;
 };
 
-/** Mounts only while open, so each visit starts blank. */
+/**
+ * Mounts only while open, so each visit starts blank. Render it inside the
+ * sheet it opens over: iOS presents a sheet over another only from its
+ * content.
+ */
 export function NewPlaylistSheet({
   track,
   subtitle,
@@ -34,18 +32,9 @@ export function NewPlaylistSheet({
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
-  const sheetRef = useRef<BottomSheetModal>(null);
+  const sheet = useSheet({ presented: true, onClosed: onDismiss });
   const [name, setName] = useState("");
   const createPlaylist = useCreateSharedPlaylist();
-
-  useEffect(() => {
-    sheetRef.current?.present();
-  }, []);
-
-  const handleDismiss = useCallback(() => {
-    Keyboard.dismiss();
-    onDismiss();
-  }, [onDismiss]);
 
   const handleCreate = () => {
     const trimmed = name.trim();
@@ -53,29 +42,15 @@ export function NewPlaylistSheet({
     createPlaylist.mutate(
       { name: trimmed, tracks: [track] },
       {
-        onSuccess: () => {
-          sheetRef.current?.dismiss();
-          onCreated(trimmed);
-        },
+        onSuccess: () => sheet.close(() => onCreated(trimmed)),
         onError: onFailed,
       },
     );
   };
 
   return (
-    <AppSheet
-      ref={sheetRef}
-      background="card"
-      enableDynamicSizing
-      enablePanDownToClose
-      stackBehavior="push"
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      onDismiss={handleDismiss}
-    >
-      <BottomSheetView
-        style={[styles.content, { paddingBottom: SHEET_BOTTOM_PADDING }]}
-      >
+    <AppSheet sheet={sheet} background="card">
+      <View style={styles.content}>
         <Text variant="title" style={styles.title}>
           New Playlist
         </Text>
@@ -86,7 +61,7 @@ export function NewPlaylistSheet({
         >
           {subtitle}
         </Text>
-        <BottomSheetTextInput
+        <TextInput
           style={[inputBaseStyle, inputThemedStyle(colorScheme), styles.input]}
           placeholder="Playlist name"
           placeholderTextColor={colors.placeholder}
@@ -104,7 +79,7 @@ export function NewPlaylistSheet({
           loading={createPlaylist.isPending}
           disabled={!name.trim() || createPlaylist.isPending}
         />
-      </BottomSheetView>
+      </View>
     </AppSheet>
   );
 }
@@ -113,6 +88,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
     paddingTop: 8,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 20,

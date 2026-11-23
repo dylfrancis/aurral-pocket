@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 
 import {
   Image,
@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -24,6 +23,7 @@ import { AurralLogo } from "@/components/AurralLogo";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { ConnectSheet } from "@/components/auth/ConnectSheet";
+import { useSheet } from "@/components/ui/AppSheet";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Colors } from "@/constants/theme";
 
@@ -143,7 +143,7 @@ export default function GetStartedScreen() {
   const colors = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const connectSheet = useSheet();
 
   const cardSize = (screenWidth - 48) / 3;
   const cardTotal = cardSize + CARD_GAP;
@@ -152,7 +152,7 @@ export default function GetStartedScreen() {
 
   const handleGetStarted = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    bottomSheetRef.current?.present();
+    connectSheet.present();
   };
 
   return (
@@ -210,7 +210,7 @@ export default function GetStartedScreen() {
         />
       </View>
 
-      <ConnectSheet ref={bottomSheetRef} />
+      <ConnectSheet sheet={connectSheet} />
     </View>
   );
 }

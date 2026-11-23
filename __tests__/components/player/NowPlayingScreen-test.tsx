@@ -60,10 +60,6 @@ jest.mock("react-native-gesture-handler", () => ({
   GestureDetector: ({ children }: any) => children,
   usePanGesture: () => ({}),
 }));
-jest.mock("@gorhom/bottom-sheet", () => ({
-  BottomSheetModalProvider: ({ children }: any) => children,
-}));
-
 const mockOpenAddToPlaylist = jest.fn();
 jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   useAddToPlaylist: () => ({

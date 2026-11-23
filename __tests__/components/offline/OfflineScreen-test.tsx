@@ -21,27 +21,6 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
-// The sheet's native parts stand in as plain views.
-jest.mock("@/components/ui/AppSheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    AppSheet: React.forwardRef(function MockAppSheet(
-      { children }: { children: React.ReactNode },
-      _ref: unknown,
-    ) {
-      return React.createElement(View, null, children);
-    }),
-  };
-});
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    BottomSheetView: ({ children }: { children: React.ReactNode }) =>
-      React.createElement(View, null, children),
-  };
-});
 jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   AddToPlaylistSheet: () => null,
   useAddToPlaylist: () => ({

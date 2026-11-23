@@ -3,7 +3,6 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import {
@@ -21,7 +20,6 @@ import { useLocalSearchParams } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BottomSheetView, type BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
@@ -32,7 +30,7 @@ import {
   useAddToPlaylist,
 } from "@/components/flow/AddToPlaylistSheet";
 import { AlbumSearchStatusBadge } from "@/components/search/AlbumSearchStatusBadge";
-import { AppSheet } from "@/components/ui/AppSheet";
+import { AppSheet, useSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { DiscHeading } from "./DiscHeading";
@@ -281,13 +279,17 @@ export function ReleaseDetailScreen() {
     [openArtistPage, params.artistMbid, artistName],
   );
 
-  const trackActionsRef = useRef<BottomSheetModal>(null);
+  const trackActions = useSheet();
+  const presentTrackActions = trackActions.present;
   const [actionTrack, setActionTrack] = useState<EditionTrack | null>(null);
-  const openTrackActions = useCallback((track: EditionTrack) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setActionTrack(track);
-    trackActionsRef.current?.present();
-  }, []);
+  const openTrackActions = useCallback(
+    (track: EditionTrack) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setActionTrack(track);
+      presentTrackActions();
+    },
+    [presentTrackActions],
+  );
 
   // The standard edition can be a later pressing, so its date isn't the
   // album's.
@@ -445,28 +447,23 @@ export function ReleaseDetailScreen() {
         )}
       </Animated.ScrollView>
 
-      <AppSheet
-        ref={trackActionsRef}
-        enableDynamicSizing
-        enablePanDownToClose
-        onDismiss={() => setActionTrack(null)}
-      >
-        <BottomSheetView
-          style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}
-        >
+      <AppSheet sheet={trackActions}>
+        <View style={styles.sheet}>
           <Text variant="subtitle" numberOfLines={1} style={styles.sheetTitle}>
             {actionTrack?.title}
           </Text>
           <Pressable
             onPress={() => {
               const track = actionTrack;
-              trackActionsRef.current?.dismiss();
-              if (!track) return;
-              addToPlaylist.open({
-                artistName,
-                trackName: track.title,
-                albumName: title,
-                artistMbid: params.artistMbid || null,
+              // The playlist sheet can only open once this one has gone.
+              trackActions.close(() => {
+                if (!track) return;
+                addToPlaylist.open({
+                  artistName,
+                  trackName: track.title,
+                  albumName: title,
+                  artistMbid: params.artistMbid || null,
+                });
               });
             }}
             style={({ pressed }) => [
@@ -477,7 +474,7 @@ export function ReleaseDetailScreen() {
             <Ionicons name="add-circle-outline" size={20} color={colors.text} />
             <Text variant="body">Add to Playlist</Text>
           </Pressable>
-        </BottomSheetView>
+        </View>
       </AppSheet>
 
       <AddToPlaylistSheet
@@ -753,6 +750,7 @@ const styles = StyleSheet.create({
   sheet: {
     paddingHorizontal: 16,
     paddingTop: 4,
+    paddingBottom: 16,
     gap: 4,
   },
   sheetTitle: {
