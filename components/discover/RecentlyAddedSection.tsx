@@ -3,7 +3,6 @@ import { StyleSheet } from "react-native";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { useRecentlyAdded } from "@/hooks/discover";
 import { formatDate } from "@/lib/date-time";
-import { recentlyAddedMbid } from "@/lib/discover/format";
 import { artistRouteId } from "@/lib/library-read";
 import type { RecentlyAddedArtist } from "@/lib/types/search";
 import { DiscoverRail } from "./DiscoverRail";
@@ -38,7 +37,7 @@ export function RecentlyAddedSection({ onArtistPress, onViewAll }: Props) {
       keyOf={(artist) => artist.id}
       renderItem={(artist) => (
         <HorizontalArtistCard
-          mbid={recentlyAddedMbid(artist)}
+          mbid={artist.mbid ?? ""}
           name={artist.artistName}
           subtitle={formatAdded(artist.addedAt || artist.added)}
           onPress={() => onArtistPress(artist)}

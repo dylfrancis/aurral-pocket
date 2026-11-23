@@ -64,7 +64,6 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
     id: String(item.id),
     canonicalId: String(item.id),
     mbid: item.mbid ?? "",
-    foreignArtistId: item.mbid ?? item.identityKey ?? String(item.id),
     artistName: item.name ?? item.sortName ?? "",
     monitored: item.monitored === true,
     addedAt: null,
@@ -78,7 +77,6 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
     identityKey: item.identityKey,
     userFavorite: item.userFavorite,
     coverUrl: item.coverUrl ?? undefined,
-    providerId: item.providerId,
   };
 }
 
@@ -103,8 +101,6 @@ function canonicalAlbumToAlbum(item: CanonicalAlbumItem): Album {
     // A row scanned from tagged files keeps its release's id in `mbid`. Release
     // lists, cover lookups and the web's album route all use the release group.
     mbid: item.releaseGroupMbid || item.mbid || "",
-    foreignAlbumId:
-      item.releaseGroupMbid || item.mbid || item.identityKey || String(item.id),
     albumName: item.title ?? "",
     title: item.title ?? "",
     releaseDate: item.releaseDate ?? null,

@@ -29,8 +29,8 @@ function DiscoverReleaseCardComponent({
   // repaint the release date even when the album prop stays the same.
   useDateTimeFormat();
   const title = album.albumName || album.title || "Untitled";
-  const coverMbid = album.mbid || album.foreignAlbumId;
-  const artistMbid = album.artistMbid || album.foreignArtistId;
+  const coverMbid = album.releaseGroupMbid;
+  const artistMbid = album.artistMbid;
   const status = formatReleaseStatus(album.releaseDate);
   const coverSize = fill ? "fill" : RELEASE_CARD_WIDTH;
 

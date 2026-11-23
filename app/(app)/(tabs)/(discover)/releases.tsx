@@ -106,7 +106,7 @@ export default function ReleasesScreen() {
         return (
           <MediaRow
             imageType="album"
-            mbid={album.mbid || album.foreignAlbumId}
+            mbid={album.releaseGroupMbid}
             coverUrl={album.coverUrl ?? undefined}
             title={album.albumName || album.title || "Untitled"}
             subtitle={[

@@ -11,7 +11,6 @@ describe("Library types", () => {
     const artist: Artist = {
       id: "1",
       mbid: "abc-123",
-      foreignArtistId: "abc-123",
       artistName: "Test",
       monitored: true,
       addedAt: "2024-01-01T00:00:00Z",
@@ -27,7 +26,6 @@ describe("Library types", () => {
       artistId: "1",
       artistName: "Test",
       mbid: "def-456",
-      foreignAlbumId: "def-456",
       albumName: "Album",
       title: "Album",
       releaseDate: "2024-06-01",

@@ -31,11 +31,16 @@ const mockAddArtist = addArtist as jest.Mock;
 const mockArtist = {
   id: "1",
   mbid: "abc-123",
-  foreignArtistId: "abc-123",
   artistName: "Radiohead",
   monitored: true,
   addedAt: "2024-01-01",
   statistics: { albumCount: 0, trackCount: 0, sizeOnDisk: 0 },
+};
+
+const PARAMS = {
+  foreignArtistId: "abc-123",
+  artistName: "Radiohead",
+  monitoring: { monitored: true, useDefault: true },
 };
 
 beforeEach(() => {
@@ -55,7 +60,6 @@ describe("useAddArtist", () => {
   it("calls addArtist with correct params", async () => {
     const response = {
       queued: false,
-      foreignArtistId: "abc-123",
       artistName: "Radiohead",
       artist: mockArtist,
     };
@@ -64,11 +68,7 @@ describe("useAddArtist", () => {
     useAddArtist();
     const { config } = mockUseMutation.mock.results[0].value;
 
-    const result = await config.mutationFn({
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-      monitoring: { monitored: true, useDefault: true },
-    });
+    const result = await config.mutationFn(PARAMS);
     expect(mockAddArtist).toHaveBeenCalled();
     expect(result).toEqual(response);
   });
@@ -77,12 +77,14 @@ describe("useAddArtist", () => {
     useAddArtist();
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess({
-      queued: false,
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-      artist: mockArtist,
-    });
+    config.onSuccess(
+      {
+        queued: false,
+        artistName: "Radiohead",
+        artist: mockArtist,
+      },
+      PARAMS,
+    );
 
     expect(mockSetQueryData).toHaveBeenCalledWith(
       libraryKeys.artists(),
@@ -98,12 +100,14 @@ describe("useAddArtist", () => {
     useAddArtist();
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess({
-      queued: false,
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-      artist: mockArtist,
-    });
+    config.onSuccess(
+      {
+        queued: false,
+        artistName: "Radiohead",
+        artist: mockArtist,
+      },
+      PARAMS,
+    );
 
     expect(mockSetQueriesData).toHaveBeenCalledWith(
       { queryKey: libraryKeys.artistLookups() },
@@ -124,12 +128,14 @@ describe("useAddArtist", () => {
     useAddArtist();
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess({
-      queued: false,
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-      artist: mockArtist,
-    });
+    config.onSuccess(
+      {
+        queued: false,
+        artistName: "Radiohead",
+        artist: mockArtist,
+      },
+      PARAMS,
+    );
 
     const artistsCall = mockSetQueryData.mock.calls.find(
       ([key]) => JSON.stringify(key) === JSON.stringify(libraryKeys.artists()),
@@ -173,11 +179,13 @@ describe("useAddArtist", () => {
     useAddArtist();
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess({
-      queued: true,
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-    });
+    config.onSuccess(
+      {
+        queued: true,
+        artistName: "Radiohead",
+      },
+      PARAMS,
+    );
 
     expect(mockSetQueryData).toHaveBeenCalledWith(
       libraryKeys.artists(),
@@ -193,11 +201,13 @@ describe("useAddArtist", () => {
     useAddArtist();
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess({
-      queued: true,
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-    });
+    config.onSuccess(
+      {
+        queued: true,
+        artistName: "Radiohead",
+      },
+      PARAMS,
+    );
 
     const recentCall = mockSetQueryData.mock.calls.find(
       ([key]) =>
@@ -206,17 +216,16 @@ describe("useAddArtist", () => {
     expect(recentCall).toBeDefined();
 
     const updater = recentCall![1] as (
-      old: { foreignArtistId: string }[] | undefined,
-    ) => { foreignArtistId: string }[];
-    const existing = [{ foreignArtistId: "existing-1" }];
+      old: { mbid: string }[] | undefined,
+    ) => { mbid: string }[];
+    const existing = [{ mbid: "existing-1" }];
     expect(updater(existing)).toEqual([
       expect.objectContaining({
         id: "abc-123",
         mbid: "abc-123",
-        foreignArtistId: "abc-123",
         artistName: "Radiohead",
       }),
-      { foreignArtistId: "existing-1" },
+      { mbid: "existing-1" },
     ]);
     // Seeds an empty/undefined cache.
     expect(updater(undefined)).toHaveLength(1);
@@ -231,20 +240,22 @@ describe("useAddArtist", () => {
     useAddArtist();
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess({
-      queued: true,
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-    });
+    config.onSuccess(
+      {
+        queued: true,
+        artistName: "Radiohead",
+      },
+      PARAMS,
+    );
 
     const recentCall = mockSetQueryData.mock.calls.find(
       ([key]) =>
         JSON.stringify(key) === JSON.stringify(discoverKeys.recentlyAdded()),
     );
     const updater = recentCall![1] as (
-      old: { foreignArtistId: string }[] | undefined,
-    ) => { foreignArtistId: string }[];
-    const existing = [{ foreignArtistId: "abc-123" }];
+      old: { mbid: string }[] | undefined,
+    ) => { mbid: string }[];
+    const existing = [{ mbid: "abc-123" }];
     expect(updater(existing)).toBe(existing);
   });
 
@@ -252,12 +263,14 @@ describe("useAddArtist", () => {
     useAddArtist();
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess({
-      queued: false,
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-      artist: mockArtist,
-    });
+    config.onSuccess(
+      {
+        queued: false,
+        artistName: "Radiohead",
+        artist: mockArtist,
+      },
+      PARAMS,
+    );
 
     const recentCall = mockSetQueryData.mock.calls.find(
       ([key]) =>
@@ -272,11 +285,13 @@ describe("useAddArtist", () => {
     useAddArtist(onSuccess);
     const { config } = mockUseMutation.mock.results[0].value;
 
-    config.onSuccess({
-      queued: false,
-      foreignArtistId: "abc-123",
-      artistName: "Radiohead",
-    });
+    config.onSuccess(
+      {
+        queued: false,
+        artistName: "Radiohead",
+      },
+      PARAMS,
+    );
 
     expect(onSuccess).toHaveBeenCalled();
   });

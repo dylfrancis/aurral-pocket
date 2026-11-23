@@ -49,7 +49,6 @@ const mockHook = useRecentlyAdded as jest.Mock;
 const recent = (id: string): RecentlyAddedArtist => ({
   id,
   mbid: `mbid-${id}`,
-  foreignArtistId: `mbid-${id}`,
   artistName: `Artist ${id}`,
   addedAt: "2026-04-01T00:00:00Z",
 });

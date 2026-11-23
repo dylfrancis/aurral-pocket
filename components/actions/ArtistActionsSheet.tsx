@@ -201,10 +201,9 @@ function LibraryArtistActions({
     );
   };
 
-  // As on the artist page: Match only for an artist with no provider record,
-  // and Rescan only for files in the Library or a read-only folder.
-  const canMatch =
-    hasPermission("addArtist") && !!artist && artist.providerId == null;
+  const canMatch = hasPermission("addArtist") && !!artist;
+  // As on the artist page: Rescan only for files in the Library or a
+  // read-only folder.
   const canRescan = !!artist?.sources?.some(
     (source) => source === "aurral" || source === "readonly",
   );

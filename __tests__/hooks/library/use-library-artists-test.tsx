@@ -19,7 +19,6 @@ function makeArtist(id: string): Artist {
   return {
     id,
     mbid: `mb-${id}`,
-    foreignArtistId: `f-${id}`,
     artistName: `Artist ${id}`,
     monitored: true,
     addedAt: "2020-01-01T00:00:00.000Z",

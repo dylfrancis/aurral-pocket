@@ -46,10 +46,10 @@ export function groupReleasesByMonth(
  */
 export function recentReleaseRouteParams(album: RecentReleaseAlbum) {
   return releaseRouteParams({
-    mbid: album.mbid || album.foreignAlbumId || album.id,
+    mbid: album.releaseGroupMbid,
     title: album.albumName || album.title || "",
     artistName: album.artistName,
-    artistMbid: album.artistMbid || album.foreignArtistId,
+    artistMbid: album.artistMbid,
     primaryType: album.albumType,
     secondaryTypes: album.secondaryTypes,
     releaseDate: album.releaseDate,

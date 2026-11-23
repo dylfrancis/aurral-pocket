@@ -55,7 +55,6 @@ import type { Artist } from "@/lib/types/library";
 const baseArtist: Artist = {
   id: "1",
   mbid: "abc-123",
-  foreignArtistId: "abc-123",
   artistName: "Test Artist",
   monitored: true,
   addedAt: "2024-01-01",

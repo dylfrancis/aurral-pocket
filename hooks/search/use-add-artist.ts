@@ -13,12 +13,11 @@ import type {
 } from "@/lib/types/search";
 import type { Artist, CanonicalPage } from "@/lib/types/library";
 
-function toArtist(data: AddArtistResponse): Artist {
+function toArtist(data: AddArtistResponse, mbid: string): Artist {
   if (data.artist) return data.artist as Artist;
   return {
     id: "",
-    mbid: data.foreignArtistId,
-    foreignArtistId: data.foreignArtistId,
+    mbid,
     artistName: data.artistName,
     monitored: true,
     addedAt: new Date().toISOString(),
@@ -40,7 +39,8 @@ export function useAddArtist(
     mutationFn: (params: AddArtistRequest) => addArtist(params),
     onError,
     onSuccess: (data: AddArtistResponse, params: AddArtistRequest) => {
-      const artist = toArtist(data);
+      const mbid = params.foreignArtistId;
+      const artist = toArtist(data, mbid);
       // Which page the optimistic entry lands in does not matter — the list
       // sorts client-side. It survives only until the next refetch: the
       // canonical library omits artists that have no files yet, and this one
@@ -71,9 +71,8 @@ export function useAddArtist(
       if (data.queued && !data.artist) {
         const now = new Date().toISOString();
         const entry: RecentlyAddedArtist = {
-          id: data.foreignArtistId,
-          mbid: data.foreignArtistId,
-          foreignArtistId: data.foreignArtistId,
+          id: mbid,
+          mbid,
           artistName: data.artistName,
           addedAt: now,
           added: now,
@@ -81,7 +80,7 @@ export function useAddArtist(
         queryClient.setQueryData<RecentlyAddedArtist[]>(
           discoverKeys.recentlyAdded(),
           (old) => {
-            if (old?.some((a) => a.foreignArtistId === entry.foreignArtistId)) {
+            if (old?.some((a) => a.mbid === mbid)) {
               return old;
             }
             return [entry, ...(old ?? [])];

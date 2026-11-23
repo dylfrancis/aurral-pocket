@@ -12,7 +12,6 @@ const baseAlbum: Album = {
   artistId: "1",
   artistName: "Test Artist",
   mbid: "abc-123",
-  foreignAlbumId: "abc-123",
   albumName: "Test Album",
   title: "Test Album",
   releaseDate: "2024-01-01",

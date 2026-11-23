@@ -225,12 +225,10 @@ export type AddArtistRequest = {
 
 export type AddArtistResponse = {
   queued: boolean;
-  foreignArtistId: string;
   artistName: string;
   artist?: {
     id: string;
     mbid: string;
-    foreignArtistId: string;
     artistName: string;
     monitored: boolean;
     statistics: {
@@ -446,8 +444,8 @@ export type DiscoveryResponse = {
 
 export type RecentlyAddedArtist = {
   id: string;
-  mbid: string;
-  foreignArtistId: string;
+  /** Null for an artist scanned from files that name no MusicBrainz artist. */
+  mbid: string | null;
   artistName: string;
   addedAt: string;
   added?: string;
@@ -457,15 +455,13 @@ export type RecentlyAddedResponse = RecentlyAddedArtist[];
 
 export type RecentReleaseAlbum = {
   id: string;
-  mbid: string;
-  foreignAlbumId?: string;
+  releaseGroupMbid: string;
   albumName: string;
   title?: string;
   artistName: string;
   /** A Library artist id, or the artist's MBID for a recommended artist's release. */
   artistId?: string;
-  artistMbid?: string | null;
-  foreignArtistId?: string | null;
+  artistMbid: string | null;
   releaseDate: string | null;
   /** A server artwork path, or ListenBrainz's cover; null when none is known. */
   coverUrl: string | null;

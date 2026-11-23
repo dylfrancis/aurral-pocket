@@ -1,18 +1,9 @@
 import { formatDate } from "@/lib/date-time";
-import type {
-  BasedOnArtist,
-  DiscoveryArtist,
-  RecentlyAddedArtist,
-} from "@/lib/types/search";
+import type { BasedOnArtist, DiscoveryArtist } from "@/lib/types/search";
 
 const GENRE_SECTIONS_MAX = 4;
 const GENRE_SECTION_MIN_ARTISTS = 4;
 const GENRE_SECTION_MAX_ARTISTS = 6;
-
-/** The id a Recently Added entry's artist image is looked up by. */
-export function recentlyAddedMbid(artist: RecentlyAddedArtist): string {
-  return artist.mbid || artist.foreignArtistId || artist.id;
-}
 
 export function formatTrackCount(count: number): string {
   if (count <= 0) return "";

@@ -133,7 +133,6 @@ function album(id: string, albumName: string): Album {
     artistId: "7",
     artistName: "Radiohead",
     mbid: `rg-${id}`,
-    foreignAlbumId: `rg-${id}`,
     albumName,
     title: albumName,
     releaseDate: "2000-10-02",

@@ -25,7 +25,6 @@ describe("search types", () => {
   it("AddArtistResponse has queued flag", () => {
     const response: AddArtistResponse = {
       queued: true,
-      foreignArtistId: "abc-123",
       artistName: "Radiohead",
     };
     expect(response.queued).toBe(true);
@@ -35,12 +34,10 @@ describe("search types", () => {
   it("AddArtistResponse includes artist when already exists", () => {
     const response: AddArtistResponse = {
       queued: false,
-      foreignArtistId: "abc-123",
       artistName: "Radiohead",
       artist: {
         id: "42",
         mbid: "abc-123",
-        foreignArtistId: "abc-123",
         artistName: "Radiohead",
         monitored: true,
         statistics: { albumCount: 9, trackCount: 101, sizeOnDisk: 0 },
