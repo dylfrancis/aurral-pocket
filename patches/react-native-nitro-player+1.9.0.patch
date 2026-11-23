@@ -125,10 +125,22 @@ index 6202379..c00cf83 100644
              .build()
  
 diff --git a/node_modules/react-native-nitro-player/ios/core/TrackPlayerListener.swift b/node_modules/react-native-nitro-player/ios/core/TrackPlayerListener.swift
-index d112479..85f3033 100644
+index d112479..6c3ed7e 100644
 --- a/node_modules/react-native-nitro-player/ios/core/TrackPlayerListener.swift
 +++ b/node_modules/react-native-nitro-player/ios/core/TrackPlayerListener.swift
-@@ -232,6 +232,13 @@ extension TrackPlayerCore {
+@@ -51,6 +51,11 @@ extension TrackPlayerCore {
+     // Set action at item end to advance for gapless playback
+     player.actionAtItemEnd = .advance
+ 
++    // The phone sends AirPlay the audio. Otherwise a Mac gets the stream's URL
++    // and opens it in its video player, without the request headers or the
++    // track's details.
++    player.allowsExternalPlayback = false
++
+     // Configure for high-quality audio playback with minimal latency
+     if #available(iOS 15.0, *) {
+       player.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+@@ -232,6 +237,13 @@ extension TrackPlayerCore {
        }
      }
  
@@ -142,7 +154,7 @@ index d112479..85f3033 100644
      // 3. Normal advance via actionAtItemEnd = .advance
      if let player = player {
        NitroPlayerLogger.log("TrackPlayerCore", "📋 Remaining items in queue: \(player.items().count)")
-@@ -420,6 +427,10 @@ extension TrackPlayerCore {
+@@ -420,6 +432,10 @@ extension TrackPlayerCore {
        NitroPlayerLogger.log("TrackPlayerCore", "⚠️ Current item changed to nil")
        detachMetadataOutput()
        lastCurrentItemTrackId = nil
@@ -153,7 +165,7 @@ index d112479..85f3033 100644
        // Queue exhausted — handle PLAYLIST repeat
        if currentRepeatMode == .playlist && !currentTracks.isEmpty, let player = self.player {
          NitroPlayerLogger.log("TrackPlayerCore", "🔁 PLAYLIST repeat — rebuilding original queue and restarting")
-@@ -427,7 +438,7 @@ extension TrackPlayerCore {
+@@ -427,7 +443,7 @@ extension TrackPlayerCore {
          upNextQueue.removeAll()
          currentTemporaryType = .none
  
