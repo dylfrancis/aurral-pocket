@@ -20,6 +20,7 @@ import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { Fonts, Radius } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
+import { formatCompactCount } from "@/lib/discover/trending-format";
 import type { Artist } from "@/lib/types/library";
 import { useColors } from "@/hooks/use-colors";
 
@@ -28,6 +29,8 @@ const CAPSULE_PLACEHOLDER = { width: 196, height: 28 };
 
 type ArtistHeroProps = {
   artist: Pick<Artist, "mbid" | "artistName" | "coverUrl">;
+  /** Shown under the name. Omitted while the artist loads or with no count. */
+  listeners?: number | null;
   scrollY?: SharedValue<number>;
   refreshing?: boolean;
   inLibrary: boolean | undefined;
@@ -42,6 +45,7 @@ type ArtistHeroProps = {
 
 export function ArtistHero({
   artist,
+  listeners,
   scrollY,
   refreshing,
   inLibrary,
@@ -95,9 +99,17 @@ export function ArtistHero({
           coverUrl={artist.coverUrl}
           size={200}
         />
-        <Text variant="title" style={styles.name}>
-          {artist.artistName}
-        </Text>
+        <View style={styles.nameBlock}>
+          <Text variant="title" style={styles.name}>
+            {artist.artistName}
+          </Text>
+          {listeners ? (
+            <Text variant="caption" style={{ color: colors.subtle }}>
+              {formatCompactCount(listeners)}{" "}
+              {listeners === 1 ? "listener" : "listeners"}
+            </Text>
+          ) : null}
+        </View>
         {inLibrary === undefined ? (
           // A Library artist's capsule and Play row, the likelier case.
           <>
@@ -208,6 +220,10 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
     zIndex: 1,
+  },
+  nameBlock: {
+    alignItems: "center",
+    gap: 2,
   },
   name: {
     textAlign: "center",

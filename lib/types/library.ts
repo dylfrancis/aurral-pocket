@@ -73,6 +73,8 @@ export type ReleaseGroup = {
 
 /** The fields pocket reads from `GET /artists/:mbid`. */
 export type ArtistDetails = {
+  /** ListenBrainz's count. Null when it has none for the artist. */
+  listeners: number | null;
   tags: ArtistTag[];
   /** Absent when the metadata provider has no overview for the artist. */
   bio?: string;

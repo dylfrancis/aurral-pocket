@@ -579,6 +579,7 @@ export function ArtistDetailLayout({
               artistName,
               coverUrl: canonicalArtist?.coverUrl || coverUrl,
             }}
+            listeners={details?.listeners}
             scrollY={scrollY}
             refreshing={refreshing}
             inLibrary={libraryStatusLoading ? undefined : inLibrary}

@@ -74,6 +74,22 @@ describe("ArtistHero", () => {
     expect(getByText("Test Artist")).toBeTruthy();
   });
 
+  it("shows the artist's listeners under the name, and nothing without a count", async () => {
+    const { getByText, queryByText, rerender } = await render(
+      <ArtistHero
+        artist={baseArtist}
+        listeners={8_412_000}
+        inLibrary={false}
+      />,
+    );
+    expect(getByText("8.4M listeners")).toBeTruthy();
+
+    await rerender(
+      <ArtistHero artist={baseArtist} listeners={null} inLibrary={false} />,
+    );
+    expect(queryByText(/listeners?$/)).toBeNull();
+  });
+
   it("shows a library artist's capsule, then Play, Shuffle and the heart", async () => {
     const { getByText, getByLabelText } = await render(
       <ArtistHero
