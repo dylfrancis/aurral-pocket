@@ -28,8 +28,11 @@ export function PillRow<Id extends string>({
   const colors = Colors[scheme];
 
   return (
+    // Inside a scroll view the row passes under the header, and a host that
+    // kept the bars' safe area would hold its pills below them instead.
     <Host
       matchContents={{ vertical: true }}
+      ignoreSafeArea="all"
       colorScheme={scheme}
       style={styles.host}
     >
