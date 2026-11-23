@@ -322,6 +322,9 @@ export type LibraryListParams = LibraryArtistsParams & {
   direction: "asc" | "desc";
 };
 
+/** One view of a Library artist's songs, read in full. */
+export type ArtistSongListParams = LibraryListParams & { artistId: string };
+
 /** One view of the whole-library album list. */
 export type LibraryAlbumsParams = LibraryListParams & {
   /** Empty for every genre. */

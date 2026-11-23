@@ -2,7 +2,11 @@ import { StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Host } from "@expo/ui";
 import { FilterChip, Icon, Row, Text } from "@expo/ui/jetpack-compose";
-import { horizontalScroll, padding } from "@expo/ui/jetpack-compose/modifiers";
+import {
+  height,
+  horizontalScroll,
+  padding,
+} from "@expo/ui/jetpack-compose/modifiers";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { isPillSelected, type PillRowProps } from "./pill-row";
@@ -11,6 +15,7 @@ export function PillRow<Id extends string>({
   items,
   selected,
   onSelect,
+  size = "regular",
 }: PillRowProps<Id>) {
   const scheme = useColorScheme();
   const colors = Colors[scheme];
@@ -49,6 +54,8 @@ export function PillRow<Id extends string>({
                 selectedLeadingIconColor: colors.buttonPrimaryText,
               }}
               border={{ color: colors.separator }}
+              // Material's chip is 32dp tall with a labelLarge label.
+              modifiers={size === "small" ? SMALL_CHIP : undefined}
             >
               {item.androidIcon !== undefined ? (
                 <FilterChip.LeadingIcon>
@@ -56,7 +63,10 @@ export function PillRow<Id extends string>({
                 </FilterChip.LeadingIcon>
               ) : null}
               <FilterChip.Label>
-                <Text color={foreground}>
+                <Text
+                  color={foreground}
+                  style={size === "small" ? SMALL_LABEL : undefined}
+                >
                   {item.label}
                   {item.count !== undefined ? (
                     <Text color={isSelected ? foreground : colors.subtle}>
@@ -72,6 +82,9 @@ export function PillRow<Id extends string>({
     </Host>
   );
 }
+
+const SMALL_CHIP = [height(28)];
+const SMALL_LABEL = { typography: "labelMedium" } as const;
 
 const styles = StyleSheet.create({
   host: {

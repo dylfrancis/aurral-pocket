@@ -92,7 +92,7 @@ export async function readFirstSongs(
   return songsOfPages(pages);
 }
 
-function compareAlbumOrder(a: AlbumTrack, b: AlbumTrack) {
+export function compareAlbumOrder(a: AlbumTrack, b: AlbumTrack) {
   return (
     (a.album?.releaseDate ?? "").localeCompare(b.album?.releaseDate ?? "") ||
     (a.album?.albumName ?? "").localeCompare(b.album?.albumName ?? "") ||

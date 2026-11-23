@@ -10,46 +10,16 @@ import type { PlayerAlbumContext, PlayerTrack } from "@/lib/player/track-item";
 import { topTrackClipId, topTrackItem, type TopTrack } from "@/lib/top-tracks";
 
 /**
- * Plays an artist's top tracks as one queue, from any row, and opens a row's
- * actions. Render a TrackActionsSheet with `actions`.
+ * Plays a list as one queue, from any row or from the top. `itemIds` are the
+ * rows' queue ids in order. `items` is called at the tap, since each URL
+ * carries the session token.
  */
-export function useTopTracksPlayback(
-  topTracks: TopTrack[],
-  artistName: string,
-  mbid: string | undefined,
+export function useQueuePlayback(
+  itemIds: string[],
+  items: () => PlayerTrack[],
+  context: PlayerAlbumContext,
 ) {
   const startQueue = useStartQueue();
-  const context = useMemo<PlayerAlbumContext>(
-    () => ({
-      albumTitle: "Top Tracks",
-      artistName,
-      coverPath: null,
-      artworkUrl: null,
-      albumMbid: null,
-      artistMbid: mbid ?? null,
-    }),
-    [artistName, mbid],
-  );
-  /** The queue id of each row, in the same order. */
-  const itemIds = useMemo(
-    () =>
-      topTracks.map((topTrack) =>
-        topTrack.library
-          ? topTrack.library.id
-          : topTrackClipId(topTrack.preview),
-      ),
-    [topTracks],
-  );
-  // Built at the tap: each URL carries the session token.
-  const items = useCallback(
-    () =>
-      topTracks
-        .map((topTrack) =>
-          topTrackItem(topTrack, { name: artistName, mbid: mbid ?? "" }),
-        )
-        .filter((item): item is PlayerTrack => item !== null),
-    [topTracks, artistName, mbid],
-  );
   const currentTrack = useCurrentTrack();
   const playbackState = usePlaybackState();
 
@@ -70,6 +40,55 @@ export function useTopTracksPlayback(
     [startQueue, items, context, itemIds],
   );
 
+  return {
+    itemIds,
+    currentId: currentTrack?.id ?? null,
+    isPlaying: playbackState === "playing",
+    playFrom,
+    playAll,
+  };
+}
+
+/**
+ * Plays an artist's top tracks as one queue, from any row, and opens a row's
+ * actions. Render a TrackActionsSheet with `actions`.
+ */
+export function useTopTracksPlayback(
+  topTracks: TopTrack[],
+  artistName: string,
+  mbid: string | undefined,
+) {
+  const context = useMemo<PlayerAlbumContext>(
+    () => ({
+      albumTitle: "Top Tracks",
+      artistName,
+      coverPath: null,
+      artworkUrl: null,
+      albumMbid: null,
+      artistMbid: mbid ?? null,
+    }),
+    [artistName, mbid],
+  );
+  const itemIds = useMemo(
+    () =>
+      topTracks.map((topTrack) =>
+        topTrack.library
+          ? topTrack.library.id
+          : topTrackClipId(topTrack.preview),
+      ),
+    [topTracks],
+  );
+  const items = useCallback(
+    () =>
+      topTracks
+        .map((topTrack) =>
+          topTrackItem(topTrack, { name: artistName, mbid: mbid ?? "" }),
+        )
+        .filter((item): item is PlayerTrack => item !== null),
+    [topTracks, artistName, mbid],
+  );
+  const playback = useQueuePlayback(itemIds, items, context);
+
   const actions = useTrackActions();
   const { openItem } = actions;
   const openActions = useCallback(
@@ -89,13 +108,5 @@ export function useTopTracksPlayback(
     [topTracks, openItem, artistName, mbid, context],
   );
 
-  return {
-    itemIds,
-    currentId: currentTrack?.id ?? null,
-    isPlaying: playbackState === "playing",
-    playFrom,
-    playAll,
-    openActions,
-    actions,
-  };
+  return { ...playback, openActions, actions };
 }

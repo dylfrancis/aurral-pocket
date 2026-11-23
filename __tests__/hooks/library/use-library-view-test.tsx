@@ -5,6 +5,7 @@ type Modules = {
   AsyncStorage: typeof import("@react-native-async-storage/async-storage").default;
   rntl: typeof import("@testing-library/react-native/pure");
   useLibraryView: typeof import("@/hooks/library/use-library-view").useLibraryView;
+  useRememberedListValue: typeof import("@/hooks/library/use-library-view").useRememberedListValue;
 };
 
 let launched: Modules | null = null;
@@ -15,6 +16,8 @@ function launch(): Modules {
     AsyncStorage: require("@react-native-async-storage/async-storage"),
     rntl: require("@testing-library/react-native/pure"),
     useLibraryView: require("@/hooks/library/use-library-view").useLibraryView,
+    useRememberedListValue: require("@/hooks/library/use-library-view")
+      .useRememberedListValue,
   };
   return launched;
 }
@@ -136,5 +139,49 @@ describe("useLibraryView", () => {
       show: "all",
       status: null,
     });
+  });
+});
+
+describe("useRememberedListValue", () => {
+  const parse = (stored: unknown) =>
+    stored === "plays" || stored === "favorites" ? stored : "top";
+
+  it("keeps a value beside the list views and reads it back next launch", async () => {
+    const first = launch();
+    await first.AsyncStorage.setItem(
+      "library_views",
+      JSON.stringify({ "library-songs": { sort: "played" } }),
+    );
+    const { result } = await first.rntl.renderHook(() =>
+      first.useRememberedListValue("artist-songs", parse),
+    );
+    await first.rntl.act(async () => result.current[1]("plays"));
+    const stored = await first.AsyncStorage.getItem("library_views");
+    await first.rntl.cleanup();
+
+    const second = launch();
+    await second.AsyncStorage.setItem("library_views", stored ?? "{}");
+    const { result: relaunched } = await second.rntl.renderHook(() =>
+      second.useRememberedListValue("artist-songs", parse),
+    );
+
+    expect(relaunched.current[0]).toBe("plays");
+    expect(JSON.parse(stored ?? "{}")).toEqual({
+      "library-songs": { sort: "played" },
+      "artist-songs": "plays",
+    });
+  });
+
+  it("falls back to parse's default for a value it no longer offers", async () => {
+    const { AsyncStorage, rntl, useRememberedListValue } = launch();
+    await AsyncStorage.setItem(
+      "library_views",
+      JSON.stringify({ "artist-songs": "radio" }),
+    );
+    const { result } = await rntl.renderHook(() =>
+      useRememberedListValue("artist-songs", parse),
+    );
+
+    expect(result.current[0]).toBe("top");
   });
 });

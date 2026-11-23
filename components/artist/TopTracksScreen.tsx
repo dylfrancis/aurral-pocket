@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { FlatList, StyleSheet } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { TopTrackRow } from "@/components/artist/TopTrackRow";
+import { ArtistSongRow, topTrackSong } from "@/components/artist/ArtistSongRow";
 import { TopTracksSkeleton } from "@/components/artist/TopTracksSkeleton";
 import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
 import { Text } from "@/components/ui/Text";
@@ -32,8 +32,8 @@ export function TopTracksScreen() {
 
   const renderItem = useCallback(
     ({ item, index }: { item: TopTrack; index: number }) => (
-      <TopTrackRow
-        topTrack={item}
+      <ArtistSongRow
+        song={topTrackSong(item)}
         number={index + 1}
         isCurrent={currentId !== null && itemIds[index] === currentId}
         isPlaying={isPlaying}

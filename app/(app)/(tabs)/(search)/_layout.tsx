@@ -4,6 +4,7 @@ import {
   DETAIL_SCREEN_OPTIONS,
   artistListScreenOptions,
   TOP_TRACKS_SCREEN_OPTIONS,
+  artistSongsScreenOptions,
   stackScreenOptions,
 } from "@/constants/navigation";
 import { useColors } from "@/hooks/use-colors";
@@ -44,6 +45,10 @@ export default function SearchLayout() {
         <Stack.Screen
           name="artist/top-tracks"
           options={TOP_TRACKS_SCREEN_OPTIONS}
+        />
+        <Stack.Screen
+          name="artist/songs"
+          options={artistSongsScreenOptions(colors)}
         />
       </Stack>
     </MiniPlayerHost>

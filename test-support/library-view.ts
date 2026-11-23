@@ -17,6 +17,14 @@ const actual = jest.requireActual<
 export const { sortsFor, offeredSort, preloadLibraryViews } = actual;
 export type { LibraryShow, LibraryView };
 
+export function useRememberedListValue<T>(
+  _listKey: string,
+  parse: (stored: unknown) => T,
+) {
+  const [value, setValue] = useState<T>(() => parse(undefined));
+  return [value, setValue] as const;
+}
+
 export function useLibraryView<Sort extends string>(
   _listKey: string,
   sorts: readonly Sort[],

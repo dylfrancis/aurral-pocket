@@ -22,6 +22,7 @@ export function PillRow<Id extends string>({
   items,
   selected,
   onSelect,
+  size = "regular",
 }: PillRowProps<Id>) {
   const scheme = useColorScheme();
   const colors = Colors[scheme];
@@ -54,7 +55,7 @@ export function PillRow<Id extends string>({
             const modifiers = [
               buttonStyle(variant),
               buttonBorderShape("capsule"),
-              controlSize("regular"),
+              controlSize(size),
               ...(isSelected
                 ? [
                     tint(colors.brand),

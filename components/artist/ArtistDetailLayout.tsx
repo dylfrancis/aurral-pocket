@@ -7,7 +7,7 @@ import {
 } from "@/components/artist/MatchArtistSheet";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
-import { TopTracksSection } from "@/components/artist/TopTracksSection";
+import { ArtistSongsSection } from "@/components/artist/ArtistSongsSection";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
 import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
@@ -24,7 +24,7 @@ import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetails } from "@/hooks/library/use-artist-details";
 import { useArtistSongs } from "@/hooks/library/use-artist-queue";
 import { useArtistTopTracks } from "@/hooks/library/use-artist-top-tracks";
-import { useTopTracksPlayback } from "@/hooks/library/use-top-tracks-playback";
+import { useArtistSongViews } from "@/hooks/library/use-artist-song-views";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import {
@@ -184,9 +184,11 @@ export function ArtistDetailLayout({
     isLoading: topTracksLoading,
     artistQueue,
   } = useArtistTopTracks(mbid, artistName, inLibrary);
-  const { data: artistSongs, refetch: refetchArtistSongs } = useArtistSongs(
-    mbid ? undefined : artistRef,
-  );
+  const {
+    data: artistSongs,
+    isLoading: artistSongsLoading,
+    refetch: refetchArtistSongs,
+  } = useArtistSongs(mbid ? undefined : artistRef);
   const { data: details, isPending: detailsLoading } = useArtistDetails(mbid);
   const { data: similarArtists } = useSimilarArtists(mbid);
 
@@ -434,14 +436,17 @@ export function ArtistDetailLayout({
     [artistQueue, artistSongs, artistName, mbid, queryClient, startQueue],
   );
 
-  const topTracksPlayback = useTopTracksPlayback(topTracks, artistName, mbid);
-  const openTopTracks = useCallback(() => {
-    if (!mbid) return;
-    router.push({
-      pathname: "/artist/top-tracks",
-      params: { mbid, artistName },
-    });
-  }, [router, mbid, artistName]);
+  const songs = useArtistSongViews({
+    mbid,
+    libraryArtistId: canonicalArtist?.id ?? (mbid ? undefined : artistRef),
+    artistName,
+    inLibrary,
+    topTracks,
+    topTracksLoading,
+    // Top Tracks' own loading covers the artist queue.
+    libraryLoading: inLibrary && (canonicalArtistLoading || artistSongsLoading),
+    hasSongs: !!playableCount,
+  });
 
   const startRadio = useStartRadio();
   // The MBID finds the Library artist. A name could also match another artist
@@ -604,19 +609,22 @@ export function ArtistDetailLayout({
 
         {mbid ? <ArtistTags mbid={mbid} /> : null}
 
-        {mbid ? (
-          <TopTracksSection
-            topTracks={topTracks}
-            isLoading={topTracksLoading}
-            itemIds={topTracksPlayback.itemIds}
-            currentId={topTracksPlayback.currentId}
-            isPlaying={topTracksPlayback.isPlaying}
-            onPlayFrom={topTracksPlayback.playFrom}
-            onPlayAll={topTracksPlayback.playAll}
-            onOpenActions={topTracksPlayback.openActions}
-            onShowAll={openTopTracks}
-          />
-        ) : null}
+        <ArtistSongsSection
+          title={songs.title}
+          currentLabel={songs.currentLabel}
+          pills={songs.pills}
+          selected={songs.selected}
+          onSelect={songs.select}
+          songs={songs.songs}
+          isLoading={songs.isLoading}
+          itemIds={songs.itemIds}
+          currentId={songs.currentId}
+          isPlaying={songs.isPlaying}
+          onPlayFrom={songs.playFrom}
+          onPlayAll={songs.playAll}
+          onOpenActions={songs.openActions}
+          onShowAll={songs.showAll}
+        />
 
         {inLibrary && (
           <LibraryAlbumsSection
@@ -692,8 +700,8 @@ export function ArtistDetailLayout({
       ) : null}
 
       <TrackActionsSheet
-        target={topTracksPlayback.actions.target}
-        onClose={topTracksPlayback.actions.close}
+        target={songs.actions.target}
+        onClose={songs.actions.close}
       />
     </View>
   );
