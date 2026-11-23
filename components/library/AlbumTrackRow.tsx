@@ -84,7 +84,7 @@ export function AlbumTrackRow({
         <Text
           variant="body"
           numberOfLines={1}
-          style={[titleStyle, active && { color: colors.brand }]}
+          style={[styles.title, titleStyle, active && { color: colors.brand }]}
         >
           {title}
         </Text>
@@ -112,6 +112,11 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     gap: 2,
+  },
+  // A step up from body text, which reads small in a list this roomy.
+  title: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   dimmed: {
     opacity: 0.4,
