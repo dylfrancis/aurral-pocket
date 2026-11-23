@@ -1,3 +1,4 @@
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useNavigation } from "expo-router";
@@ -40,6 +41,7 @@ export function EditorialBrowseScreen() {
 
   const { data, isLoading, refetch } = useEditorialShelf();
   const openPlaylist = useOpenEditorialPlaylist();
+  const { openPlaylist: openActions } = useItemActions();
 
   const group = isEditorialGroup(params.group) ? params.group : null;
   const categories = useMemo(
@@ -115,6 +117,7 @@ export function EditorialBrowseScreen() {
           artworkUrl={playlist.artworkUrl}
           size={cardSize}
           onPress={() => openPlaylist(playlist)}
+          onLongPress={() => openActions(playlist)}
         />
       )}
     />

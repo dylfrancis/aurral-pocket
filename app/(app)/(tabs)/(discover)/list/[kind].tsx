@@ -12,6 +12,7 @@ import { useRecommendations } from "@/hooks/discover/use-recommendations";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { useGridListView } from "@/hooks/use-grid-list-view";
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
 import { RECOMMENDED_SORT_OPTIONS } from "@/components/discover/recommended-sort";
 import { EmptyState } from "@/components/library/EmptyState";
@@ -150,6 +151,7 @@ export default function DiscoverListScreen() {
   }, [navigation, kind]);
 
   const openArtist = useOpenArtist();
+  const itemActions = useItemActions();
 
   const isLoading = useMemo(() => {
     switch (kind) {
@@ -212,6 +214,11 @@ export default function DiscoverListScreen() {
             const mbid = recentlyAddedMbid(item);
             const open = () =>
               openArtist({ mbid: artistRouteId(item), name: item.artistName });
+            const openActions = () =>
+              itemActions.openArtist({
+                ref: artistRouteId(item),
+                name: item.artistName,
+              });
             if (!isGrid) {
               return (
                 <MediaRow
@@ -220,6 +227,7 @@ export default function DiscoverListScreen() {
                   title={item.artistName}
                   subtitle={formatAdded(item.addedAt || item.added)}
                   onPress={open}
+                  onLongPress={openActions}
                 />
               );
             }
@@ -230,6 +238,7 @@ export default function DiscoverListScreen() {
                 subtitle={formatAdded(item.addedAt || item.added)}
                 fill
                 onPress={open}
+                onLongPress={openActions}
               />
             );
           }}
@@ -288,6 +297,9 @@ export default function DiscoverListScreen() {
                   ) : undefined
                 }
                 onPress={() => openArtist({ mbid: item.id, name: item.name })}
+                onLongPress={() =>
+                  itemActions.openArtist({ ref: item.id, name: item.name })
+                }
               />
             );
           }
@@ -299,6 +311,9 @@ export default function DiscoverListScreen() {
               isInLibrary={isInLibrary(item.id)}
               fill
               onPress={() => openArtist({ mbid: item.id, name: item.name })}
+              onLongPress={() =>
+                itemActions.openArtist({ ref: item.id, name: item.name })
+              }
             />
           );
         }}

@@ -64,10 +64,10 @@ let mockFocused = true;
 const mockPush = jest.fn();
 const mockNavigate = jest.fn();
 jest.mock("expo-router", () => ({
+  ...require("@/test-support/expo-router-stack"),
   useLocalSearchParams: () => mockParams,
   useNavigation: () => ({ isFocused: () => mockFocused }),
   useRouter: () => ({ push: mockPush, navigate: mockNavigate }),
-  Stack: { Screen: () => null, SearchBar: () => null },
 }));
 
 jest.mock("expo-router/react-navigation", () => ({
@@ -362,6 +362,42 @@ describe("songs the Library doesn't have", () => {
     expect(Burnt.toast).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Downloading Lithium" }),
     );
+  });
+
+  it("downloads every missing song from the menu, skipping owned and already asked-for ones", async () => {
+    mockRequestDownload.mockResolvedValue({ success: true, queued: true });
+    await openPage(
+      playlist({
+        tracks: [
+          track({ trackName: "Lithium" }),
+          track({ trackName: "Polly" }),
+          track({ trackName: "Breed" }),
+          track({
+            trackName: "Drain You",
+            owned: { id: "42" } as LibraryQueueTrack,
+          }),
+        ],
+      }),
+    );
+    await fireEvent.press(await screen.findByLabelText("Download Lithium"));
+    await screen.findByLabelText("Lithium is downloading");
+
+    await fireEvent.press(
+      screen.getByRole("menuitem", { name: "Download Missing Songs (2)" }),
+    );
+
+    await waitFor(() => expect(mockRequestDownload).toHaveBeenCalledTimes(3));
+    expect(
+      mockRequestDownload.mock.calls.slice(1).map(([song]) => song.trackName),
+    ).toEqual(["Polly", "Breed"]);
+    await waitFor(() =>
+      expect(Burnt.toast).toHaveBeenLastCalledWith(
+        expect.objectContaining({ title: "Downloading 2 songs" }),
+      ),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: /Download Missing/ }),
+    ).toBeNull();
   });
 
   it("offers no ↓ to someone who can't add music", async () => {

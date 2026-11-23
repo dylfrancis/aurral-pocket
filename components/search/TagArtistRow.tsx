@@ -7,12 +7,15 @@ type TagArtistRowProps = {
   artist: TagArtist;
   isInLibrary: boolean;
   onPress: () => void;
+  /** Opens the artist's actions. */
+  onLongPress?: () => void;
 };
 
 export const TagArtistRow = React.memo(function TagArtistRow({
   artist,
   isInLibrary,
   onPress,
+  onLongPress,
 }: TagArtistRowProps) {
   return (
     <MediaRow
@@ -26,6 +29,7 @@ export const TagArtistRow = React.memo(function TagArtistRow({
         isInLibrary ? <Chip label="In Library" variant="brand" /> : undefined
       }
       onPress={onPress}
+      onLongPress={onLongPress}
     />
   );
 });

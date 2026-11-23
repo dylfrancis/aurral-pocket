@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import {
   queryOptions,
   useMutation,
-  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -27,23 +26,10 @@ export function blocklistQueryOptions() {
 }
 
 /**
- * Suspense variant. Caller must be inside a Suspense + ErrorBoundary.
+ * Caller must be inside a Suspense + ErrorBoundary.
  */
 export function useBlocklistSuspense() {
   return useSuspenseQuery(blocklistQueryOptions());
-}
-
-/**
- * Non-suspense variant for screens where the blocklist is a side concern (e.g.
- * the artist detail menu). A failed fetch must not take the host screen down,
- * so it opts out of the error boundary and reports an empty list instead.
- */
-export function useBlocklist() {
-  const { data, ...rest } = useQuery({
-    ...blocklistQueryOptions(),
-    throwOnError: false,
-  });
-  return { ...rest, data: data ?? [] };
 }
 
 export function useBlocklistMutations() {

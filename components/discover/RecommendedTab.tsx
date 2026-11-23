@@ -1,3 +1,4 @@
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -53,6 +54,7 @@ export function RecommendedTab({ onArtistPress, onShowList }: Props) {
     [recommendations],
   );
   const { isInLibrary } = useLibraryLookup(ids);
+  const { openArtist } = useItemActions();
 
   const groups = useMemo(
     () => buildRecommendedRails(recommendations, context),
@@ -150,6 +152,9 @@ export function RecommendedTab({ onArtistPress, onShowList }: Props) {
           artist={topPick}
           seeds={seeds}
           onPress={() => onArtistPress(topPick)}
+          onLongPress={() =>
+            openArtist({ ref: topPick.id, name: topPick.name })
+          }
         />
       ) : null}
       {rails.slice(0, builtCount).map((rail) => (

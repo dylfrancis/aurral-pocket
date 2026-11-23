@@ -62,7 +62,7 @@ export function useLibraryLookup(
     .sort()
     .join(",");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     ...libraryLookupQueryOptions(queryClient, key),
     enabled: !!serverUrl && !!token && key !== "",
     // The set changes as results stream in; keep the marks already known.
@@ -74,7 +74,7 @@ export function useLibraryLookup(
     [data],
   );
 
-  return { isInLibrary, isLoading };
+  return { isInLibrary, isLoading, isError };
 }
 
 /**

@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { useRouter } from "expo-router";
+import { useItemActions } from "@/components/actions/item-actions-context";
+import { libraryAlbumTarget } from "@/components/actions/targets";
 import { DiscoverRail } from "@/components/discover/DiscoverRail";
 import { ALBUM_CARD_WIDTH, AlbumCard } from "@/components/library/AlbumCard";
 import { useAlbumRail } from "@/hooks/library/use-album-rail";
@@ -26,6 +28,7 @@ export function LibraryAlbumRail({
   refreshKey,
 }: LibraryAlbumRailProps) {
   const router = useRouter();
+  const { openAlbum } = useItemActions();
   const { data, isPending, isError, refetch } = useAlbumRail(
     sort,
     availableOnly,
@@ -47,6 +50,7 @@ export function LibraryAlbumRail({
         <AlbumCard
           album={album}
           showArtist
+          onLongPress={() => openAlbum(libraryAlbumTarget(album))}
           onPress={() =>
             router.push({
               pathname: "/album/[ref]",

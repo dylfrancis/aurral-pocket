@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useItemActions } from "@/components/actions/item-actions-context";
+import { librarySearchAlbumTarget } from "@/components/actions/targets";
 import { EmptyState } from "@/components/library/EmptyState";
 import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
 import {
@@ -41,6 +43,7 @@ export function isLibrarySearchQuery(query: string) {
  */
 export function LibrarySearchResults({ query }: { query: string }) {
   const router = useRouter();
+  const itemActions = useItemActions();
   const openArtist = useOpenArtist();
   const isOffline = useIsOffline();
   const trimmedQuery = query.trim();
@@ -102,6 +105,13 @@ export function LibrarySearchResults({ query }: { query: string }) {
           coverUrl: artist.image,
         })
       }
+      onLongPress={() =>
+        itemActions.openArtist({
+          ref: artist.id,
+          name: artist.name,
+          coverUrl: artist.image,
+        })
+      }
     />
   );
 
@@ -116,6 +126,7 @@ export function LibrarySearchResults({ query }: { query: string }) {
         .filter(Boolean)
         .join(" · ")}
       onPress={() => openAlbum(album)}
+      onLongPress={() => itemActions.openAlbum(librarySearchAlbumTarget(album))}
     />
   );
 

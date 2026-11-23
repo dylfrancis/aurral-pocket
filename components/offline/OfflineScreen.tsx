@@ -1,5 +1,7 @@
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useItemActions } from "@/components/actions/item-actions-context";
+import { savedAlbumTarget } from "@/components/actions/targets";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { EmptyState } from "@/components/library/EmptyState";
 import {
@@ -39,6 +41,7 @@ import { useColors } from "@/hooks/use-colors";
 export function OfflineScreen() {
   const colors = useColors();
   const router = useRouter();
+  const itemActions = useItemActions();
   const saves = useSavedItems();
   const albums = saves.filter((save) => save.item.kind === "album");
   const playlists = saves.filter((save) => save.item.kind === "playlist");
@@ -103,6 +106,10 @@ export function OfflineScreen() {
                 title={save.item.route.title}
                 subtitle={subtitleOf(save, save.item.route.artistName)}
                 onPress={() => openSave(save)}
+                onLongPress={() =>
+                  save.item.kind === "album" &&
+                  itemActions.openAlbum(savedAlbumTarget(save.item))
+                }
               />
             ) : null,
           )}

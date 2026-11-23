@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, SectionList, StyleSheet, View } from "react-native";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
+import { useItemActions } from "@/components/actions/item-actions-context";
+import { recentReleaseTarget } from "@/components/actions/targets";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
 import { DiscoverReleaseCard } from "@/components/discover/DiscoverReleaseCard";
 import { EmptyState } from "@/components/library/EmptyState";
@@ -87,6 +89,11 @@ export default function ReleasesScreen() {
     },
     [router],
   );
+  const { openAlbum } = useItemActions();
+  const openReleaseActions = useCallback(
+    (album: RecentReleaseAlbum) => openAlbum(recentReleaseTarget(album)),
+    [openAlbum],
+  );
 
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
@@ -109,6 +116,7 @@ export default function ReleasesScreen() {
               .filter(Boolean)
               .join(" · ")}
             onPress={() => openRelease(album)}
+            onLongPress={() => openReleaseActions(album)}
           />
         );
       }
@@ -120,6 +128,7 @@ export default function ReleasesScreen() {
               album={album}
               fill
               onPress={() => openRelease(album)}
+              onLongPress={() => openReleaseActions(album)}
             />
           ))}
           {/* Spacers keep a short last row's cards the same width. */}
@@ -129,7 +138,7 @@ export default function ReleasesScreen() {
         </View>
       );
     },
-    [isGrid, numColumns, openRelease],
+    [isGrid, numColumns, openRelease, openReleaseActions],
   );
 
   let emptyContent;

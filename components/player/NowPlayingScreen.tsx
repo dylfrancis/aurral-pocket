@@ -721,7 +721,7 @@ export function NowPlayingScreen() {
         </Animated.View>
       )}
       <AddToPlaylistSheet
-        track={addToPlaylist.track}
+        selection={addToPlaylist.selection}
         onClose={addToPlaylist.close}
       />
     </GestureHandlerRootView>

@@ -18,6 +18,7 @@ type LibraryAlbumsSectionProps = {
   error: unknown;
   downloadStatuses: DownloadStatusMap | undefined;
   onAlbumPress: (album: Album) => void;
+  onAlbumLongPress?: (album: Album) => void;
   onNavigate?: (type: PrimaryReleaseType, label: string) => void;
   onRetry: () => void;
 };
@@ -28,6 +29,7 @@ export function LibraryAlbumsSection({
   error,
   downloadStatuses,
   onAlbumPress,
+  onAlbumLongPress,
   onNavigate,
   onRetry,
 }: LibraryAlbumsSectionProps) {
@@ -62,6 +64,9 @@ export function LibraryAlbumsSection({
                   <AlbumCard
                     album={album}
                     onPress={() => onAlbumPress(album)}
+                    onLongPress={
+                      onAlbumLongPress && (() => onAlbumLongPress(album))
+                    }
                     downloadStatus={albumDownloadStatus(
                       downloadStatuses,
                       album,

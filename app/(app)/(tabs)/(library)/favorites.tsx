@@ -3,6 +3,8 @@ import { RefreshControl, StyleSheet } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { useItemActions } from "@/components/actions/item-actions-context";
+import { libraryAlbumTarget } from "@/components/actions/targets";
 import { FAVORITE_SORT_OPTIONS } from "@/components/library/AlbumSortPicker";
 import { EmptyState } from "@/components/library/EmptyState";
 import { sortMenu } from "@/components/library/LibraryListMenus";
@@ -121,6 +123,7 @@ function matchingFavorites(
 export default function LibraryFavoritesScreen() {
   const router = useRouter();
   const openArtist = useOpenArtist();
+  const itemActions = useItemActions();
   const queryClient = useQueryClient();
   const colors = useColors();
   const { view, setSort } = useLibraryView(
@@ -210,6 +213,13 @@ export default function LibraryFavoritesScreen() {
                 name: row.artist.artistName,
               })
             }
+            onLongPress={() =>
+              itemActions.openArtist({
+                ref: artistRouteId(row.artist),
+                name: row.artist.artistName,
+                coverUrl: row.artist.coverUrl,
+              })
+            }
           />
         );
       case "album":
@@ -234,6 +244,9 @@ export default function LibraryFavoritesScreen() {
                   row.album.artistMbid,
                 ),
               })
+            }
+            onLongPress={() =>
+              itemActions.openAlbum(libraryAlbumTarget(row.album))
             }
           />
         );

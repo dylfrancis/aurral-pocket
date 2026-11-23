@@ -1,7 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Linking,
   Pressable,
@@ -51,6 +50,11 @@ import {
 } from "@/hooks/library/use-album-editions";
 import { stopPreviewClip } from "@/hooks/library/use-audio-preview";
 import {
+  invalidateArtistAlbums,
+  useDeleteAlbum,
+  useResearchAlbum,
+} from "@/hooks/library/use-album-actions";
+import {
   useEditionTracks,
   useReleaseGroupTracks,
 } from "@/hooks/library/use-edition-tracks";
@@ -72,36 +76,20 @@ import {
   discTitles,
   placeOnEdition,
 } from "@/lib/album-discs";
-import { canResearchAurralAlbum, isUnreleased } from "@/lib/album-status";
 import { formatBytes, saveStatusLine } from "@/lib/offline/format";
 import { useIsOffline } from "@/lib/offline/network";
 import { canPlayNow, saveAlbum } from "@/lib/offline/saved-library";
-import {
-  deleteAurralAlbum,
-  researchAurralAlbum,
-  setAlbumEdition,
-} from "@/lib/api/library";
+import { setAlbumEdition } from "@/lib/api/library";
 import { ApiError } from "@/lib/api/client";
 import { formatTrackCount } from "@/lib/discover/format";
 import { editionLabel, editionRows, editionSubtitle } from "@/lib/editions";
-import {
-  albumDownloadStatus,
-  libraryAlbumsRef,
-  managedAlbumId,
-} from "@/lib/library-read";
-import {
-  invalidateFilteredLists,
-  invalidateLibraryLists,
-} from "@/hooks/library/library-lists";
+import { albumDownloadStatus } from "@/lib/library-read";
+import { invalidateLibraryLists } from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import { Colors, Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
-import type {
-  DownloadStatusMap,
-  DownloadStatusValue,
-  Track,
-} from "@/lib/types/library";
+import type { DownloadStatusValue, Track } from "@/lib/types/library";
 import { releaseYear } from "@/lib/date-time";
 import { useOpenArtist } from "@/hooks/use-open-artist";
 
@@ -178,9 +166,6 @@ export function AlbumDetailScreen() {
   const title = album?.albumName || params.title || "";
   const artistName = params.artistName || album?.artistName || "";
   const artistMbid = params.artistMbid || album?.artistMbid || "";
-  // Only the record says Aurral manages an album, so the actions wait for it.
-  const albumId = album ? managedAlbumId(album) : undefined;
-  const aurralAlbum = albumId ? album : undefined;
 
   // For the player, when the server has no cover to give it.
   const { url: artworkUrl } = useCoverArtUrl({
@@ -225,79 +210,19 @@ export function AlbumDetailScreen() {
 
   const year = releaseYear(album?.releaseDate);
   const trackCount = album?.statistics.trackCount ?? tracks?.length ?? 0;
-  // Unknown reads as complete, so a page with no canonical record does not
-  // offer to re-search an album it knows nothing about.
-  const isComplete = album
-    ? album.statistics.percentOfTracks >= 100 || album.statistics.sizeOnDisk > 0
-    : true;
-  // Re-searching an unmonitored Aurral album monitors it, which takes
-  // changeMonitoring. A monitored one is requested again, which takes
-  // addAlbum and names the artist.
-  const canResearchAurral =
-    !!aurralAlbum &&
-    canResearchAurralAlbum(aurralAlbum, downloadStatus) &&
-    (aurralAlbum.monitored
-      ? hasPermission("addAlbum") && !!artistMbid && !!artistName
-      : hasPermission("changeMonitoring"));
-  const showResearch = !isComplete && canResearchAurral;
-  // Monitoring an album that isn't out yet only schedules its download.
-  const researchLabel =
-    aurralAlbum &&
-    !aurralAlbum.monitored &&
-    isUnreleased(aurralAlbum.releaseDate)
-      ? "Download When It's Out"
-      : "Re-search";
-  const showDelete = !!albumId && hasPermission("deleteAlbum");
-
-  const setCachedStatus = (entry: DownloadStatusMap[string]) => {
-    if (!albumId) return;
-    queryClient.setQueriesData<DownloadStatusMap>(
-      { queryKey: libraryKeys.downloadStatusesAll() },
-      (old) => ({ ...(old ?? {}), [albumId]: entry }),
-    );
+  const albumArtist = {
+    id: params.artistId || album?.artistId,
+    mbid: artistMbid || undefined,
+    name: artistName,
   };
-
-  const searchMutation = useMutation({
-    mutationFn: async () => {
-      if (!albumId || !aurralAlbum) return null;
-      return researchAurralAlbum(
-        { ...aurralAlbum, canonicalId: albumId },
-        { mbid: artistMbid, name: artistName },
-      );
-    },
-    // Aurral's answer can be a release date to wait for, which a guess here
-    // would have shown as Queued.
-    onSuccess: (albumStatus) => {
-      if (albumStatus) setCachedStatus(albumStatus);
-    },
-    // Settled, not success: the server can monitor the album and still answer
-    // an error when queueing its tracks fails.
-    onSettled: () => {
-      void queryClient.invalidateQueries({
-        queryKey: libraryKeys.downloadStatusesAll(),
-      });
-      // Re-searching an unmonitored Aurral album monitored it.
-      if (aurralAlbum && !aurralAlbum.monitored) {
-        void queryClient.invalidateQueries({
-          queryKey: libraryKeys.album(params.ref),
-        });
-        invalidateArtistAlbums();
-        void invalidateFilteredLists(queryClient, "status");
-      }
-    },
+  const research = useResearchAlbum({
+    albumRef: params.ref,
+    album,
+    artist: albumArtist,
+    downloadStatus,
   });
-
-  function invalidateArtistAlbums() {
-    const artistRef = libraryAlbumsRef({
-      artistId: params.artistId || album?.artistId,
-      artistMbid: params.artistMbid,
-    });
-    if (artistRef) {
-      void queryClient.invalidateQueries({
-        queryKey: libraryKeys.albums(artistRef),
-      });
-    }
-  }
+  const invalidateArtistAlbumList = () =>
+    invalidateArtistAlbums(queryClient, albumArtist);
 
   // The album leaves the Library with its last song. Judged by the list read
   // after the delete, and only while this page shows, so no other page pops.
@@ -307,18 +232,12 @@ export function AlbumDetailScreen() {
     if (songDeleted && isFocused && tracks?.length === 0) router.back();
   }, [songDeleted, isFocused, tracks, router]);
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      if (!albumId) return;
-      // Kept files would bring the album back on the next full scan.
-      await deleteAurralAlbum(albumId, true);
-    },
-    onSuccess: () => {
-      invalidateArtistAlbums();
-      invalidateLibraryLists(queryClient);
-      // The album this page is about is gone, so the page cannot stay.
-      router.back();
-    },
+  const deleteAlbum = useDeleteAlbum({
+    album,
+    title,
+    artist: albumArtist,
+    // The album this page is about is gone, so the page cannot stay.
+    onDeleted: () => router.back(),
   });
 
   const handleLastFm = useCallback(() => {
@@ -327,19 +246,6 @@ export function AlbumDetailScreen() {
       `https://www.last.fm/music/${encodeURIComponent(artistName)}/${encodeURIComponent(title)}`,
     );
   }, [artistName, title]);
-
-  const handleDelete = useCallback(() => {
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    const message = `Delete "${title}" and its files? Aurral won't download it again.`;
-    Alert.alert("Delete Album", message, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => deleteMutation.mutate(),
-      },
-    ]);
-  }, [title, deleteMutation]);
 
   const openArtistPage = useOpenArtist();
   // An artist with no MBID opens by its Library id.
@@ -497,7 +403,7 @@ export function AlbumDetailScreen() {
       ]);
       // An edition picked while the switch was saving stays picked.
       editions.view((picked) => (picked === releaseMbid ? null : picked));
-      invalidateArtistAlbums();
+      invalidateArtistAlbumList();
       invalidateLibraryLists(queryClient);
     },
     onError: (error) => {
@@ -601,14 +507,11 @@ export function AlbumDetailScreen() {
           ) : null}
           <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "magnifyingglass" : SearchIcon}
-            hidden={!showResearch}
-            disabled={searchMutation.isPending}
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              searchMutation.mutate();
-            }}
+            hidden={!research.visible}
+            disabled={research.isPending}
+            onPress={research.research}
           >
-            {searchMutation.isPending ? "Searching…" : researchLabel}
+            {research.isPending ? "Searching…" : research.label}
           </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.MenuAction
             icon={IS_IOS ? "arrow.up.right.square" : OpenInNew}
@@ -623,9 +526,9 @@ export function AlbumDetailScreen() {
             // Native menus only offer the platform destructive style, so this
             // red is the system red rather than the theme's error token.
             destructive
-            hidden={!showDelete}
-            disabled={deleteMutation.isPending}
-            onPress={handleDelete}
+            hidden={!deleteAlbum.canDelete}
+            disabled={deleteAlbum.isPending}
+            onPress={deleteAlbum.confirmDelete}
           >
             Delete Album
           </Stack.Toolbar.MenuAction>

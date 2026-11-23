@@ -281,7 +281,7 @@ export function ShazamMatchResult({
         onClose={trackActions.close}
       />
       <AddToPlaylistSheet
-        track={addToPlaylist.track}
+        selection={addToPlaylist.selection}
         onClose={addToPlaylist.close}
       />
     </View>

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { useReducedMotion } from "react-native-reanimated";
+import { ItemActionsProvider } from "@/components/actions/ItemActionsProvider";
 import { LockScreenFavorite } from "@/components/player/LockScreenFavorite";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { IS_IOS } from "@/constants/platform";
@@ -45,26 +46,29 @@ export default function AppLayout() {
 
   return (
     <NowPlayingProvider>
-      {IS_IOS && <LockScreenFavorite />}
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        {/* Opened from the person button on each tab's first screen. */}
-        <Stack.Screen
-          name="(settings)"
-          options={{ presentation: IS_IOS ? "modal" : "card" }}
-        />
-        {/* A native sheet stops short of the top edge, so the full player is a
+      {/* Long-press sheets for album, artist and playlist tiles in every tab. */}
+      <ItemActionsProvider>
+        {IS_IOS && <LockScreenFavorite />}
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          {/* Opened from the person button on each tab's first screen. */}
+          <Stack.Screen
+            name="(settings)"
+            options={{ presentation: IS_IOS ? "modal" : "card" }}
+          />
+          {/* A native sheet stops short of the top edge, so the full player is a
           transparent modal that draws its own sheet and drag-to-close. It
           also animates itself in and out, so its art can travel from and
           back to the mini player. */}
-        <Stack.Screen
-          name="now-playing"
-          options={{
-            presentation: "transparentModal",
-            animation: reduceMotion ? "fade" : "none",
-          }}
-        />
-      </Stack>
+          <Stack.Screen
+            name="now-playing"
+            options={{
+              presentation: "transparentModal",
+              animation: reduceMotion ? "fade" : "none",
+            }}
+          />
+        </Stack>
+      </ItemActionsProvider>
     </NowPlayingProvider>
   );
 }

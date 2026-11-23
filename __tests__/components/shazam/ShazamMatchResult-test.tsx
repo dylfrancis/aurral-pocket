@@ -40,9 +40,15 @@ jest.mock("@/components/flow/AddToPlaylistSheet", () => {
   const { Text } = require("react-native");
   return {
     ...jest.requireActual("@/components/flow/AddToPlaylistSheet"),
-    AddToPlaylistSheet: ({ track }: { track: unknown }) =>
-      track ? (
-        <Text testID="playlist-sheet">{JSON.stringify(track)}</Text>
+    AddToPlaylistSheet: ({
+      selection,
+    }: {
+      selection: { tracks: unknown[] } | null;
+    }) =>
+      selection ? (
+        <Text testID="playlist-sheet">
+          {JSON.stringify(selection.tracks[0])}
+        </Text>
       ) : null,
   };
 });

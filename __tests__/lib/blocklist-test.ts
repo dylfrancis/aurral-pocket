@@ -1,4 +1,5 @@
 import {
+  findArtistFeedback,
   isArtistBlocked,
   isValidMbid,
   selectBlockedArtists,
@@ -129,6 +130,35 @@ describe("isArtistBlocked", () => {
 
   it("does not match when the candidate has neither id nor name", () => {
     expect(isArtistBlocked(blocked, {})).toBe(false);
+  });
+});
+
+describe("findArtistFeedback", () => {
+  const artist = { id: "11111111-1111-1111-1111-111111111111", name: "" };
+  const rating = (overrides: Partial<DiscoveryFeedbackEntry> = {}) =>
+    entry({ action: "more_like_this", ...overrides });
+
+  it.each([
+    { row: "the artist's rating", feed: [rating()], found: true },
+    {
+      row: "another kind of feedback",
+      feed: [rating({ action: "less_like_this" })],
+      found: false,
+    },
+    {
+      row: "an expired rating, which the server ignores",
+      feed: [rating({ expiresAt: "2026-08-08T00:00:00.000Z" })],
+      found: false,
+    },
+    {
+      row: "a rating with no id, which can't be taken back",
+      feed: [rating({ id: null })],
+      found: false,
+    },
+  ])("finds $row: $found", ({ feed, found }) => {
+    expect(!!findArtistFeedback(feed, artist, "more_like_this", NOW)).toBe(
+      found,
+    );
   });
 });
 

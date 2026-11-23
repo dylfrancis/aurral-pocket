@@ -1,6 +1,8 @@
 import { useCallback, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useItemActions } from "@/components/actions/item-actions-context";
+import { librarySearchAlbumTarget } from "@/components/actions/targets";
 import { EmptyState } from "@/components/library/EmptyState";
 import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
 import { AlbumSearchStatusBadge } from "@/components/search/AlbumSearchStatusBadge";
@@ -99,6 +101,7 @@ export function SearchResults({
   onArtistOpen,
 }: SearchResultsProps) {
   const router = useRouter();
+  const itemActions = useItemActions();
   const colors = useColors();
   const openArtist = useOpenArtist();
   const hasPermission = useHasPermission();
@@ -154,6 +157,13 @@ export function SearchResults({
       image={row.image}
       isInLibrary={row.fromLibrary || isInLibrary(row.artist.id)}
       onPress={() => pressArtist(row)}
+      onLongPress={() =>
+        itemActions.openArtist({
+          ref: row.artist.id,
+          name: row.artist.name,
+          coverUrl: row.image,
+        })
+      }
     />
   );
 
@@ -170,6 +180,9 @@ export function SearchResults({
         // Library search only sends albums with a file to play.
         trailing={<AlbumSearchStatusBadge status="available" />}
         onPress={() => router.push(libraryAlbumHref(row.album))}
+        onLongPress={() =>
+          itemActions.openAlbum(librarySearchAlbumTarget(row.album))
+        }
       />
     ) : (
       <SearchAlbumRow
@@ -177,6 +190,16 @@ export function SearchResults({
         album={row.album}
         status={statusFor(row.album)}
         onPress={() => void openAlbum(row.album)}
+        onLongPress={() =>
+          itemActions.openAlbum({
+            mbid: row.album.id,
+            title: row.album.title,
+            artistName: row.album.artistName,
+            artistMbid: row.album.artistMbid,
+            coverUrl: row.album.coverUrl,
+            releaseDate: row.album.releaseDate,
+          })
+        }
       />
     );
 

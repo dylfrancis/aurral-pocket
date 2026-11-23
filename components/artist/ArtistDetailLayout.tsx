@@ -1,7 +1,10 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
 import { ArtistLibraryControl } from "@/components/artist/ArtistLibraryControl";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
-import { MatchArtistSheet } from "@/components/artist/MatchArtistSheet";
+import {
+  MatchArtistSheet,
+  matchSavedTitle,
+} from "@/components/artist/MatchArtistSheet";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { TopTracksSection } from "@/components/artist/TopTracksSection";
@@ -9,6 +12,8 @@ import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
 import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
 import { pluginMenuSection } from "@/components/plugins/PluginMenuActions";
+import { useItemActions } from "@/components/actions/item-actions-context";
+import { libraryAlbumTarget } from "@/components/actions/targets";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { useSheet } from "@/components/ui/AppSheet";
 import { Fonts } from "@/constants/theme";
@@ -36,11 +41,8 @@ import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
 import { useLibraryScan } from "@/hooks/library/use-library-scan";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import {
-  useBlocklist,
-  useBlocklistMutations,
-} from "@/hooks/discover/use-blocklist";
-import { findBlockedArtist, isValidMbid } from "@/lib/blocklist";
+import { useArtistFeedback } from "@/hooks/discover/use-artist-feedback";
+import { isValidMbid } from "@/lib/blocklist";
 import {
   setArtistInLibrary,
   useLibraryLookup,
@@ -215,14 +217,7 @@ export function ArtistDetailLayout({
   const handleMatched = useCallback(
     (result: ArtistMatchResult) => {
       const name = libraryArtist?.artistName || artistName || "Artist";
-      Burnt.toast({
-        title: result.merged
-          ? `Merged ${name} into ${result.name}`
-          : result.mbid
-            ? `Matched ${name} to ${result.musicbrainzName || "MusicBrainz"}`
-            : `Removed the match from ${name}`,
-        preset: "done",
-      });
+      Burnt.toast({ title: matchSavedTitle(name, result), preset: "done" });
       // A merge moves the artist to another id, and a removed match leaves it
       // only its Library id.
       router.setParams({ mbid: result.mbid ?? String(result.id) });
@@ -325,6 +320,7 @@ export function ArtistDetailLayout({
   }, [typedAlbums]);
 
   const addArtistSheet = useSheet();
+  const { openAlbum: openAlbumActions } = useItemActions();
 
   const openReleaseGroup = useCallback(
     (rg: ReleaseGroup) => {
@@ -389,38 +385,11 @@ export function ArtistDetailLayout({
 
   // Blocking is the `block_artist` slice of /discover/feedback, the same call
   // the blocklist screen makes — only the source context differs.
-  const { data: blockedArtists } = useBlocklist();
-  const { blockArtist, unblockArtist } = useBlocklistMutations();
-  const blockedEntry = useMemo(
-    () =>
-      mbid
-        ? findBlockedArtist(blockedArtists, { id: mbid, name: artistName })
-        : undefined,
-    [blockedArtists, mbid, artistName],
+  const feedback = useArtistFeedback(
+    { mbid, name: artistName },
+    "artist_detail",
   );
-
-  const handleToggleBlock = useCallback(() => {
-    if (!mbid) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (blockedEntry) {
-      unblockArtist.mutate(blockedEntry, {
-        onSuccess: () =>
-          Burnt.toast({ title: `Unblocked ${artistName}`, preset: "done" }),
-        onError: () =>
-          Burnt.toast({ title: "Couldn't unblock artist", preset: "error" }),
-      });
-      return;
-    }
-    blockArtist.mutate(
-      { id: mbid, name: artistName, sourceContext: "artist_detail" },
-      {
-        onSuccess: () =>
-          Burnt.toast({ title: `Blocked ${artistName}`, preset: "done" }),
-        onError: () =>
-          Burnt.toast({ title: "Couldn't block artist", preset: "error" }),
-      },
-    );
-  }, [blockedEntry, unblockArtist, blockArtist, mbid, artistName]);
+  const isBlocked = feedback.isSet("block_artist");
 
   const refreshArtist = useCallback(
     () =>
@@ -563,20 +532,20 @@ export function ArtistDetailLayout({
             <Stack.Toolbar.MenuAction
               icon={
                 IS_IOS
-                  ? blockedEntry
+                  ? isBlocked
                     ? "checkmark.circle"
                     : "nosign"
-                  : blockedEntry
+                  : isBlocked
                     ? CheckCircle
                     : BlockIcon
               }
               // Native menus only offer the platform destructive style, so red
               // here is the system red rather than the theme's error token.
-              destructive={!blockedEntry}
-              disabled={blockArtist.isPending || unblockArtist.isPending}
-              onPress={handleToggleBlock}
+              destructive={!isBlocked}
+              disabled={feedback.isPending}
+              onPress={() => feedback.toggle("block_artist")}
             >
-              {blockedEntry ? "Unblock Artist" : "Block Artist"}
+              {isBlocked ? "Unblock Artist" : "Block Artist"}
             </Stack.Toolbar.MenuAction>
           ) : null}
         </Stack.Toolbar.Menu>
@@ -665,6 +634,11 @@ export function ArtistDetailLayout({
             error={albumsError}
             downloadStatuses={downloadStatuses}
             onAlbumPress={openAlbum}
+            onAlbumLongPress={(album) =>
+              openAlbumActions(
+                libraryAlbumTarget(album, { name: artistName, mbid }),
+              )
+            }
             onNavigate={onNavigateToAlbums}
             onRetry={() => refetchAlbums()}
           />
@@ -674,6 +648,17 @@ export function ArtistDetailLayout({
           grouped={groupedReleases}
           isLoading={!inLibrary && detailsLoading}
           onPress={openReleaseGroup}
+          onLongPress={(rg) =>
+            openAlbumActions({
+              mbid: rg.id,
+              title: rg.title,
+              artistName,
+              artistMbid: mbid,
+              artistId: libraryArtist?.id,
+              releaseDate: rg["first-release-date"],
+              showArtist: false,
+            })
+          }
           onNavigate={onNavigateToReleases}
         />
 
