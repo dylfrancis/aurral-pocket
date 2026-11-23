@@ -33,10 +33,8 @@ function loose(text: string): string {
 }
 
 /**
- * A top track with a recording MBID matches the Library's copies of that
- * recording. One without, as Deezer's are, or one the Library holds untagged,
- * matches by title: exact first, then without a version note. On a tie the
- * same album wins, else the earliest one.
+ * Matches by recording MBID, else by title: exact, then without a version
+ * note. On a tie the same album wins, else the earliest one.
  */
 export function matchTopTracks(
   previews: readonly PreviewTrack[],

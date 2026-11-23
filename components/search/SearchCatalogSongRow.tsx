@@ -8,9 +8,8 @@ import { catalogSongClipId, catalogSongClipPath } from "@/lib/search-results";
 import type { CatalogSong } from "@/lib/types/search";
 
 /**
- * A catalog song the Library doesn't have. A tap plays or pauses its clip;
- * ⋯ and a long press open its actions. It follows the player itself, as an
- * album's clip rows do.
+ * A catalog song the Library doesn't have; a tap plays or pauses its clip. It
+ * follows the player itself, as an album's clip rows do.
  */
 export function SearchCatalogSongRow({
   song,

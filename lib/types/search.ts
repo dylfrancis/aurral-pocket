@@ -154,7 +154,6 @@ export type CatalogSong = {
   artistMbid: string | null;
   /** The album's cover, an absolute URL. */
   coverUrl: string | null;
-  /** The server found the song in the Library. */
   inLibrary: boolean;
 };
 

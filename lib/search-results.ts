@@ -74,9 +74,8 @@ export type SongResult =
   | { kind: "catalog"; key: string; song: CatalogSong };
 
 /**
- * Library songs first, then catalog songs to preview, as the web merges them.
- * A catalog song the Library has, by the server's mark or by recording, is
- * left out.
+ * Library songs first, then catalog songs the Library doesn't have, by the
+ * server's mark or by recording.
  */
 export function mergeSongs(
   library: readonly LibrarySearchTrack[],

@@ -1486,7 +1486,7 @@ describe("refreshQueueUrls", () => {
     expect(queue.createPlaylist).not.toHaveBeenCalled();
   });
 
-  it("leaves a preview clip alone, since its URL carries no token", async () => {
+  it("leaves a preview clip alone, since it has no stream path to re-sign", async () => {
     await forgetQueue();
     await playItem(clip);
     jest.clearAllMocks();

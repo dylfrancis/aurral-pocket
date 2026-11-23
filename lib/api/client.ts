@@ -163,10 +163,9 @@ export function authenticatedImageUrl(
 }
 
 /**
- * A thirty-second clip's URL for the engine, which can't send headers. Aurral
- * sends clips as server paths, and the `/api/deezer/preview?artist=&track=`
- * form answers 401 without the session token, so every server path gets it.
- * A clip on another host never does. Null while signed out.
+ * A clip URL the engine can play without headers. A server path gets the
+ * session token, which `/api/deezer/preview?artist=&track=` answers 401
+ * without; another host never does. Null while signed out.
  */
 export function authenticatedClipUrl(raw: string): string | null {
   if (!raw.startsWith("/")) return raw;

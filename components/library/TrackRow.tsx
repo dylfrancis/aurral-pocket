@@ -17,7 +17,6 @@ type TrackRowProps = {
   unavailable?: boolean;
   /** Shows ↓ once the track is on the phone. */
   markSaved?: boolean;
-  /** One of the album's popular tracks. */
   popular?: boolean;
 };
 
