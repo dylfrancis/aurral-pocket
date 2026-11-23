@@ -7,7 +7,7 @@ import { useColors } from "@/hooks/use-colors";
 
 export const HEADER_ART_SIZE = 56;
 
-/** The top of an album or artist sheet: its art, its name, and a line under. */
+/** The top of an actions sheet: its art, its name, and a line under. */
 export function ActionsSheetHeader({
   art,
   title,

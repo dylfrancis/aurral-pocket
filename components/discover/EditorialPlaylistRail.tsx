@@ -1,3 +1,4 @@
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { useOpenEditorialPlaylist } from "@/hooks/discover/use-editorial-playlists";
 import { formatTrackCount } from "@/lib/discover/format";
 import type { EditorialPlaylistSummary } from "@/lib/types/search";
@@ -13,6 +14,7 @@ type Props = {
 
 export function EditorialPlaylistRail({ title, playlists, onViewAll }: Props) {
   const openPlaylist = useOpenEditorialPlaylist();
+  const { openPlaylist: openActions } = useItemActions();
 
   return (
     <EditorialRail title={title} onNavigate={onViewAll}>
@@ -24,6 +26,7 @@ export function EditorialPlaylistRail({ title, playlists, onViewAll }: Props) {
           artworkUrl={playlist.artworkUrl}
           size={EDITORIAL_CARD_SIZE}
           onPress={() => openPlaylist(playlist)}
+          onLongPress={() => openActions(playlist)}
         />
       ))}
       {onViewAll ? (

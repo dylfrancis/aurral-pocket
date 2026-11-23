@@ -9,6 +9,8 @@ type Props = {
   artworkUrl: string | null;
   size: number;
   onPress: () => void;
+  /** Opens the playlist's actions. */
+  onLongPress?: () => void;
 };
 
 /** A playlist's or a Browse category's cover with its name underneath. */
@@ -18,12 +20,14 @@ export function EditorialCard({
   artworkUrl,
   size,
   onPress,
+  onLongPress,
 }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Open ${name}`}
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => ({ width: size, opacity: pressed ? 0.7 : 1 })}
     >
       <EditorialArtwork

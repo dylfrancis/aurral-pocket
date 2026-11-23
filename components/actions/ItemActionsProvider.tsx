@@ -11,6 +11,10 @@ import {
   type ArtistSheetHandoffs,
 } from "@/components/actions/ArtistActionsSheet";
 import {
+  PlaylistActionsSheet,
+  type PlaylistActionsTarget,
+} from "@/components/actions/PlaylistActionsSheet";
+import {
   MatchArtistSheet,
   matchSavedTitle,
 } from "@/components/artist/MatchArtistSheet";
@@ -30,12 +34,13 @@ type Matching = { libraryArtistId: string; name: string; mbid?: string };
 type Adding = { mbid: string; name: string };
 
 /**
- * Holds the album and artist sheets once for every tab, and the sheets they
- * hand off to, which open after them and outlive them.
+ * Holds the album, artist and playlist sheets once for every tab, and the
+ * sheets they hand off to, which open after them and outlive them.
  */
 export function ItemActionsProvider({ children }: { children: ReactNode }) {
   const [album, setAlbum] = useState<AlbumActionsTarget | null>(null);
   const [artist, setArtist] = useState<ArtistActionsTarget | null>(null);
+  const [playlist, setPlaylist] = useState<PlaylistActionsTarget | null>(null);
   const addToPlaylist = useAddToPlaylist();
   const [matching, setMatching] = useState<Matching | null>(null);
   const [adding, setAdding] = useState<Adding | null>(null);
@@ -52,6 +57,10 @@ export function ItemActionsProvider({ children }: { children: ReactNode }) {
       openArtist: (target) => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setArtist(target);
+      },
+      openPlaylist: (target) => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setPlaylist(target);
       },
     }),
     [],
@@ -93,6 +102,12 @@ export function ItemActionsProvider({ children }: { children: ReactNode }) {
           target={artist}
           handoffs={handoffs}
           onClose={() => setArtist(null)}
+        />
+      ) : null}
+      {playlist ? (
+        <PlaylistActionsSheet
+          target={playlist}
+          onClose={() => setPlaylist(null)}
         />
       ) : null}
       <AddToPlaylistSheet

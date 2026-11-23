@@ -46,7 +46,7 @@ export default function AppLayout() {
 
   return (
     <NowPlayingProvider>
-      {/* Long-press sheets for album and artist tiles in every tab. */}
+      {/* Long-press sheets for album, artist and playlist tiles in every tab. */}
       <ItemActionsProvider>
         {IS_IOS && <LockScreenFavorite />}
         <Stack screenOptions={{ headerShown: false }}>

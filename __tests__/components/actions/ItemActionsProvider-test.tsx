@@ -23,11 +23,13 @@ jest.mock("@/lib/api/library", () => ({
   lookupLibraryArtists: jest.fn(),
   refreshCanonicalLibrary: jest.fn(),
   requestAlbumFromSearch: jest.fn(),
+  requestTrackDownload: jest.fn(),
 }));
 
 jest.mock("@/lib/api/search", () => ({
   ...jest.requireActual("@/lib/api/search"),
   getEditorialLinks: jest.fn(),
+  getEditorialPlaylist: jest.fn(),
 }));
 
 jest.mock("@/lib/api/discovery-feedback", () => ({
@@ -76,11 +78,17 @@ jest.mock("react-native-safe-area-context", () => ({
 
 import React from "react";
 import { Pressable, Text } from "react-native";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import type { AlbumActionsTarget } from "@/components/actions/AlbumActionsSheet";
 import type { ArtistActionsTarget } from "@/components/actions/ArtistActionsSheet";
+import type { PlaylistActionsTarget } from "@/components/actions/PlaylistActionsSheet";
 import { ItemActionsProvider } from "@/components/actions/ItemActionsProvider";
 import { useItemActions } from "@/components/actions/item-actions-context";
 import { recentReleaseTarget } from "@/components/actions/targets";
@@ -102,8 +110,9 @@ import {
   lookupLibraryArtists,
   refreshCanonicalLibrary,
   requestAlbumFromSearch,
+  requestTrackDownload,
 } from "@/lib/api/library";
-import { getEditorialLinks } from "@/lib/api/search";
+import { getEditorialLinks, getEditorialPlaylist } from "@/lib/api/search";
 import { useSavedStatus } from "@/lib/offline/saved-library";
 import { playAlbumFromTrack } from "@/lib/player/player";
 import type { Album, Artist, Track } from "@/lib/types/library";
@@ -183,16 +192,21 @@ afterEach(() => client.clear());
 
 /** A tile's long press: opens the sheet for `target` through the provider. */
 async function longPress(
-  target: { album: AlbumActionsTarget } | { artist: ArtistActionsTarget },
+  target:
+    | { album: AlbumActionsTarget }
+    | { artist: ArtistActionsTarget }
+    | { playlist: PlaylistActionsTarget },
 ) {
   function Tile() {
-    const { openAlbum, openArtist } = useItemActions();
+    const { openAlbum, openArtist, openPlaylist } = useItemActions();
     return (
       <Pressable
         onPress={() =>
           "album" in target
             ? openAlbum(target.album)
-            : openArtist(target.artist)
+            : "artist" in target
+              ? openArtist(target.artist)
+              : openPlaylist(target.playlist)
         }
       >
         <Text>Tile</Text>
@@ -463,4 +477,71 @@ describe("artist sheet", () => {
       }
     },
   );
+});
+
+describe("playlist sheet", () => {
+  const CARD: PlaylistActionsTarget = {
+    provider: "deezer",
+    id: "878",
+    name: "90s Hits",
+    description: null,
+    trackCount: 3,
+    artworkUrl: null,
+    curator: null,
+  };
+  const song = (trackName: string, owned = false) => ({
+    artistName: "Nirvana",
+    trackName,
+    albumName: "Nevermind",
+    preview_url: null,
+    artworkUrl: null,
+    deezerAlbumId: null,
+    owned: owned ? ({ id: trackName } as never) : null,
+  });
+  const PLAYLIST = {
+    ...CARD,
+    tracks: [song("Lithium"), song("Polly"), song("Breed", true)],
+    libraryPlaylistId: null as string | null,
+  };
+
+  it.each([
+    { saved: null, offers: "Add to Library" },
+    { saved: "pl-1", offers: "Open in Library" },
+  ])(
+    "offers $offers for a playlist saved as $saved, and its missing songs",
+    async ({ saved, offers }) => {
+      mockPermissions.add("accessPlaylists");
+      mockPermissions.add("addAlbum");
+      (getEditorialPlaylist as jest.Mock).mockResolvedValue({
+        ...PLAYLIST,
+        libraryPlaylistId: saved,
+      });
+
+      await longPress({ playlist: CARD });
+
+      expect(await screen.findByText(offers)).toBeTruthy();
+      expect(screen.getByText("Download Missing Songs (2)")).toBeTruthy();
+    },
+  );
+
+  it("downloads the missing songs after the sheet has closed", async () => {
+    mockPermissions.add("addAlbum");
+    (getEditorialPlaylist as jest.Mock).mockResolvedValue(PLAYLIST);
+    (requestTrackDownload as jest.Mock).mockResolvedValue({ success: true });
+    await longPress({ playlist: CARD });
+
+    await fireEvent.press(
+      await screen.findByText("Download Missing Songs (2)"),
+    );
+    await screen.findByText("Tile");
+
+    await waitFor(() =>
+      expect(Burnt.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Downloading 2 songs" }),
+      ),
+    );
+    expect(
+      (requestTrackDownload as jest.Mock).mock.calls.map(([t]) => t.trackName),
+    ).toEqual(["Lithium", "Polly"]);
+  });
 });
