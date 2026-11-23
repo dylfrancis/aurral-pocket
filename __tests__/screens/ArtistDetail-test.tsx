@@ -199,6 +199,12 @@ jest.mock("@/components/ui/PillRow", () => {
   };
 });
 
+let mockSavedTrackIds = new Set<string>();
+jest.mock("@/lib/offline/saved-library", () => ({
+  ...jest.requireActual("@/lib/offline/saved-library"),
+  useSavedTrackIds: () => mockSavedTrackIds,
+}));
+
 // A view picked in one test would otherwise carry into the next.
 jest.mock("@/hooks/library/use-library-view", () =>
   require("@/test-support/library-view"),
@@ -1197,6 +1203,84 @@ describe("the artist's songs", () => {
     });
   });
 
+  describe("filtered", () => {
+    const pills = () =>
+      screen.getAllByRole("tab").map((tab) => tab.props.accessibilityLabel);
+
+    beforeEach(() => {
+      mockSavedTrackIds = new Set();
+      mockGetArtistPreviewTracks.mockResolvedValue(
+        ["Song 70", "Hit Song"].map((title, index) => ({
+          id: `dz-${index}`,
+          title,
+          album: "Best Of",
+          preview_url: `/api/deezer/preview?artist=Test%20Artist&track=${title}`,
+          duration_ms: 30_000,
+        })),
+      );
+    });
+
+    it("drops Top Tracks' clips to show only the Library", async () => {
+      await renderWithSongs();
+      expect(await screen.findByLabelText("Hit Song, preview")).toBeTruthy();
+
+      await fireEvent.press(
+        screen.getByRole("menuitem", { name: "In Library" }),
+      );
+
+      expect(screen.queryByLabelText("Hit Song, preview")).toBeNull();
+      expect(screen.getByLabelText("Song 70")).toBeTruthy();
+      expect(screen.getByLabelText("Filter songs, In Library")).toBeTruthy();
+    });
+
+    it("keeps only songs saved offline, and the views that have one", async () => {
+      mockSavedTrackIds = new Set(["81"]);
+      await renderWithSongs();
+
+      await fireEvent.press(
+        await screen.findByRole("menuitem", { name: "Saved Offline" }),
+      );
+
+      expect(pills()).toEqual(["Most Played", "All Songs"]);
+      expect(await screen.findByLabelText("Song 81")).toBeTruthy();
+      expect(screen.queryByLabelText("Song 70")).toBeNull();
+
+      await fireEvent.press(screen.getByRole("tab", { name: "All Songs" }));
+      expect(screen.getByLabelText("Song 81")).toBeTruthy();
+      expect(screen.queryByLabelText("Song 80")).toBeNull();
+    });
+
+    it("leaves the filter in reach when nothing is saved", async () => {
+      await renderWithSongs();
+
+      await fireEvent.press(
+        await screen.findByRole("menuitem", { name: "Saved Offline" }),
+      );
+
+      expect(await screen.findByText("No songs saved offline")).toBeTruthy();
+      await fireEvent.press(
+        screen.getByRole("menuitem", { name: "Everything" }),
+      );
+      expect(screen.getByLabelText("Hit Song, preview")).toBeTruthy();
+    });
+
+    it("opens Show All with the filter", async () => {
+      mockSavedTrackIds = new Set(ALL_SONGS.map((track) => track.id));
+      await renderWithSongs();
+
+      await fireEvent.press(
+        await screen.findByRole("menuitem", { name: "Saved Offline" }),
+      );
+      await fireEvent.press(screen.getByRole("tab", { name: "All Songs" }));
+      await fireEvent.press(screen.getByText("Show All 6"));
+
+      expect(mockPush).toHaveBeenCalledWith({
+        pathname: "/artist/songs",
+        params: { artistId: "1", order: "album", show: "saved" },
+      });
+    });
+  });
+
   it("keeps Top Tracks alone, with no pills, for an artist outside the Library", async () => {
     mockUseLibraryLookup.mockReturnValue({
       isInLibrary: () => false,
@@ -1208,6 +1292,7 @@ describe("the artist's songs", () => {
 
     expect(await screen.findByText("Top Tracks")).toBeTruthy();
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    expect(screen.queryByLabelText("Filter songs")).toBeNull();
     expect(mockGetCanonicalLibraryPage).not.toHaveBeenCalledWith(
       expect.objectContaining({ kind: "tracks" }),
     );

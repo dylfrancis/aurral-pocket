@@ -25,6 +25,7 @@ import {
 import { offeredSort, sortsFor } from "@/hooks/library/use-library-view";
 import { usePlaySongs } from "@/hooks/library/use-play-songs";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useSavedTrackIds } from "@/lib/offline/saved-library";
 import type { AlbumTrack } from "@/lib/types/library";
 
 type RouteParams = {
@@ -34,7 +35,7 @@ type RouteParams = {
   show?: string;
 };
 
-type Show = "all" | "favorites";
+type Show = "all" | "favorites" | "saved";
 
 const ALBUM_ORDER: SortOption<"album"> = {
   key: "album",
@@ -55,7 +56,14 @@ const SORT_OPTIONS: SortOption<ArtistSongOrder>[] = [
 const SHOW_OPTIONS: MenuOption<Show>[] = [
   { key: "all", label: "All Songs" },
   { key: "favorites", label: "Favorites" },
+  { key: "saved", label: "Saved Offline" },
 ];
+
+const EMPTY_MESSAGES: Record<Show, string> = {
+  all: "No songs to show",
+  favorites: "No favorite songs",
+  saved: "No songs saved offline",
+};
 
 function matches(song: AlbumTrack, query: string) {
   return (
@@ -76,7 +84,8 @@ export function ArtistSongsScreen() {
   const playSongs = usePlaySongs();
 
   const [show, setShow] = useState<Show>(
-    params.show === "favorites" ? "favorites" : "all",
+    () =>
+      SHOW_OPTIONS.find((option) => option.key === params.show)?.key ?? "all",
   );
   const [order, setOrder] = useState<ArtistSongOrder>(
     () =>
@@ -93,12 +102,21 @@ export function ArtistSongsScreen() {
   });
   const { refreshing, onRefresh } = usePullToRefresh(list.refetch);
 
+  const savedIds = useSavedTrackIds();
+  const shown = useMemo(
+    () =>
+      show === "saved"
+        ? list.songs?.filter((song) => savedIds.has(song.id))
+        : list.songs,
+    [list.songs, show, savedIds],
+  );
+
   const [searchQuery, setSearchQuery] = useState("");
   const items = useMemo(() => {
-    const songs = list.songs ?? [];
+    const songs = shown ?? [];
     const query = searchQuery.trim().toLowerCase();
     return query ? songs.filter((song) => matches(song, query)) : songs;
-  }, [list.songs, searchQuery]);
+  }, [shown, searchQuery]);
 
   const filterSections = useMemo(
     () => ({ show: menuOptionSection("Show", SHOW_OPTIONS, show, setShow) }),
@@ -117,10 +135,8 @@ export function ArtistSongsScreen() {
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder={SEARCH_PLACEHOLDERS.artistSongs}
-      hasUnderlyingItems={(list.songs?.length ?? 0) > 0}
-      emptyMessage={
-        show === "favorites" ? "No favorite songs" : "No songs to show"
-      }
+      hasUnderlyingItems={(shown?.length ?? 0) > 0}
+      emptyMessage={EMPTY_MESSAGES[show]}
       emptyIcon="musical-notes-outline"
       filterSections={filterSections}
       filtered={show !== "all"}

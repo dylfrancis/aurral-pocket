@@ -18,6 +18,11 @@ jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   AddToPlaylistSheet: () => null,
   useAddToPlaylist: () => ({ canAddToPlaylist: false, open: jest.fn() }),
 }));
+let mockSavedTrackIds = new Set<string>();
+jest.mock("@/lib/offline/saved-library", () => ({
+  ...jest.requireActual("@/lib/offline/saved-library"),
+  useSavedTrackIds: () => mockSavedTrackIds,
+}));
 jest.mock("@shopify/flash-list", () => {
   const { FlatList } = require("react-native");
   return { FlashList: FlatList };
@@ -175,6 +180,19 @@ describe("an artist's Songs page", () => {
     expect(mockGetCanonicalLibraryPage).toHaveBeenLastCalledWith(
       expect.objectContaining({ artistId: "5", sort: "plays" }),
     );
+  });
+
+  it("lists only the songs saved offline, from the whole list", async () => {
+    mockSavedTrackIds = new Set(["11", "21"]);
+    await openSongs({ order: "plays", show: "saved" });
+
+    expect(mockGetCanonicalLibraryPage).toHaveBeenCalledWith(
+      expect.objectContaining({ artistId: "5", sort: "plays" }),
+    );
+    expect(mockGetCanonicalLibraryPage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ favorite: true }),
+    );
+    expect(titles()).toEqual(["77X", "Dry Off"]);
   });
 
   it("searches the songs by title or album", async () => {

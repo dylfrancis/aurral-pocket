@@ -37,6 +37,10 @@ type ArtistSongsSectionProps<Id extends string> = {
   onPlayAll: () => void;
   onOpenActions: (index: number) => void;
   onShowAll: () => void;
+  /** The filter's menu button, beside Play. */
+  filter?: ReactNode;
+  /** Shown when the filter leaves nothing to list. */
+  emptyMessage?: string | null;
 };
 
 export function ArtistSongsSection<Id extends string>({
@@ -54,6 +58,8 @@ export function ArtistSongsSection<Id extends string>({
   onPlayAll,
   onOpenActions,
   onShowAll,
+  filter,
+  emptyMessage,
 }: ArtistSongsSectionProps<Id>) {
   const colors = useColors();
 
@@ -75,33 +81,54 @@ export function ArtistSongsSection<Id extends string>({
   }
 
   // With pills, an empty view still lets the reader switch to another.
-  if (songs.length === 0 && pills.length === 0) return null;
+  if (songs.length === 0 && pills.length === 0) {
+    // The filter stays reachable, so it can be turned back off.
+    if (!emptyMessage) return null;
+    return (
+      <SectionFrame title={title} trailing={filter}>
+        <Text variant="caption" style={styles.empty}>
+          {emptyMessage}
+        </Text>
+      </SectionFrame>
+    );
+  }
+
+  const play = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Play ${currentLabel.toLowerCase()}`}
+      hitSlop={8}
+      onPress={() => {
+        void Haptics.selectionAsync();
+        onPlayAll();
+      }}
+      style={({ pressed }) => [
+        styles.playAll,
+        { backgroundColor: colors.brandMuted, opacity: pressed ? 0.7 : 1 },
+      ]}
+    >
+      <Ionicons name="play" size={13} color={colors.brandStrong} />
+      <Text
+        variant="caption"
+        style={[styles.playAllLabel, { color: colors.brandStrong }]}
+      >
+        Play
+      </Text>
+    </Pressable>
+  );
 
   return (
     <SectionFrame
       title={title}
       trailing={
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Play ${currentLabel.toLowerCase()}`}
-          hitSlop={8}
-          onPress={() => {
-            void Haptics.selectionAsync();
-            onPlayAll();
-          }}
-          style={({ pressed }) => [
-            styles.playAll,
-            { backgroundColor: colors.brandMuted, opacity: pressed ? 0.7 : 1 },
-          ]}
-        >
-          <Ionicons name="play" size={13} color={colors.brandStrong} />
-          <Text
-            variant="caption"
-            style={[styles.playAllLabel, { color: colors.brandStrong }]}
-          >
-            Play
-          </Text>
-        </Pressable>
+        filter ? (
+          <View style={styles.actions}>
+            {play}
+            {filter}
+          </View>
+        ) : (
+          play
+        )
       }
       pills={
         pills.length > 0 && selected ? (
@@ -176,6 +203,14 @@ const styles = StyleSheet.create({
   },
   rows: {
     paddingHorizontal: 16,
+  },
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  empty: {
+    paddingVertical: 12,
   },
   playAll: {
     flexDirection: "row",

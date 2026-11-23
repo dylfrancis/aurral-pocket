@@ -6,6 +6,10 @@ import {
   topTrackSong,
   type ArtistSong,
 } from "@/components/artist/ArtistSongRow";
+import {
+  ARTIST_SONGS_SHOW_OPTIONS,
+  type ArtistSongsShow,
+} from "@/components/artist/artist-songs-filter-types";
 import { albumTrackContext } from "@/hooks/library/album-track-context";
 import {
   useArtistSongList,
@@ -16,6 +20,7 @@ import {
   useQueuePlayback,
   useTopTracksPlayback,
 } from "@/hooks/library/use-top-tracks-playback";
+import { useSavedTrackIds } from "@/lib/offline/saved-library";
 import {
   toPlayerTrack,
   type PlayerAlbumContext,
@@ -46,16 +51,63 @@ const SONGS_PAGE: Record<
   all: { order: "album", show: "all" },
 };
 
-type Remembered = { view: ArtistSongsView };
+type Remembered = { view: ArtistSongsView; show: ArtistSongsShow };
 
 function parseRemembered(stored: unknown): Remembered {
-  const view =
+  const value =
     stored && typeof stored === "object"
-      ? (stored as Partial<Record<keyof Remembered, unknown>>).view
-      : undefined;
+      ? (stored as Partial<Record<keyof Remembered, unknown>>)
+      : {};
   return {
-    view: ARTIST_SONGS_VIEWS.find((option) => option.id === view)?.id ?? "top",
+    view:
+      ARTIST_SONGS_VIEWS.find((option) => option.id === value.view)?.id ??
+      "top",
+    show:
+      ARTIST_SONGS_SHOW_OPTIONS.find((option) => option.value === value.show)
+        ?.value ?? "everything",
   };
+}
+
+function pickView(
+  available: Record<ArtistSongsView, boolean>,
+  remembered: ArtistSongsView,
+): ArtistSongsView | null {
+  if (available[remembered]) return remembered;
+  if (available.top) return "top";
+  return ARTIST_SONGS_VIEWS.find((view) => available[view.id])?.id ?? null;
+}
+
+/**
+ * Top tracks `show` keeps: In Library drops the clips, and Saved Offline
+ * keeps the Library files saved on the phone.
+ */
+export function useShownTopTracks(
+  topTracks: TopTrack[],
+  show: ArtistSongsShow,
+): TopTrack[] {
+  const savedIds = useSavedTrackIds();
+  return useMemo(
+    () =>
+      show === "everything"
+        ? topTracks
+        : topTracks.filter(
+            ({ library }) =>
+              !!library && (show === "library" || savedIds.has(library.id)),
+          ),
+    [topTracks, show, savedIds],
+  );
+}
+
+function useShownSongs(
+  songs: AlbumTrack[] | undefined,
+  show: ArtistSongsShow,
+): AlbumTrack[] | undefined {
+  const savedIds = useSavedTrackIds();
+  return useMemo(
+    () =>
+      show === "saved" ? songs?.filter((song) => savedIds.has(song.id)) : songs,
+    [songs, show, savedIds],
+  );
 }
 
 type ArtistSongViewsOptions = {
@@ -73,9 +125,9 @@ type ArtistSongViewsOptions = {
 
 /**
  * The artist page's songs: Top Tracks, or for a Library artist its Most
- * Played, Favorites or All Songs. A view with no songs offers no pill, and a
- * remembered view this artist can't show falls back to Top Tracks. Render a
- * TrackActionsSheet with `actions`.
+ * Played, Favorites or All Songs, narrowed by the filter. A view with no
+ * songs offers no pill, and a remembered view this artist can't show falls
+ * back to Top Tracks. Render a TrackActionsSheet with `actions`.
  */
 export function useArtistSongViews({
   mbid,
@@ -95,6 +147,8 @@ export function useArtistSongViews({
   );
 
   const isLibrary = inLibrary && !!libraryArtistId;
+  // Only a Library artist has songs to narrow.
+  const show: ArtistSongsShow = isLibrary ? remembered.show : "everything";
   const plays = useArtistSongList(libraryArtistId, {
     order: "plays",
     enabled: isLibrary,
@@ -104,31 +158,39 @@ export function useArtistSongViews({
     favorite: true,
     enabled: isLibrary,
   });
+  const shownTopTracks = useShownTopTracks(topTracks, show);
+  const shownPlays = useShownSongs(plays.songs, show);
+  const shownFavorites = useShownSongs(favorites.songs, show);
 
-  const available: Record<ArtistSongsView, boolean> = {
-    top: topTracks.length > 0,
-    plays: isLibrary && !!plays.songs?.length,
-    favorites: isLibrary && !!favorites.songs?.length,
+  const unsavedAvailable: Record<ArtistSongsView, boolean> = {
+    top: shownTopTracks.length > 0,
+    plays: isLibrary && !!shownPlays?.length,
+    favorites: isLibrary && !!shownFavorites?.length,
     all: isLibrary && hasSongs,
   };
-  const views = ARTIST_SONGS_VIEWS.filter((view) => available[view.id]);
-  const current: ArtistSongsView | null = available[remembered.view]
-    ? remembered.view
-    : available.top
-      ? "top"
-      : (views[0]?.id ?? null);
-
+  // Whether any song is saved takes the whole list.
+  const allEnabled =
+    isLibrary &&
+    (show === "saved" || pickView(unsavedAvailable, remembered.view) === "all");
   const all = useArtistSongList(libraryArtistId, {
     order: "album",
-    enabled: isLibrary && current === "all",
+    enabled: allEnabled,
   });
+  const shownAll = useShownSongs(all.songs, show);
+  const available =
+    show === "saved"
+      ? { ...unsavedAvailable, all: isLibrary && !!shownAll?.length }
+      : unsavedAvailable;
+  const views = ARTIST_SONGS_VIEWS.filter((view) => available[view.id]);
+  const current = pickView(available, remembered.view);
+
   const librarySongs: AlbumTrack[] | undefined =
     current === "plays"
-      ? plays.songs
+      ? shownPlays
       : current === "favorites"
-        ? favorites.songs
+        ? shownFavorites
         : current === "all"
-          ? all.songs
+          ? shownAll
           : undefined;
 
   const isLoading =
@@ -137,9 +199,13 @@ export function useArtistSongViews({
     (isLibrary &&
       (plays.isLoading ||
         favorites.isLoading ||
-        (current === "all" && all.isLoading)));
+        (allEnabled && all.isLoading)));
 
-  const topTracksPlayback = useTopTracksPlayback(topTracks, artistName, mbid);
+  const topTracksPlayback = useTopTracksPlayback(
+    shownTopTracks,
+    artistName,
+    mbid,
+  );
   const libraryPlayback = useLibrarySongsPlayback(
     librarySongs ?? NO_SONGS,
     artistName,
@@ -157,9 +223,9 @@ export function useArtistSongViews({
   const songs = useMemo(
     (): ArtistSong[] =>
       current === "top"
-        ? topTracks.map(topTrackSong)
+        ? shownTopTracks.map(topTrackSong)
         : (librarySongs ?? NO_SONGS).map(librarySong),
-    [current, topTracks, librarySongs],
+    [current, shownTopTracks, librarySongs],
   );
 
   const showAll = useCallback(() => {
@@ -167,19 +233,33 @@ export function useArtistSongViews({
       if (!mbid) return;
       router.push({
         pathname: "/artist/top-tracks",
-        params: { mbid, artistName },
+        params: {
+          mbid,
+          artistName,
+          ...(show === "everything" ? {} : { show }),
+        },
       });
       return;
     }
     if (!current || !libraryArtistId) return;
+    const page = SONGS_PAGE[current];
     router.push({
       pathname: "/artist/songs",
-      params: { artistId: libraryArtistId, ...SONGS_PAGE[current] },
+      params: {
+        artistId: libraryArtistId,
+        order: page.order,
+        // The page shows one filter, and Favorites keeps its own.
+        show: show === "saved" && current !== "favorites" ? "saved" : page.show,
+      },
     });
-  }, [current, mbid, libraryArtistId, artistName, router]);
+  }, [current, show, mbid, libraryArtistId, artistName, router]);
 
   const select = useCallback(
     (view: ArtistSongsView) => setRemembered({ ...remembered, view }),
+    [remembered, setRemembered],
+  );
+  const setShow = useCallback(
+    (next: ArtistSongsShow) => setRemembered({ ...remembered, show: next }),
     [remembered, setRemembered],
   );
 
@@ -190,15 +270,27 @@ export function useArtistSongViews({
 
   return {
     /**
-     * Songs over a pill row, and while a Library artist's views load; with
-     * one view, that view's name.
+     * Songs over a pill row, and for a Library artist while its views load
+     * or when the filter leaves none; with one view, that view's name.
      */
     title:
-      views.length > 1 || (isLoading && inLibrary) ? "Songs" : currentLabel,
+      views.length > 1 || (inLibrary && (isLoading || views.length === 0))
+        ? "Songs"
+        : currentLabel,
     currentLabel,
     pills: views.length > 1 ? views : NO_VIEWS,
     selected: current,
     select,
+    /** Null for an artist outside the Library, which has nothing to narrow. */
+    show: isLibrary ? show : null,
+    setShow,
+    /** Shown when the filter leaves no view with songs. */
+    emptyMessage:
+      show === "saved"
+        ? "No songs saved offline"
+        : show === "library"
+          ? "No songs in your Library"
+          : null,
     songs,
     isLoading,
     itemIds: playback.itemIds,

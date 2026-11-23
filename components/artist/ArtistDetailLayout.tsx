@@ -7,6 +7,7 @@ import {
 } from "@/components/artist/MatchArtistSheet";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
+import { ArtistSongsFilter } from "@/components/artist/ArtistSongsFilter";
 import { ArtistSongsSection } from "@/components/artist/ArtistSongsSection";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
@@ -624,6 +625,12 @@ export function ArtistDetailLayout({
           onPlayAll={songs.playAll}
           onOpenActions={songs.openActions}
           onShowAll={songs.showAll}
+          filter={
+            songs.show ? (
+              <ArtistSongsFilter value={songs.show} onChange={songs.setShow} />
+            ) : null
+          }
+          emptyMessage={songs.emptyMessage}
         />
 
         {inLibrary && (
