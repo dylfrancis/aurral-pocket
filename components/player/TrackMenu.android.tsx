@@ -23,6 +23,7 @@ import {
 import { useState } from "react";
 import type { ImageSourcePropType } from "react-native";
 import type {
+  TrackMenuAction,
   TrackMenuActionId,
   TrackMenuProps,
 } from "@/components/player/track-menu-types";
@@ -40,6 +41,7 @@ const ICONS: Record<TrackMenuActionId, ImageSourcePropType> = {
   "save-offline": ArrowCircleDownIcon,
   "remove-offline": FileDownloadOffIcon,
   "saved-with": DownloadForOfflineIcon,
+  delete: DeleteIcon,
 };
 
 // A clipped popup loses the status bar offset, so near the bottom of an
@@ -50,12 +52,36 @@ export function TrackMenu({
   actions,
   onAction,
   pluginActions = [],
+  trailingActions = [],
   triggerColor,
   compact = false,
   accessibilityLabel = "More actions",
 }: TrackMenuProps) {
   const [expanded, setExpanded] = useState(false);
   const errorColor = useColors().error;
+
+  const actionItem = (action: TrackMenuAction) => (
+    <DropdownMenuItem
+      key={action.id}
+      enabled={!action.disabled}
+      elementColors={
+        action.destructive
+          ? { textColor: errorColor, leadingIconColor: errorColor }
+          : undefined
+      }
+      onClick={() => {
+        setExpanded(false);
+        onAction(action.id);
+      }}
+    >
+      <DropdownMenuItem.Text>
+        <Text>{action.title}</Text>
+      </DropdownMenuItem.Text>
+      <DropdownMenuItem.LeadingIcon>
+        <Icon source={ICONS[action.id]} size={24} />
+      </DropdownMenuItem.LeadingIcon>
+    </DropdownMenuItem>
+  );
 
   return (
     <Host matchContents>
@@ -75,28 +101,7 @@ export function TrackMenu({
           </IconButton>
         </DropdownMenu.Trigger>
         <DropdownMenu.Items>
-          {actions.map((action) => (
-            <DropdownMenuItem
-              key={action.id}
-              enabled={!action.disabled}
-              elementColors={
-                action.destructive
-                  ? { textColor: errorColor, leadingIconColor: errorColor }
-                  : undefined
-              }
-              onClick={() => {
-                setExpanded(false);
-                onAction(action.id);
-              }}
-            >
-              <DropdownMenuItem.Text>
-                <Text>{action.title}</Text>
-              </DropdownMenuItem.Text>
-              <DropdownMenuItem.LeadingIcon>
-                <Icon source={ICONS[action.id]} size={24} />
-              </DropdownMenuItem.LeadingIcon>
-            </DropdownMenuItem>
-          ))}
+          {actions.map(actionItem)}
           {pluginActions.length > 0 && <HorizontalDivider />}
           {pluginActions.map((action) => (
             <DropdownMenuItem
@@ -115,6 +120,10 @@ export function TrackMenu({
               </DropdownMenuItem.LeadingIcon>
             </DropdownMenuItem>
           ))}
+          {pluginActions.length > 0 && trailingActions.length > 0 && (
+            <HorizontalDivider />
+          )}
+          {trailingActions.map(actionItem)}
         </DropdownMenu.Items>
       </DropdownMenu>
     </Host>

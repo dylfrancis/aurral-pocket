@@ -10,6 +10,7 @@ export type User = {
     changeMonitoring?: boolean;
     deleteArtist?: boolean;
     deleteAlbum?: boolean;
+    deleteTrack?: boolean;
     accessSettings?: boolean;
     accessPlaylists?: boolean;
   };

@@ -11,6 +11,10 @@ import {
 import { AppSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import {
+  useDeletableTrackId,
+  useDeleteLibraryTrack,
+} from "@/hooks/library/use-delete-library-track";
+import {
   useIsFavoriteTrack,
   useToggleFavorite,
 } from "@/hooks/library/use-library-favorites";
@@ -102,15 +106,22 @@ export function libraryPlaylistTrack(
   };
 }
 
-/** The playlist sheet stays outside the content, because it opens as this closes. */
+/**
+ * The playlist sheet stays outside the content, because it opens as this
+ * closes. So does the delete, which is confirmed after the content has closed.
+ */
 export function TrackActionsSheet({
   target,
   onClose,
+  onDeleted,
 }: {
   target: TrackActionsTarget | null;
   onClose: () => void;
+  /** After Delete from Library, for a page the song's album may leave. */
+  onDeleted?: () => void;
 }) {
   const addToPlaylist = useAddToPlaylist();
+  const deleteTrack = useDeleteLibraryTrack(onDeleted);
 
   return (
     <>
@@ -119,6 +130,7 @@ export function TrackActionsSheet({
           target={target}
           canAddToPlaylist={addToPlaylist.canAddToPlaylist}
           onAddToPlaylist={addToPlaylist.open}
+          deleteTrack={deleteTrack}
           onClose={onClose}
         />
       )}
@@ -134,11 +146,13 @@ function TrackActionsContent({
   target,
   canAddToPlaylist,
   onAddToPlaylist,
+  deleteTrack,
   onClose,
 }: {
   target: TrackActionsTarget;
   canAddToPlaylist: boolean;
   onAddToPlaylist: (track: SharedPlaylistTrack) => void;
+  deleteTrack: ReturnType<typeof useDeleteLibraryTrack>;
   onClose: () => void;
 }) {
   const { album } = target;
@@ -166,6 +180,7 @@ function TrackActionsContent({
     "track",
     libraryTrackId ? { trackIds: [libraryTrackId] } : null,
   );
+  const deletableId = useDeletableTrackId(track, item, deleteTrack.canDelete);
   const canQueue = !!item || !!track;
   const saveAction =
     options.canSaveOffline === false ? null : songSave.actionFor(playerTrack);
@@ -322,6 +337,17 @@ function TrackActionsContent({
             onPress={closeThen(() => options.extras?.onAction(action.id))}
           />
         ))}
+        {deletableId ? (
+          <SheetAction
+            icon="trash-outline"
+            label="Delete from Library"
+            destructive
+            disabled={deleteTrack.isDeleting(deletableId)}
+            onPress={closeThen(() =>
+              deleteTrack.confirmDelete(deletableId, title),
+            )}
+          />
+        ) : null}
       </BottomSheetView>
     </AppSheet>
   );

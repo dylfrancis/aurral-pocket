@@ -1,5 +1,6 @@
 jest.mock("@/lib/api/library", () => ({
   deleteAurralAlbum: jest.fn(() => Promise.resolve({})),
+  deleteLibraryTrack: jest.fn(() => Promise.resolve({ success: true })),
   researchAurralAlbum: jest.fn(() => Promise.resolve(null)),
   getDownloadStatuses: jest.fn(() => Promise.resolve({})),
   updateLibraryFavorites: jest.fn(() => Promise.resolve({})),
@@ -68,6 +69,7 @@ jest.mock("expo-haptics", () => ({
 
 let mockParams: Record<string, string> = {};
 const mockPush = jest.fn();
+const mockBack = jest.fn();
 jest.mock("expo-router", () => {
   const React = require("react");
   const { Pressable, Text } = require("react-native");
@@ -105,13 +107,15 @@ jest.mock("expo-router", () => {
   });
   return {
     useLocalSearchParams: () => mockParams,
-    useRouter: () => ({ back: jest.fn(), push: mockPush }),
+    useRouter: () => ({ back: mockBack, push: mockPush }),
     Stack: { Screen: () => null, Toolbar },
   };
 });
 
+let mockFocused = true;
 jest.mock("expo-router/react-navigation", () => ({
   useHeaderHeight: () => 0,
+  useIsFocused: () => mockFocused,
 }));
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -196,6 +200,7 @@ import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import {
   deleteAurralAlbum,
+  deleteLibraryTrack,
   getAlbumEditions,
   getDownloadStatuses,
   getReleaseGroupPreviews,
@@ -218,6 +223,7 @@ import type { Album, Track } from "@/lib/types/library";
 const mockUseLibraryAlbum = useLibraryAlbum as jest.Mock;
 const mockUseLibraryTracks = useLibraryTracks as jest.Mock;
 const mockDeleteAurralAlbum = deleteAurralAlbum as jest.Mock;
+const mockDeleteLibraryTrack = deleteLibraryTrack as jest.Mock;
 const mockResearchAurralAlbum = researchAurralAlbum as jest.Mock;
 const mockGetDownloadStatuses = getDownloadStatuses as jest.Mock;
 const mockCoverArtImage = CoverArtImage as unknown as jest.Mock;
@@ -616,6 +622,60 @@ describe("AlbumDetailScreen", () => {
     expect(mockRunPluginAction).toHaveBeenCalledWith(noteAlbum, {
       albumId: "14",
     });
+  });
+
+  describe("deleting a song", () => {
+    const song = (id: string, trackName: string): Track => ({
+      id,
+      mbid: "",
+      trackName,
+      title: trackName,
+      trackNumber: Number(id) - 99,
+      hasFile: true,
+      size: 0,
+      quality: "FLAC",
+      streamPath: `/library/stream/14/${id}`,
+      sources: ["aurral"],
+    });
+
+    afterEach(() => {
+      mockFocused = true;
+    });
+
+    it.each([
+      // The album leaves the Library with its last song.
+      { songs: [song("100", "Nude")], focused: true, leaves: true },
+      {
+        songs: [song("100", "Nude"), song("101", "Reckoner")],
+        focused: true,
+        leaves: false,
+      },
+      // Another page has opened over it, and must not be popped.
+      { songs: [song("100", "Nude")], focused: false, leaves: false },
+    ])(
+      "leaves the page only when the album's last song goes, while it shows: $leaves",
+      async ({ songs, focused, leaves }) => {
+        mockUseLibraryTracks.mockReturnValue({ data: songs, isLoading: false });
+        // The list read after the delete no longer has the song.
+        mockDeleteLibraryTrack.mockImplementation(async () => {
+          mockUseLibraryTracks.mockReturnValue({
+            data: songs.slice(1),
+            isLoading: false,
+          });
+          return { success: true };
+        });
+        await openAlbumPage(album);
+        await fireEvent.press(screen.getByLabelText("More actions for Nude"));
+        mockFocused = focused;
+
+        await act(async () => {
+          fireEvent.press(screen.getByText("Delete from Library"));
+        });
+
+        expect(mockDeleteLibraryTrack).toHaveBeenCalledWith("100");
+        expect(mockBack).toHaveBeenCalledTimes(leaves ? 1 : 0);
+      },
+    );
   });
 
   describe("radio", () => {

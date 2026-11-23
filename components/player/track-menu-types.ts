@@ -11,7 +11,8 @@ export type TrackMenuActionId =
   | "remove"
   | "save-offline"
   | "remove-offline"
-  | "saved-with";
+  | "saved-with"
+  | "delete";
 
 export type TrackMenuAction = {
   id: TrackMenuActionId;
@@ -27,6 +28,8 @@ export type TrackMenuProps = {
   onAction: (id: TrackMenuActionId) => void;
   /** Set off from the actions by a divider. */
   pluginActions?: PluginMenuItem[];
+  /** Below the plugin actions, as Delete is in every ⋯ menu. */
+  trailingActions?: TrackMenuAction[];
   triggerColor: string;
   /** A smaller glyph, for a track row. The target stays full size. */
   compact?: boolean;

@@ -66,6 +66,10 @@ import {
   useAddTrackToLibrary,
 } from "@/hooks/library/use-add-track-to-library";
 import {
+  useDeletableTrackId,
+  useDeleteLibraryTrack,
+} from "@/hooks/library/use-delete-library-track";
+import {
   useIsFavoriteTrack,
   useToggleFavorite,
 } from "@/hooks/library/use-library-favorites";
@@ -272,11 +276,25 @@ export function NowPlayingScreen() {
     "track",
     libraryTrackId ? { trackIds: [libraryTrackId] } : null,
   );
+  const deleteTrack = useDeleteLibraryTrack();
+  const deletableId = useDeletableTrackId(null, track, deleteTrack.canDelete);
+  const trailingActions: TrackMenuAction[] = deletableId
+    ? [
+        {
+          id: "delete",
+          title: "Delete from Library",
+          destructive: true,
+          disabled: deleteTrack.isDeleting(deletableId),
+        },
+      ]
+    : [];
 
   const onMenuAction = (id: TrackMenuActionId) => {
     if (!track) return;
     if (songSave.run(id, track)) return;
-    if (id === "library") {
+    if (id === "delete") {
+      if (deletableId) deleteTrack.confirmDelete(deletableId, track.title);
+    } else if (id === "library") {
       addToLibrary.add(
         track.id,
         loadedJob
@@ -452,11 +470,15 @@ export function NowPlayingScreen() {
                       {fileQuality?.shown}
                     </Text>
                     <View style={[styles.actionSlot, styles.actionSlotEnd]}>
-                      {menuActions.length + pluginActions.length > 0 && (
+                      {menuActions.length +
+                        pluginActions.length +
+                        trailingActions.length >
+                        0 && (
                         <TrackMenu
                           actions={menuActions}
                           onAction={onMenuAction}
                           pluginActions={pluginActions}
+                          trailingActions={trailingActions}
                           triggerColor={colors.text}
                         />
                       )}

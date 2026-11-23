@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,7 +13,7 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useHeaderHeight } from "expo-router/react-navigation";
+import { useHeaderHeight, useIsFocused } from "expo-router/react-navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -298,6 +298,14 @@ export function AlbumDetailScreen() {
       });
     }
   }
+
+  // The album leaves the Library with its last song. Judged by the list read
+  // after the delete, and only while this page shows, so no other page pops.
+  const [songDeleted, setSongDeleted] = useState(false);
+  const isFocused = useIsFocused();
+  useEffect(() => {
+    if (songDeleted && isFocused && tracks?.length === 0) router.back();
+  }, [songDeleted, isFocused, tracks, router]);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -807,6 +815,7 @@ export function AlbumDetailScreen() {
       <TrackActionsSheet
         target={trackActions.target}
         onClose={trackActions.close}
+        onDeleted={() => setSongDeleted(true)}
       />
     </View>
   );

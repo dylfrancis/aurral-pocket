@@ -37,7 +37,8 @@ jest.mock("expo-crypto", () => ({
 
 // The track menu is native SwiftUI or Compose, which can't render under Jest.
 // It stands in as a group labelled like its trigger, holding a plain button per
-// action that carries the action's title, then one per plugin action.
+// action that carries the action's title, then one per plugin action, then one
+// per trailing action.
 jest.mock("@/components/player/TrackMenu", () => {
   /* eslint-disable @typescript-eslint/no-require-imports */
   const React = require("react");
@@ -54,6 +55,7 @@ jest.mock("@/components/player/TrackMenu", () => {
       actions,
       onAction,
       pluginActions = [],
+      trailingActions = [],
       accessibilityLabel,
     }: any) =>
       React.createElement(
@@ -64,6 +66,9 @@ jest.mock("@/components/player/TrackMenu", () => {
         ),
         pluginActions.map((action: any) =>
           button(action.key, action.label, action.run),
+        ),
+        trailingActions.map((action: any) =>
+          button(action.id, action.title, () => onAction(action.id)),
         ),
       ),
   };
