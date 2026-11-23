@@ -86,4 +86,27 @@ describe("CoverArtImage", () => {
 
     expect(screen.queryByTestId("cover-image")).toBeNull();
   });
+
+  it("loads the full-size original when an archive thumbnail is missing, before the MBID lookup", async () => {
+    // The archive makes thumbnails some time after an upload, so a new
+    // release's sized cover answers 404 while the original loads.
+    const thumbnail = "https://coverartarchive.org/release/r-1/123-1200.jpg";
+    mockGetAlbumCover.mockResolvedValue({
+      images: [{ image: thumbnail, front: true }],
+    });
+    await renderCover({ mbid: "rg-1", coverUrl: thumbnail });
+
+    await fireEvent(screen.getByTestId("cover-image"), "error");
+
+    expect(screen.getByTestId("cover-image").props.accessibilityLabel).toBe(
+      "https://coverartarchive.org/release/r-1/123.jpg",
+    );
+    expect(mockGetAlbumCover).not.toHaveBeenCalled();
+
+    await fireEvent(screen.getByTestId("cover-image"), "error");
+
+    // The lookup gives back the same thumbnail, so nothing is left to load.
+    expect(mockGetAlbumCover).toHaveBeenCalledWith("rg-1", undefined);
+    await waitFor(() => expect(screen.queryByTestId("cover-image")).toBeNull());
+  });
 });

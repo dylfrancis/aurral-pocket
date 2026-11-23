@@ -4,9 +4,14 @@ import { Image, type ImageStyle } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCoverArtUrl } from "@/hooks/library/use-cover-art-url";
-import { imageSource, serverImageSource } from "@/lib/api/client";
+import {
+  imageSource,
+  serverImageSource,
+  type ServerImageSource,
+} from "@/lib/api/client";
 import type { AlbumCoverHints } from "@/lib/api/library";
 import type { CoverArtType } from "@/lib/types/library";
+import { fullSizeCoverUrl } from "@/lib/url";
 import { useColors } from "@/hooks/use-colors";
 
 type CoverArtImageProps = {
@@ -19,7 +24,8 @@ type CoverArtImageProps = {
   blurRadius?: number;
   /**
    * A server artwork path, such as an album's `coverUrl`. Loaded instead of
-   * the MBID lookup, which runs only if it fails.
+   * the MBID lookup, which runs only if it fails. An archive thumbnail that
+   * fails gets its full-size original tried first.
    */
   coverUrl?: string | null;
   hints?: AlbumCoverHints;
@@ -47,21 +53,21 @@ export function CoverArtImage({
   const [failures, setFailures] = useState({ recordKey, uris: [] as string[] });
   const failedUris = failures.recordKey === recordKey ? failures.uris : [];
 
-  const serverSource = coverUrl ? serverImageSource(coverUrl) : null;
-  const loadFromServer =
-    !!serverSource && !failedUris.includes(serverSource.uri);
+  const firstUnfailed = (first: ServerImageSource | null) =>
+    withFullSize(first).find(({ uri }) => !failedUris.includes(uri)) ?? null;
+
+  const serverSource = firstUnfailed(
+    coverUrl ? serverImageSource(coverUrl) : null,
+  );
   const mbidLookup = useCoverArtUrl({
     type,
-    mbid: loadFromServer ? undefined : mbid,
+    mbid: serverSource ? undefined : mbid,
     hints,
   });
-  const source = loadFromServer
-    ? serverSource
-    : mbidLookup.url
-      ? imageSource(mbidLookup.url)
-      : null;
-  const isLoading = !loadFromServer && mbidLookup.isLoading;
-  const failed = !!source && failedUris.includes(source.uri);
+  const source =
+    serverSource ??
+    firstUnfailed(mbidLookup.url ? imageSource(mbidLookup.url) : null);
+  const isLoading = !serverSource && mbidLookup.isLoading;
 
   const colors = useColors();
   const recyclingKey = source?.uri ?? `${type}-${mbid}`;
@@ -73,7 +79,7 @@ export function CoverArtImage({
       ? { width: "100%" as const, aspectRatio: 1 }
       : { width: size, height: size };
 
-  if ((!isLoading && !source) || failed) {
+  if (!isLoading && !source) {
     if (fallback) return fallback;
     return (
       <View
@@ -119,6 +125,13 @@ export function CoverArtImage({
       )}
     </View>
   );
+}
+
+/** A source, then its full-size original when it is a sized archive thumbnail. */
+function withFullSize(source: ServerImageSource | null): ServerImageSource[] {
+  if (!source) return [];
+  const original = fullSizeCoverUrl(source.uri);
+  return original === source.uri ? [source] : [source, imageSource(original)];
 }
 
 const CIRCLE_RADIUS = 9999;
