@@ -68,6 +68,7 @@ import {
   addToQueue,
   forgetQueue,
   next,
+  onPlaybackStateChange,
   onProgress,
   onTrackStarted,
   pause,
@@ -857,6 +858,18 @@ describe("playback events", () => {
 
     expect(started).toEqual(["42"]);
     unsubscribe();
+  });
+
+  it("emits each playback state the engine reports", () => {
+    const states: string[] = [];
+    const unsubscribe = onPlaybackStateChange((state) => states.push(state));
+
+    engine.stateChange("playing", undefined);
+    engine.stateChange("paused", undefined);
+    unsubscribe();
+    engine.stateChange("playing", undefined);
+
+    expect(states).toEqual(["playing", "paused"]);
   });
 
   it("keeps showing the started track while the album loads", async () => {

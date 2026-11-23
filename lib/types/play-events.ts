@@ -23,3 +23,17 @@ export type PlayEvent = PlayEventInput & {
   id: number;
   userId: number;
 };
+
+/**
+ * The track the listener has just started, for the scrobble services' live
+ * "now playing". The server keeps no history of it.
+ */
+export type NowPlayingInput = Omit<
+  PlayEventInput,
+  "durationMs" | "playedAt" | "source"
+> & {
+  /** Track length in milliseconds. Null while the engine has not read it. */
+  durationMs: number | null;
+  /** Lets the server name the Library file or playlist job behind the track. */
+  streamPath: string;
+};
