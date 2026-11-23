@@ -814,6 +814,30 @@ describe("ArtistDetailScreen", () => {
           url: "https://music.example/api/deezer/preview/dz-2.mp3",
         });
       });
+
+      it("lists five top tracks, queues them all, and opens the rest from Show All", async () => {
+        const titles = ["One", "Two", "Three", "Four", "Five", "Six", "Seven"];
+        mockGetArtistPreviewTracks.mockResolvedValue(
+          titles.map((title, index) => topTrack(`dz-${index + 1}`, title)),
+        );
+        const { findByLabelText, findByText, queryByLabelText } =
+          await renderScreen();
+
+        expect(await findByLabelText("Five, preview")).toBeTruthy();
+        expect(queryByLabelText("Six, preview")).toBeNull();
+
+        await fireEvent.press(await findByLabelText("One, preview"));
+        expect(queuedIds()).toHaveLength(7);
+
+        await fireEvent.press(await findByText("Show All 7"));
+        expect(mockPush).toHaveBeenCalledWith({
+          pathname: "/artist/top-tracks",
+          params: {
+            mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+            artistName: "Test Artist",
+          },
+        });
+      });
     });
 
     it("renders bio and external links", async () => {

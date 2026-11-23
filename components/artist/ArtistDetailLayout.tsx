@@ -7,10 +7,7 @@ import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection
 import { TopTracksSection } from "@/components/artist/TopTracksSection";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
-import {
-  TrackActionsSheet,
-  useTrackActions,
-} from "@/components/library/TrackActionsSheet";
+import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
 import { pluginMenuSection } from "@/components/plugins/PluginMenuActions";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
 import { useSheet } from "@/components/ui/AppSheet";
@@ -22,6 +19,7 @@ import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetails } from "@/hooks/library/use-artist-details";
 import { useArtistSongs } from "@/hooks/library/use-artist-queue";
 import { useArtistTopTracks } from "@/hooks/library/use-artist-top-tracks";
+import { useTopTracksPlayback } from "@/hooks/library/use-top-tracks-playback";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import {
@@ -55,17 +53,11 @@ import { deleteLibraryArtist } from "@/lib/api/library";
 import { invalidateLibraryLists } from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
 import {
-  togglePlayback,
-  useCurrentTrack,
-  usePlaybackState,
-} from "@/lib/player/player";
-import {
   queueTrackToPlayerTrack,
   toPlayerTrack,
   type PlayerAlbumContext,
   type PlayerTrack,
 } from "@/lib/player/track-item";
-import { topTrackClipId, topTrackItem } from "@/lib/top-tracks";
 import { groupReleasesBySection, librarySection } from "@/lib/release-groups";
 import type {
   Album,
@@ -483,72 +475,14 @@ export function ArtistDetailLayout({
     [artistQueue, artistSongs, artistName, mbid, queryClient, startQueue],
   );
 
-  const topTracksContext = useMemo<PlayerAlbumContext>(
-    () => ({
-      albumTitle: "Top Tracks",
-      artistName,
-      coverPath: null,
-      artworkUrl: null,
-      albumMbid: null,
-      artistMbid: mbid ?? null,
-    }),
-    [artistName, mbid],
-  );
-  const topTrackIds = useMemo(
-    () =>
-      topTracks.map((topTrack) =>
-        topTrack.library
-          ? topTrack.library.id
-          : topTrackClipId(topTrack.preview),
-      ),
-    [topTracks],
-  );
-  // Built at the tap: each Library URL carries the session token.
-  const topTrackItems = useCallback(
-    () =>
-      topTracks
-        .map((topTrack) =>
-          topTrackItem(topTrack, { name: artistName, mbid: mbid ?? "" }),
-        )
-        .filter((item): item is PlayerTrack => item !== null),
-    [topTracks, artistName, mbid],
-  );
-  const currentTrack = useCurrentTrack();
-  const playbackState = usePlaybackState();
-  const playTopTracksFrom = useCallback(
-    (index: number) => {
-      const id = topTrackIds[index];
-      if (id === currentTrack?.id) {
-        void togglePlayback();
-        return;
-      }
-      void startQueue(topTrackItems(), topTracksContext, { startId: id });
-    },
-    [
-      topTrackIds,
-      currentTrack?.id,
-      startQueue,
-      topTrackItems,
-      topTracksContext,
-    ],
-  );
-  const trackActions = useTrackActions();
-  const openTopTrackActions = useCallback(
-    (index: number) => {
-      const topTrack = topTracks[index];
-      if (!topTrack) return;
-      trackActions.openItem(
-        topTrackItem(topTrack, { name: artistName, mbid: mbid ?? "" }),
-        topTracksContext,
-        {
-          title: topTrack.library?.title ?? topTrack.preview.title,
-          // A clip is only a cut of the song, not a file to keep.
-          canSaveOffline: !!topTrack.library,
-        },
-      );
-    },
-    [topTracks, trackActions, artistName, mbid, topTracksContext],
-  );
+  const topTracksPlayback = useTopTracksPlayback(topTracks, artistName, mbid);
+  const openTopTracks = useCallback(() => {
+    if (!mbid) return;
+    router.push({
+      pathname: "/artist/top-tracks",
+      params: { mbid, artistName },
+    });
+  }, [router, mbid, artistName]);
 
   const startRadio = useStartRadio();
   // The MBID finds the Library artist. A name could also match another artist
@@ -714,16 +648,13 @@ export function ArtistDetailLayout({
           <TopTracksSection
             topTracks={topTracks}
             isLoading={topTracksLoading}
-            itemIds={topTrackIds}
-            currentId={currentTrack?.id ?? null}
-            isPlaying={playbackState === "playing"}
-            onPlayFrom={playTopTracksFrom}
-            onPlayAll={() =>
-              void startQueue(topTrackItems(), topTracksContext, {
-                startId: topTrackIds[0],
-              })
-            }
-            onOpenActions={openTopTrackActions}
+            itemIds={topTracksPlayback.itemIds}
+            currentId={topTracksPlayback.currentId}
+            isPlaying={topTracksPlayback.isPlaying}
+            onPlayFrom={topTracksPlayback.playFrom}
+            onPlayAll={topTracksPlayback.playAll}
+            onOpenActions={topTracksPlayback.openActions}
+            onShowAll={openTopTracks}
           />
         ) : null}
 
@@ -785,8 +716,8 @@ export function ArtistDetailLayout({
       ) : null}
 
       <TrackActionsSheet
-        target={trackActions.target}
-        onClose={trackActions.close}
+        target={topTracksPlayback.actions.target}
+        onClose={topTracksPlayback.actions.close}
       />
     </View>
   );

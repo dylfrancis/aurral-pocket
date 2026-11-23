@@ -121,6 +121,12 @@ export const DETAIL_SCREEN_OPTIONS = {
   headerBackButtonDisplayMode: "minimal",
 } as const;
 
+export const TOP_TRACKS_SCREEN_OPTIONS = {
+  title: "Top Tracks",
+  headerLargeTitleEnabled: true,
+  headerBackButtonDisplayMode: "minimal",
+} as const;
+
 /**
  * An artist's Albums or Releases list, titled by the category it was opened
  * from.

@@ -3,6 +3,7 @@ import {
   DETAIL_SCREEN_OPTIONS,
   SEARCH_PLACEHOLDERS,
   artistListScreenOptions,
+  TOP_TRACKS_SCREEN_OPTIONS,
   layoutSearchBar,
   stackScreenOptions,
 } from "@/constants/navigation";
@@ -115,6 +116,10 @@ export default function LibraryLayout() {
         <Stack.Screen
           name="artist/releases"
           options={artistListScreenOptions("releases", colors)}
+        />
+        <Stack.Screen
+          name="artist/top-tracks"
+          options={TOP_TRACKS_SCREEN_OPTIONS}
         />
         <Stack.Screen
           name="blocklist"

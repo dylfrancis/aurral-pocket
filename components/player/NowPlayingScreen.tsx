@@ -214,11 +214,12 @@ export function NowPlayingScreen() {
   // Two drag areas, so the list between them can scroll.
   const topPan = usePanGesture(drag.panConfig);
   const controlsPan = usePanGesture(drag.panConfig);
-  const art = useArtFrame(swipe.offset, drag, miniCover);
+  const art = useArtFrame(swipe.offset, drag, miniCover, width - GUTTER * 2);
 
-  // The art has to be in its slot before it can grow into it.
+  // The art has to be placed, in its slot or the header, before it can
+  // grow there.
   const entered = useRef(!animatesItself);
-  const canEnter = art.size > 0 || compact || !track;
+  const canEnter = art.size > 0 || !track;
   useEffect(() => {
     if (entered.current || !canEnter) return;
     entered.current = true;
@@ -753,6 +754,7 @@ function useArtFrame(
     dismissal: SharedValue<number>;
   },
   miniCover: SharedValue<CoverFrame | null>,
+  estimatedSlotSide: number,
 ) {
   const [size, setSize] = useState(0);
   const fullSize = useSharedValue(0);
@@ -794,9 +796,15 @@ function useArtFrame(
   const onThumbRowLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const { x: rowX, y: rowY, height } = event.nativeEvent.layout;
+      // Opened straight into lyrics or the queue, the slot never laid out, so
+      // the art renders at the size the slot would give it.
+      if (fullSize.get() === 0) {
+        setSize(estimatedSlotSide);
+        fullSize.set(estimatedSlotSide);
+      }
       moveTo(rowX, rowY + (height - THUMB_SIZE) / 2, THUMB_SIZE);
     },
-    [moveTo],
+    [estimatedSlotSide, fullSize, moveTo],
   );
 
   const style = useAnimatedStyle(() => {
