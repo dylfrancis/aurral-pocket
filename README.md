@@ -29,7 +29,7 @@ A mobile app for [Aurral](https://github.com/lklynet/aurral). Discover music, ma
 
 ## Compatibility
 
-Each release targets one Aurral version, pinned in [`.aurral-version`](./.aurral-version) (currently **3.0.1**). Older servers aren't supported. Settings → About shows the pinned version and your server's.
+Each release targets one Aurral version, pinned in [`.aurral-version`](./.aurral-version) (currently **3.1.0**). Older servers aren't supported. Settings → About shows the pinned version and your server's.
 
 ## Features
 

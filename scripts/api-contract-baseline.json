@@ -1,5 +1,5 @@
 {
-  "aurralVersion": "3.0.1",
+  "aurralVersion": "3.1.0",
   "shapes": {
     "GET /auth/me": {
       "expiresAt": "number",
@@ -142,10 +142,9 @@
       },
       "metadataConfigured": "boolean",
       "metadataProviders": {
-        "brainzmash": {
+        "metadata": {
           "activeBaseUrl": "string",
           "configuredProvider": "string",
-          "failoverActive": "boolean",
           "lastCheckedAt": "null",
           "lastFailureAt": "null",
           "lastFailureReason": "string",
