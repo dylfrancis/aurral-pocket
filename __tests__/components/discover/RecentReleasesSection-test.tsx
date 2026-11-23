@@ -44,9 +44,10 @@ const mockHook = useRecentReleases as jest.Mock;
 const album = (
   overrides: Partial<RecentReleaseAlbum> & { id: string },
 ): RecentReleaseAlbum => ({
-  mbid: `mbid-${overrides.id}`,
+  releaseGroupMbid: `rg-${overrides.id}`,
   albumName: `Album ${overrides.id}`,
   artistName: "Artist",
+  artistMbid: null,
   releaseDate: "2026-04-01",
   coverUrl: null,
   albumType: "Album",

@@ -47,7 +47,6 @@ function album(id: string, title: string, artistId: string): Album {
     // The album's own credit; the page's artist row names it better.
     artistName: "",
     mbid: `rg-${id}`,
-    foreignAlbumId: `rg-${id}`,
     albumName: title,
     title,
     releaseDate: null,
@@ -61,7 +60,6 @@ function artist(id: string, artistName: string): Artist {
   return {
     id,
     mbid: `mb-${id}`,
-    foreignArtistId: `mb-${id}`,
     artistName,
     monitored: false,
     addedAt: null,

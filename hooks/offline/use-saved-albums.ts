@@ -47,7 +47,6 @@ function cardFor(item: SavedAlbum): Album {
     artistId: route.artistId,
     artistName: route.artistName,
     mbid: route.albumMbid,
-    foreignAlbumId: route.albumMbid,
     albumName: route.title,
     title: route.title,
     releaseDate: null,

@@ -243,7 +243,6 @@ describe("addArtist", () => {
   it("calls POST /library/artists with request body", async () => {
     const response = {
       queued: true,
-      foreignArtistId: "abc-123",
       artistName: "Radiohead",
     };
     mockApi.post.mockResolvedValue({ data: response });
@@ -328,7 +327,6 @@ describe("getRecentlyAdded", () => {
       {
         id: "1",
         mbid: "mbid-1",
-        foreignArtistId: "mbid-1",
         artistName: "Radiohead",
         addedAt: "2026-04-01T00:00:00Z",
       },

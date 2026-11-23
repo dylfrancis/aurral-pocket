@@ -71,7 +71,7 @@ const release = (
   overrides: Partial<RecentReleaseAlbum> = {},
 ): RecentReleaseAlbum => ({
   id,
-  mbid: id,
+  releaseGroupMbid: id,
   albumName: `Album ${id}`,
   artistName: "Artist",
   artistMbid: "artist-mbid",

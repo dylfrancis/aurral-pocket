@@ -25,7 +25,6 @@ import {
   menuOptionSection,
 } from "@/components/ui/MenuOptions";
 import { formatDate } from "@/lib/date-time";
-import { recentlyAddedMbid } from "@/lib/discover/format";
 import { artistRouteId } from "@/lib/library-read";
 import {
   filterKey,
@@ -205,7 +204,7 @@ export default function DiscoverListScreen() {
           backgroundColor={colors.background}
           keyOf={(item) => item.id}
           renderCell={(item) => {
-            const mbid = recentlyAddedMbid(item);
+            const mbid = item.mbid ?? "";
             const open = () =>
               openArtist({ mbid: artistRouteId(item), name: item.artistName });
             const openActions = () =>

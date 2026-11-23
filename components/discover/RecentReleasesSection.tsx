@@ -19,12 +19,7 @@ export function RecentReleasesSection({ onAlbumPress, onViewAll }: Props) {
     <DiscoverRail
       title="Recent & Upcoming Releases"
       items={data ?? []}
-      keyOf={(album, index) =>
-        album.id ||
-        album.mbid ||
-        album.foreignAlbumId ||
-        `${album.albumName}-${index}`
-      }
+      keyOf={(album) => album.releaseGroupMbid}
       renderItem={(album) => (
         <DiscoverReleaseCard
           album={album}

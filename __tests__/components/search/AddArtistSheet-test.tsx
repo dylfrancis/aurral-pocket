@@ -129,12 +129,10 @@ beforeEach(() => {
   });
   mockAddArtist.mockResolvedValue({
     queued: false,
-    foreignArtistId: "a74b1b7f-71a5-4011-9441-d0b5e4122711",
     artistName: "Radiohead",
     artist: {
       id: "7",
       mbid: "a74b1b7f-71a5-4011-9441-d0b5e4122711",
-      foreignArtistId: "a74b1b7f-71a5-4011-9441-d0b5e4122711",
       artistName: "Radiohead",
       monitored: true,
       statistics: { albumCount: 0, trackCount: 0, sizeOnDisk: 0 },
@@ -236,7 +234,6 @@ describe("AddArtistSheet", () => {
     await act(async () =>
       finish({
         queued: false,
-        foreignArtistId: "a74b1b7f-71a5-4011-9441-d0b5e4122711",
         artistName: "Radiohead",
       }),
     );

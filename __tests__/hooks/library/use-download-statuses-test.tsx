@@ -18,7 +18,6 @@ const wantedAurralAlbum: Album = {
   artistId: "3",
   artistName: "Artist",
   mbid: "rg-7",
-  foreignAlbumId: "rg-7",
   albumName: "Album",
   title: "Album",
   releaseDate: "2026-01-01",

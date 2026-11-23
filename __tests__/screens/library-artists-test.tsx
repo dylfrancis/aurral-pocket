@@ -38,7 +38,6 @@ function artist(name: string): Artist {
   return {
     id: name.toLowerCase(),
     mbid: `mb-${name}`,
-    foreignArtistId: `mb-${name}`,
     artistName: name,
     monitored: false,
     addedAt: null,

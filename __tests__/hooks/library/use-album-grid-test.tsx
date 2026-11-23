@@ -26,7 +26,6 @@ function makeAlbum(id: string, overrides: Partial<Album> = {}): Album {
     artistId: "1",
     artistName: "",
     mbid: `mb-album-${id}`,
-    foreignAlbumId: `f-${id}`,
     albumName: `Album ${id}`,
     title: `Album ${id}`,
     releaseDate: null,
@@ -45,7 +44,6 @@ function makeArtist(id: string, overrides: Partial<Artist> = {}): Artist {
   return {
     id,
     mbid: `mb-artist-${id}`,
-    foreignArtistId: `f-${id}`,
     artistName: `Artist ${id}`,
     monitored: false,
     addedAt: null,

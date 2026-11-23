@@ -18,7 +18,6 @@ export type LibrarySource = "aurral" | "readonly" | "flow" | "all";
 export type Artist = {
   id: string;
   mbid: string;
-  foreignArtistId: string;
   artistName: string;
   monitored: boolean;
   /** Null on the canonical read path, whose rows carry no added date. */
@@ -36,8 +35,6 @@ export type Artist = {
   userFavorite?: boolean;
   /** Canonical read path only. See CanonicalArtistItem. */
   coverUrl?: string;
-  /** Canonical read path only. See CanonicalArtistItem. */
-  providerId?: string | number | null;
 };
 
 export type AlbumStatistics = {
@@ -85,8 +82,11 @@ export type Album = {
   id: string;
   artistId: string;
   artistName: string;
+  /**
+   * The release group, unlike the server's album `mbid`, which is the release.
+   * Only an album whose files name no release group falls back to the release.
+   */
   mbid: string;
-  foreignAlbumId: string;
   albumName: string;
   title: string;
   releaseDate: string | null;
@@ -365,10 +365,6 @@ export type CanonicalArtistItem = {
    * neither.
    */
   coverUrl?: string | null;
-  /**
-   * Null for an artist Aurral scanned. The web offers Match artist only then.
-   */
-  providerId?: string | number | null;
 };
 
 /**

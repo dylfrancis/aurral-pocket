@@ -68,10 +68,10 @@ export function recentReleaseTarget(
   album: RecentReleaseAlbum,
 ): AlbumActionsTarget {
   return {
-    mbid: album.mbid || album.foreignAlbumId || album.id,
+    mbid: album.releaseGroupMbid,
     title: album.albumName || album.title || "",
     artistName: album.artistName,
-    artistMbid: album.artistMbid || album.foreignArtistId || null,
+    artistMbid: album.artistMbid,
     // A recommended artist's release names the artist by MBID in this field.
     artistId: isLibraryArtistId(album.artistId) ? album.artistId! : null,
     coverUrl: album.coverUrl,

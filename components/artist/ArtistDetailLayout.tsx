@@ -207,12 +207,7 @@ export function ArtistDetailLayout({
       name: libraryArtist?.artistName || artistName,
     });
 
-  // As on the web: only for an artist with no provider record.
-  const canMatch =
-    inLibrary &&
-    hasPermission("addArtist") &&
-    !!canonicalArtist &&
-    canonicalArtist.providerId == null;
+  const canMatch = inLibrary && hasPermission("addArtist") && !!canonicalArtist;
   const [matching, setMatching] = useState(false);
   const handleMatched = useCallback(
     (result: ArtistMatchResult) => {
@@ -289,12 +284,7 @@ export function ArtistDetailLayout({
 
   const libraryAlbumMbids = useMemo(() => {
     if (!rawAlbums) return new Set<string>();
-    const set = new Set<string>();
-    for (const a of rawAlbums) {
-      set.add(a.mbid);
-      set.add(a.foreignAlbumId);
-    }
-    return set;
+    return new Set(rawAlbums.map((a) => a.mbid));
   }, [rawAlbums]);
 
   const groupedReleases = useMemo(() => {

@@ -221,7 +221,6 @@ const album: Album = {
   artistId: "7",
   artistName: "Radiohead",
   mbid: "rg-1",
-  foreignAlbumId: "rg-1",
   albumName: "In Rainbows",
   title: "In Rainbows",
   releaseDate: "2007-10-10",

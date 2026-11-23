@@ -41,7 +41,7 @@ export function useAlbumsWithTypes(
     }
 
     return albums.map((album) => {
-      const rg = rgMap.get(album.mbid) ?? rgMap.get(album.foreignAlbumId);
+      const rg = rgMap.get(album.mbid);
       const albumType = (album.albumType ??
         rg?.["primary-type"] ??
         "Album") as PrimaryReleaseType;
@@ -54,13 +54,7 @@ export function useAlbumsWithTypes(
 
   const otherReleases = useMemo(() => {
     if (!releaseGroups) return undefined;
-    const libraryMbids = new Set<string>();
-    if (albums) {
-      for (const a of albums) {
-        libraryMbids.add(a.mbid);
-        libraryMbids.add(a.foreignAlbumId);
-      }
-    }
+    const libraryMbids = new Set(albums?.map((a) => a.mbid));
     return releaseGroups.filter((rg) => !libraryMbids.has(rg.id));
   }, [releaseGroups, albums]);
 

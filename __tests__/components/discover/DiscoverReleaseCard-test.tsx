@@ -42,7 +42,7 @@ const mockGetArtistCover = getArtistCover as jest.Mock;
 
 const album: RecentReleaseAlbum = {
   id: "rg-1",
-  mbid: "rg-1",
+  releaseGroupMbid: "rg-1",
   albumName: "Anything",
   artistName: "Phoebe Bridgers",
   artistMbid: "artist-1",

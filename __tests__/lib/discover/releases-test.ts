@@ -3,9 +3,10 @@ import type { RecentReleaseAlbum } from "@/lib/types/search";
 
 const release = (id: string, releaseDate: string): RecentReleaseAlbum => ({
   id,
-  mbid: id,
+  releaseGroupMbid: id,
   albumName: `Album ${id}`,
   artistName: "Artist",
+  artistMbid: null,
   releaseDate,
   coverUrl: null,
   albumType: "Album",

@@ -72,7 +72,7 @@ async function openRow(albumType: string, { loading = false } = {}) {
     isLoading: loading,
   });
   mockUseLibraryAlbums.mockReturnValue({
-    data: loading ? undefined : [{ mbid: "Owned", foreignAlbumId: "Owned" }],
+    data: loading ? undefined : [{ mbid: "Owned" }],
     isLoading: loading,
     refetch: jest.fn(),
   });

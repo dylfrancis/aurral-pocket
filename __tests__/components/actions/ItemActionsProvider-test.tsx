@@ -126,7 +126,6 @@ const ALBUM: Album = {
   artistId: "3",
   artistName: "Radiohead",
   mbid: ALBUM_MBID,
-  foreignAlbumId: ALBUM_MBID,
   albumName: "OK Computer",
   title: "OK Computer",
   releaseDate: "1997-05-21",
@@ -153,14 +152,12 @@ const track = (id: string, discNumber: number, trackNumber: number): Track => ({
 const ARTIST: Artist = {
   id: "3",
   mbid: ARTIST_MBID,
-  foreignArtistId: ARTIST_MBID,
   artistName: "Radiohead",
   monitored: true,
   addedAt: null,
   statistics: { albumCount: 1 } as Artist["statistics"],
   identityKey: "artist:radiohead",
   userFavorite: false,
-  providerId: "mb",
   sources: ["aurral"],
 };
 
@@ -323,7 +320,7 @@ describe("album sheet", () => {
     await longPress({
       album: recentReleaseTarget({
         id: "r1",
-        mbid: ALBUM_MBID,
+        releaseGroupMbid: ALBUM_MBID,
         albumName: "OK Computer",
         artistName: "Radiohead",
         artistMbid: ARTIST_MBID,

@@ -337,7 +337,6 @@ const NOTE_ARTIST = {
 const baseArtist: Artist = {
   id: "1",
   mbid: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
-  foreignArtistId: "0b2a1c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
   artistName: "Test Artist",
   monitored: true,
   addedAt: "2024-01-01",
@@ -348,7 +347,6 @@ const makeAlbum = (overrides: Partial<Album> & { id: string }): Album => ({
   artistId: "1",
   artistName: "Test Artist",
   mbid: `mbid-${overrides.id}`,
-  foreignAlbumId: `fid-${overrides.id}`,
   albumName: `Album ${overrides.id}`,
   title: `Album ${overrides.id}`,
   releaseDate: "2024-01-01",
@@ -1033,7 +1031,6 @@ describe("a Library artist with no MBID", () => {
     ...baseArtist,
     id: LIBRARY_ID,
     mbid: "",
-    foreignArtistId: "name:artist:djo",
     artistName: "Djo",
     identityKey: "name:artist:djo",
     sources: ["readonly"],

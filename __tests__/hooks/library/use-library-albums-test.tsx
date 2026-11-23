@@ -17,7 +17,6 @@ function makeAlbum(overrides: Partial<Album> = {}): Album {
     artistId: "art1",
     artistName: "Artist",
     mbid: "mb1",
-    foreignAlbumId: "f1",
     albumName: "Album",
     title: "Album",
     releaseDate: "2020-01-01",

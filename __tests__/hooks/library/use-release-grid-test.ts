@@ -36,7 +36,6 @@ function makeAlbum(name: string, id = name): Album {
     artistId: "artist-1",
     artistName: "Artist",
     mbid: `mbid-${id}`,
-    foreignAlbumId: `fid-${id}`,
     albumName: name,
     title: name,
     releaseDate: "2024-01-01",
