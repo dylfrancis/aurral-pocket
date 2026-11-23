@@ -187,10 +187,11 @@ export type PreviewTrack = {
   id: string;
   title: string;
   album: string | null;
-  /** Deezer's album cover, an absolute URL. */
+  /** The album's cover. A server path when only the release group is known. */
   artworkUrl?: string | null;
-  preview_url: string;
-  duration_ms: number;
+  /** Null when the server has no artist name to look the clip up by. */
+  preview_url: string | null;
+  duration_ms: number | null;
 };
 
 export type LidarrDownloadStatus =

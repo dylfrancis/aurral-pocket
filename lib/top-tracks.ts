@@ -1,4 +1,4 @@
-import { absolutizeServerPath } from "@/lib/api/client";
+import { authenticatedClipUrl } from "@/lib/api/client";
 import {
   queueTrackToPlayerTrack,
   type PlayerTrack,
@@ -74,7 +74,10 @@ export function topTrackClipId(preview: PreviewTrack): string {
   return `preview:${preview.id}`;
 }
 
-/** Null for a Library track whose URL can't be built now, as when the session has ended. */
+/**
+ * Null when the track's URL can't be built now, as when the session has ended,
+ * or for a song with no clip.
+ */
 export function topTrackItem(
   topTrack: TopTrack,
   artist: { name: string; mbid: string },
@@ -83,14 +86,15 @@ export function topTrackItem(
     return queueTrackToPlayerTrack(topTrack.library, null);
   }
   const { preview } = topTrack;
+  const url = preview.preview_url && authenticatedClipUrl(preview.preview_url);
+  if (!url) return null;
   return {
     id: topTrackClipId(preview),
     title: preview.title,
     artist: artist.name,
     album: preview.album ?? "",
     duration: 0,
-    // The server sends Deezer clips as paths. They need no token.
-    url: absolutizeServerPath(preview.preview_url),
+    url,
     artwork: preview.artworkUrl ?? null,
     streamPath: null,
     coverPath: null,

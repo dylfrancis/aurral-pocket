@@ -12,7 +12,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import { act, renderHook } from "@testing-library/react-native";
 import { useAudioPreview } from "@/hooks/library/use-audio-preview";
-import { setBaseUrl } from "@/lib/api/client";
+import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
   PlayerQueue,
   TrackPlayer,
@@ -57,17 +57,21 @@ beforeEach(() => {
 });
 
 describe("useAudioPreview", () => {
-  it("plays a server-relative clip from the server's address", async () => {
+  it("plays a server-relative clip from the server's address, with the session token", async () => {
     setBaseUrl("http://server:3001");
+    setAuthToken("token");
     const { result } = await renderHook(() => useAudioPreview());
 
     await act(async () => {
-      await result.current.toggle("track-1", "/api/deezer/preview/1.mp3");
+      await result.current.toggle(
+        "track-1",
+        "/api/deezer/preview?artist=Radiohead&track=Creep",
+      );
     });
 
     expect(queue.addTracksToPlaylist).toHaveBeenCalledWith("playlist-1", [
       expect.objectContaining({
-        url: "http://server:3001/api/deezer/preview/1.mp3",
+        url: "http://server:3001/api/deezer/preview?artist=Radiohead&track=Creep&token=token",
       }),
     ]);
   });

@@ -786,7 +786,7 @@ export async function getReleaseGroupTracks(mbid: string, release?: string) {
   return r.data;
 }
 
-/** A thirty-second clip. The URL is a server path that needs no token. */
+/** A thirty-second clip, as a server path. */
 export type ReleaseGroupPreview = { preview_url: string };
 
 /**

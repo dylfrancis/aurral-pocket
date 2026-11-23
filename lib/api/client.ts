@@ -110,7 +110,7 @@ export function imageSource(uri: string): ServerImageSource {
   return toImageSource(uri, customHeadersFor(uri));
 }
 
-export function absolutizeServerPath(urlOrPath: string): string {
+function absolutizeServerPath(urlOrPath: string): string {
   if (!urlOrPath.startsWith("/")) return urlOrPath;
   return `${getServerUrl()}${urlOrPath}`;
 }
@@ -160,6 +160,18 @@ export function authenticatedImageUrl(
   if (!raw.startsWith("/")) return absolutizeImageUrl(raw);
   if (!authToken || !baseURL) return null;
   return buildUrl(absolutizeImageUrl(raw)!, { token: authToken });
+}
+
+/**
+ * A thirty-second clip's URL for the engine, which can't send headers. Aurral
+ * sends clips as server paths, and the `/api/deezer/preview?artist=&track=`
+ * form answers 401 without the session token, so every server path gets it.
+ * A clip on another host never does. Null while signed out.
+ */
+export function authenticatedClipUrl(raw: string): string | null {
+  if (!raw.startsWith("/")) return raw;
+  if (!authToken || !baseURL) return null;
+  return buildUrl(absolutizeServerPath(raw), { token: authToken });
 }
 
 export function setAuthToken(token: string | null) {

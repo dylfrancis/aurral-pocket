@@ -56,7 +56,7 @@ import {
 } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TrendingCharts } from "@/components/discover/TrendingCharts";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
   addEditorialPlaylistToLibrary,
   getEditorialLinks,
@@ -353,6 +353,17 @@ describe("Save as Playlist", () => {
 });
 
 describe("taps", () => {
+  // A clip's URL carries the session token.
+  beforeEach(() => {
+    setBaseUrl("http://server");
+    setAuthToken("token");
+  });
+
+  afterEach(() => {
+    setBaseUrl("");
+    setAuthToken(null);
+  });
+
   it("plays a song's preview", async () => {
     await renderCharts();
 

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { absolutizeServerPath } from "@/lib/api/client";
+import { authenticatedClipUrl } from "@/lib/api/client";
 import {
   pause,
   pauseClip,
@@ -55,18 +55,19 @@ export function useAudioPreview() {
 
   const toggle = useCallback(
     (trackId: string, previewUrl: string, meta: PreviewMetadata = {}) =>
-      toggleItem(trackId, () =>
-        playItem({
+      toggleItem(trackId, async () => {
+        const url = authenticatedClipUrl(previewUrl);
+        if (!url) return;
+        await playItem({
           id: trackId,
           title: meta.title || "Preview",
           artist: meta.artist || "Unknown Artist",
           album: meta.album || "Unknown Album",
           duration: 0,
-          // The server sends Deezer clips as paths. They need no token.
-          url: absolutizeServerPath(previewUrl),
+          url,
           artwork: meta.artwork ?? null,
-        }),
-      ),
+        });
+      }),
     [toggleItem],
   );
 

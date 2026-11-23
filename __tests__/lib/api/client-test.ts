@@ -17,6 +17,7 @@ jest.mock("expo/fetch", () => ({
 import {
   ApiError,
   api,
+  authenticatedClipUrl,
   authenticatedImageUrl,
   buildAuthenticatedUrl,
   imageSource,
@@ -253,6 +254,34 @@ describe("authenticatedImageUrl", () => {
     setAuthToken(null);
 
     expect(authenticatedImageUrl("/api/library/albums/12/cover")).toBeNull();
+  });
+});
+
+describe("authenticatedClipUrl", () => {
+  it("adds the session token to a server clip, which answers 401 without it", () => {
+    setAuthToken("test-token-123");
+
+    expect(
+      authenticatedClipUrl("/api/deezer/preview?artist=Radiohead&track=Creep"),
+    ).toBe(
+      "https://test.example/api/deezer/preview?artist=Radiohead&track=Creep&token=test-token-123",
+    );
+  });
+
+  it("never sends the session token to another host", () => {
+    setAuthToken("test-token-123");
+
+    expect(authenticatedClipUrl("https://cdn.example/clip.mp3")).toBe(
+      "https://cdn.example/clip.mp3",
+    );
+  });
+
+  it("has no server clip to give while signed out", () => {
+    setAuthToken(null);
+
+    expect(
+      authenticatedClipUrl("/api/deezer/preview?artist=Radiohead&track=Creep"),
+    ).toBeNull();
   });
 });
 

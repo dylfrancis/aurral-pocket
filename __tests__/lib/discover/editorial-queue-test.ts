@@ -84,7 +84,7 @@ describe("editorialClipItem", () => {
       title: "Nude",
       streamPath: null,
       isPreview: true,
-      url: "https://music.example/api/deezer/preview/9.mp3",
+      url: "https://music.example/api/deezer/preview/9.mp3?token=token",
     });
     expect(editorialClipItem("row-2", track("Lift", {}))).toBeNull();
   });

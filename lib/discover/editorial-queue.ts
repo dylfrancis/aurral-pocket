@@ -1,4 +1,4 @@
-import { absolutizeServerPath } from "@/lib/api/client";
+import { authenticatedClipUrl } from "@/lib/api/client";
 import {
   queueTrackToPlayerTrack,
   type PlayerAlbumContext,
@@ -19,20 +19,23 @@ export function editorialQueue(playlist: EditorialPlaylist): PlayerTrack[] {
   });
 }
 
-/** A song's thirty-second clip, played alone. Null when Deezer has none. */
+/**
+ * A song's thirty-second clip, played alone. Null when Deezer has none, or
+ * while signed out.
+ */
 export function editorialClipItem(
   id: string,
   track: EditorialTrack,
 ): PlayerTrack | null {
-  if (!track.preview_url) return null;
+  const url = track.preview_url && authenticatedClipUrl(track.preview_url);
+  if (!url) return null;
   return {
     id,
     title: track.trackName,
     artist: track.artistName,
     album: track.albumName ?? "",
     duration: 0,
-    // The server sends Deezer clips as paths. They need no token.
-    url: absolutizeServerPath(track.preview_url),
+    url,
     artwork: track.artworkUrl,
     streamPath: null,
     coverPath: null,

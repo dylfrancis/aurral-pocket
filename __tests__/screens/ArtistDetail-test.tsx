@@ -764,7 +764,7 @@ describe("ArtistDetailScreen", () => {
         id,
         title,
         album: "Best Of",
-        preview_url: `/api/deezer/preview/${id}.mp3`,
+        preview_url: `/api/deezer/preview?artist=Test%20Artist&track=${title}`,
         duration_ms: 30_000,
       });
       const queuedIds = () =>
@@ -812,7 +812,7 @@ describe("ArtistDetailScreen", () => {
         expect(clip).toMatchObject({
           streamPath: null,
           isPreview: true,
-          url: "https://music.example/api/deezer/preview/dz-2.mp3",
+          url: "https://music.example/api/deezer/preview?artist=Test%20Artist&track=Rarity&token=token",
         });
       });
 

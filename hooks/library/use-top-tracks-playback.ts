@@ -40,7 +40,7 @@ export function useTopTracksPlayback(
       ),
     [topTracks],
   );
-  // Built at the tap: each Library URL carries the session token.
+  // Built at the tap: each URL carries the session token.
   const items = useCallback(
     () =>
       topTracks

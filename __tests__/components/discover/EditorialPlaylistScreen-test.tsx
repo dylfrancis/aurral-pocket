@@ -283,6 +283,17 @@ describe("the page itself", () => {
 });
 
 describe("songs the Library doesn't have", () => {
+  // A clip's URL carries the session token.
+  beforeEach(() => {
+    setBaseUrl("http://server");
+    setAuthToken("token");
+  });
+
+  afterEach(() => {
+    setBaseUrl("");
+    setAuthToken(null);
+  });
+
   it("grays them, and a song with no clip can't be tapped", async () => {
     await openPage(
       playlist({
