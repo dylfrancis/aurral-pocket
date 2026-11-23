@@ -68,9 +68,7 @@ const OtherRoute = () => null;
 
 async function openRow(albumType: string, { loading = false } = {}) {
   mockUseArtistDetails.mockReturnValue({
-    data: loading
-      ? undefined
-      : { "release-groups": RELEASES, "release-stats-pending": false },
+    data: loading ? undefined : { "release-groups": RELEASES },
     isLoading: loading,
   });
   mockUseLibraryAlbums.mockReturnValue({
