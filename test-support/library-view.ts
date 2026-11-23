@@ -3,7 +3,7 @@
 // The real hook keeps every list's view in memory for the whole run, so a
 // sort one test picks would carry into the next. Each mount here starts on
 // the list's defaults. The storage itself is tested in use-library-view-test.
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type {
   LibraryShow,
   LibraryView,
@@ -26,12 +26,19 @@ export function useLibraryView<Sort extends string>(
     show: "all",
     status: null,
   });
-  return {
-    view,
-    setSort: (sort: Sort) => setView((current) => ({ ...current, sort })),
-    setShow: (show: LibraryShow) =>
-      setView((current) => ({ ...current, show })),
-    setStatus: (status: LibraryStatus | null) =>
+  // Stable, as the real hook's are, so a memoized header keeps its identity.
+  const setSort = useCallback(
+    (sort: Sort) => setView((current) => ({ ...current, sort })),
+    [],
+  );
+  const setShow = useCallback(
+    (show: LibraryShow) => setView((current) => ({ ...current, show })),
+    [],
+  );
+  const setStatus = useCallback(
+    (status: LibraryStatus | null) =>
       setView((current) => ({ ...current, status })),
-  };
+    [],
+  );
+  return { view, setSort, setShow, setStatus };
 }

@@ -59,6 +59,9 @@ export const libraryKeys = {
   songs: (params: LibraryListParams) => ["library", "songs", params] as const,
   genres: () => ["library", "genres"] as const,
   favorites: () => ["library", "favorites"] as const,
+  // Under `favorites`, so a favorite change rereads the Favorites screen too.
+  favoriteLists: (order: Pick<LibraryListParams, "sort" | "direction">) =>
+    ["library", "favorites", "lists", order] as const,
   tracks: (albumId: string) => ["library", "tracks", albumId] as const,
   // The prefix of every album's track list, for invalidation.
   trackLists: () => ["library", "tracks"] as const,

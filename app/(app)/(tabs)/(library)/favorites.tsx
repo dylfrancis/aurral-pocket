@@ -3,7 +3,10 @@ import { RefreshControl, StyleSheet } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { FAVORITE_SORT_OPTIONS } from "@/components/library/AlbumSortPicker";
 import { EmptyState } from "@/components/library/EmptyState";
+import { sortMenu } from "@/components/library/LibraryListMenus";
+import { NO_SCROLL_ANCHOR } from "@/components/library/ReleaseGrid";
 import { SongRow } from "@/components/library/SongRow";
 import {
   TrackActionsSheet,
@@ -19,6 +22,10 @@ import {
   useToggleFavorite,
 } from "@/hooks/library/use-library-favorites";
 import {
+  useLibraryView,
+  type LibraryShow,
+} from "@/hooks/library/use-library-view";
+import {
   albumTrackArtist,
   albumTrackContext,
 } from "@/hooks/library/album-track-context";
@@ -32,8 +39,8 @@ import { albumRouteParams, artistRouteId } from "@/lib/library-read";
 import type {
   Album,
   Artist,
+  FavoriteLists,
   FavoriteTrack,
-  LibraryFavorites,
 } from "@/lib/types/library";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useOpenArtist } from "@/hooks/use-open-artist";
@@ -41,6 +48,9 @@ import { useColors } from "@/hooks/use-colors";
 
 const ROW_HEART_SIZE = 40;
 const FAVORITES = songListContext("Favorites");
+const FAVORITE_SORTS = FAVORITE_SORT_OPTIONS.map((option) => option.key);
+// Favorites has no Show filter.
+const FAVORITE_SHOWS: LibraryShow[] = ["all"];
 
 type FavoriteRow =
   | { type: "header"; title: string }
@@ -58,7 +68,7 @@ function sectionRows<Item>(
     : [];
 }
 
-function favoriteRows(favorites: LibraryFavorites): FavoriteRow[] {
+function favoriteRows(favorites: FavoriteLists): FavoriteRow[] {
   return [
     ...sectionRows("Artists", favorites.artists, (artist) => ({
       type: "artist",
@@ -89,9 +99,9 @@ function rowKey(row: FavoriteRow) {
 }
 
 function matchingFavorites(
-  favorites: LibraryFavorites,
+  favorites: FavoriteLists,
   query: string,
-): LibraryFavorites {
+): FavoriteLists {
   if (!query) return favorites;
   const lowerCaseQuery = query.toLocaleLowerCase();
   const matches = (...fields: (string | undefined)[]) =>
@@ -113,7 +123,14 @@ export default function LibraryFavoritesScreen() {
   const openArtist = useOpenArtist();
   const queryClient = useQueryClient();
   const colors = useColors();
-  const { data: favorites, refetch } = useLibraryFavorites();
+  const { view, setSort } = useLibraryView(
+    "library-favorites",
+    FAVORITE_SORTS,
+    FAVORITE_SHOWS,
+  );
+  const { data: favorites, refetch } = useLibraryFavorites(view.sort);
+  // Recently Played and Most Played leave out what hasn't been played.
+  const playedOnly = view.sort === "played" || view.sort === "plays";
   const toggleFavorite = useToggleFavorite();
   const trackActions = useTrackActions();
   const play = usePlayTrack();
@@ -133,6 +150,14 @@ export default function LibraryFavoritesScreen() {
     [],
   );
   const handleSearchCancel = useCallback(() => setSearchQuery(""), []);
+  const toolbar = useMemo(
+    () => (
+      <Stack.Toolbar placement="right">
+        {sortMenu(FAVORITE_SORT_OPTIONS, view.sort, setSort)}
+      </Stack.Toolbar>
+    ),
+    [view.sort, setSort],
+  );
 
   const { refreshing, onRefresh } = usePullToRefresh(
     refetch,
@@ -236,7 +261,11 @@ export default function LibraryFavoritesScreen() {
         onChangeText={handleSearchChange}
         onCancelButtonPress={handleSearchCancel}
       />
+      {toolbar}
       <FlashList
+        // A new sort opens at the top; see NO_SCROLL_ANCHOR.
+        key={view.sort}
+        maintainVisibleContentPosition={NO_SCROLL_ANCHOR}
         data={rows}
         renderItem={renderRow}
         keyExtractor={rowKey}
@@ -257,6 +286,11 @@ export default function LibraryFavoritesScreen() {
             <EmptyState
               icon="search-outline"
               message={`No results matching “${trimmedQuery}”`}
+            />
+          ) : playedOnly ? (
+            <EmptyState
+              icon="heart-outline"
+              message="You haven't played any of your favorites yet"
             />
           ) : (
             <EmptyState

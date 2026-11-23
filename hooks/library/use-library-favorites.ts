@@ -5,30 +5,101 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import * as Burnt from "burnt";
+import type { LibrarySongSortMode } from "@/components/library/AlbumSortPicker";
 import type { ApiError } from "@/lib/api/client";
 import {
   favoriteEntityId,
+  getCanonicalLibraryPage,
   getLibraryFavorites,
   updateLibraryFavorites,
   type FavoriteKind,
   type TrackFavorite,
 } from "@/lib/api/library";
 import { invalidateFilteredLists } from "@/hooks/library/library-lists";
+import { albumsOfPages } from "@/hooks/library/use-library-albums-all";
+import { songsOfPages } from "@/hooks/library/use-song-list";
+import { serverSort } from "@/lib/library-sorts";
 import { libraryKeys } from "@/lib/query-keys";
-import type { LibraryFavorites } from "@/lib/types/library";
+import type {
+  Artist,
+  CanonicalPage,
+  CanonicalPageKind,
+  FavoriteLists,
+  LibraryFavorites,
+  LibraryListParams,
+} from "@/lib/types/library";
 
-/** Has no auth guard, so call it only inside the `(app)` route group. */
-export function useLibraryFavorites() {
+/** The server's page cap. */
+const PAGE_SIZE = 100;
+
+type FavoriteOrder = Pick<LibraryListParams, "sort" | "direction">;
+
+/** Every page of one kind of favorite. Page 1 gives the count for the rest. */
+async function readFavoritePages(
+  kind: CanonicalPageKind,
+  order: FavoriteOrder,
+): Promise<CanonicalPage[]> {
+  const read = (page: number) =>
+    getCanonicalLibraryPage({
+      kind,
+      source: "all",
+      // Songs with no file can't play, and the web leaves them out too.
+      availableOnly: kind === "tracks" ? true : undefined,
+      page,
+      pageSize: PAGE_SIZE,
+      favorite: true,
+      ...order,
+    });
+  const first = await read(1);
+  if (!first.hasMore) return [first];
+  const pageCount = Math.max(2, Math.ceil(first.total / PAGE_SIZE));
+  const rest = await Promise.all(
+    Array.from({ length: pageCount - 1 }, (_, index) => read(index + 2)),
+  );
+  return [first, ...rest];
+}
+
+/** Drops an artist an earlier page carried: offsets shift between reads. */
+function artistsOfPages(pages: readonly CanonicalPage[]): Artist[] {
+  const seenIds = new Set<string>();
+  const artists: Artist[] = [];
+  for (const artist of pages.flatMap((page) => page.artists)) {
+    if (seenIds.has(artist.id)) continue;
+    seenIds.add(artist.id);
+    artists.push(artist);
+  }
+  return artists;
+}
+
+async function getFavoriteLists(order: FavoriteOrder): Promise<FavoriteLists> {
+  const [artists, albums, tracks] = await Promise.all(
+    (["artists", "albums", "tracks"] as const).map((kind) =>
+      readFavoritePages(kind, order),
+    ),
+  );
+  return {
+    artists: artistsOfPages(artists),
+    albums: albumsOfPages(albums),
+    tracks: songsOfPages(tracks),
+  };
+}
+
+/**
+ * The Favorites screen's sections in `sort` order, read in full so search,
+ * Play and Shuffle cover every favorite. No auth guard: call it inside `(app)`.
+ */
+export function useLibraryFavorites(sort: LibrarySongSortMode) {
+  const order = serverSort(sort);
   return useSuspenseQuery({
-    queryKey: libraryKeys.favorites(),
-    queryFn: getLibraryFavorites,
+    queryKey: libraryKeys.favoriteLists(order),
+    queryFn: () => getFavoriteLists(order),
     // Other clients change favorites too, so opening the screen rereads them.
     staleTime: 0,
   });
 }
 
 /**
- * Shares the list's cache, without rereading the unpaged payload on every
+ * Every heart shares one cached unpaged read instead of rereading it on each
  * mount. `trackMbid` finds a starred flow or playlist download that Aurral
  * reports as the library track it matched.
  */
@@ -62,18 +133,25 @@ function isFavoriteTrack(
   );
 }
 
+/** Under `libraryKeys.favorites()`: the unpaged read, or the screen's lists. */
+type CachedFavorites = LibraryFavorites | FavoriteLists;
+
 function withoutFavorite(
-  favorites: LibraryFavorites,
+  favorites: CachedFavorites,
   kind: FavoriteKind,
   key: string,
-): LibraryFavorites {
+): CachedFavorites {
   const keep = (rowKind: FavoriteKind) => (row: { identityKey?: string }) =>
     rowKind !== kind || row.identityKey !== key;
-  const removedId = favoriteEntityId(kind, key);
-  return {
+  const lists: FavoriteLists = {
     artists: favorites.artists.filter(keep("artist")),
     albums: favorites.albums.filter(keep("album")),
     tracks: favorites.tracks.filter(keep("song")),
+  };
+  if (!("playlistSongIds" in favorites)) return lists;
+  const removedId = favoriteEntityId(kind, key);
+  return {
+    ...lists,
     playlistSongIds: favorites.playlistSongIds.filter((id) => id !== removedId),
   };
 }
@@ -85,9 +163,9 @@ export type ToggleFavorite = {
 };
 
 /**
- * A removal leaves the list at once, because the unpaged reread can be slow.
- * Library lists showing only favorites reread too. `userFavorite` still goes
- * stale in the other cached lists, which don't read it.
+ * A removal leaves every cached favorites read at once, since rereading them
+ * is slow. Favorites-only Library lists reread too; other cached lists keep a
+ * stale `userFavorite`, which they don't read.
  */
 export function useToggleFavorite() {
   const queryClient = useQueryClient();
@@ -99,15 +177,19 @@ export function useToggleFavorite() {
       updateLibraryFavorites([favoriteEntityId(kind, key)], starred),
     onMutate: async ({ kind, key, starred }) => {
       await queryClient.cancelQueries({ queryKey: favoritesKey });
-      const previousFavorites =
-        queryClient.getQueryData<LibraryFavorites>(favoritesKey);
-      if (previousFavorites && !starred) {
-        queryClient.setQueryData(
-          favoritesKey,
-          withoutFavorite(previousFavorites, kind, key),
-        );
+      const previousReads = queryClient.getQueriesData<CachedFavorites>({
+        queryKey: favoritesKey,
+      });
+      if (!starred) {
+        for (const [queryKey, favorites] of previousReads) {
+          if (!favorites) continue;
+          queryClient.setQueryData(
+            queryKey,
+            withoutFavorite(favorites, kind, key),
+          );
+        }
       }
-      return { previousFavorites };
+      return { previousReads };
     },
     onSuccess: (_result, { starred }) => {
       Burnt.toast({
@@ -116,8 +198,8 @@ export function useToggleFavorite() {
       });
     },
     onError: (error, _variables, context) => {
-      if (context?.previousFavorites) {
-        queryClient.setQueryData(favoritesKey, context.previousFavorites);
+      for (const [queryKey, favorites] of context?.previousReads ?? []) {
+        if (favorites) queryClient.setQueryData(queryKey, favorites);
       }
       Burnt.toast({
         title: "Couldn't update favorites",

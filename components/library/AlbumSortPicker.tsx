@@ -214,6 +214,14 @@ export const LIBRARY_SONG_SORT_OPTIONS = LIBRARY_ALBUM_SORT_OPTIONS.filter(
   (option): option is SortOption<LibrarySongSortMode> => option !== RANDOM,
 );
 
+/** The Favorites screen's sorts, newest favorite first as on the web. */
+export const FAVORITE_SORT_OPTIONS: SortOption<LibrarySongSortMode>[] = [
+  RECENTLY_FAVORITED,
+  ...LIBRARY_SONG_SORT_OPTIONS.filter(
+    (option) => option !== RECENTLY_FAVORITED,
+  ),
+];
+
 /** The album sorts the phone can do over saved albums. */
 export const SAVED_ALBUM_SORT_OPTIONS = LIBRARY_ALBUM_SORT_OPTIONS.filter(
   (option): option is SortOption<SavedAlbumSortMode> =>

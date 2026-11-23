@@ -475,6 +475,12 @@ export type LibraryFavorites = {
   playlistSongIds: string[];
 };
 
+/** The Favorites screen's sections, each in the order the server sorted it. */
+export type FavoriteLists = Pick<
+  LibraryFavorites,
+  "artists" | "albums" | "tracks"
+>;
+
 /**
  * A canonical page after getCanonicalLibraryPage mapped it. Every collection
  * carries the legacy shape the screens read; nothing above the API layer
