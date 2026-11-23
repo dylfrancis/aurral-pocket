@@ -18,7 +18,7 @@ export const DEFAULT_DISCOVER_SECTIONS: readonly DiscoverSection[] = [
   { id: "recommendedShows", label: "Shows Near You", enabled: true },
   { id: "recentReleases", label: "Recent Releases", enabled: true },
   { id: "recommended", label: "Recommended for You", enabled: true },
-  { id: "globalTop", label: "Global Trending", enabled: true },
+  { id: "globalTop", label: "Trending Artists", enabled: true },
   { id: "genreSections", label: "Because You Like", enabled: true },
 ];
 

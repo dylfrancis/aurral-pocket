@@ -72,7 +72,7 @@ jest.mock("@/components/discover", () => {
     ShowsNearYouSection: stub("recommendedShows"),
     RecentReleasesSection: stub("recentReleases"),
     RecommendedForYouSection: viewAllStub("recommended"),
-    GlobalTrendingSection: stub("globalTop"),
+    TrendingArtistsSection: viewAllStub("globalTop"),
     GenreSectionsPanel: stub("genreSections"),
     EditorialPlaylistsSection: viewAllStub("playlists"),
     MadeForYouSection: viewAllStub("madeForYou"),
@@ -252,11 +252,13 @@ describe("DiscoverScreen tabs", () => {
   });
 
   it.each([
-    ["playlists", "Playlists"],
-    ["madeForYou", "Made for You"],
+    ["playlists", "Playlists", "playlists", "Playlists"],
+    ["madeForYou", "Made for You", "playlists", "Playlists"],
+    ["recommended", "Recommended", "recommended", "Recommended"],
+    ["globalTop", "Trending Artists", "trending", "Trending"],
   ] as const)(
-    "opens the Playlists tab from the %s row's View All",
-    async (id, label) => {
+    "opens the tab from the %s row's View All",
+    async (id, label, tab, tabName) => {
       mockUseDiscoverLayout.mockReturnValue({
         sections: [{ id, label, enabled: true }],
         hydrated: true,
@@ -266,27 +268,13 @@ describe("DiscoverScreen tabs", () => {
 
       await fireEvent.press(screen.getByTestId(`section-${id}`));
 
-      expect(screen.getByTestId("tab-playlists")).toBeTruthy();
+      expect(screen.getByTestId(`tab-${tab}`)).toBeTruthy();
+      expect(screen.getByRole("tab", { name: tabName }).props).toMatchObject({
+        accessibilityState: { selected: true },
+      });
       expect(screen.queryByTestId("section-header")).toBeNull();
     },
   );
-
-  it("opens the Recommended tab from the Recommended row's View All", async () => {
-    mockUseDiscoverLayout.mockReturnValue({
-      sections: [{ id: "recommended", label: "Recommended", enabled: true }],
-      hydrated: true,
-      saveLayout: jest.fn(),
-    });
-    await render(<DiscoverScreen />);
-
-    await fireEvent.press(screen.getByTestId("section-recommended"));
-
-    expect(screen.getByTestId("tab-recommended")).toBeTruthy();
-    expect(
-      screen.getByRole("tab", { name: "Recommended" }).props,
-    ).toMatchObject({ accessibilityState: { selected: true } });
-    expect(screen.queryByTestId("section-header")).toBeNull();
-  });
 
   it("opens a Recommended rail's full list", async () => {
     await render(<DiscoverScreen />);
@@ -314,6 +302,17 @@ describe("DiscoverScreen tabs", () => {
       queryKey: discoverKeys.trending(),
     });
     expect(mockRefetchDiscovery).not.toHaveBeenCalled();
+  });
+
+  it("reloads the Trending Artists row on pull to refresh in For You", async () => {
+    await render(<DiscoverScreen />);
+
+    const { RefreshControl } = require("react-native");
+    await act(() => RefreshControl.latestRef.props.onRefresh());
+
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({
+      queryKey: discoverKeys.trending(),
+    });
   });
 
   it("reloads the shelf and Made for You on pull to refresh in Playlists", async () => {

@@ -250,7 +250,7 @@ describe("useDiscoverLayout", () => {
       expect(result.current.sections[0].id).toBe("playlists"),
     );
 
-    // Move Playlists to the bottom and turn Global Trending off.
+    // Move Playlists to the bottom and turn Trending Artists off.
     const [playlists, ...rest] = result.current.sections;
     const next = [...rest, playlists].map((section) =>
       section.id === "globalTop" ? { ...section, enabled: false } : section,

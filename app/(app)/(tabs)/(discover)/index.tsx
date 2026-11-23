@@ -2,12 +2,12 @@ import {
   DiscoverHeaderSection,
   EditorialPlaylistsSection,
   GenreSectionsPanel,
-  GlobalTrendingSection,
   MadeForYouSection,
   RecentlyAddedSection,
   RecentReleasesSection,
   RecommendedForYouSection,
   ShowsNearYouSection,
+  TrendingArtistsSection,
 } from "@/components/discover";
 import { DiscoverTabPanel } from "@/components/discover/DiscoverTabPanel";
 import { RecommendedTab } from "@/components/discover/RecommendedTab";
@@ -47,6 +47,7 @@ import type {
   DiscoveryArtist,
   RecentlyAddedArtist,
   RecentReleaseAlbum,
+  TrendingArtist,
 } from "@/lib/types/search";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -115,6 +116,7 @@ export default function DiscoverScreen() {
         queryClient.invalidateQueries({
           queryKey: discoverKeys.madeForYou(),
         }),
+        queryClient.invalidateQueries({ queryKey: discoverKeys.trending() }),
       ]),
     [
       queryClient,
@@ -168,6 +170,13 @@ export default function DiscoverScreen() {
     [openArtist],
   );
 
+  const handleTrendingArtistPress = useCallback(
+    (artist: TrendingArtist & { mbid: string }) => {
+      openArtist({ mbid: artist.mbid, name: artist.name });
+    },
+    [openArtist],
+  );
+
   const handleTagPress = useCallback(
     (tag: string) => {
       router.push({
@@ -205,24 +214,12 @@ export default function DiscoverScreen() {
     void startYourRadio();
   }, [startYourRadio]);
 
-  const pushDiscoverList = useCallback(
-    (kind: "trending" | "recently-added") => {
-      router.push({
-        pathname: "/(app)/(tabs)/(discover)/list/[kind]",
-        params: { kind },
-      });
-    },
-    [router],
-  );
-
-  const handleViewAllTrending = useCallback(
-    () => pushDiscoverList("trending"),
-    [pushDiscoverList],
-  );
-  const handleViewAllRecentlyAdded = useCallback(
-    () => pushDiscoverList("recently-added"),
-    [pushDiscoverList],
-  );
+  const handleViewAllRecentlyAdded = useCallback(() => {
+    router.push({
+      pathname: "/(app)/(tabs)/(discover)/list/[kind]",
+      params: { kind: "recently-added" },
+    });
+  }, [router]);
   const handleViewAllRecentReleases = useCallback(() => {
     router.push("/(app)/(tabs)/(discover)/releases");
   }, [router]);
@@ -243,6 +240,10 @@ export default function DiscoverScreen() {
   }, [scrollToTop, selectTab]);
   const handleViewAllRecommended = useCallback(() => {
     selectTab("recommended");
+    scrollToTop();
+  }, [scrollToTop, selectTab]);
+  const handleViewAllTrending = useCallback(() => {
+    selectTab("trending");
     scrollToTop();
   }, [scrollToTop, selectTab]);
   const handleShowRecommendedList = useCallback(
@@ -397,9 +398,9 @@ export default function DiscoverScreen() {
                           );
                         case "globalTop":
                           return (
-                            <GlobalTrendingSection
+                            <TrendingArtistsSection
                               key={section.id}
-                              onArtistPress={handleDiscoveryArtistPress}
+                              onOpenArtist={handleTrendingArtistPress}
                               onViewAll={handleViewAllTrending}
                             />
                           );
