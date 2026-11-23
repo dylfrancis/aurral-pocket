@@ -1,18 +1,27 @@
 import { matchTopTracks } from "@/lib/top-tracks";
 import type { LibraryQueueTrack, PreviewTrack } from "@/lib/types/library";
 
-const preview = (title: string, album: string | null = null): PreviewTrack => ({
+const preview = (
+  title: string,
+  album: string | null = null,
+  ids: Pick<PreviewTrack, "trackMbid" | "albumMbid"> = {},
+): PreviewTrack => ({
   id: `dz-${title}`,
   title,
   album,
   preview_url: "/api/deezer/preview/1.mp3",
   duration_ms: 30_000,
+  ...ids,
 });
 
 const libraryTrack = (
   id: string,
   title: string,
   album: string,
+  ids: Pick<LibraryQueueTrack, "trackMbid" | "albumMbid"> = {
+    trackMbid: null,
+    albumMbid: null,
+  },
 ): LibraryQueueTrack => ({
   id,
   title,
@@ -23,13 +32,12 @@ const libraryTrack = (
   quality: null,
   durationMs: null,
   artistMbid: null,
-  albumMbid: null,
-  trackMbid: null,
   libraryTrackId: Number(id),
   libraryAlbumId: 1,
   libraryArtistId: 1,
   artworkUrl: null,
   artworkSource: "album",
+  ...ids,
 });
 
 // In album order, as the artist queue lists them.
@@ -68,6 +76,57 @@ describe("matchTopTracks", () => {
     ["an exact title before a looser one", preview("Creep (Acoustic)"), "2"],
   ])("finds %s", (_case, topTrack, libraryId) => {
     expect(matchTopTracks([topTrack], LIBRARY)[0].library?.id).toBe(libraryId);
+  });
+
+  it("finds the Library's copy of the same recording, whatever its title", () => {
+    const library = [
+      ...LIBRARY,
+      libraryTrack("6", "Creep (2008 Remaster)", "Pablo Honey", {
+        trackMbid: "rec-creep",
+        albumMbid: "rg-pablo",
+      }),
+    ];
+
+    expect(
+      matchTopTracks(
+        [preview("Creep", null, { trackMbid: "rec-creep" })],
+        library,
+      )[0].library?.id,
+    ).toBe("6");
+  });
+
+  it("prefers the copy of a recording on the top track's album", () => {
+    const library = [
+      libraryTrack("7", "Lucky", "OK Computer", {
+        trackMbid: "rec-lucky",
+        albumMbid: "rg-ok",
+      }),
+      libraryTrack("8", "Lucky", "OK Computer OKNOTOK", {
+        trackMbid: "rec-lucky",
+        albumMbid: "rg-oknotok",
+      }),
+    ];
+
+    expect(
+      matchTopTracks(
+        [
+          preview("Lucky", null, {
+            trackMbid: "rec-lucky",
+            albumMbid: "rg-oknotok",
+          }),
+        ],
+        library,
+      )[0].library?.id,
+    ).toBe("8");
+  });
+
+  it("matches by title when the Library's copy has no recording MBID", () => {
+    expect(
+      matchTopTracks(
+        [preview("Creep", null, { trackMbid: "rec-creep" })],
+        LIBRARY,
+      )[0].library?.id,
+    ).toBe("1");
   });
 
   it("leaves a song the Library doesn't have as a clip", () => {

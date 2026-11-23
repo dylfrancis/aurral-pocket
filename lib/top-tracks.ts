@@ -33,23 +33,29 @@ function loose(text: string): string {
 }
 
 /**
- * Deezer sends no MusicBrainz ids, so titles match: exact first, then without a
- * version note. On a tie the same album wins, else the earliest one.
+ * A top track with a recording MBID matches the Library's copies of that
+ * recording. One without, as Deezer's are, or one the Library holds untagged,
+ * matches by title: exact first, then without a version note. On a tie the
+ * same album wins, else the earliest one.
  */
 export function matchTopTracks(
   previews: readonly PreviewTrack[],
   library: readonly LibraryQueueTrack[],
 ): TopTrack[] {
+  const byRecording = groupBy(library, (track) => track.trackMbid ?? "");
   const exact = groupBy(library, (track) => normalize(track.title));
   const byLoose = groupBy(library, (track) => loose(track.title));
 
   return previews.map((preview) => {
     const candidates =
-      exact.get(normalize(preview.title)) ??
-      byLoose.get(loose(preview.title)) ??
+      (preview.trackMbid && byRecording.get(preview.trackMbid)) ||
+      exact.get(normalize(preview.title)) ||
+      byLoose.get(loose(preview.title)) ||
       [];
     const album = preview.album ? normalize(preview.album) : null;
     const match =
+      (preview.albumMbid &&
+        candidates.find((track) => track.albumMbid === preview.albumMbid)) ||
       (album && candidates.find((track) => normalize(track.album) === album)) ||
       candidates[0] ||
       null;

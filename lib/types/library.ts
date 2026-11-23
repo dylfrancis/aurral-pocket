@@ -187,6 +187,12 @@ export type PreviewTrack = {
   /** Null when the server has no artist name to look the clip up by. */
   preview_url: string | null;
   duration_ms: number | null;
+  /**
+   * The recording and its release group. Absent when the server falls back to
+   * Deezer's top tracks, which carry no MusicBrainz ids.
+   */
+  trackMbid?: string | null;
+  albumMbid?: string | null;
 };
 
 export type LidarrDownloadStatus =
