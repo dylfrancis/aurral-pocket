@@ -147,6 +147,18 @@ jest.mock("@/modules/audio-output", () => {
 
 jest.mock("@/lib/api/lyrics", () => ({ getLyrics: jest.fn() }));
 
+// The holds keeping the phone's screen on, by tag.
+const mockAwakeTags = new Set<string>();
+jest.mock("expo-keep-awake", () => ({
+  activateKeepAwakeAsync: async (tag: string) => {
+    mockAwakeTags.add(tag);
+  },
+  deactivateKeepAwake: async (tag: string) => {
+    mockAwakeTags.delete(tag);
+  },
+}));
+const screenKeptOn = () => mockAwakeTags.size > 0;
+
 jest.mock("@/lib/api/plugins", () => ({
   getPluginActions: jest.fn(),
   runPluginAction: jest.fn(),
@@ -199,7 +211,7 @@ jest.mock("@react-native-community/slider", () => {
 });
 
 import React from "react";
-import { Alert } from "react-native";
+import { Alert, AppState, type AppStateStatus } from "react-native";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NowPlayingScreen } from "@/components/player/NowPlayingScreen";
@@ -1064,8 +1076,22 @@ describe("NowPlayingScreen lyrics", () => {
     });
   }
 
-  afterEach(() => {
+  async function setState(state: "playing" | "paused") {
+    await act(async () => {
+      engine.stateChange(state, undefined);
+    });
+  }
+
+  async function moveApp(state: AppStateStatus) {
+    const calls = (AppState.addEventListener as jest.Mock).mock.calls;
+    for (const [event, listener] of calls) {
+      if (event === "change") await act(async () => listener(state));
+    }
+  }
+
+  afterEach(async () => {
     jest.useRealTimers();
+    await act(async () => setPlaybackSettings(DEFAULT_PLAYBACK_SETTINGS));
   });
 
   it("shows synced lyrics behind the lyrics button and marks the line being sung", async () => {
@@ -1175,6 +1201,60 @@ describe("NowPlayingScreen lyrics", () => {
     await fireEvent.press(await findByLabelText("Lyrics"));
 
     expect(getByText("Kid A\n\nKid A again")).toBeTruthy();
+  });
+
+  it("keeps the screen on while lyrics show and a song plays", async () => {
+    mockGetLyrics.mockResolvedValue(syncedLyrics);
+    const { closePlayer, findByLabelText, getByLabelText } =
+      await renderPlaying();
+    await playTrack(albumTracks[0]);
+    await setState("playing");
+    expect(screenKeptOn()).toBe(false);
+
+    await fireEvent.press(await findByLabelText("Lyrics"));
+    expect(screenKeptOn()).toBe(true);
+
+    await setState("paused");
+    expect(screenKeptOn()).toBe(false);
+    await setState("playing");
+    expect(screenKeptOn()).toBe(true);
+
+    await fireEvent.press(getByLabelText("Lyrics"));
+    expect(screenKeptOn()).toBe(false);
+
+    await fireEvent.press(getByLabelText("Lyrics"));
+    expect(screenKeptOn()).toBe(true);
+    await closePlayer();
+    expect(screenKeptOn()).toBe(false);
+  });
+
+  it("lets the screen go in the background and holds it again on return", async () => {
+    mockGetLyrics.mockResolvedValue(syncedLyrics);
+    const { findByLabelText } = await renderPlaying();
+    await playTrack(albumTracks[0]);
+    await setState("playing");
+    await fireEvent.press(await findByLabelText("Lyrics"));
+
+    await moveApp("background");
+    expect(screenKeptOn()).toBe(false);
+
+    await moveApp("active");
+    expect(screenKeptOn()).toBe(true);
+  });
+
+  it("lets the screen sleep over lyrics once Settings turns that off", async () => {
+    mockGetLyrics.mockResolvedValue(syncedLyrics);
+    const { findByLabelText } = await renderPlaying();
+    await playTrack(albumTracks[0]);
+    await setState("playing");
+    await fireEvent.press(await findByLabelText("Lyrics"));
+    expect(screenKeptOn()).toBe(true);
+
+    await act(async () =>
+      setPlaybackSettings({ keepScreenOnWithLyrics: false }),
+    );
+
+    expect(screenKeptOn()).toBe(false);
   });
 
   it("dims the lyrics button for a track without lyrics, and opens nothing", async () => {

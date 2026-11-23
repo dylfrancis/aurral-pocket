@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { AppState } from "react-native";
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useIsForeground } from "@/hooks/use-is-foreground";
 import { getMe } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -38,21 +38,4 @@ export function useLiveSocketFollowsSession() {
       }),
     [],
   );
-}
-
-/**
- * Only the background counts as leaving. iOS reports inactive while Control
- * Center or the app switcher covers the app, and closing for that would churn.
- */
-function useIsForeground(): boolean {
-  const [foreground, setForeground] = useState(
-    AppState.currentState !== "background",
-  );
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) =>
-      setForeground(state !== "background"),
-    );
-    return () => subscription.remove();
-  }, []);
-  return foreground;
 }

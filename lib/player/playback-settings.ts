@@ -25,6 +25,8 @@ export type PlaybackSettings = {
   autoplay: boolean;
   /** Turn down tracks Aurral measures as loud. Quiet ones stay as they are. */
   levelLoudTracks: boolean;
+  /** The screen stays on while lyrics show and a song plays. */
+  keepScreenOnWithLyrics: boolean;
   transcoding: TranscodingSettings;
 };
 
@@ -37,7 +39,8 @@ export const CACHE_SIZE_OPTIONS: readonly number[] = [
 
 /**
  * One track ahead and a gigabyte, so a short drop doesn't stop the music.
- * Autoplay and levelling start on, as they do on the web.
+ * Autoplay and levelling start on, as they do on the web. The screen stays on
+ * for lyrics, as it does in other music apps.
  */
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   prefetchAhead: 1,
@@ -46,6 +49,7 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   wifiOnly: false,
   autoplay: true,
   levelLoudTracks: true,
+  keepScreenOnWithLyrics: true,
   transcoding: DEFAULT_TRANSCODING,
 };
 
@@ -150,6 +154,10 @@ function parse(raw: string | null): PlaybackSettings {
         typeof value.levelLoudTracks === "boolean"
           ? value.levelLoudTracks
           : DEFAULT_PLAYBACK_SETTINGS.levelLoudTracks,
+      keepScreenOnWithLyrics:
+        typeof value.keepScreenOnWithLyrics === "boolean"
+          ? value.keepScreenOnWithLyrics
+          : DEFAULT_PLAYBACK_SETTINGS.keepScreenOnWithLyrics,
       transcoding: parseTranscoding(value.transcoding),
     };
   } catch {

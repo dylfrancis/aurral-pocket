@@ -89,6 +89,7 @@ import { useSongSave } from "@/hooks/offline/use-song-save";
 import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { useDragToClose } from "@/hooks/player/use-drag-to-close";
 import { useLibraryTrackDetails } from "@/hooks/player/use-library-track-details";
+import { useLyricsKeepAwake } from "@/hooks/player/use-lyrics-keep-awake";
 import { useSwipeToSkip } from "@/hooks/player/use-swipe-to-skip";
 import { useTrackLyrics } from "@/hooks/player/use-track-lyrics";
 import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
@@ -260,6 +261,7 @@ export function NowPlayingScreen() {
   }, [disablePrevention]);
 
   const isPlaying = state === "playing" || state === "buffering";
+  useLyricsKeepAwake(!!track && showLyrics, isPlaying);
   // A missing match means the engine is on an item the facade did not
   // queue; an empty list beats presenting the whole queue as "up next".
   const currentIndex = items.findIndex((it) => it.id === currentId);

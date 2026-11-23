@@ -167,6 +167,24 @@ export function PlaybackStorageScreen() {
             </SettingsNote>
           </FieldGroup.SectionFooter>
         </FieldGroup.Section>
+        <FieldGroup.Section title="Lyrics">
+          {row({
+            label: "Keep Screen On with Lyrics",
+            trailing: (
+              <SettingsSwitch
+                value={settings.keepScreenOnWithLyrics}
+                onChange={(keepScreenOnWithLyrics) =>
+                  setPlaybackSettings({ keepScreenOnWithLyrics })
+                }
+              />
+            ),
+          })}
+          <FieldGroup.SectionFooter>
+            <SettingsNote>
+              Your screen stays on while lyrics are open and a song plays.
+            </SettingsNote>
+          </FieldGroup.SectionFooter>
+        </FieldGroup.Section>
         <FieldGroup.Section title="Storage">
           {row({
             label: "Cache Size",
