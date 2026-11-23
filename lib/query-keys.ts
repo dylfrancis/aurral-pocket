@@ -7,7 +7,11 @@ import type {
   LibrarySort,
 } from "@/lib/types/library";
 import type { LyricsLookup } from "@/lib/types/lyrics";
-import type { BrowseProvider, EditorialShelfScope } from "@/lib/types/search";
+import type {
+  BrowseProvider,
+  EditorialShelfScope,
+  ReleaseWindow,
+} from "@/lib/types/search";
 
 export const playerKeys = {
   coverColor: (imageUri: string) => ["player", "coverColor", imageUri] as const,
@@ -189,6 +193,9 @@ export const discoverKeys = {
   discovery: () => ["discover", "main"] as const,
   recentlyAdded: () => ["discover", "recentlyAdded"] as const,
   recentReleases: () => ["discover", "recentReleases"] as const,
+  // Under the rail's key, so a metadata refresh refetches both.
+  releaseFeed: (when: ReleaseWindow) =>
+    ["discover", "recentReleases", "feed", when] as const,
   nearbyShowsAll: () => ["discover", "nearbyShows"] as const,
   nearbyShows: (zip: string, country: string) =>
     ["discover", "nearbyShows", zip, country] as const,

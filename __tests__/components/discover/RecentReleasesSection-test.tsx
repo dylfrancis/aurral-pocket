@@ -48,6 +48,9 @@ const album = (
   albumName: `Album ${overrides.id}`,
   artistName: "Artist",
   releaseDate: "2026-04-01",
+  coverUrl: null,
+  albumType: "Album",
+  secondaryTypes: [],
   ...overrides,
 });
 

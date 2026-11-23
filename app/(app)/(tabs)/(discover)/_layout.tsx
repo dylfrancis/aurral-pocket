@@ -65,6 +65,14 @@ export default function DiscoverLayout() {
           })}
         />
         <Stack.Screen
+          name="releases"
+          options={{
+            title: "Releases",
+            headerLargeTitleEnabled: false,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        />
+        <Stack.Screen
           name="nearby-shows"
           options={{
             title: "Shows Near You",

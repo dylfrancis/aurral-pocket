@@ -27,7 +27,9 @@ function DiscoverReleaseCardComponent({
   useDateTimeFormat();
   const title = album.albumName || album.title || "Untitled";
   const coverMbid = album.mbid || album.foreignAlbumId;
+  const artistMbid = album.artistMbid || album.foreignArtistId;
   const status = formatReleaseStatus(album.releaseDate);
+  const coverSize = fill ? "fill" : RELEASE_CARD_WIDTH;
 
   return (
     <Pressable
@@ -41,8 +43,21 @@ function DiscoverReleaseCardComponent({
         <CoverArtImage
           type="album"
           mbid={coverMbid}
-          size={fill ? "fill" : RELEASE_CARD_WIDTH}
+          coverUrl={album.coverUrl}
+          hints={{ artistName: album.artistName, albumTitle: title }}
+          size={coverSize}
           borderRadius={10}
+          // Like the web, show the artist when the album has no cover.
+          fallback={
+            artistMbid ? (
+              <CoverArtImage
+                type="artist"
+                mbid={artistMbid}
+                size={coverSize}
+                borderRadius={10}
+              />
+            ) : undefined
+          }
         />
       ) : (
         <View

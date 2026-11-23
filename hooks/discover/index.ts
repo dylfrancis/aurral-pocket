@@ -1,6 +1,7 @@
 export { useDiscovery } from "./use-discovery";
 export { useRecentlyAdded } from "./use-recently-added";
 export { useRecentReleases } from "./use-recent-releases";
+export { useReleaseFeed } from "./use-release-feed";
 export { useNearbyShows } from "./use-nearby-shows";
 export { useNearbyLocationPref } from "./use-nearby-location-pref";
 export { useDiscoverLayout } from "./use-discover-layout";

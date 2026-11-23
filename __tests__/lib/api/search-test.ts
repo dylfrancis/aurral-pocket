@@ -24,6 +24,7 @@ import {
   getDiscovery,
   getRecentlyAdded,
   getRecentReleases,
+  getReleaseFeed,
   getNearbyShows,
 } from "@/lib/api/search";
 
@@ -339,6 +340,20 @@ describe("getRecentReleases", () => {
   it("propagates errors", async () => {
     mockApi.get.mockRejectedValue(new Error("timeout"));
     await expect(getRecentReleases()).rejects.toThrow("timeout");
+  });
+});
+
+describe("getReleaseFeed", () => {
+  it("asks GET /library/releases for one window's page", async () => {
+    const response = { releases: [], hasMore: false };
+    mockApi.get.mockResolvedValue({ data: response });
+
+    const result = await getReleaseFeed("upcoming", 24, 24);
+
+    expect(mockApi.get).toHaveBeenCalledWith("/library/releases", {
+      params: { when: "upcoming", offset: 24, limit: 24 },
+    });
+    expect(result).toEqual(response);
   });
 });
 

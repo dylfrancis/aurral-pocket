@@ -195,10 +195,20 @@ describe("formatReleaseStatus", () => {
     expect(formatReleaseStatus("2026-04-20", today)).toBe("Released today");
   });
 
-  it("says 'Released <date>' for past dates", () => {
+  // The web's day-unit Intl.RelativeTimeFormat wording, at each unit's edges.
+  it.each([
+    ["2026-04-19", "Released yesterday"],
+    ["2026-04-14", "Released 6 days ago"],
+    ["2026-04-13", "Released last week"],
+    ["2026-04-07", "Released 2 weeks ago"],
+    ["2026-03-22", "Released 4 weeks ago"],
+    ["2026-03-21", "Released last month"],
+    ["2026-02-19", "Released 2 months ago"],
+    ["2025-04-20", "Released last year"],
+    ["2024-01-01", "Released 2 years ago"],
+  ])("says how long ago %s was", (releaseDate, expected) => {
     const today = new Date(2026, 3, 20);
-    const result = formatReleaseStatus("2024-01-01", today);
-    expect(result).toMatch(/^Released /);
+    expect(formatReleaseStatus(releaseDate, today)).toBe(expected);
   });
 
   it("says 'Releasing <date>' for future dates", () => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { Image, type ImageStyle } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +23,8 @@ type CoverArtImageProps = {
    */
   coverUrl?: string | null;
   hints?: AlbumCoverHints;
+  /** Drawn in place of the placeholder when no image loads. */
+  fallback?: ReactNode;
 };
 
 export function CoverArtImage({
@@ -34,6 +36,7 @@ export function CoverArtImage({
   blurRadius,
   coverUrl,
   hints,
+  fallback,
 }: CoverArtImageProps) {
   // React Native caps a radius at half the side, so a "fill" image is round
   // too.
@@ -71,6 +74,7 @@ export function CoverArtImage({
       : { width: size, height: size };
 
   if ((!isLoading && !source) || failed) {
+    if (fallback) return fallback;
     return (
       <View
         style={[

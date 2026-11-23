@@ -82,19 +82,39 @@ export function parseCalendarDate(value?: string | null): Date | null {
   return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/**
+ * The web's Intl.RelativeTimeFormat day wording ("3 days ago", "last week"),
+ * spelled out because Hermes has no RelativeTimeFormat.
+ */
+function formatDaysAgo(date: Date, today: Date): string {
+  const days = Math.round(
+    (startOfDay(today).getTime() - startOfDay(date).getTime()) / DAY_MS,
+  );
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days} days ago`;
+  const [count, unit] =
+    days < 30
+      ? [Math.round(days / 7), "week"]
+      : days < 365
+        ? [Math.round(days / 30), "month"]
+        : [Math.round(days / 365), "year"];
+  return count === 1 ? `last ${unit}` : `${count} ${unit}s ago`;
+}
+
+/** "Released 3 days ago" or "Releasing 12/5/2026", as the web's release cards write it. */
 export function formatReleaseStatus(
   releaseDate?: string | null,
   today: Date = new Date(),
 ): string | null {
   const date = parseCalendarDate(releaseDate);
   if (!date) return null;
-  const start = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-  const formatted = formatDate(date);
-  if (date.getTime() === start.getTime()) return "Released today";
-  if (date < start) return `Released ${formatted}`;
-  return `Releasing ${formatted}`;
+  if (date > startOfDay(today)) return `Releasing ${formatDate(date)}`;
+  return `Released ${formatDaysAgo(date, today)}`;
 }
