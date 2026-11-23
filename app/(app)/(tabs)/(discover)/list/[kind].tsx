@@ -38,18 +38,17 @@ import {
 import { useOpenArtist } from "@/hooks/use-open-artist";
 import { useColors } from "@/hooks/use-colors";
 
-type Kind = "recommended" | "trending" | "recently-added";
+type Kind = "recommended" | "recently-added";
 
 const EDGE_PADDING = 16;
 
 const TITLES: Record<Kind, string> = {
   recommended: "Recommended",
-  trending: "Global Trending",
   "recently-added": "Recently Added",
 };
 
 function isValidKind(v: unknown): v is Kind {
-  return v === "recommended" || v === "trending" || v === "recently-added";
+  return v === "recommended" || v === "recently-added";
 }
 
 function formatAdded(date?: string | null) {
@@ -132,16 +131,12 @@ export default function DiscoverListScreen() {
     [kind, recommendations, recommendedFilter, sort, recommendedContext],
   );
 
-  const discoveryArtists =
-    (kind === "recommended"
-      ? discovery.data?.recommendations
-      : kind === "trending"
-        ? discovery.data?.globalTop
-        : undefined) ?? [];
   // The whole list, as the Discover sections pass it, so they share a lookup.
   // Recently added artists are all in the Library, so they need none.
   const { isInLibrary } = useLibraryLookup(
-    discoveryArtists.map((artist) => artist.id),
+    kind === "recommended"
+      ? (discovery.data?.recommendations ?? []).map((artist) => artist.id)
+      : [],
   );
 
   useEffect(() => {
@@ -156,7 +151,6 @@ export default function DiscoverListScreen() {
   const isLoading = useMemo(() => {
     switch (kind) {
       case "recommended":
-      case "trending":
         return discovery.isLoading;
       case "recently-added":
         return recentlyAdded.isLoading;
@@ -247,8 +241,6 @@ export default function DiscoverListScreen() {
     );
   }
 
-  const artists =
-    kind === "recommended" ? recommendedArtists : discoveryArtists;
   const filterPills =
     kind === "recommended" ? (
       <View style={isGrid ? styles.gridPills : styles.listPills}>
@@ -271,7 +263,7 @@ export default function DiscoverListScreen() {
     <>
       {viewToolbar}
       <KindList
-        items={artists}
+        items={recommendedArtists}
         isGrid={isGrid}
         columns={numColumns}
         backgroundColor={colors.background}
