@@ -13,6 +13,7 @@ import {
   withoutQueuedIds,
 } from "@/lib/player/queue-edits";
 import {
+  libraryIdsOf,
   toPlayerTrack,
   type PlayerAlbumContext,
   type PlayerClip,
@@ -852,6 +853,94 @@ function editQueue(
   return run;
 }
 
+/**
+ * Drop a deleted Library song from the queue. Playing, it gives way to the next
+ * track, or at the end to the one before, paused; alone, it clears the queue.
+ */
+export function removeLibraryTrackFromQueue(
+  libraryTrackId: string,
+): Promise<void> {
+  const run = lastPlay.then(async () => {
+    const playlistId = currentPlaylistId;
+    if (!playlistId) return;
+    const gone = new Set(
+      queueOrder
+        .filter(
+          (item) =>
+            libraryIdsOf(item.streamPath)?.libraryTrackId === libraryTrackId,
+        )
+        .map((item) => item.id),
+    );
+    if (gone.size === 0) return;
+    const kept = queueOrder.filter((item) => !gone.has(item.id));
+    if (kept.length === 0) {
+      // As in forgetQueue: a station's first batch, or a transcode of the
+      // deleted file, must not land on the cleared queue.
+      queueClaims++;
+      cancelTranscodes();
+      clearQueueState();
+      try {
+        await TrackPlayer.pause();
+      } catch {}
+      await PlayerQueue.deletePlaylist(playlistId).catch(() => {});
+      currentPlaylistId = null;
+      lastSave = lastSave.then(clearSavedQueue).catch(() => {});
+      return;
+    }
+
+    const current = displayedTrack;
+    const currentGone = current !== null && gone.has(current.id);
+    const after = currentGone ? keptNeighbor(current.id, gone, 1) : null;
+    const target = currentGone
+      ? (after ?? keptNeighbor(current.id, gone, -1))
+      : null;
+    const play = after !== null && isPlaybackActive();
+    // Out of the queue before the engine hears of it, so an engine call that
+    // fails can't leave the song queued, or saved to come back next launch.
+    queueOrder = kept;
+    originalOrder = originalOrder.filter((item) => !gone.has(item.id));
+    if (currentGone) {
+      endedAtQueueEnd = false;
+      pendingRestoreSeek = null;
+      resetProgress();
+      setDisplayedTrack(target);
+    } else {
+      refreshQueueSnapshot();
+    }
+    if (target) {
+      // Paused first, so the track before doesn't sound as it loads.
+      if (!play) await TrackPlayer.pause();
+      await TrackPlayer.playSong(target.id, playlistId);
+      if (play) await TrackPlayer.play();
+    }
+    await PlayerQueue.removeTracksFromPlaylist(playlistId, [...gone]);
+  });
+  lastPlay = run.catch(() => {});
+  return run;
+}
+
+/**
+ * The nearest queued track in the given direction that isn't in `skipped`.
+ * Going forward with repeat all, it wraps around to the top.
+ */
+function keptNeighbor(
+  fromId: string,
+  skipped: ReadonlySet<string>,
+  direction: 1 | -1,
+): PlayerTrack | null {
+  const count = queueOrder.length;
+  const from = queueOrder.findIndex((item) => item.id === fromId);
+  if (from < 0) return null;
+  for (let step = 1; step < count; step++) {
+    const index = from + step * direction;
+    const wraps = direction === 1 && repeatMode === "all";
+    if ((index < 0 || index >= count) && !wraps) return null;
+    const item = queueOrder[index % count];
+    if (!skipped.has(item.id)) return item;
+  }
+  return null;
+}
+
 type Listener<T> = (value: T) => void;
 
 /** Progress through the current track, for play-history recording. */
@@ -1478,6 +1567,19 @@ export function refreshQueueHeaders(): Promise<void> {
   return run;
 }
 
+/** Nothing queued and nothing shown. Shuffle and repeat stay as they are. */
+function clearQueueState(): void {
+  queueOrder = [];
+  originalOrder = [];
+  queueAlbumContext = null;
+  queueStation = null;
+  pendingRestoreSeek = null;
+  endedAtQueueEnd = false;
+  resetProgress();
+  setDisplayedTrack(null);
+  refreshQueueSnapshot();
+}
+
 /**
  * Stop the player and forget the queue, in memory and in storage. Sign-out
  * calls this, so no part of one account's listening reaches the next.
@@ -1491,17 +1593,9 @@ export function forgetQueue(): Promise<void> {
   forgetLoudness();
   queueClaims++;
   const run = lastPlay.then(async () => {
-    queueOrder = [];
-    originalOrder = [];
-    queueAlbumContext = null;
-    queueStation = null;
-    pendingRestoreSeek = null;
-    endedAtQueueEnd = false;
+    clearQueueState();
     shuffleOn = false;
     repeatMode = "off";
-    resetProgress();
-    setDisplayedTrack(null);
-    refreshQueueSnapshot();
     notifyModesChanged();
 
     // An engine that refuses to let go must not keep the record alive, and

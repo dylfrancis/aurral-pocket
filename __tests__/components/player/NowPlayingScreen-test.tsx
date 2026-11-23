@@ -144,6 +144,7 @@ jest.mock("@/components/settings/SettingsSwitch", () => {
 
 jest.mock("@/lib/api/library", () => ({
   ...jest.requireActual("@/lib/api/library"),
+  deleteLibraryTrack: jest.fn(),
   getCanonicalAlbumTracks: jest.fn(),
   getLibraryFavorites: jest.fn(),
   requestTrackDownload: jest.fn(),
@@ -166,6 +167,7 @@ jest.mock("@react-native-community/slider", () => {
 });
 
 import React from "react";
+import { Alert } from "react-native";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NowPlayingScreen } from "@/components/player/NowPlayingScreen";
@@ -173,6 +175,7 @@ import { IS_ANDROID } from "@/constants/platform";
 import { NowPlayingProvider } from "@/contexts/now-playing-context";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
 import {
+  deleteLibraryTrack,
   getCanonicalAlbumTracks,
   getLibraryFavorites,
   requestTrackDownload,
@@ -214,6 +217,7 @@ const mockGetLibraryFavorites = getLibraryFavorites as jest.Mock;
 const mockGetCanonicalAlbumTracks = getCanonicalAlbumTracks as jest.Mock;
 const mockUpdateLibraryFavorites = updateLibraryFavorites as jest.Mock;
 const mockRequestTrackDownload = requestTrackDownload as jest.Mock;
+const mockDeleteLibraryTrack = deleteLibraryTrack as jest.Mock;
 const mockGetLyrics = getLyrics as jest.Mock;
 const mockGetPluginActions = getPluginActions as jest.Mock;
 const mockRunPluginAction = runPluginAction as jest.Mock;
@@ -893,6 +897,37 @@ describe("NowPlayingScreen Add to Library", () => {
 
     expect(getByLabelText("Add to Playlist")).toBeTruthy();
     expect(queryByLabelText("Add to Library")).toBeNull();
+  });
+});
+
+describe("NowPlayingScreen Delete from Library", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("deletes the playing song Aurral downloaded, by its Library id, and lets it go from the player", async () => {
+    const airbag = {
+      ...track("76", "Airbag"),
+      streamPath: "/library/stream/12/76",
+      sources: ["aurral" as const],
+    };
+    // The player's track carries no sources, so they come from its album.
+    mockGetCanonicalAlbumTracks.mockResolvedValue([airbag]);
+    mockDeleteLibraryTrack.mockResolvedValue({ success: true });
+    jest
+      .spyOn(Alert, "alert")
+      .mockImplementation((_title, _message, buttons) => {
+        buttons?.find((button) => button.style === "destructive")?.onPress?.();
+      });
+    const { findByLabelText, findByText } = await renderScreen();
+    await act(() => playAlbumFromTrack([airbag], airbag, album));
+
+    await act(async () => {
+      fireEvent.press(await findByLabelText("Delete from Library"));
+    });
+
+    expect(mockGetCanonicalAlbumTracks).toHaveBeenCalledWith("12");
+    expect(mockDeleteLibraryTrack).toHaveBeenCalledWith("76");
+    // It was all the queue held.
+    expect(await findByText("Nothing is playing.")).toBeTruthy();
   });
 });
 

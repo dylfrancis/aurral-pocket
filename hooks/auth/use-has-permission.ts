@@ -6,6 +6,7 @@ type Permission =
   | "changeMonitoring"
   | "deleteArtist"
   | "deleteAlbum"
+  | "deleteTrack"
   | "accessSettings"
   | "accessPlaylists";
 

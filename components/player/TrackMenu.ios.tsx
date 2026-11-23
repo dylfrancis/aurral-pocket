@@ -9,6 +9,7 @@ import {
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
 import type {
+  TrackMenuAction,
   TrackMenuActionId,
   TrackMenuProps,
 } from "@/components/player/track-menu-types";
@@ -27,12 +28,14 @@ const SYMBOLS: Record<TrackMenuActionId, SFSymbol> = {
   "save-offline": "arrow.down.circle",
   "remove-offline": "xmark.circle",
   "saved-with": "arrow.down.circle.fill",
+  delete: "trash",
 };
 
 export function TrackMenu({
   actions,
   onAction,
   pluginActions = [],
+  trailingActions = [],
   triggerColor,
   compact = false,
   accessibilityLabel = "More actions",
@@ -56,16 +59,7 @@ export function TrackMenu({
           />
         }
       >
-        {actions.map((action) => (
-          <Button
-            key={action.id}
-            label={action.title}
-            systemImage={SYMBOLS[action.id]}
-            role={action.destructive ? "destructive" : undefined}
-            modifiers={action.disabled ? [disabled(true)] : undefined}
-            onPress={() => onAction(action.id)}
-          />
-        ))}
+        {actions.map((action) => actionButton(action, onAction))}
         {pluginActions.length > 0 && <Divider />}
         {pluginActions.map((action) => (
           <Button
@@ -76,7 +70,25 @@ export function TrackMenu({
             onPress={action.run}
           />
         ))}
+        {pluginActions.length > 0 && trailingActions.length > 0 && <Divider />}
+        {trailingActions.map((action) => actionButton(action, onAction))}
       </Menu>
     </Host>
+  );
+}
+
+function actionButton(
+  action: TrackMenuAction,
+  onAction: (id: TrackMenuActionId) => void,
+) {
+  return (
+    <Button
+      key={action.id}
+      label={action.title}
+      systemImage={SYMBOLS[action.id]}
+      role={action.destructive ? "destructive" : undefined}
+      modifiers={action.disabled ? [disabled(true)] : undefined}
+      onPress={() => onAction(action.id)}
+    />
   );
 }

@@ -94,6 +94,8 @@ export const libraryKeys = {
   // Every Add to Library shares this mutation key, so each menu can tell which
   // songs are being sent.
   addTrack: () => ["library", "addTrack"] as const,
+  // Shared the same way, for Delete from Library.
+  deleteTrack: () => ["library", "deleteTrack"] as const,
 };
 
 /**

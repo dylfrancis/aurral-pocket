@@ -52,6 +52,11 @@ jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   }),
 }));
 
+// The screen mounts without an AuthProvider; the song sheet reads permissions.
+jest.mock("@/hooks/auth/use-has-permission", () => ({
+  useHasPermission: () => () => false,
+}));
+
 jest.mock("@/lib/api/library", () => ({
   ...jest.requireActual("@/lib/api/library"),
   getAlbumCover: jest.fn(() => Promise.resolve({ images: [] })),

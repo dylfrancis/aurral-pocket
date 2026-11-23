@@ -77,6 +77,7 @@ import {
   playAlbumFromTrack,
   refreshQueueHeaders,
   refreshQueueUrls,
+  removeLibraryTrackFromQueue,
   playItem,
   playQueueFrom,
   playQueueItem,
@@ -1151,6 +1152,139 @@ describe("playback events", () => {
       expect(player.updateTracks).toHaveBeenCalledWith([
         expect.objectContaining({ id: "73", url: "/files/73.flac" }),
       ]);
+    });
+  });
+
+  describe("when a song is deleted from the Library", () => {
+    const albumTracks = ["71", "72", "73"].map((id, index) =>
+      track({
+        id,
+        trackNumber: index + 1,
+        streamPath: `/library/stream/12/${id}`,
+      }),
+    );
+
+    beforeEach(() =>
+      // Autoplay would queue more after the last song.
+      setPlaybackSettings({ ...DEFAULT_PLAYBACK_SETTINGS, autoplay: false }),
+    );
+    afterEach(() => setPlaybackSettings(DEFAULT_PLAYBACK_SETTINGS));
+
+    async function playFrom(
+      tracks: Track[],
+      index: number,
+      state: "playing" | "paused",
+    ) {
+      await forgetQueue();
+      await playAlbumFromTrack(tracks, tracks[index], album);
+      engine.trackChange({ ...clip, id: tracks[index].id }, "user_action");
+      engine.stateChange(state, undefined);
+      jest.clearAllMocks();
+    }
+
+    async function renderQueue() {
+      const { result, unmount } = await renderHook(() => useQueue());
+      return {
+        ids: () => result.current.items.map((item) => item.id),
+        currentId: () => result.current.currentId,
+        unmount,
+      };
+    }
+
+    it("takes a queued song out and leaves playback alone", async () => {
+      await playFrom(albumTracks, 0, "playing");
+      const queued = await renderQueue();
+
+      await act(() => removeLibraryTrackFromQueue("73"));
+
+      expect(queue.removeTracksFromPlaylist).toHaveBeenCalledWith(
+        "playlist-1",
+        ["73"],
+      );
+      expect(player.playSong).not.toHaveBeenCalled();
+      expect(player.pause).not.toHaveBeenCalled();
+      expect(queued.ids()).toEqual(["71", "72"]);
+      await queued.unmount();
+    });
+
+    it("moves on from the playing song before taking it out", async () => {
+      await playFrom(albumTracks, 1, "playing");
+      const queued = await renderQueue();
+
+      await act(() => removeLibraryTrackFromQueue("72"));
+
+      expect(player.playSong).toHaveBeenCalledWith("73", "playlist-1");
+      expect(player.play).toHaveBeenCalledTimes(1);
+      // The engine is off the song before it's removed.
+      expect(player.playSong.mock.invocationCallOrder[0]).toBeLessThan(
+        queue.removeTracksFromPlaylist.mock.invocationCallOrder[0],
+      );
+      expect(queued.ids()).toEqual(["71", "73"]);
+      expect(queued.currentId()).toBe("73");
+      await queued.unmount();
+    });
+
+    it("keeps a paused player paused on the next song", async () => {
+      await playFrom(albumTracks, 1, "paused");
+
+      await act(() => removeLibraryTrackFromQueue("72"));
+
+      expect(player.playSong).toHaveBeenCalledWith("73", "playlist-1");
+      expect(player.play).not.toHaveBeenCalled();
+    });
+
+    it("stops on the song before when the last one goes", async () => {
+      await playFrom(albumTracks, 2, "playing");
+      const queued = await renderQueue();
+
+      await act(() => removeLibraryTrackFromQueue("73"));
+
+      expect(player.pause).toHaveBeenCalled();
+      expect(player.playSong).toHaveBeenCalledWith("72", "playlist-1");
+      expect(player.play).not.toHaveBeenCalled();
+      expect(queued.ids()).toEqual(["71", "72"]);
+      expect(queued.currentId()).toBe("72");
+      await queued.unmount();
+    });
+
+    it("goes round to the top on repeat all", async () => {
+      await playFrom(albumTracks, 2, "playing");
+      await setRepeatMode("all");
+
+      try {
+        await act(() => removeLibraryTrackFromQueue("73"));
+
+        expect(player.playSong).toHaveBeenCalledWith("71", "playlist-1");
+        expect(player.play).toHaveBeenCalledTimes(1);
+      } finally {
+        await setRepeatMode("off");
+      }
+    });
+
+    it("keeps the song out of the queue even when the engine refuses to drop it", async () => {
+      await playFrom(albumTracks, 0, "playing");
+      const queued = await renderQueue();
+      queue.removeTracksFromPlaylist.mockRejectedValueOnce(new Error("busy"));
+
+      await act(() =>
+        expect(removeLibraryTrackFromQueue("73")).rejects.toThrow("busy"),
+      );
+
+      expect(queued.ids()).toEqual(["71", "72"]);
+      await queued.unmount();
+    });
+
+    it("clears the queue when the song was all it held", async () => {
+      await playFrom([albumTracks[0]], 0, "playing");
+      const queued = await renderQueue();
+
+      await act(() => removeLibraryTrackFromQueue("71"));
+
+      expect(player.pause).toHaveBeenCalled();
+      expect(queue.deletePlaylist).toHaveBeenCalledWith("playlist-1");
+      expect(queued.ids()).toEqual([]);
+      expect(queued.currentId()).toBeNull();
+      await queued.unmount();
     });
   });
 });

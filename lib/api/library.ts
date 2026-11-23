@@ -664,6 +664,17 @@ export async function getArtistQueue(mbid: string) {
   return r.data.tracks ?? [];
 }
 
+/**
+ * Deletes the song's Aurral files, and Aurral won't download it again. A song
+ * only in a read-only folder answers 409.
+ */
+export async function deleteLibraryTrack(trackId: string) {
+  const r = await api.delete<{ success: boolean; message: string }>(
+    `/library/tracks/${trackId}`,
+  );
+  return r.data;
+}
+
 export async function deleteLibraryArtist(mbid: string, deleteFiles = false) {
   const r = await api.delete(`/library/artists/${mbid}`, {
     params: { deleteFiles },
