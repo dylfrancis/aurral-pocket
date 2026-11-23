@@ -956,6 +956,7 @@ export type PlaybackProgress = {
 
 const trackStartedListeners = new Set<Listener<PlayerTrack>>();
 const progressListeners = new Set<Listener<PlaybackProgress>>();
+const stateChangeListeners = new Set<Listener<PlaybackState>>();
 const playbackFailedListeners = new Set<() => void>();
 
 // Wake-up calls for the player hooks. They carry no payload — each hook
@@ -1777,6 +1778,7 @@ function wireEngineEvents(): void {
         currentTrackHeard = true;
       }
       playbackStateListeners.forEach((listener) => listener());
+      stateChangeListeners.forEach((listener) => listener(state));
       updatePrefetchWindow();
       if (state === "playing") topUpQueue();
       // Other devices pick up from a pause, so it's saved with where it stopped.
@@ -1860,6 +1862,17 @@ export function onProgress(listener: Listener<PlaybackProgress>): () => void {
   progressListeners.add(listener);
   return function unsubscribe(): void {
     progressListeners.delete(listener);
+  };
+}
+
+/** Hear what playback is doing each time the engine reports it. Returns unsubscribe. */
+export function onPlaybackStateChange(
+  listener: Listener<PlaybackState>,
+): () => void {
+  wireEngineEvents();
+  stateChangeListeners.add(listener);
+  return function unsubscribe(): void {
+    stateChangeListeners.delete(listener);
   };
 }
 

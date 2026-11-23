@@ -1,8 +1,13 @@
 import { ApiError } from "@/lib/api/client";
-import { recordPlayEvent } from "@/lib/api/play-events";
-import { onProgress, onTrackStarted } from "@/lib/player/player";
+import { recordPlayEvent, sendNowPlaying } from "@/lib/api/play-events";
+import {
+  onPlaybackStateChange,
+  onProgress,
+  onTrackStarted,
+} from "@/lib/player/player";
 import type { PlaybackProgress } from "@/lib/player/player";
-import type { PlayEventInput } from "@/lib/types/play-events";
+import type { PlayerTrack } from "@/lib/player/track-item";
+import type { NowPlayingInput, PlayEventInput } from "@/lib/types/play-events";
 import { AppStorage } from "@/lib/storage";
 
 /**
@@ -15,6 +20,13 @@ import { AppStorage } from "@/lib/storage";
  * A play counts once the listener has heard half the track or four minutes,
  * whichever comes first, the same rule as the Aurral web player. Seeking adds no
  * listening time, and skipping after that point still leaves the play counted.
+ *
+ * Once a track starts playing, pocket also says it is now playing, which the
+ * server passes on live. A track that is loaded but stays paused sends
+ * nothing. The server keeps now playing for one track length from when it
+ * hears it, which a pause can outlast, so playing on after a pause says it
+ * again. Now playing skips the outbox: it is stale by the next track, so a
+ * failed send is dropped.
  *
  * Only library, flow and playlist tracks are reported, and a flow or playlist
  * can opt out. A
@@ -39,6 +51,13 @@ const MAX_LISTEN_SECONDS = 240;
 const MAX_REPORT_GAP_SECONDS = 10;
 
 /**
+ * How long now playing waits for the engine to learn the track's length. The
+ * server shows a track without one for four minutes, which a longer track
+ * outlasts, so the wait is worth a few seconds.
+ */
+const NOW_PLAYING_LENGTH_WAIT_SECONDS = 10;
+
+/**
  * Plays that have not reached the server yet, oldest first, kept per account.
  * A phone loses its connection mid-track often enough that dropping the play
  * would be wrong, and the server is the only place this history lives.
@@ -54,6 +73,14 @@ type PendingPlay = PlayEventInput & { userId?: number };
 /** Writes and sends run one at a time, so a burst cannot land out of order. */
 let work: Promise<void> = Promise.resolve();
 
+/**
+ * Now playing sends also go one at a time: the server shows whichever arrives
+ * last, so a slow one must not land after the next track's. Only the newest
+ * waiting one goes, because the ones before it are already stale.
+ */
+let nextNowPlaying: NowPlayingInput | null = null;
+let sendingNowPlaying = false;
+
 let reportingUserId: number | null = null;
 let stopReporting: (() => void) | null = null;
 
@@ -68,12 +95,17 @@ let stopReporting: (() => void) | null = null;
 export function startPlayHistory(userId: number): () => void {
   stopReporting?.();
   reportingUserId = userId;
-  let reachesPlay = createPlayTracker();
+  let tracker = createPlayTracker();
   const stopStarted = onTrackStarted(() => {
-    reachesPlay = createPlayTracker();
+    tracker = createPlayTracker();
+  });
+  const stopState = onPlaybackStateChange((state) => {
+    if (state === "paused" || state === "stopped") tracker.pause();
   });
   const stopProgress = onProgress((progress) => {
-    if (!reachesPlay(progress)) return;
+    const heard = tracker.hear(progress);
+    if (heard.nowPlaying) announce(progress);
+    if (!heard.played) return;
     const event = toPlayEvent(progress);
     if (event) enqueue(event, userId);
   });
@@ -84,36 +116,71 @@ export function startPlayHistory(userId: number): () => void {
     if (stopReporting !== stop) return;
     stopReporting = null;
     reportingUserId = null;
+    // The client sends whichever token is current, and the next session can
+    // be another account, or one with the same id on another server.
+    nextNowPlaying = null;
     stopStarted();
+    stopState();
     stopProgress();
   };
   stopReporting = stop;
   return stop;
 }
 
-/**
- * Tracks the listening time of one play. The function it returns takes each
- * progress report and answers true on the one report that makes it a play.
- */
-function createPlayTracker(): (progress: PlaybackProgress) => boolean {
+/** What one progress report means for the track. */
+type Heard = {
+  /**
+   * The track is playing, after it starts or a pause: once the length is
+   * known, or the wait for it ends.
+   */
+  nowPlaying: boolean;
+  /** The listener has heard enough for a play. True on one report. */
+  played: boolean;
+};
+
+type PlayTracker = {
+  /** Say what a progress report means for the track. */
+  hear(progress: PlaybackProgress): Heard;
+  /** Playback paused, so the next listening says now playing again. */
+  pause(): void;
+};
+
+const HEARD_NOTHING: Heard = { nowPlaying: false, played: false };
+
+/** Tracks the listening time of one play. */
+function createPlayTracker(): PlayTracker {
   let listened = 0;
   let lastPosition: number | null = null;
+  let announced = false;
   let counted = false;
 
-  return function reachesPlay({ position, duration, seeked }): boolean {
+  function hear({ position, duration, seeked }: PlaybackProgress): Heard {
     const advanced = lastPosition === null ? 0 : position - lastPosition;
     lastPosition = position;
     // Only a report that adds listening can complete a play. The first report of
     // the next track can arrive before its track change, carrying that track's
     // length, and must not be measured against what was heard of this one.
     if (seeked || advanced <= 0 || advanced > MAX_REPORT_GAP_SECONDS) {
-      return false;
+      return HEARD_NOTHING;
     }
     listened += advanced;
 
-    if (counted || duration <= MIN_DURATION_SECONDS) return false;
+    const nowPlaying =
+      !announced &&
+      (duration > 0 || listened >= NOW_PLAYING_LENGTH_WAIT_SECONDS);
+    announced ||= nowPlaying;
+    if (counted || duration <= MIN_DURATION_SECONDS) {
+      return { nowPlaying, played: false };
+    }
     counted = listened >= Math.min(duration / 2, MAX_LISTEN_SECONDS);
-    return counted;
+    return { nowPlaying, played: counted };
+  }
+
+  return {
+    hear,
+    pause() {
+      announced = false;
+    },
   };
 }
 
@@ -127,12 +194,46 @@ export function forgetPlayHistory(): Promise<void> {
   return work;
 }
 
+/** Never retried, like the web player's. */
+function announce({ track, duration }: PlaybackProgress): void {
+  if (!isReported(track)) return;
+  nextNowPlaying = {
+    ...trackFields(track, duration),
+    streamPath: track.streamPath,
+  };
+  if (!sendingNowPlaying) void sendNowPlayingInTurn();
+}
+
+async function sendNowPlayingInTurn(): Promise<void> {
+  sendingNowPlaying = true;
+  while (nextNowPlaying) {
+    const input = nextNowPlaying;
+    nextNowPlaying = null;
+    await sendNowPlaying(input).catch(() => {});
+  }
+  sendingNowPlaying = false;
+}
+
 function toPlayEvent({
   track,
   duration,
 }: PlaybackProgress): PlayEventInput | null {
-  if (!track.streamPath || track.recordHistory === false) return null;
+  if (!isReported(track)) return null;
 
+  return {
+    ...trackFields(track, duration),
+    playedAt: Date.now(),
+    source: SOURCE,
+  };
+}
+
+function isReported(
+  track: PlayerTrack,
+): track is PlayerTrack & { streamPath: string } {
+  return !!track.streamPath && track.recordHistory !== false;
+}
+
+function trackFields(track: PlayerTrack, duration: number) {
   return {
     trackId: track.id,
     title: track.title,
@@ -143,10 +244,9 @@ function toPlayEvent({
     trackMbid: track.trackMbid,
     // The engine reports a track's length as it streams, so the duration comes
     // from the progress report rather than from the queued track, whose own
-    // duration is zero until the engine fills it in.
-    durationMs: Math.round(duration * 1000),
-    playedAt: Date.now(),
-    source: SOURCE,
+    // duration is zero until the engine fills it in. Now playing can go
+    // before it does.
+    durationMs: duration > 0 ? Math.round(duration * 1000) : null,
   };
 }
 

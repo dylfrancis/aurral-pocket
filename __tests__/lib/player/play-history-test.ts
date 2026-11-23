@@ -6,22 +6,29 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 jest.mock("@/lib/api/play-events", () => ({
   recordPlayEvent: jest.fn(),
+  sendNowPlaying: jest.fn(),
 }));
 
 jest.mock("@/lib/player/player", () => ({
+  onPlaybackStateChange: jest.fn(() => () => {}),
   onProgress: jest.fn(() => () => {}),
   onTrackStarted: jest.fn(() => () => {}),
 }));
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ApiError } from "@/lib/api/client";
-import { recordPlayEvent } from "@/lib/api/play-events";
+import { recordPlayEvent, sendNowPlaying } from "@/lib/api/play-events";
 import { forgetPlayHistory, startPlayHistory } from "@/lib/player/play-history";
-import { onProgress, onTrackStarted } from "@/lib/player/player";
-import type { PlaybackProgress } from "@/lib/player/player";
+import {
+  onPlaybackStateChange,
+  onProgress,
+  onTrackStarted,
+} from "@/lib/player/player";
+import type { PlaybackProgress, PlaybackState } from "@/lib/player/player";
 import type { PlayerTrack } from "@/lib/player/track-item";
 
 const mockRecord = recordPlayEvent as jest.Mock;
+const mockNowPlaying = sendNowPlaying as jest.Mock;
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 const OUTBOX_KEY = "play_event_outbox";
 
@@ -38,9 +45,9 @@ function track(overrides: Partial<PlayerTrack> = {}): PlayerTrack {
     artist: "Radiohead",
     album: "Kid A",
     duration: 0,
-    url: "https://test.example/api/library/canonical-stream/12/77",
+    url: "https://test.example/api/library/stream/12/77",
     artwork: null,
-    streamPath: "/library/canonical-stream/12/77",
+    streamPath: "/library/stream/12/77",
     coverPath: null,
     trackMbid: "track-mb-1",
     artistMbid: "artist-mb-1",
@@ -67,6 +74,9 @@ function start(userId = ACCOUNT_A) {
   const started = (onTrackStarted as jest.Mock).mock.lastCall[0] as (
     value: PlayerTrack,
   ) => void;
+  const changeState = (onPlaybackStateChange as jest.Mock).mock.lastCall[0] as (
+    value: PlaybackState,
+  ) => void;
 
   /** One progress report a second, from one position to another. */
   function listen(
@@ -84,7 +94,7 @@ function start(userId = ACCOUNT_A) {
     progress({ track: track(), position, duration: 200, seeked: true });
   }
 
-  return { started, progress, listen, seek };
+  return { started, progress, listen, seek, changeState };
 }
 
 /** Let the module's write-and-send chain run to its end. */
@@ -111,6 +121,7 @@ beforeEach(() => {
     if (key === OUTBOX_KEY) stored = null;
   });
   mockRecord.mockResolvedValue(null);
+  mockNowPlaying.mockResolvedValue(undefined);
   jest.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
 });
 
@@ -139,6 +150,156 @@ describe("startPlayHistory", () => {
       playedAt: 1_800_000_000_000,
       source: "pocket",
     });
+    expect(outbox()).toEqual([]);
+  });
+
+  it("says what is playing once the track starts playing", async () => {
+    const { listen } = start();
+
+    listen(0, 60, { duration: 251.2 });
+    await settle();
+
+    expect(mockNowPlaying).toHaveBeenCalledTimes(1);
+    expect(mockNowPlaying).toHaveBeenCalledWith({
+      trackId: "77",
+      title: "Everything In Its Right Place",
+      artist: "Radiohead",
+      album: "Kid A",
+      artistMbid: "artist-mb-1",
+      albumMbid: "album-mb-1",
+      trackMbid: "track-mb-1",
+      durationMs: 251_200,
+      streamPath: "/library/stream/12/77",
+    });
+  });
+
+  // The engine learns a track's length from the stream.
+  it("waits for the length before saying what is playing", async () => {
+    const { listen } = start();
+
+    listen(0, 3, { duration: 0 });
+    await settle();
+    expect(mockNowPlaying).not.toHaveBeenCalled();
+
+    listen(4, 4, { duration: 200 });
+    await settle();
+    expect(mockNowPlaying).toHaveBeenCalledWith(
+      expect.objectContaining({ durationMs: 200_000 }),
+    );
+  });
+
+  it("says what is playing without a length after 10 seconds", async () => {
+    const { listen } = start();
+
+    listen(0, 9, { duration: 0 });
+    await settle();
+    expect(mockNowPlaying).not.toHaveBeenCalled();
+
+    listen(10, 60, { duration: 0 });
+    await settle();
+    expect(mockNowPlaying).toHaveBeenCalledTimes(1);
+    expect(mockNowPlaying).toHaveBeenCalledWith(
+      expect.objectContaining({ durationMs: null }),
+    );
+  });
+
+  it("sends only the newest now playing once a slow one answers", async () => {
+    let answerFirst = () => {};
+    mockNowPlaying.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (answerFirst = resolve)),
+    );
+    const { listen, started } = start();
+
+    listen(0, 5);
+    for (const id of ["78", "79"]) {
+      started(track({ id }));
+      listen(0, 5, { playing: track({ id }) });
+    }
+    await settle();
+    expect(mockNowPlaying).toHaveBeenCalledTimes(1);
+
+    answerFirst();
+    await settle();
+    expect(mockNowPlaying.mock.calls.map(([sent]) => sent.trackId)).toEqual([
+      "77",
+      "79",
+    ]);
+  });
+
+  it("drops a waiting now playing once another account signs in", async () => {
+    let answerFirst = () => {};
+    mockNowPlaying.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (answerFirst = resolve)),
+    );
+    const { listen, started } = start(ACCOUNT_A);
+
+    listen(0, 5);
+    started(track({ id: "78" }));
+    listen(0, 5, { playing: track({ id: "78" }) });
+    start(ACCOUNT_B);
+    answerFirst();
+    await settle();
+
+    expect(mockNowPlaying.mock.calls.map(([sent]) => sent.trackId)).toEqual([
+      "77",
+    ]);
+  });
+
+  // The server keeps now playing for one track length, which a pause can outlast.
+  it("says what is playing again when it plays on after a pause", async () => {
+    const { listen, changeState } = start();
+
+    listen(0, 30);
+    changeState("paused");
+    await settle();
+    expect(mockNowPlaying).toHaveBeenCalledTimes(1);
+
+    changeState("playing");
+    listen(31, 40);
+    await settle();
+    expect(mockNowPlaying).toHaveBeenCalledTimes(2);
+    expect(mockNowPlaying).toHaveBeenLastCalledWith(
+      expect.objectContaining({ trackId: "77", durationMs: 200_000 }),
+    );
+  });
+
+  it("adds up the listening on either side of a pause", async () => {
+    const { listen, changeState } = start();
+
+    listen(0, 60);
+    changeState("paused");
+    changeState("playing");
+    listen(61, 99);
+    await settle();
+    expect(mockRecord).not.toHaveBeenCalled();
+
+    listen(100, 100);
+    await settle();
+    expect(mockRecord).toHaveBeenCalledTimes(1);
+  });
+
+  // A restored queue loads its track paused, and the web player also waits
+  // for the first play.
+  it("says nothing for a track that loads without playing", async () => {
+    const { started, progress } = start();
+
+    started(track());
+    progress({ track: track(), position: 0, duration: 200, seeked: false });
+    progress({ track: track(), position: 0, duration: 200, seeked: false });
+    await settle();
+
+    expect(mockNowPlaying).not.toHaveBeenCalled();
+  });
+
+  it("drops a now playing that did not send", async () => {
+    mockNowPlaying.mockRejectedValue(new ApiError(0, "Network request failed"));
+    const { listen } = start();
+
+    listen(0, 100);
+    await settle();
+
+    expect(mockNowPlaying).toHaveBeenCalledTimes(1);
+    expect(sentTrackIds()).toEqual(["77"]);
     expect(outbox()).toEqual([]);
   });
 
@@ -182,6 +343,7 @@ describe("startPlayHistory", () => {
     await settle();
 
     expect(mockRecord).not.toHaveBeenCalled();
+    expect(mockNowPlaying).not.toHaveBeenCalled();
   });
 
   it("ignores a track from a playlist that opted out", async () => {
@@ -191,6 +353,7 @@ describe("startPlayHistory", () => {
     await settle();
 
     expect(mockRecord).not.toHaveBeenCalled();
+    expect(mockNowPlaying).not.toHaveBeenCalled();
   });
 
   it("does not count a seek past the threshold as listening", async () => {
@@ -293,6 +456,7 @@ describe("startPlayHistory", () => {
     await settle();
 
     expect(mockRecord).toHaveBeenCalledTimes(2);
+    expect(mockNowPlaying).toHaveBeenCalledTimes(2);
   });
 
   it("keeps a play the server never received", async () => {
@@ -471,13 +635,16 @@ describe("startPlayHistory", () => {
   it("stops reporting once the listeners are removed", () => {
     const stopProgress = jest.fn();
     const stopStarted = jest.fn();
+    const stopState = jest.fn();
     (onProgress as jest.Mock).mockReturnValueOnce(stopProgress);
     (onTrackStarted as jest.Mock).mockReturnValueOnce(stopStarted);
+    (onPlaybackStateChange as jest.Mock).mockReturnValueOnce(stopState);
 
     startPlayHistory(ACCOUNT_A)();
 
     expect(stopProgress).toHaveBeenCalled();
     expect(stopStarted).toHaveBeenCalled();
+    expect(stopState).toHaveBeenCalled();
   });
 });
 
