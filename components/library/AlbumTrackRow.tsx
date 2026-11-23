@@ -24,6 +24,8 @@ type AlbumTrackRowProps = {
   /** Tints the title while the player or a clip is on this track. */
   active?: boolean;
   titleStyle?: StyleProp<TextStyle>;
+  /** A second line under the title, such as the track's artist. */
+  subtitle?: string;
   /** Under the title, such as a clip's progress. */
   below?: React.ReactNode;
   /** After the title, before the ⋯ button. */
@@ -47,7 +49,7 @@ const POPULAR_LABEL = "Popular on this album";
 
 /**
  * A row in an album's track list, shared by the Library album page and the
- * release page so their rows keep one height and inset.
+ * release page so their rows keep one inset.
  */
 export function AlbumTrackRow({
   leading,
@@ -55,6 +57,7 @@ export function AlbumTrackRow({
   popular = false,
   active = false,
   titleStyle,
+  subtitle,
   below,
   trailing,
   onMenuPress,
@@ -84,6 +87,7 @@ export function AlbumTrackRow({
       }
       style={({ pressed }) => [
         styles.row,
+        subtitle ? styles.twoLineRow : null,
         { borderBottomColor: colors.separator },
         dimmed ? styles.dimmed : null,
         pressed && interactive ? { opacity: 0.6 } : null,
@@ -112,6 +116,11 @@ export function AlbumTrackRow({
             />
           ) : null}
         </View>
+        {subtitle ? (
+          <Text variant="caption" numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
         {below}
       </View>
       {trailing}
@@ -132,6 +141,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 8,
+  },
+  // Tighter, so a second line adds less height. Close to a playlist row's.
+  twoLineRow: {
+    paddingVertical: 10,
   },
   body: {
     flex: 1,

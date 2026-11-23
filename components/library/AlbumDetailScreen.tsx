@@ -438,6 +438,8 @@ export function AlbumDetailScreen() {
     <TrackRow
       key={track.id}
       track={number === undefined ? track : { ...track, trackNumber: number }}
+      // A track with no credit of its own is the album artist's.
+      artist={track.artistName || artistName}
       popular={popular}
       unavailable={!canPlayNow(track.id)}
       // A saved album's toolbar already says its tracks are on the phone.

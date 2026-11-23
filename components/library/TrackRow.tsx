@@ -9,6 +9,8 @@ import { useColors } from "@/hooks/use-colors";
 
 type TrackRowProps = {
   track: Track;
+  /** Under the title. */
+  artist?: string;
   onPress?: () => void;
   onLongPress?: () => void;
   /** Opens the track's action sheet. Omitted, the row shows no menu button. */
@@ -22,6 +24,7 @@ type TrackRowProps = {
 
 export const TrackRow = React.memo(function TrackRow({
   track,
+  artist,
   onPress,
   onLongPress,
   onMenuPress,
@@ -42,6 +45,7 @@ export const TrackRow = React.memo(function TrackRow({
         />
       }
       title={track.trackName}
+      subtitle={artist}
       popular={popular}
       active={isCurrent}
       trailing={
