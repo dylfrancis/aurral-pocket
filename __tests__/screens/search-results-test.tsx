@@ -61,18 +61,6 @@ jest.mock("@/hooks/search/use-library-search", () => ({
   })),
 }));
 
-// The sheet modules load for their hooks; their native parts never render.
-jest.mock("@gorhom/bottom-sheet", () => {
-  const { View } = require("react-native");
-  return {
-    BottomSheetModal: View,
-    BottomSheetView: View,
-    BottomSheetScrollView: View,
-    BottomSheetTextInput: View,
-    BottomSheetBackdrop: View,
-  };
-});
-
 jest.mock("@/components/library/TrackActionsSheet", () => ({
   ...jest.requireActual("@/components/library/TrackActionsSheet"),
   TrackActionsSheet: () => null,

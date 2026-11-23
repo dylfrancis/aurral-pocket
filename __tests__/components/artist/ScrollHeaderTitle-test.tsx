@@ -17,8 +17,6 @@ jest.mock("react-native-reanimated", () => {
     useSharedValue: (value: number) => ({ value }),
   };
 });
-jest.mock("@gorhom/bottom-sheet", () => ({}));
-
 const mockScreenOptions: Record<string, unknown>[] = [];
 jest.mock("expo-router", () => ({
   ...jest.requireActual("expo-router"),

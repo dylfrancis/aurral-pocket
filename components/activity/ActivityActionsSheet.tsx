@@ -1,4 +1,3 @@
-import React from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,9 +5,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
-import { AppSheet } from "@/components/ui/AppSheet";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppSheet, type Sheet } from "@/components/ui/AppSheet";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Text } from "@/components/ui/Text";
@@ -27,18 +24,17 @@ import type { ActivityItem } from "@/lib/types/activity";
 import { useColors } from "@/hooks/use-colors";
 
 type RequestActionsSheetProps = {
-  sheetRef: React.RefObject<BottomSheetModal | null>;
+  sheet: Sheet;
   request: ActivityItem | null;
   downloadStatus?: DownloadStatusValue;
 };
 
 export function ActivityActionsSheet({
-  sheetRef,
+  sheet,
   request,
   downloadStatus,
 }: RequestActionsSheetProps) {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const hasPermission = useHasPermission();
   const cancelMutation = useCancelAurralAlbum();
   const stopTrackMutation = useStopTrackDownload();
@@ -52,7 +48,7 @@ export function ActivityActionsSheet({
     : null;
   const canStop = !!libraryAlbumId && hasPermission("addAlbum");
 
-  const close = () => sheetRef.current?.dismiss();
+  const close = () => sheet.close();
 
   const handleStop = () => {
     if (!request || !libraryAlbumId || !canStop) return;
@@ -86,10 +82,8 @@ export function ActivityActionsSheet({
   };
 
   return (
-    <AppSheet ref={sheetRef} enablePanDownToClose enableDynamicSizing>
-      <BottomSheetView
-        style={[styles.content, { paddingBottom: insets.bottom + 16 }]}
-      >
+    <AppSheet sheet={sheet}>
+      <View style={styles.content}>
         {request && (
           <View style={styles.header}>
             <Text
@@ -134,7 +128,7 @@ export function ActivityActionsSheet({
             onPress={handleStopTrack}
           />
         )}
-      </BottomSheetView>
+      </View>
     </AppSheet>
   );
 }
@@ -174,6 +168,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 8,
+    paddingBottom: 16,
   },
   header: {
     paddingVertical: 8,

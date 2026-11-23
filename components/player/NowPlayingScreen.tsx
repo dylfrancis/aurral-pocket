@@ -1,6 +1,5 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Host } from "@expo/ui";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useRouter, type Href } from "expo-router";
 import {
   useCallback,
@@ -348,306 +347,296 @@ export function NowPlayingScreen() {
     ) : null;
 
   return (
-    // A native modal sits outside the app root's gesture and sheet hosts, so
-    // the player brings its own.
+    // A native modal sits outside the app root's gesture host, so the player
+    // brings its own.
     <GestureHandlerRootView style={styles.screen}>
-      <BottomSheetModalProvider>
-        <Animated.View
-          style={[StyleSheet.absoluteFill, styles.backdrop, drag.backdropStyle]}
-        />
-        <Animated.View
-          style={[styles.sheet, drag.sheetStyle]}
-          onAccessibilityEscape={close}
-        >
-          <CoverTintBackdrop tint={tint} fadeStops={TINT_FADE_STOPS} />
-          <LayoutAnimationConfig skipEntering>
-            <GestureDetector gesture={topPan}>
-              <View
-                style={[
-                  styles.top,
-                  (!track || !compact) && styles.topFill,
-                  { paddingTop: insets.top },
-                ]}
-              >
-                <Grabber onPress={close} />
-                {!track ? (
-                  <View style={styles.empty}>
-                    <Text variant="subtitle" style={{ color: colors.text }}>
-                      Nothing is playing.
-                    </Text>
-                  </View>
-                ) : compact ? (
-                  <Animated.View
-                    entering={SWAP_FADE}
-                    style={styles.thumbRow}
-                    onLayout={art.onThumbRowLayout}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, styles.backdrop, drag.backdropStyle]}
+      />
+      <Animated.View
+        style={[styles.sheet, drag.sheetStyle]}
+        onAccessibilityEscape={close}
+      >
+        <CoverTintBackdrop tint={tint} fadeStops={TINT_FADE_STOPS} />
+        <LayoutAnimationConfig skipEntering>
+          <GestureDetector gesture={topPan}>
+            <View
+              style={[
+                styles.top,
+                (!track || !compact) && styles.topFill,
+                { paddingTop: insets.top },
+              ]}
+            >
+              <Grabber onPress={close} />
+              {!track ? (
+                <View style={styles.empty}>
+                  <Text variant="subtitle" style={{ color: colors.text }}>
+                    Nothing is playing.
+                  </Text>
+                </View>
+              ) : compact ? (
+                <Animated.View
+                  entering={SWAP_FADE}
+                  style={styles.thumbRow}
+                  onLayout={art.onThumbRowLayout}
+                >
+                  <View style={styles.thumbPlaceholder} />
+                  <TrackTitles
+                    track={track}
+                    align="start"
+                    onTitlePress={track.albumRef ? openAlbum : undefined}
+                    onArtistPress={artistMbid ? openArtist : undefined}
+                  />
+                </Animated.View>
+              ) : (
+                <>
+                  <View
+                    style={[styles.artSlot, { maxHeight: width - GUTTER * 2 }]}
+                    onLayout={art.onArtSlotLayout}
                   >
-                    <View style={styles.thumbPlaceholder} />
+                    {/* Inside the slot: a detector around it shifts the
+                        frame the slot measures, and the art is placed by it. */}
+                    <GestureDetector gesture={skipPan}>
+                      <View style={StyleSheet.absoluteFill} />
+                    </GestureDetector>
+                  </View>
+                  <Animated.View entering={SWAP_FADE} style={styles.titleRow}>
                     <TrackTitles
                       track={track}
-                      align="start"
+                      align="center"
                       onTitlePress={track.albumRef ? openAlbum : undefined}
                       onArtistPress={artistMbid ? openArtist : undefined}
                     />
                   </Animated.View>
-                ) : (
-                  <>
-                    <View
-                      style={[
-                        styles.artSlot,
-                        { maxHeight: width - GUTTER * 2 },
-                      ]}
-                      onLayout={art.onArtSlotLayout}
-                    >
-                      {/* Inside the slot: a detector around it shifts the
-                        frame the slot measures, and the art is placed by it. */}
-                      <GestureDetector gesture={skipPan}>
-                        <View style={StyleSheet.absoluteFill} />
-                      </GestureDetector>
-                    </View>
-                    <Animated.View entering={SWAP_FADE} style={styles.titleRow}>
-                      <TrackTitles
-                        track={track}
-                        align="center"
-                        onTitlePress={track.albumRef ? openAlbum : undefined}
-                        onArtistPress={artistMbid ? openArtist : undefined}
-                      />
-                    </Animated.View>
-                  </>
-                )}
-              </View>
-            </GestureDetector>
+                </>
+              )}
+            </View>
+          </GestureDetector>
 
-            {track && showQueue && (
-              <Animated.View entering={SWAP_FADE} style={styles.queue}>
-                <Text
-                  variant="subtitle"
-                  style={[styles.queueHeading, { color: colors.text }]}
-                >
-                  Up Next
-                </Text>
-                {/* A core FlatList, not FlashList: FlashList v2 sizes itself
+          {track && showQueue && (
+            <Animated.View entering={SWAP_FADE} style={styles.queue}>
+              <Text
+                variant="subtitle"
+                style={[styles.queueHeading, { color: colors.text }]}
+              >
+                Up Next
+              </Text>
+              {/* A core FlatList, not FlashList: FlashList v2 sizes itself
                   against a container still settling and leaves a gap above
                   the first row until the first scroll. */}
-                <FlatList
-                  data={queueRows}
-                  renderItem={renderQueueRow}
-                  keyExtractor={queueRowKey}
-                  style={styles.queueList}
-                  contentContainerStyle={styles.queueContent}
-                />
-              </Animated.View>
-            )}
+              <FlatList
+                data={queueRows}
+                renderItem={renderQueueRow}
+                keyExtractor={queueRowKey}
+                style={styles.queueList}
+                contentContainerStyle={styles.queueContent}
+              />
+            </Animated.View>
+          )}
 
-            {track && showLyrics && (
-              <Animated.View entering={SWAP_FADE} style={styles.lyrics}>
-                <LyricsView
-                  // Each track measures and scrolls its own lines.
-                  key={track.id}
-                  trackId={track.id}
-                  lyrics={lyrics.lyrics}
-                />
-              </Animated.View>
-            )}
+          {track && showLyrics && (
+            <Animated.View entering={SWAP_FADE} style={styles.lyrics}>
+              <LyricsView
+                // Each track measures and scrolls its own lines.
+                key={track.id}
+                trackId={track.id}
+                lyrics={lyrics.lyrics}
+              />
+            </Animated.View>
+          )}
 
-            {track && (
-              <GestureDetector gesture={controlsPan}>
-                <View
-                  style={[
-                    styles.controls,
-                    { paddingBottom: insets.bottom + 8 },
-                  ]}
-                >
-                  <View style={styles.actionRow}>
-                    <View style={[styles.actionSlot, styles.actionSlotStart]}>
-                      {favorite}
-                    </View>
-                    <Text
-                      variant="caption"
-                      numberOfLines={1}
-                      style={[styles.fileQuality, { color: colors.subtle }]}
-                      accessibilityLabel={fileQuality?.spoken}
-                    >
-                      {fileQuality?.shown}
-                    </Text>
-                    <View style={[styles.actionSlot, styles.actionSlotEnd]}>
-                      {menuActions.length +
-                        pluginActions.length +
-                        trailingActions.length >
-                        0 && (
-                        <TrackMenu
-                          actions={menuActions}
-                          onAction={onMenuAction}
-                          pluginActions={pluginActions}
-                          trailingActions={trailingActions}
-                          triggerColor={colors.text}
-                        />
-                      )}
-                    </View>
+          {track && (
+            <GestureDetector gesture={controlsPan}>
+              <View
+                style={[styles.controls, { paddingBottom: insets.bottom + 8 }]}
+              >
+                <View style={styles.actionRow}>
+                  <View style={[styles.actionSlot, styles.actionSlotStart]}>
+                    {favorite}
                   </View>
-                  <Scrubber />
-                  <View style={styles.transport}>
-                    <Pressable
-                      onPress={() => setShuffle(!modes.shuffle)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: modes.shuffle }}
-                      accessibilityLabel="Shuffle"
-                      style={styles.modeButton}
-                    >
-                      <Ionicons
-                        name="shuffle"
-                        size={28}
-                        color={modes.shuffle ? colors.brand : colors.subtle}
+                  <Text
+                    variant="caption"
+                    numberOfLines={1}
+                    style={[styles.fileQuality, { color: colors.subtle }]}
+                    accessibilityLabel={fileQuality?.spoken}
+                  >
+                    {fileQuality?.shown}
+                  </Text>
+                  <View style={[styles.actionSlot, styles.actionSlotEnd]}>
+                    {menuActions.length +
+                      pluginActions.length +
+                      trailingActions.length >
+                      0 && (
+                      <TrackMenu
+                        actions={menuActions}
+                        onAction={onMenuAction}
+                        pluginActions={pluginActions}
+                        trailingActions={trailingActions}
+                        triggerColor={colors.text}
                       />
-                      {modes.shuffle && (
-                        <View
-                          style={[
-                            styles.modeDot,
-                            { backgroundColor: colors.brand },
-                          ]}
-                        />
-                      )}
-                    </Pressable>
-                    <TransportButton
-                      icon="play-back"
-                      size={SKIP_SIZE}
-                      label="Previous track"
-                      onPress={() => previous()}
-                    />
-                    <TransportButton
-                      icon={isPlaying ? "pause" : "play"}
-                      size={PLAY_SIZE}
-                      label={isPlaying ? "Pause" : "Play"}
-                      onPress={() => togglePlayback()}
-                    />
-                    <TransportButton
-                      icon="play-forward"
-                      size={SKIP_SIZE}
-                      label="Next track"
-                      onPress={() => next()}
-                    />
-                    <Pressable
-                      onPress={() =>
-                        setRepeatMode(NEXT_REPEAT_MODE[modes.repeat])
-                      }
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: modes.repeat !== "off" }}
-                      accessibilityLabel={`Repeat: ${modes.repeat}`}
-                    >
-                      {modes.repeat === "one" ? (
-                        <MaterialIcons
-                          name="repeat-one"
-                          size={28}
-                          color={colors.brand}
-                        />
-                      ) : (
-                        <Ionicons
-                          name="repeat"
-                          size={28}
-                          color={
-                            modes.repeat === "all"
-                              ? colors.brand
-                              : colors.subtle
-                          }
-                        />
-                      )}
-                    </Pressable>
-                  </View>
-                  <View style={styles.toolbar}>
-                    <DevicesButton
-                      color={colors.text}
-                      activeColor={colors.brand}
-                    />
-                    <OutputButton
-                      color={colors.text}
-                      activeColor={colors.brand}
-                    />
-                    <View style={styles.toolbarSpacer} />
-                    <Pressable
-                      onPress={() => {
-                        setShowQueue(false);
-                        setLyricsOpen(!lyricsOpen);
-                      }}
-                      disabled={!lyrics.available}
-                      hitSlop={4}
-                      accessibilityRole="button"
-                      accessibilityState={{
-                        selected: showLyrics,
-                        disabled: !lyrics.available,
-                      }}
-                      accessibilityLabel="Lyrics"
-                      style={[
-                        styles.toolbarButton,
-                        showLyrics && { backgroundColor: colors.selectedFill },
-                      ]}
-                    >
-                      <MaterialIcons
-                        name="lyrics"
-                        size={24}
-                        color={
-                          !lyrics.available
-                            ? colors.faint
-                            : showLyrics
-                              ? tint
-                              : colors.text
-                        }
-                      />
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        setLyricsOpen(false);
-                        setShowQueue((shown) => !shown);
-                      }}
-                      hitSlop={4}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: showQueue }}
-                      accessibilityLabel="Queue"
-                      style={[
-                        styles.toolbarButton,
-                        showQueue && { backgroundColor: colors.selectedFill },
-                      ]}
-                    >
-                      <Ionicons
-                        name="list"
-                        size={24}
-                        color={showQueue ? tint : colors.text}
-                      />
-                    </Pressable>
+                    )}
                   </View>
                 </View>
-              </GestureDetector>
-            )}
-
-            {track && (
-              // One copy of the art, moved between the two views' slots so it
-              // travels instead of swapping.
-              <Animated.View
-                style={[
-                  styles.art,
-                  { width: art.size, height: art.size },
-                  art.style,
-                ]}
-              >
-                {art.size > 0 && (
-                  <PlayerArtwork
-                    url={track.artwork}
-                    coverPath={track.coverPath}
-                    size={art.size}
-                    borderRadius={0}
-                    onLoad={swipe.onCoverLoad}
+                <Scrubber />
+                <View style={styles.transport}>
+                  <Pressable
+                    onPress={() => setShuffle(!modes.shuffle)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: modes.shuffle }}
+                    accessibilityLabel="Shuffle"
+                    style={styles.modeButton}
+                  >
+                    <Ionicons
+                      name="shuffle"
+                      size={28}
+                      color={modes.shuffle ? colors.brand : colors.subtle}
+                    />
+                    {modes.shuffle && (
+                      <View
+                        style={[
+                          styles.modeDot,
+                          { backgroundColor: colors.brand },
+                        ]}
+                      />
+                    )}
+                  </Pressable>
+                  <TransportButton
+                    icon="play-back"
+                    size={SKIP_SIZE}
+                    label="Previous track"
+                    onPress={() => previous()}
                   />
-                )}
-              </Animated.View>
-            )}
-          </LayoutAnimationConfig>
-        </Animated.View>
-        <AddToPlaylistSheet
-          track={addToPlaylist.track}
-          onClose={addToPlaylist.close}
-        />
-      </BottomSheetModalProvider>
+                  <TransportButton
+                    icon={isPlaying ? "pause" : "play"}
+                    size={PLAY_SIZE}
+                    label={isPlaying ? "Pause" : "Play"}
+                    onPress={() => togglePlayback()}
+                  />
+                  <TransportButton
+                    icon="play-forward"
+                    size={SKIP_SIZE}
+                    label="Next track"
+                    onPress={() => next()}
+                  />
+                  <Pressable
+                    onPress={() =>
+                      setRepeatMode(NEXT_REPEAT_MODE[modes.repeat])
+                    }
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: modes.repeat !== "off" }}
+                    accessibilityLabel={`Repeat: ${modes.repeat}`}
+                  >
+                    {modes.repeat === "one" ? (
+                      <MaterialIcons
+                        name="repeat-one"
+                        size={28}
+                        color={colors.brand}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="repeat"
+                        size={28}
+                        color={
+                          modes.repeat === "all" ? colors.brand : colors.subtle
+                        }
+                      />
+                    )}
+                  </Pressable>
+                </View>
+                <View style={styles.toolbar}>
+                  <DevicesButton
+                    color={colors.text}
+                    activeColor={colors.brand}
+                  />
+                  <OutputButton
+                    color={colors.text}
+                    activeColor={colors.brand}
+                  />
+                  <View style={styles.toolbarSpacer} />
+                  <Pressable
+                    onPress={() => {
+                      setShowQueue(false);
+                      setLyricsOpen(!lyricsOpen);
+                    }}
+                    disabled={!lyrics.available}
+                    hitSlop={4}
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      selected: showLyrics,
+                      disabled: !lyrics.available,
+                    }}
+                    accessibilityLabel="Lyrics"
+                    style={[
+                      styles.toolbarButton,
+                      showLyrics && { backgroundColor: colors.selectedFill },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="lyrics"
+                      size={24}
+                      color={
+                        !lyrics.available
+                          ? colors.faint
+                          : showLyrics
+                            ? tint
+                            : colors.text
+                      }
+                    />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      setLyricsOpen(false);
+                      setShowQueue((shown) => !shown);
+                    }}
+                    hitSlop={4}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: showQueue }}
+                    accessibilityLabel="Queue"
+                    style={[
+                      styles.toolbarButton,
+                      showQueue && { backgroundColor: colors.selectedFill },
+                    ]}
+                  >
+                    <Ionicons
+                      name="list"
+                      size={24}
+                      color={showQueue ? tint : colors.text}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            </GestureDetector>
+          )}
+
+          {track && (
+            // One copy of the art, moved between the two views' slots so it
+            // travels instead of swapping.
+            <Animated.View
+              style={[
+                styles.art,
+                { width: art.size, height: art.size },
+                art.style,
+              ]}
+            >
+              {art.size > 0 && (
+                <PlayerArtwork
+                  url={track.artwork}
+                  coverPath={track.coverPath}
+                  size={art.size}
+                  borderRadius={0}
+                  onLoad={swipe.onCoverLoad}
+                />
+              )}
+            </Animated.View>
+          )}
+        </LayoutAnimationConfig>
+      </Animated.View>
+      <AddToPlaylistSheet
+        track={addToPlaylist.track}
+        onClose={addToPlaylist.close}
+      />
     </GestureHandlerRootView>
   );
 }

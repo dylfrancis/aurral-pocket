@@ -6,8 +6,8 @@ import type {
   SearchBarTextEventData,
 } from "react-native-screens";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
+import { useSheet } from "@/components/ui/AppSheet";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SearchPreviewRow } from "@/components/search/SearchPreviewRow";
 import {
@@ -125,7 +125,7 @@ export default function SearchScreen() {
     [addRecentSearch],
   );
 
-  const shazamSheetRef = useRef<BottomSheetModal | null>(null);
+  const shazamSheet = useSheet();
   const handleShazamArtist = useCallback(
     (mbid: string, name: string) => openArtist({ mbid, name }),
     [openArtist],
@@ -202,7 +202,7 @@ export default function SearchScreen() {
           <Stack.Toolbar.Button
             icon={IS_IOS ? "mic" : Mic}
             accessibilityLabel="Identify song"
-            onPress={() => shazamSheetRef.current?.present()}
+            onPress={shazamSheet.present}
           >
             Identify song
           </Stack.Toolbar.Button>
@@ -226,7 +226,7 @@ export default function SearchScreen() {
         />
       </ScrollView>
       <ShazamSheet
-        sheetRef={shazamSheetRef}
+        sheet={shazamSheet}
         onViewArtist={handleShazamArtist}
         onViewRelease={(params) =>
           router.push({ pathname: "/release/[mbid]", params })

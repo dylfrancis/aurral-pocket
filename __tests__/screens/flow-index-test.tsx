@@ -82,22 +82,6 @@ jest.mock("@shopify/flash-list", () => {
   return { FlashList: FlatList };
 });
 
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  const BottomSheetModal = React.forwardRef(function MockBottomSheetModal(
-    { children, ...props }: any,
-    ref: any,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      present: jest.fn(),
-      dismiss: jest.fn(),
-    }));
-    return React.createElement(View, props, children);
-  });
-  return { __esModule: true, BottomSheetModal };
-});
-
 import React from "react";
 import { Alert } from "react-native";
 import { fireEvent, render } from "@testing-library/react-native";

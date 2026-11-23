@@ -11,34 +11,6 @@ jest.mock("@/components/library/CoverArtImage", () => ({
   CoverArtImage: () => null,
 }));
 
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
-
-const mockDismiss = jest.fn();
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { TextInput, View } = require("react-native");
-  const BottomSheet = React.forwardRef(function MockBottomSheet(
-    { children }: any,
-    ref: any,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      present: jest.fn(),
-      dismiss: mockDismiss,
-    }));
-    return <View>{children}</View>;
-  });
-  return {
-    __esModule: true,
-    default: BottomSheet,
-    BottomSheetModal: BottomSheet,
-    BottomSheetBackdrop: (props: any) => <View {...props} />,
-    BottomSheetScrollView: ({ children }: any) => <View>{children}</View>,
-    BottomSheetTextInput: (props: any) => <TextInput {...props} />,
-  };
-});
-
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -118,8 +90,8 @@ it("searches by the artist's name and saves the match picked", async () => {
   await fireEvent.press(screen.getByText("Save"));
 
   expect(mockSetMbid).toHaveBeenCalledWith("12", TRIBUTE);
+  expect(screen.queryByText("Match Artist")).toBeNull();
   expect(onSaved).toHaveBeenCalledWith(RESULT);
-  expect(mockDismiss).toHaveBeenCalled();
 });
 
 it("picks the one match named exactly like the artist", async () => {
@@ -152,9 +124,9 @@ it("saves the MBID in a pasted MusicBrainz link", async () => {
     screen.getByPlaceholderText("Search or paste a MusicBrainz link"),
     "https://musicbrainz.org/artist/66C662B6-6E2F-4930-8610-912E24C63ED1",
   );
+  expect(screen.getByText("MusicBrainz ID")).toBeTruthy();
   await fireEvent.press(screen.getByText("Save"));
 
-  expect(screen.getByText("MusicBrainz ID")).toBeTruthy();
   expect(mockSetMbid).toHaveBeenCalledWith("12", ACDC);
 });
 
@@ -193,5 +165,5 @@ it("stays open with the pick when the save fails", async () => {
     preset: "error",
   });
   expect(onSaved).not.toHaveBeenCalled();
-  expect(mockDismiss).not.toHaveBeenCalled();
+  expect(screen.getByText("Match Artist")).toBeTruthy();
 });

@@ -1,11 +1,12 @@
-// Stand-ins for the @expo/ui universal components the Settings pages use,
-// for `jest.mock("@expo/ui", () => require("@/test-support/expo-ui"))`. Jest
-// has no SwiftUI or Compose, so each renders the React Native view a test can
-// query and press.
+// Stand-ins for the @expo/ui universal components the Settings pages and the
+// sheets use, for `jest.mock("@expo/ui", () => require("@/test-support/expo-ui"))`.
+// Jest has no SwiftUI or Compose, so each renders the React Native view a test
+// can query and press.
 import {
   forwardRef,
   useImperativeHandle,
   useState,
+  type ReactElement,
   type ReactNode,
 } from "react";
 import {
@@ -19,6 +20,35 @@ type Children = { children?: ReactNode };
 
 export function Host({ children }: Children) {
   return <View>{children}</View>;
+}
+
+type BottomSheetProps = Children & {
+  isPresented: boolean;
+  onDismiss: () => void;
+  testID?: string;
+};
+
+/**
+ * Mounts its content only while presented, but drops it the moment it closes,
+ * where the native sheet waits for its slide. "Dismiss sheet" swipes it away.
+ */
+export function BottomSheet({
+  isPresented,
+  onDismiss,
+  testID,
+  children,
+}: BottomSheetProps) {
+  if (!isPresented) return null;
+  return (
+    <View testID={testID}>
+      <Pressable accessibilityLabel="Dismiss sheet" onPress={onDismiss} />
+      {children}
+    </View>
+  );
+}
+
+export function RNHostView({ children }: { children: ReactElement }) {
+  return children;
 }
 
 function Section({ title, children }: Children & { title?: string }) {

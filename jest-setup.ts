@@ -26,6 +26,14 @@ jest.mock("expo/fetch", () => ({
   fetch: jest.fn(),
 }));
 
+// Jest has no SwiftUI or Compose to present a sheet in, so the sheet renders
+// its React Native content in place while presented.
+jest.mock("@expo/ui", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { BottomSheet, RNHostView } = require("@/test-support/expo-ui");
+  return { ...jest.requireActual("@expo/ui"), BottomSheet, RNHostView };
+});
+
 // The generated ExpoCrypto mock digests to "", which would give every PKCE pair
 // an empty challenge. Pocket only hashes with SHA-256, so Node's stands in.
 jest.mock("expo-crypto", () => ({

@@ -48,28 +48,6 @@ jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   }),
 }));
 
-jest.mock("@/components/ui/AppSheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    AppSheet: React.forwardRef(function MockAppSheet(
-      { children }: any,
-      _ref: any,
-    ) {
-      return React.createElement(View, null, children);
-    }),
-  };
-});
-
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return {
-    BottomSheetView: ({ children }: any) =>
-      React.createElement(View, null, children),
-  };
-});
-
 import React from "react";
 import { Text } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

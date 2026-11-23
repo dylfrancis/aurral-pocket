@@ -14,7 +14,6 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import "react-native-reanimated";
 
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
@@ -117,13 +116,11 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <ThemePreferenceProvider>
-                <BottomSheetModalProvider>
-                  <RootLayoutNav />
-                  <ReAuthModal />
-                  {/* Above the router, so a logout survives the navigation
-                      back to the login screen. */}
-                  <OidcLogoutWebView />
-                </BottomSheetModalProvider>
+                <RootLayoutNav />
+                <ReAuthModal />
+                {/* Above the router, so a logout survives the navigation
+                    back to the login screen. */}
+                <OidcLogoutWebView />
               </ThemePreferenceProvider>
             </AuthProvider>
           </QueryClientProvider>

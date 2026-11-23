@@ -52,29 +52,6 @@ jest.mock("@/components/ui/PillRow", () => {
   };
 });
 
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { TextInput, View } = require("react-native");
-  const BottomSheet = React.forwardRef(function MockBottomSheet(
-    { children }: any,
-    ref: any,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      present: jest.fn(),
-      dismiss: jest.fn(),
-    }));
-    return <View>{children}</View>;
-  });
-  return {
-    __esModule: true,
-    default: BottomSheet,
-    BottomSheetModal: BottomSheet,
-    BottomSheetBackdrop: (props: any) => <View {...props} />,
-    BottomSheetScrollView: ({ children }: any) => <View>{children}</View>,
-    BottomSheetTextInput: (props: any) => <TextInput {...props} />,
-  };
-});
-
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -86,6 +63,7 @@ import {
 } from "@testing-library/react-native";
 import * as Burnt from "burnt";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
+import { useSheet } from "@/components/ui/AppSheet";
 import { getMonitoringDefaults } from "@/lib/api/library";
 import { addArtist } from "@/lib/api/search";
 import type { MonitoringRules } from "@/lib/types/monitoring";
@@ -105,7 +83,17 @@ const DEFAULT_RULES: MonitoringRules = {
   topTracks: 0,
 };
 
-const sheetRef = { current: null };
+function OpenSheet() {
+  const sheet = useSheet({ presented: true });
+  return (
+    <AddArtistSheet
+      mbid="a74b1b7f-71a5-4011-9441-d0b5e4122711"
+      artistName="Radiohead"
+      sheet={sheet}
+    />
+  );
+}
+
 const clients: QueryClient[] = [];
 
 async function renderSheet() {
@@ -118,11 +106,7 @@ async function renderSheet() {
   clients.push(client);
   await render(
     <QueryClientProvider client={client}>
-      <AddArtistSheet
-        mbid="a74b1b7f-71a5-4011-9441-d0b5e4122711"
-        artistName="Radiohead"
-        sheetRef={sheetRef}
-      />
+      <OpenSheet />
     </QueryClientProvider>,
   );
   // The defaults have loaded once Default Rules sums them up.
@@ -247,7 +231,8 @@ describe("AddArtistSheet", () => {
     await renderSheet();
     await pressAdd();
     // Swiping the sheet down unmounts its content.
-    await act(async () => screen.unmount());
+    await fireEvent.press(screen.getByLabelText("Dismiss sheet"));
+    expect(screen.queryAllByText("Add to Library")).toHaveLength(0);
     await act(async () =>
       finish({
         queued: false,

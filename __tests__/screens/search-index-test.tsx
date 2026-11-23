@@ -58,18 +58,6 @@ jest.mock("expo-image", () => {
   return { Image: (props: object) => <View {...props} /> };
 });
 
-// The sheet modules load for their hooks; their native parts never render.
-jest.mock("@gorhom/bottom-sheet", () => {
-  const { View } = require("react-native");
-  return {
-    BottomSheetModal: View,
-    BottomSheetView: View,
-    BottomSheetScrollView: View,
-    BottomSheetTextInput: View,
-    BottomSheetBackdrop: View,
-  };
-});
-
 // The sheet owns its contents; this stand-in shows which song it opened for.
 jest.mock("@/components/library/TrackActionsSheet", () => {
   const { Text } = require("react-native");

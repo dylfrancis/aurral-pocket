@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -8,7 +8,6 @@ import {
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter } from "expo-router";
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import CancelIcon from "@expo/material-symbols/cancel.xml";
@@ -20,6 +19,7 @@ import { ActivityActionsSheet } from "@/components/activity/ActivityActionsSheet
 import { ActivityCauseCards } from "@/components/activity/ActivityCauseCards";
 import { EmptyState } from "@/components/library/EmptyState";
 import { NO_SCROLL_ANCHOR } from "@/components/library/ReleaseGrid";
+import { useSheet } from "@/components/ui/AppSheet";
 import { PillRow } from "@/components/ui/PillRow";
 import { Text } from "@/components/ui/Text";
 import { useAuth } from "@/contexts/auth-context";
@@ -79,7 +79,7 @@ export function ActivityList({ view }: ActivityListProps) {
   const isAdmin = user?.role === "admin";
   const hasPermission = useHasPermission();
   const openPlaylist = useOpenPlaylist();
-  const sheetRef = useRef<BottomSheetModal>(null);
+  const actionsSheet = useSheet();
   const [selected, setSelected] = useState<ActivityItem | null>(null);
   const [statusFilter, setStatusFilter] = useState<ActivityStatus | null>(null);
   const [causeFilter, setCauseFilter] = useState<string | null>(null);
@@ -145,10 +145,14 @@ export function ActivityList({ view }: ActivityListProps) {
     [openArtist, canOpenPlaylists, openPlaylist],
   );
 
-  const handleLongPress = useCallback((item: ActivityItem) => {
-    setSelected(item);
-    sheetRef.current?.present();
-  }, []);
+  const presentActions = actionsSheet.present;
+  const handleLongPress = useCallback(
+    (item: ActivityItem) => {
+      setSelected(item);
+      presentActions();
+    },
+    [presentActions],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: ActivityItem }) => (
@@ -342,7 +346,7 @@ export function ActivityList({ view }: ActivityListProps) {
         }
       />
       <ActivityActionsSheet
-        sheetRef={sheetRef}
+        sheet={actionsSheet}
         request={sheetItem}
         downloadStatus={activeStatus}
       />

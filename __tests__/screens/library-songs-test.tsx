@@ -19,9 +19,6 @@ jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
   AddToPlaylistSheet: () => null,
   useAddToPlaylist: () => ({ canAddToPlaylist: false, open: jest.fn() }),
 }));
-// The track actions sheet; no test here opens it.
-jest.mock("@gorhom/bottom-sheet", () => ({ BottomSheetView: () => null }));
-jest.mock("@/components/ui/AppSheet", () => ({ AppSheet: () => null }));
 jest.mock("@shopify/flash-list", () => {
   const { FlatList } = require("react-native");
   return { FlashList: FlatList };

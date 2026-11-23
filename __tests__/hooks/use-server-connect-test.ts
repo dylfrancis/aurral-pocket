@@ -1,9 +1,3 @@
-jest.mock("@/contexts/auth-context", () => ({
-  useAuth: jest.fn(() => ({
-    setServer: jest.fn(),
-  })),
-}));
-
 jest.mock("@/lib/api/client", () => ({
   setBaseUrl: jest.fn(),
   setCustomHeaders: jest.fn(),
@@ -27,7 +21,6 @@ jest.mock("@tanstack/react-query", () => ({
 import { useMutation } from "@tanstack/react-query";
 import { setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import { checkServerLive, getServerHealth } from "@/lib/api/health";
-import { useAuth } from "@/contexts/auth-context";
 import { useServerConnect } from "@/hooks/auth/use-server-connect";
 
 const mockSetBaseUrl = setBaseUrl as jest.Mock;
@@ -122,26 +115,6 @@ describe("useServerConnect", () => {
     expect(mockSetCustomHeaders).toHaveBeenCalledWith(headers);
     expect(mockSetCustomHeaders.mock.invocationCallOrder[0]).toBeLessThan(
       mockCheckServerLive.mock.invocationCallOrder[0],
-    );
-  });
-
-  it("calls setServer on success", () => {
-    const mockSetServer = jest.fn();
-    (useAuth as jest.Mock).mockReturnValue({ setServer: mockSetServer });
-
-    useServerConnect();
-    const { config } = mockUseMutation.mock.results[0].value;
-
-    config.onSuccess({
-      url: "https://server.com",
-      health: { authRequired: true },
-      headers: { "CF-Access-Client-Id": "id.access" },
-    });
-
-    expect(mockSetServer).toHaveBeenCalledWith(
-      "https://server.com",
-      { authRequired: true },
-      { "CF-Access-Client-Id": "id.access" },
     );
   });
 

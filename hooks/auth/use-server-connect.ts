@@ -1,5 +1,4 @@
 import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/auth-context";
 import { setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import {
   checkServerLive,
@@ -17,9 +16,11 @@ type ServerConnection = {
   headers: Record<string, string>;
 };
 
+/**
+ * Checks a server pocket can use. Saving it is the caller's, with setServer:
+ * that leaves the Get Started page, which has to close its sheet first.
+ */
 export function useServerConnect() {
-  const { setServer } = useAuth();
-
   return useMutation({
     mutationFn: async ({ url, headers }: ServerConnection) => {
       const normalized = normalizeUrl(url);
@@ -40,9 +41,6 @@ export function useServerConnect() {
         );
       }
       return { url: normalized, health, headers };
-    },
-    onSuccess: ({ url, health, headers }) => {
-      setServer(url, health, headers);
     },
     onError: () => {
       setBaseUrl("");

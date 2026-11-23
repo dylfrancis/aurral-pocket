@@ -13,6 +13,7 @@ import {
 } from "@/components/library/TrackActionsSheet";
 import { pluginMenuSection } from "@/components/plugins/PluginMenuActions";
 import { AddArtistSheet } from "@/components/search/AddArtistSheet";
+import { useSheet } from "@/components/ui/AppSheet";
 import { Fonts } from "@/constants/theme";
 import { HAS_LIQUID_GLASS } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
@@ -73,7 +74,6 @@ import type {
   ReleaseGroup,
 } from "@/lib/types/library";
 import type { SimilarArtist } from "@/lib/types/search";
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
@@ -332,7 +332,7 @@ export function ArtistDetailLayout({
     return map;
   }, [typedAlbums]);
 
-  const addArtistSheetRef = useRef<BottomSheetModal>(null);
+  const addArtistSheet = useSheet();
 
   const openReleaseGroup = useCallback(
     (rg: ReleaseGroup) => {
@@ -703,7 +703,7 @@ export function ArtistDetailLayout({
             }
             onAddPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              addArtistSheetRef.current?.present();
+              addArtistSheet.present();
             }}
           />
         </View>
@@ -760,11 +760,12 @@ export function ArtistDetailLayout({
         ) : null}
       </Animated.ScrollView>
 
-      {!inLibrary && mbid ? (
+      {/* Kept once the artist is in, so the sheet can finish closing. */}
+      {mbid ? (
         <AddArtistSheet
           mbid={mbid}
           artistName={artistName}
-          sheetRef={addArtistSheetRef}
+          sheet={addArtistSheet}
           onAdded={() => {
             void Haptics.notificationAsync(
               Haptics.NotificationFeedbackType.Success,

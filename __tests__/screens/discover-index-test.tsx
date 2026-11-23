@@ -155,28 +155,6 @@ jest.mock("@/components/shazam", () => ({
   ShazamSheet: () => null,
 }));
 
-jest.mock("@gorhom/bottom-sheet", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  const BottomSheetModal = React.forwardRef(function MockBottomSheetModal(
-    { children, ...props }: any,
-    ref: any,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      present: jest.fn(),
-      dismiss: jest.fn(),
-    }));
-    return React.createElement(View, props, children);
-  });
-  return {
-    __esModule: true,
-    BottomSheetModal,
-    BottomSheetBackdrop: (props: any) => React.createElement(View, props),
-    BottomSheetView: ({ children, ...props }: any) =>
-      React.createElement(View, props, children),
-  };
-});
-
 const mockInvalidateQueries = jest.fn(() => Promise.resolve());
 jest.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
