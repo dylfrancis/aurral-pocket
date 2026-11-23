@@ -1,3 +1,5 @@
+import { useItemActions } from "@/components/actions/item-actions-context";
+import { recentReleaseTarget } from "@/components/actions/targets";
 import { StyleSheet } from "react-native";
 import { useRecentReleases } from "@/hooks/discover";
 import type { RecentReleaseAlbum } from "@/lib/types/search";
@@ -11,6 +13,7 @@ type Props = {
 
 export function RecentReleasesSection({ onAlbumPress, onViewAll }: Props) {
   const { data, isLoading } = useRecentReleases();
+  const { openAlbum } = useItemActions();
 
   return (
     <DiscoverRail
@@ -26,6 +29,7 @@ export function RecentReleasesSection({ onAlbumPress, onViewAll }: Props) {
         <DiscoverReleaseCard
           album={album}
           onPress={() => onAlbumPress(album)}
+          onLongPress={() => openAlbum(recentReleaseTarget(album))}
         />
       )}
       cardSize={RELEASE_CARD_WIDTH}

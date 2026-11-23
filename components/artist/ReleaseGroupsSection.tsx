@@ -10,6 +10,7 @@ type ReleaseGroupsSectionProps = {
   grouped: Map<PrimaryReleaseType, ReleaseGroup[]> | null;
   isLoading?: boolean;
   onPress: (rg: ReleaseGroup) => void;
+  onLongPress?: (rg: ReleaseGroup) => void;
   onNavigate: (type: PrimaryReleaseType, label: string) => void;
 };
 
@@ -17,6 +18,7 @@ export function ReleaseGroupsSection({
   grouped,
   isLoading,
   onPress,
+  onLongPress,
   onNavigate,
 }: ReleaseGroupsSectionProps) {
   if (!grouped || grouped.size === 0) {
@@ -45,7 +47,11 @@ export function ReleaseGroupsSection({
             items={list}
             keyExtractor={(rg) => rg.id}
             renderItem={(rg) => (
-              <ReleaseGroupCard releaseGroup={rg} onPress={() => onPress(rg)} />
+              <ReleaseGroupCard
+                releaseGroup={rg}
+                onPress={() => onPress(rg)}
+                onLongPress={onLongPress && (() => onLongPress(rg))}
+              />
             )}
             onNavigate={onNavigate}
           />

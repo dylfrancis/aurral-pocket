@@ -22,49 +22,64 @@ import { useColors } from "@/hooks/use-colors";
 
 const ROW_ARTWORK_SIZE = 44;
 
+/** The songs to save, and the line under the sheet's title that names them. */
+export type PlaylistSelection = {
+  tracks: SharedPlaylistTrack[];
+  subtitle: string;
+};
+
 type Props = {
-  /** The track to save. The sheet is closed while this is null. */
-  track: SharedPlaylistTrack | null;
+  /** The sheet is closed while this is null. */
+  selection: PlaylistSelection | null;
   onClose: () => void;
 };
 
 /**
- * State and permission gate for one AddToPlaylistSheet. `open` sets the track
- * and gives haptic feedback; wire it to a long-press only when
+ * State and permission gate for one AddToPlaylistSheet. `open` sets one track
+ * and `openMany` several, with haptic feedback; wire them up only when
  * `canAddToPlaylist` is true, because the playlist API answers 403 without
  * the accessPlaylists permission.
  */
 export function useAddToPlaylist() {
   const hasPermission = useHasPermission();
   const canAddToPlaylist = hasPermission("accessPlaylists");
-  const [track, setTrack] = useState<SharedPlaylistTrack | null>(null);
+  const [selection, setSelection] = useState<PlaylistSelection | null>(null);
 
-  const open = useCallback((next: SharedPlaylistTrack) => {
+  const openMany = useCallback((next: PlaylistSelection) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setTrack(next);
+    setSelection(next);
   }, []);
 
-  const close = useCallback(() => setTrack(null), []);
+  const open = useCallback(
+    (track: SharedPlaylistTrack) =>
+      openMany({
+        tracks: [track],
+        subtitle: `"${track.trackName}" · ${track.artistName}`,
+      }),
+    [openMany],
+  );
 
-  return { canAddToPlaylist, track, open, close };
+  const close = useCallback(() => setSelection(null), []);
+
+  return { canAddToPlaylist, selection, open, openMany, close };
 }
 
 /**
- * Bottom sheet that saves one track into a static playlist — an existing one,
- * or a new one named in a sheet on top. Mounted only while a track is set, so the flow
+ * Bottom sheet that saves tracks into a static playlist — an existing one,
+ * or a new one named in a sheet on top. Mounted only while a selection is set, so the flow
  * status query behind useSharedPlaylists() does not run until the sheet opens.
  * Callers must gate on the accessPlaylists permission; that query 403s without it.
  */
-export function AddToPlaylistSheet({ track, onClose }: Props) {
-  if (!track) return null;
-  return <AddToPlaylistSheetContent track={track} onClose={onClose} />;
+export function AddToPlaylistSheet({ selection, onClose }: Props) {
+  if (!selection) return null;
+  return <AddToPlaylistSheetContent selection={selection} onClose={onClose} />;
 }
 
 function AddToPlaylistSheetContent({
-  track,
+  selection: { tracks, subtitle },
   onClose,
 }: {
-  track: SharedPlaylistTrack;
+  selection: PlaylistSelection;
   onClose: () => void;
 }) {
   const colors = useColors();
@@ -77,8 +92,11 @@ function AddToPlaylistSheetContent({
   const isPending = addTracks.isPending;
 
   // The server skips an append when the playlist already contains the track,
-  // so a tap there would toast "Added" while changing nothing.
-  const { data: containingIds } = usePlaylistsContaining(track);
+  // so a tap there would toast "Added" while changing nothing. Several tracks
+  // add whichever are missing, so no playlist is marked for them.
+  const { data: containingIds } = usePlaylistsContaining(
+    tracks.length === 1 ? tracks[0] : null,
+  );
 
   const finishSuccess = useCallback(
     (title: string) => {
@@ -100,15 +118,17 @@ function AddToPlaylistSheetContent({
   const handlePick = (playlist: SharedPlaylist) => {
     if (isPending) return;
     addTracks.mutate(
-      { playlistId: playlist.id, tracks: [track] },
+      { playlistId: playlist.id, tracks },
       {
         onSuccess: () => finishSuccess(`Added to "${playlist.name}"`),
-        onError: (err) => finishError("Couldn't add track", err),
+        onError: (err) =>
+          finishError(
+            tracks.length === 1 ? "Couldn't add track" : "Couldn't add songs",
+            err,
+          ),
       },
     );
   };
-
-  const subtitle = `"${track.trackName}" · ${track.artistName}`;
 
   return (
     <AppSheet sheet={sheet} background="card">
@@ -202,7 +222,7 @@ function AddToPlaylistSheetContent({
       </AppSheetScrollView>
       {isNaming ? (
         <NewPlaylistSheet
-          track={track}
+          tracks={tracks}
           subtitle={subtitle}
           onCreated={(name) => finishSuccess(`Created "${name}"`)}
           onFailed={(err) => finishError("Couldn't create playlist", err)}

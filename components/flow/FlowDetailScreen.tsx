@@ -468,7 +468,7 @@ function FlowPage({
         }
       />
       <AddToPlaylistSheet
-        track={addToPlaylist.track}
+        selection={addToPlaylist.selection}
         onClose={addToPlaylist.close}
       />
     </>

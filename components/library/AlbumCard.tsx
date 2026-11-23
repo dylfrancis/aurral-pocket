@@ -27,6 +27,8 @@ const STATUS_LABELS: Record<string, string> = {
 type AlbumCardProps = {
   album: Album;
   onPress: () => void;
+  /** Opens the album's actions. */
+  onLongPress?: () => void;
   fill?: boolean;
   downloadStatus?: DownloadStatusValue;
   /** Adds the artist under the album name, for grids that mix artists. */
@@ -38,6 +40,7 @@ type AlbumCardProps = {
 export const AlbumCard = React.memo(function AlbumCard({
   album,
   onPress,
+  onLongPress,
   fill,
   downloadStatus,
   showArtist = false,
@@ -56,6 +59,7 @@ export const AlbumCard = React.memo(function AlbumCard({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => [
         fill ? styles.containerFill : styles.container,
         { opacity: pressed ? 0.8 : 1 },

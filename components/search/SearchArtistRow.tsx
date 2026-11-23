@@ -9,6 +9,8 @@ type SearchArtistRowProps = {
   /** Server-relative Library artwork, for a Library artist. */
   image?: string | null;
   onPress: () => void;
+  /** Opens the artist's actions. */
+  onLongPress?: () => void;
 };
 
 export const SearchArtistRow = React.memo(function SearchArtistRow({
@@ -16,6 +18,7 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
   isInLibrary,
   image,
   onPress,
+  onLongPress,
 }: SearchArtistRowProps) {
   return (
     <MediaRow
@@ -27,6 +30,7 @@ export const SearchArtistRow = React.memo(function SearchArtistRow({
         isInLibrary ? <Chip label="In Library" variant="brand" /> : undefined
       }
       onPress={onPress}
+      onLongPress={onLongPress}
     />
   );
 });

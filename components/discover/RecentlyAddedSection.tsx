@@ -1,8 +1,10 @@
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { StyleSheet } from "react-native";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
 import { useRecentlyAdded } from "@/hooks/discover";
 import { formatDate } from "@/lib/date-time";
 import { recentlyAddedMbid } from "@/lib/discover/format";
+import { artistRouteId } from "@/lib/library-read";
 import type { RecentlyAddedArtist } from "@/lib/types/search";
 import { DiscoverRail } from "./DiscoverRail";
 import {
@@ -27,6 +29,7 @@ export function RecentlyAddedSection({ onArtistPress, onViewAll }: Props) {
   useDateTimeFormat();
   const { data, isLoading } = useRecentlyAdded();
   const artists = data ?? [];
+  const { openArtist } = useItemActions();
 
   return (
     <DiscoverRail
@@ -39,6 +42,9 @@ export function RecentlyAddedSection({ onArtistPress, onViewAll }: Props) {
           name={artist.artistName}
           subtitle={formatAdded(artist.addedAt || artist.added)}
           onPress={() => onArtistPress(artist)}
+          onLongPress={() =>
+            openArtist({ ref: artistRouteId(artist), name: artist.artistName })
+          }
         />
       )}
       cardSize={ARTIST_CARD_WIDTH}

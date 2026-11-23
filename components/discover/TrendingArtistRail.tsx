@@ -1,3 +1,4 @@
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
@@ -14,6 +15,7 @@ export function TrendingArtistRail({ artists, onOpenArtist }: Props) {
   const { isInLibrary } = useLibraryLookup(
     artists.map((artist) => artist.mbid),
   );
+  const { openArtist } = useItemActions();
 
   return (
     <View style={styles.container}>
@@ -40,6 +42,16 @@ export function TrendingArtistRail({ artists, onOpenArtist }: Props) {
               // Artists Aurral couldn't match to MusicBrainz have no page.
               onPress={
                 mbid ? () => onOpenArtist({ ...artist, mbid }) : undefined
+              }
+              onLongPress={
+                mbid
+                  ? () =>
+                      openArtist({
+                        ref: mbid,
+                        name: artist.name,
+                        coverUrl: artist.imageUrl,
+                      })
+                  : undefined
               }
             />
           );

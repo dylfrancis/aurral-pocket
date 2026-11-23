@@ -11,6 +11,8 @@ import { useColors } from "@/hooks/use-colors";
 export type DiscoverReleaseCardProps = {
   album: RecentReleaseAlbum;
   onPress: () => void;
+  /** Opens the album's actions. */
+  onLongPress?: () => void;
   fill?: boolean;
 };
 
@@ -19,6 +21,7 @@ export const RELEASE_CARD_WIDTH = 140;
 function DiscoverReleaseCardComponent({
   album,
   onPress,
+  onLongPress,
   fill,
 }: DiscoverReleaseCardProps) {
   const colors = useColors();
@@ -38,6 +41,7 @@ function DiscoverReleaseCardComponent({
         { opacity: pressed ? 0.7 : 1 },
       ]}
       onPress={onPress}
+      onLongPress={onLongPress}
     >
       {coverMbid ? (
         <CoverArtImage

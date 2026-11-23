@@ -248,6 +248,7 @@ jest.mock("@/components/artist/MatchArtistSheet", () => {
   const React = require("react");
   const { Pressable, Text } = require("react-native");
   return {
+    ...jest.requireActual("@/components/artist/MatchArtistSheet"),
     MatchArtistSheet: ({ onSaved }: any) =>
       React.createElement(
         Pressable,

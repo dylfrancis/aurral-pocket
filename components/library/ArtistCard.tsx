@@ -9,11 +9,14 @@ import { useColors } from "@/hooks/use-colors";
 type ArtistCardProps = {
   artist: Artist;
   onPress: () => void;
+  /** Opens the artist's actions. */
+  onLongPress?: () => void;
 };
 
 export const ArtistCard = React.memo(function ArtistCard({
   artist,
   onPress,
+  onLongPress,
 }: ArtistCardProps) {
   const colors = useColors();
 
@@ -21,6 +24,7 @@ export const ArtistCard = React.memo(function ArtistCard({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
     >
       <CoverArtImage

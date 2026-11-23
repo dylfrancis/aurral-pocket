@@ -8,6 +8,8 @@ type SearchAlbumRowProps = {
   album: SearchAlbum;
   status: AlbumStatus;
   onPress: () => void;
+  /** Opens the album's actions. */
+  onLongPress?: () => void;
 };
 
 function formatMeta(album: SearchAlbum) {
@@ -23,6 +25,7 @@ export const SearchAlbumRow = React.memo(function SearchAlbumRow({
   album,
   status,
   onPress,
+  onLongPress,
 }: SearchAlbumRowProps) {
   return (
     <MediaRow
@@ -33,6 +36,7 @@ export const SearchAlbumRow = React.memo(function SearchAlbumRow({
       detail={formatMeta(album)}
       trailing={<AlbumSearchStatusBadge status={status} />}
       onPress={onPress}
+      onLongPress={onLongPress}
     />
   );
 });

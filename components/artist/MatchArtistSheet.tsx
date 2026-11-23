@@ -44,6 +44,15 @@ function onlyExactMatch(items: readonly ArtistMatch[], name: string) {
   return exact.length === 1 ? exact[0].id : null;
 }
 
+/** The toast once a match is saved. Android shows only its title. */
+export function matchSavedTitle(name: string, result: ArtistMatchResult) {
+  return result.merged
+    ? `Merged ${name} into ${result.name}`
+    : result.mbid
+      ? `Matched ${name} to ${result.musicbrainzName || "MusicBrainz"}`
+      : `Removed the match from ${name}`;
+}
+
 type Props = {
   libraryArtistId: string;
   artistName: string;

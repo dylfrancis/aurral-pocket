@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import {
@@ -7,6 +7,7 @@ import {
   useAddToPlaylist,
 } from "@/components/flow/AddToPlaylistSheet";
 import { AppSheet, useSheet } from "@/components/ui/AppSheet";
+import { SheetAction } from "@/components/ui/SheetAction";
 import { Text } from "@/components/ui/Text";
 import {
   useDeletableTrackId,
@@ -133,7 +134,7 @@ export function TrackActionsSheet({
         />
       )}
       <AddToPlaylistSheet
-        track={addToPlaylist.track}
+        selection={addToPlaylist.selection}
         onClose={addToPlaylist.close}
       />
     </>
@@ -404,41 +405,6 @@ const SAVE_ICONS: Partial<
   "saved-with": "arrow-down-circle",
 };
 
-function SheetAction({
-  icon,
-  label,
-  onPress,
-  disabled = false,
-  destructive = false,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  destructive?: boolean;
-}) {
-  const colors = useColors();
-  const color = disabled
-    ? colors.subtle
-    : destructive
-      ? colors.error
-      : colors.text;
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={disabled ? undefined : onPress}
-      style={({ pressed }) => [styles.sheetRow, { opacity: pressed ? 0.6 : 1 }]}
-    >
-      <Ionicons name={icon} size={20} color={color} />
-      <Text variant="body" style={{ color }}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   sheet: {
     paddingHorizontal: 16,
@@ -464,11 +430,5 @@ const styles = StyleSheet.create({
   qualityText: {
     fontSize: 10,
     ...Fonts.medium,
-  },
-  sheetRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
   },
 });

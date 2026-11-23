@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
+import { useItemActions } from "@/components/actions/item-actions-context";
+import { libraryAlbumTarget } from "@/components/actions/targets";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { ReleaseGrid } from "@/components/library/ReleaseGrid";
 import { MediaRow } from "@/components/ui/MediaRow";
@@ -65,6 +67,14 @@ export function AlbumsGridScreen() {
     },
     [router, grid.artistName, grid.artistMbid, downloadStatuses],
   );
+  const { openAlbum: openActions } = useItemActions();
+  const openAlbumActions = (album: Album) =>
+    openActions(
+      libraryAlbumTarget(album, {
+        name: grid.artistName,
+        mbid: grid.artistMbid,
+      }),
+    );
 
   return (
     <ReleaseGrid
@@ -92,6 +102,7 @@ export function AlbumsGridScreen() {
         <AlbumCard
           album={item}
           onPress={() => openAlbum(item)}
+          onLongPress={() => openAlbumActions(item)}
           fill
           downloadStatus={albumDownloadStatus(downloadStatuses, item)}
         />
@@ -105,6 +116,7 @@ export function AlbumsGridScreen() {
           subtitle={releaseYear(item.releaseDate)?.toString()}
           trailing={<SavedMark kind="album" id={albumSavedId(item)} />}
           onPress={() => openAlbum(item)}
+          onLongPress={() => openAlbumActions(item)}
         />
       )}
       keyExtractor={(item) => item.id}

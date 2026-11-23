@@ -1,4 +1,5 @@
 import { FlatList, StyleSheet, View } from "react-native";
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { SimilarArtistCard } from "@/components/search/SimilarArtistCard";
 import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import type { SimilarArtist } from "@/lib/types/search";
@@ -14,6 +15,7 @@ export function SimilarArtistsSection({
   onPress,
 }: SimilarArtistsSectionProps) {
   const { isInLibrary } = useLibraryLookup(artists.map((artist) => artist.id));
+  const { openArtist } = useItemActions();
 
   if (artists.length === 0) return null;
 
@@ -29,6 +31,7 @@ export function SimilarArtistsSection({
             artist={item}
             isInLibrary={isInLibrary(item.id)}
             onPress={() => onPress(item)}
+            onLongPress={() => openArtist({ ref: item.id, name: item.name })}
           />
         )}
         showsHorizontalScrollIndicator={false}

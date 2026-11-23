@@ -11,6 +11,8 @@ type SimilarArtistCardProps = {
   artist: SimilarArtist;
   isInLibrary: boolean;
   onPress: () => void;
+  /** Opens the artist's actions. */
+  onLongPress?: () => void;
 };
 
 const CARD_WIDTH = 130;
@@ -20,12 +22,14 @@ export const SimilarArtistCard = React.memo(function SimilarArtistCard({
   artist,
   isInLibrary,
   onPress,
+  onLongPress,
 }: SimilarArtistCardProps) {
   const colors = useColors();
 
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => [
         styles.container,
         { opacity: pressed ? 0.7 : 1 },

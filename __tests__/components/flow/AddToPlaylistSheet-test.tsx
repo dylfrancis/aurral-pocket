@@ -9,8 +9,11 @@ jest.mock("@/hooks/flow/use-flow-selectors", () => ({
   useSharedPlaylists: jest.fn(() => mockPlaylists),
 }));
 
+// Like the hook, nothing is read for no track.
 jest.mock("@/hooks/flow/use-playlists-containing", () => ({
-  usePlaylistsContaining: jest.fn(() => ({ data: mockContainingIds })),
+  usePlaylistsContaining: jest.fn((track: unknown) => ({
+    data: track ? mockContainingIds : undefined,
+  })),
 }));
 
 jest.mock("@/hooks/flow/use-flow-mutations", () => ({
@@ -48,6 +51,8 @@ const TRACK: SharedPlaylistTrack = {
   artistMbid: "a74b1b7f-71a5-4011-9441-d0b5e4122711",
 };
 
+const SELECTION = { tracks: [TRACK], subtitle: '"Weird Fishes" · Radiohead' };
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockPlaylists = [];
@@ -57,9 +62,9 @@ beforeEach(() => {
 });
 
 describe("AddToPlaylistSheet", () => {
-  it("renders nothing while no track is set", async () => {
+  it("renders nothing while no selection is set", async () => {
     const { toJSON } = await render(
-      <AddToPlaylistSheet track={null} onClose={jest.fn()} />,
+      <AddToPlaylistSheet selection={null} onClose={jest.fn()} />,
     );
     expect(toJSON()).toBeNull();
   });
@@ -70,7 +75,7 @@ describe("AddToPlaylistSheet", () => {
       { id: "pl-2", name: "Road Trip", trackCount: 12 },
     ];
     const { getByText } = await render(
-      <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
+      <AddToPlaylistSheet selection={SELECTION} onClose={jest.fn()} />,
     );
     expect(getByText('"Weird Fishes" · Radiohead')).toBeTruthy();
     expect(getByText("Keepers")).toBeTruthy();
@@ -82,7 +87,7 @@ describe("AddToPlaylistSheet", () => {
   it("appends the track when a playlist row is pressed", async () => {
     mockPlaylists = [{ id: "pl-2", name: "Road Trip", trackCount: 12 }];
     const { getByText } = await render(
-      <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
+      <AddToPlaylistSheet selection={SELECTION} onClose={jest.fn()} />,
     );
     await fireEvent.press(getByText("Road Trip"));
     expect(mockAddMutate).toHaveBeenCalledWith(
@@ -91,11 +96,32 @@ describe("AddToPlaylistSheet", () => {
     );
   });
 
+  it("adds an album's songs to a playlist holding some of them, as only the missing ones go in", async () => {
+    mockPlaylists = [{ id: "pl-1", name: "Keepers", trackCount: 1 }];
+    mockContainingIds = ["pl-1"];
+    const NUDE = { ...TRACK, trackName: "Nude" };
+    const { getByText, queryByText } = await render(
+      <AddToPlaylistSheet
+        selection={{
+          tracks: [TRACK, NUDE],
+          subtitle: "In Rainbows · Radiohead",
+        }}
+        onClose={jest.fn()}
+      />,
+    );
+    expect(queryByText("Already added")).toBeNull();
+    await fireEvent.press(getByText("Keepers"));
+    expect(mockAddMutate).toHaveBeenCalledWith(
+      { playlistId: "pl-1", tracks: [TRACK, NUDE] },
+      expect.any(Object),
+    );
+  });
+
   it("toasts on a successful append", async () => {
     mockPlaylists = [{ id: "pl-2", name: "Road Trip", trackCount: 12 }];
     mockAddMutate.mockImplementation((_vars, opts) => opts.onSuccess());
     const { getByText } = await render(
-      <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
+      <AddToPlaylistSheet selection={SELECTION} onClose={jest.fn()} />,
     );
     await fireEvent.press(getByText("Road Trip"));
     expect(Burnt.toast).toHaveBeenCalledWith({
@@ -107,7 +133,7 @@ describe("AddToPlaylistSheet", () => {
   it("shows each playlist's artwork", async () => {
     mockPlaylists = [{ id: "pl-2", name: "Road Trip", trackCount: 12 }];
     const { getByTestId } = await render(
-      <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
+      <AddToPlaylistSheet selection={SELECTION} onClose={jest.fn()} />,
     );
     expect(getByTestId("artwork-pl-2")).toBeTruthy();
   });
@@ -115,7 +141,7 @@ describe("AddToPlaylistSheet", () => {
   describe("New Playlist", () => {
     async function openNaming(onClose = jest.fn()) {
       const utils = await render(
-        <AddToPlaylistSheet track={TRACK} onClose={onClose} />,
+        <AddToPlaylistSheet selection={SELECTION} onClose={onClose} />,
       );
       await fireEvent.press(utils.getByText("New Playlist"));
       return utils;
@@ -123,7 +149,9 @@ describe("AddToPlaylistSheet", () => {
 
     it("asks for a name only after the row is pressed", async () => {
       const { queryByPlaceholderText, getByPlaceholderText, getByText } =
-        await render(<AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />);
+        await render(
+          <AddToPlaylistSheet selection={SELECTION} onClose={jest.fn()} />,
+        );
       expect(queryByPlaceholderText("Playlist name")).toBeNull();
 
       await fireEvent.press(getByText("New Playlist"));
@@ -201,7 +229,7 @@ describe("AddToPlaylistSheet", () => {
     ];
     mockContainingIds = ["pl-1"];
     const { getByText } = await render(
-      <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
+      <AddToPlaylistSheet selection={SELECTION} onClose={jest.fn()} />,
     );
     expect(getByText("Already added")).toBeTruthy();
     await fireEvent.press(getByText("Keepers"));
@@ -219,7 +247,7 @@ describe("AddToPlaylistSheet", () => {
       opts.onError(new Error("Shared playlist name already exists")),
     );
     const { getByText } = await render(
-      <AddToPlaylistSheet track={TRACK} onClose={jest.fn()} />,
+      <AddToPlaylistSheet selection={SELECTION} onClose={jest.fn()} />,
     );
     await fireEvent.press(getByText("Road Trip"));
     expect(Burnt.toast).toHaveBeenCalledWith({

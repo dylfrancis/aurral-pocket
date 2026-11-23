@@ -5,6 +5,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Text } from "@/components/ui/Text";
@@ -26,6 +27,8 @@ export function TrendingAlbumRail({
   onOpenAlbum,
 }: Props) {
   const colors = useColors();
+  // The charts name albums without MBIDs, so the sheet finds them by name.
+  const { openAlbum } = useItemActions();
 
   return (
     <View style={styles.container}>
@@ -39,6 +42,14 @@ export function TrendingAlbumRail({
           <Pressable
             key={album.key}
             onPress={() => onOpenAlbum(album)}
+            onLongPress={() =>
+              openAlbum({
+                title: album.name,
+                artistName: album.artistName,
+                coverUrl: album.artworkUrl,
+                releaseDate: album.releaseDate,
+              })
+            }
             accessibilityRole="button"
             accessibilityLabel={`No. ${album.position}, ${album.name} by ${album.artistName}`}
             style={({ pressed }) => [

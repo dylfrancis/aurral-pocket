@@ -1,3 +1,4 @@
+import { useItemActions } from "@/components/actions/item-actions-context";
 import type { ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import type { DiscoveryArtist } from "@/lib/types/search";
@@ -30,6 +31,7 @@ export function ArtistRail({
   isLoading,
   style,
 }: Props) {
+  const { openArtist } = useItemActions();
   return (
     <DiscoverRail
       title={title}
@@ -43,6 +45,11 @@ export function ArtistRail({
           subtitle={subtitle?.(artist)}
           isInLibrary={isInLibrary(artist.id)}
           onPress={() => onArtistPress(artist)}
+          onLongPress={
+            artist.id
+              ? () => openArtist({ ref: artist.id, name: artist.name })
+              : undefined
+          }
         />
       )}
       cardSize={ARTIST_CARD_WIDTH}

@@ -12,6 +12,8 @@ export type HorizontalArtistCardProps = {
   subtitle?: string;
   isInLibrary?: boolean;
   onPress?: () => void;
+  /** Opens the artist's actions. */
+  onLongPress?: () => void;
   fill?: boolean;
   imageUrl?: string | null;
 };
@@ -24,6 +26,7 @@ function HorizontalArtistCardComponent({
   subtitle,
   isInLibrary,
   onPress,
+  onLongPress,
   fill,
   imageUrl,
 }: HorizontalArtistCardProps) {
@@ -36,6 +39,7 @@ function HorizontalArtistCardComponent({
         { opacity: pressed ? 0.7 : 1 },
       ]}
       onPress={onPress}
+      onLongPress={onLongPress}
       disabled={!onPress}
     >
       <View style={styles.coverWrap}>

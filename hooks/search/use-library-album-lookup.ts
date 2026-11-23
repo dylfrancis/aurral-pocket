@@ -17,7 +17,8 @@ import type { AlbumStatus, SearchAlbum } from "@/lib/types/search";
 // the lookup when they finish.
 const LOOKUP_STALE_MS = 15_000;
 
-function albumLookupQueryOptions(key: string) {
+/** The lookup for a comma-joined, sorted set of release-group MBIDs. */
+export function albumLookupQueryOptions(key: string) {
   return queryOptions({
     queryKey: libraryKeys.albumLookup(key),
     queryFn: () => lookupLibraryAlbums(key.split(",")),

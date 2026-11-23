@@ -13,9 +13,16 @@ type Props = {
   artist: DiscoveryArtist;
   seeds: ReadonlySet<string>;
   onPress: () => void;
+  /** Opens the artist's actions. */
+  onLongPress?: () => void;
 };
 
-export function RecommendedTopPick({ artist, seeds, onPress }: Props) {
+export function RecommendedTopPick({
+  artist,
+  seeds,
+  onPress,
+  onLongPress,
+}: Props) {
   const colors = useColors();
   const reason = topPickReason(artist, seeds);
   const tagLine = artist.matchedTags.slice(0, TAG_LIMIT).join(" · ");
@@ -24,6 +31,7 @@ export function RecommendedTopPick({ artist, seeds, onPress }: Props) {
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => [styles.card, { opacity: pressed ? 0.7 : 1 }]}
     >
       <CoverArtImage type="artist" mbid={artist.id} size={COVER_SIZE} />

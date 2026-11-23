@@ -1,5 +1,6 @@
 import type {
   BlockedArtist,
+  DiscoveryFeedbackAction,
   DiscoveryFeedbackEntry,
 } from "@/lib/types/discovery-feedback";
 
@@ -65,16 +66,40 @@ export function findBlockedArtist(
   blocked: BlockedArtist[],
   artist: { id?: string | null; name?: string | null },
 ): BlockedArtist | undefined {
+  return blocked.find((entry) =>
+    isSameArtist({ id: entry.artistId, name: entry.name }, artist),
+  );
+}
+
+/**
+ * The artist's live row for one kind of feedback, matched as
+ * findBlockedArtist does. Rows without an id are skipped, since undoing one
+ * is a DELETE by id.
+ */
+export function findArtistFeedback(
+  entries: DiscoveryFeedbackEntry[] | undefined,
+  artist: { id?: string | null; name?: string | null },
+  action: DiscoveryFeedbackAction,
+  now: number = Date.now(),
+): (DiscoveryFeedbackEntry & { id: string }) | undefined {
+  return entries?.find(
+    (entry): entry is DiscoveryFeedbackEntry & { id: string } =>
+      entry.action === action &&
+      !!entry.id &&
+      !isExpired(entry, now) &&
+      isSameArtist({ id: entry.artistId, name: entry.artistName }, artist),
+  );
+}
+
+type ArtistKey = { id?: string | null; name?: string | null };
+
+function isSameArtist(entry: ArtistKey, artist: ArtistKey): boolean {
   const id = (artist.id ?? "").trim().toLowerCase();
   const name = (artist.name ?? "").trim().toLowerCase();
-  if (!id && !name) return undefined;
-
-  return blocked.find((entry) => {
-    const entryId = (entry.artistId ?? "").trim().toLowerCase();
-    const entryName = entry.name.trim().toLowerCase();
-    if (id && entryId && id === entryId) return true;
-    return !!name && !!entryName && name === entryName;
-  });
+  const entryId = (entry.id ?? "").trim().toLowerCase();
+  const entryName = (entry.name ?? "").trim().toLowerCase();
+  if (id && entryId && id === entryId) return true;
+  return !!name && !!entryName && name === entryName;
 }
 
 export function isArtistBlocked(

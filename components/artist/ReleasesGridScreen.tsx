@@ -1,3 +1,4 @@
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { useCallback } from "react";
 import { useRouter } from "expo-router";
 import { ReleaseGroupCard } from "@/components/library/ReleaseGroupCard";
@@ -40,6 +41,17 @@ export function ReleasesGridScreen() {
     },
     [router, grid.artistName, grid.artistMbid, grid.artistId],
   );
+  const { openAlbum } = useItemActions();
+  const openAlbumActions = (rg: ReleaseGroup) =>
+    openAlbum({
+      mbid: rg.id,
+      title: rg.title,
+      artistName: grid.artistName,
+      artistMbid: grid.artistMbid,
+      artistId: grid.artistId,
+      releaseDate: rg["first-release-date"],
+      showArtist: false,
+    });
 
   return (
     <ReleaseGrid
@@ -59,6 +71,7 @@ export function ReleasesGridScreen() {
         <ReleaseGroupCard
           releaseGroup={item}
           onPress={() => openReleaseGroup(item)}
+          onLongPress={() => openAlbumActions(item)}
           fill
         />
       )}
@@ -69,6 +82,7 @@ export function ReleasesGridScreen() {
           title={item.title}
           subtitle={releaseYear(item["first-release-date"])?.toString()}
           onPress={() => openReleaseGroup(item)}
+          onLongPress={() => openAlbumActions(item)}
         />
       )}
       keyExtractor={(item) => item.id}

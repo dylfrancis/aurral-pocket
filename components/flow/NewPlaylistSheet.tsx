@@ -10,7 +10,7 @@ import { Colors, Fonts } from "@/constants/theme";
 import type { SharedPlaylistTrack } from "@/lib/types/flow";
 
 type Props = {
-  track: SharedPlaylistTrack;
+  tracks: SharedPlaylistTrack[];
   subtitle: string;
   /** Once this sheet has gone, so the one underneath can close after it. */
   onCreated: (name: string) => void;
@@ -24,7 +24,7 @@ type Props = {
  * content.
  */
 export function NewPlaylistSheet({
-  track,
+  tracks,
   subtitle,
   onCreated,
   onFailed,
@@ -40,7 +40,7 @@ export function NewPlaylistSheet({
     const trimmed = name.trim();
     if (!trimmed || createPlaylist.isPending) return;
     createPlaylist.mutate(
-      { name: trimmed, tracks: [track] },
+      { name: trimmed, tracks },
       {
         onSuccess: () => sheet.close(() => onCreated(trimmed)),
         onError: onFailed,

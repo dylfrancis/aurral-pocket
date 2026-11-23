@@ -12,12 +12,15 @@ const CARD_WIDTH = 150;
 type ReleaseGroupCardProps = {
   releaseGroup: ReleaseGroup;
   onPress?: () => void;
+  /** Opens the album's actions. */
+  onLongPress?: () => void;
   fill?: boolean;
 };
 
 export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
   releaseGroup,
   onPress,
+  onLongPress,
   fill,
 }: ReleaseGroupCardProps) {
   const colors = useColors();
@@ -34,6 +37,7 @@ export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => [
         fill ? styles.containerFill : styles.container,
         { opacity: pressed ? 0.8 : 1 },

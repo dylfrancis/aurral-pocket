@@ -5,6 +5,7 @@ import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import Block from "@expo/material-symbols/block.xml";
+import { useItemActions } from "@/components/actions/item-actions-context";
 import {
   LIBRARY_ARTIST_SORT_OPTIONS,
   type LibraryArtistSortMode,
@@ -216,6 +217,16 @@ export default function LibraryArtistsScreen() {
       }),
     [openArtistPage],
   );
+  const { openArtist: openActions } = useItemActions();
+  const openArtistActions = useCallback(
+    (artist: Artist) =>
+      openActions({
+        ref: artistRouteId(artist),
+        name: artist.artistName,
+        coverUrl: artist.coverUrl,
+      }),
+    [openActions],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: Artist }) => {
@@ -229,16 +240,21 @@ export default function LibraryArtistsScreen() {
             title={item.artistName}
             subtitle={`${albumCount} ${albumCount === 1 ? "album" : "albums"}`}
             onPress={() => openArtist(item)}
+            onLongPress={() => openArtistActions(item)}
           />
         );
       }
       return (
         <GridCell>
-          <ArtistCard artist={item} onPress={() => openArtist(item)} />
+          <ArtistCard
+            artist={item}
+            onPress={() => openArtist(item)}
+            onLongPress={() => openArtistActions(item)}
+          />
         </GridCell>
       );
     },
-    [openArtist, isGrid],
+    [openArtist, openArtistActions, isGrid],
   );
 
   return (

@@ -1,5 +1,10 @@
 import { useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
+import { useItemActions } from "@/components/actions/item-actions-context";
+import {
+  libraryAlbumTarget,
+  savedAlbumTarget,
+} from "@/components/actions/targets";
 import { AlbumCard } from "@/components/library/AlbumCard";
 import { SAVED_ALBUM_SORT_OPTIONS } from "@/components/library/AlbumSortPicker";
 import { statusSection } from "@/components/library/LibraryListMenus";
@@ -65,6 +70,14 @@ export function LibraryAlbumsScreen({
       );
     },
     [router, showSaved, savedAlbums],
+  );
+  const { openAlbum: openActions } = useItemActions();
+  const openAlbumActions = useCallback(
+    (album: Album) => {
+      const save = showSaved ? savedAlbums.savedAlbumFor(album) : undefined;
+      openActions(save ? savedAlbumTarget(save) : libraryAlbumTarget(album));
+    },
+    [openActions, showSaved, savedAlbums],
   );
   const { readAndPlay, isLoading: songsLoading } = usePlayLibrarySongs();
   const genreHeader = useMemo(
@@ -151,6 +164,7 @@ export function LibraryAlbumsScreen({
         <AlbumCard
           album={item}
           onPress={() => openAlbum(item)}
+          onLongPress={() => openAlbumActions(item)}
           fill
           showArtist
           savedId={savedIdOf(item)}
@@ -165,6 +179,7 @@ export function LibraryAlbumsScreen({
           subtitle={item.artistName || "Unknown Artist"}
           trailing={<SavedMark kind="album" id={savedIdOf(item)} />}
           onPress={() => openAlbum(item)}
+          onLongPress={() => openAlbumActions(item)}
         />
       )}
       keyExtractor={(item) => item.id}

@@ -18,10 +18,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useLocalSearchParams } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as Burnt from "burnt";
 import * as Haptics from "expo-haptics";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
@@ -36,27 +34,15 @@ import { CoverArtImage } from "./CoverArtImage";
 import { AlbumTrackRow } from "./AlbumTrackRow";
 import { DiscHeading } from "./DiscHeading";
 import { EditionPicker } from "./EditionPicker";
+import { useAddAlbum } from "@/hooks/library/use-add-album";
 import { useAudioPreview } from "@/hooks/library/use-audio-preview";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
-import {
-  invalidateEditionReads,
-  useAlbumEditions,
-} from "@/hooks/library/use-album-editions";
+import { useAlbumEditions } from "@/hooks/library/use-album-editions";
 import {
   useEditionTracks,
   type EditionTrack,
 } from "@/hooks/library/use-edition-tracks";
-import {
-  addLibraryAlbum,
-  getLibraryArtistId,
-  requestAlbumFromSearch,
-} from "@/lib/api/library";
 import { discHeadings, discOf } from "@/lib/album-discs";
-import { formatReleaseWait } from "@/lib/album-status";
-import { ApiError } from "@/lib/api/client";
-import { libraryAlbumsRef } from "@/lib/library-read";
-import { invalidateLibraryLists } from "@/hooks/library/library-lists";
-import { libraryKeys } from "@/lib/query-keys";
 import { Fonts } from "@/constants/theme";
 import { IS_IOS } from "@/constants/platform";
 import type { AlbumStatus } from "@/lib/types/search";
@@ -93,16 +79,6 @@ function formatDuration(ms: number | null) {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-function describeError(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 403) {
-      return "You don't have permission to add albums.";
-    }
-    return error.message || "Failed to add album.";
-  }
-  return "Failed to add album.";
-}
-
 /**
  * The page for an album that is not in the library, reached as
  * `/release/[mbid]` from search results and from an artist's release groups.
@@ -122,7 +98,6 @@ export function ReleaseDetailScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const heroPaddingTop = (IS_IOS ? headerHeight : 0) + 24;
-  const queryClient = useQueryClient();
   const params = useLocalSearchParams<ReleaseRouteParams>();
 
   const hasPermission = useHasPermission();
@@ -133,19 +108,6 @@ export function ReleaseDetailScreen() {
   const title = params.title ?? "";
   const artistName = params.artistName ?? "";
   const status = params.status || "missing";
-
-  // Search knows the artist only by MBID, so the library artist id it needs
-  // to add an album is looked up here. An artist page passes its own.
-  const needsArtistLookup = !params.artistId && !!params.artistMbid;
-  const artistIdQuery = {
-    queryKey: libraryKeys.artistId(params.artistMbid ?? ""),
-    queryFn: () => getLibraryArtistId(params.artistMbid!),
-  };
-  const { data: lookedUpArtistId, isLoading: artistIdLoading } = useQuery({
-    ...artistIdQuery,
-    enabled: needsArtistLookup,
-  });
-  const libraryArtistId = params.artistId || lookedUpArtistId || null;
 
   const editions = useAlbumEditions(mbid, { inLibrary: false });
   const pickedRelease = editions.previewRelease;
@@ -184,94 +146,25 @@ export function ReleaseDetailScreen() {
     [toggleAudio],
   );
 
-  const invalidateAfterMutation = useCallback(() => {
-    invalidateLibraryLists(queryClient);
-    // The album now has a Library edition.
-    void invalidateEditionReads(queryClient, mbid);
-    void queryClient.invalidateQueries({
-      queryKey: libraryKeys.downloadStatusesAll(),
-    });
-    if (libraryArtistId) {
-      const artistRef = libraryAlbumsRef({
-        artistId: libraryArtistId,
-        artistMbid: params.artistMbid,
-      });
-      if (artistRef) {
-        void queryClient.invalidateQueries({
-          queryKey: libraryKeys.albums(artistRef),
-        });
-      }
-    }
-  }, [queryClient, mbid, libraryArtistId, params.artistMbid]);
-
-  const addMutation = useMutation({
-    mutationFn: async () => {
-      // A tap can land before the lookup answers. Wait for it, so an artist
-      // already in the library is not sent down the new-artist path.
-      const artistId =
-        libraryArtistId ||
-        (needsArtistLookup
-          ? await queryClient.fetchQuery(artistIdQuery)
-          : null);
-      // Only a request can name an edition, so one goes that way.
-      if (artistId && !pickedRelease) {
-        const added = await addLibraryAlbum(artistId, mbid, title);
-        return { createdArtist: false, albumStatus: added.albumStatus };
-      }
-      if (!params.artistMbid) {
-        throw new Error("Cannot add album without an artist reference");
-      }
-      const requested = await requestAlbumFromSearch({
-        albumMbid: mbid,
-        albumName: title,
-        artistMbid: params.artistMbid,
-        artistName,
-        releaseMbid: pickedRelease,
-      });
-      return {
-        createdArtist: !!requested.createdArtist,
-        albumStatus: requested.albumStatus,
-      };
-    },
-    onSuccess: ({ createdArtist, albumStatus }) => {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      invalidateAfterMutation();
-      // The date goes in the title, since Android shows only the title.
-      if (albumStatus?.status === "unreleased") {
-        Burnt.toast({
-          title: formatReleaseWait(albumStatus.releaseDate),
-          message: `${title} isn't out yet`,
-          preset: "done",
-        });
-        return;
-      }
-      Burnt.toast({
-        title: createdArtist ? `Added ${artistName}` : "Added to library",
-        message: createdArtist ? "Now in your library" : title,
-        preset: "done",
-      });
-    },
-    onError: (error) => {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Burnt.toast({
-        title: "Couldn't add album",
-        message: describeError(error),
-        preset: "error",
-      });
-    },
+  const addAlbum = useAddAlbum({
+    mbid,
+    title,
+    artistName,
+    artistMbid: params.artistMbid,
+    artistId: params.artistId,
+    releaseMbid: pickedRelease,
   });
 
   const action = resolveAction({
     status,
     canAddAlbum,
-    added: addMutation.isSuccess,
-    isPending: addMutation.isPending,
+    added: addAlbum.isAdded,
+    isPending: addAlbum.isPending,
   });
 
   const onActionPress = () => {
     if (action.kind !== "add") return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    addMutation.mutate();
+    addAlbum.add();
   };
 
   const openArtistPage = useOpenArtist();
@@ -406,8 +299,8 @@ export function ReleaseDetailScreen() {
             </Text>
           </Pressable>
           {action.kind === "add" &&
-            !libraryArtistId &&
-            !artistIdLoading &&
+            !addAlbum.libraryArtistId &&
+            !addAlbum.artistIdLoading &&
             !!params.artistMbid && (
               <Text
                 variant="caption"
@@ -479,7 +372,7 @@ export function ReleaseDetailScreen() {
       </AppSheet>
 
       <AddToPlaylistSheet
-        track={addToPlaylist.track}
+        selection={addToPlaylist.selection}
         onClose={addToPlaylist.close}
       />
     </View>

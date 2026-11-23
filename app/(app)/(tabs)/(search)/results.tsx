@@ -20,6 +20,7 @@ import { TagArtistRow } from "@/components/search/TagArtistRow";
 import { EmptyState } from "@/components/library/EmptyState";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { Text } from "@/components/ui/Text";
+import { useItemActions } from "@/components/actions/item-actions-context";
 import { HorizontalArtistCard } from "@/components/discover/HorizontalArtistCard";
 import { GridCell, gridListStyles } from "@/components/ui/GridCell";
 import {
@@ -137,6 +138,11 @@ function TagResults({ tag }: { tag: string }) {
     (artist: TagArtist) => openArtist({ mbid: artist.id, name: artist.name }),
     [openArtist],
   );
+  const { openArtist: openActions } = useItemActions();
+  const handleArtistLongPress = useCallback(
+    (artist: TagArtist) => openActions({ ref: artist.id, name: artist.name }),
+    [openActions],
+  );
 
   const renderTagArtistItem = useCallback(
     ({ item }: { item: TagArtist }) => (
@@ -144,9 +150,10 @@ function TagResults({ tag }: { tag: string }) {
         artist={item}
         isInLibrary={isInLibrary(item.id)}
         onPress={() => handleArtistPress(item)}
+        onLongPress={() => handleArtistLongPress(item)}
       />
     ),
-    [isInLibrary, handleArtistPress],
+    [isInLibrary, handleArtistPress, handleArtistLongPress],
   );
 
   const renderArtistGridItem = useCallback(
@@ -158,10 +165,11 @@ function TagResults({ tag }: { tag: string }) {
           isInLibrary={isInLibrary(item.id)}
           fill
           onPress={() => handleArtistPress(item)}
+          onLongPress={() => handleArtistLongPress(item)}
         />
       </GridCell>
     ),
-    [isInLibrary, handleArtistPress],
+    [isInLibrary, handleArtistPress, handleArtistLongPress],
   );
 
   const tagScopeLabel = tagScope === "recommended" ? "Recommended" : "All";

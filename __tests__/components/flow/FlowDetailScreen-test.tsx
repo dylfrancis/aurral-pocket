@@ -56,10 +56,18 @@ jest.mock("@/components/flow/AddToPlaylistSheet", () => {
   return {
     useAddToPlaylist: () => {
       const [track, setTrack] = React.useState(null);
-      return { track, open: setTrack, close: () => setTrack(null) };
+      return {
+        selection: track ? { tracks: [track] } : null,
+        open: setTrack,
+        close: () => setTrack(null),
+      };
     },
-    AddToPlaylistSheet: ({ track }: { track: { trackName: string } | null }) =>
-      track ? <Text>Adding {track.trackName}</Text> : null,
+    AddToPlaylistSheet: ({
+      selection,
+    }: {
+      selection: { tracks: { trackName: string }[] } | null;
+    }) =>
+      selection ? <Text>Adding {selection.tracks[0].trackName}</Text> : null,
   };
 });
 
