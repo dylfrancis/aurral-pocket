@@ -1,5 +1,5 @@
 {
-  "aurralVersion": "3.0.0",
+  "aurralVersion": "3.0.1",
   "shapes": {
     "GET /auth/me": {
       "expiresAt": "number",
