@@ -1,0 +1,9 @@
+{
+  "name": "audio-output",
+  "version": "0.1.0",
+  "description": "Local Expo module that reports where audio is playing and opens the system's output picker.",
+  "main": "index.ts",
+  "author": "Dylan Francis",
+  "license": "MIT",
+  "homepage": "https://github.com/dylfrancis/aurral-pocket"
+}

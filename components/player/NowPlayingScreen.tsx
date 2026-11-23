@@ -43,6 +43,7 @@ import {
 import { CoverTintBackdrop } from "@/components/player/CoverTintBackdrop";
 import { DevicesButton } from "@/components/player/DevicesButton";
 import { LyricsView } from "@/components/player/LyricsView";
+import { OutputButton } from "@/components/player/OutputButton";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import {
   ARTWORK_SHADOW,
@@ -556,6 +557,10 @@ export function NowPlayingScreen() {
                   </View>
                   <View style={styles.toolbar}>
                     <DevicesButton
+                      color={colors.text}
+                      activeColor={colors.brand}
+                    />
+                    <OutputButton
                       color={colors.text}
                       activeColor={colors.brand}
                     />

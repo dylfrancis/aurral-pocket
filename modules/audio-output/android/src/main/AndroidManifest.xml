@@ -1,0 +1,10 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Android 11 to 13 host the output switcher in System UI and Settings,
+       which package visibility hides unless they are named here. -->
+  <queries>
+    <package android:name="com.android.systemui" />
+    <intent>
+      <action android:name="com.android.settings.panel.action.MEDIA_OUTPUT" />
+    </intent>
+  </queries>
+</manifest>
