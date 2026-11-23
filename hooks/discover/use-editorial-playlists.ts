@@ -10,11 +10,6 @@ import {
   getEditorialShelf,
   getMadeForYou,
 } from "@/lib/api/search";
-import { useStartQueue } from "@/hooks/player/use-start-queue";
-import {
-  editorialContext,
-  editorialQueue,
-} from "@/lib/discover/editorial-queue";
 import { releaseRouteParams } from "@/lib/library-read";
 import { discoverKeys, flowKeys } from "@/lib/query-keys";
 import type {
@@ -63,49 +58,15 @@ export function useMadeForYou() {
   });
 }
 
-function editorialPlaylistQuery(provider: BrowseProvider, playlistId: string) {
-  return {
-    queryKey: discoverKeys.editorialPlaylist(provider, playlistId),
-    queryFn: () => getEditorialPlaylist(provider, playlistId),
-    staleTime: PLAYLIST_STALE_MS,
-  };
-}
-
 export function useEditorialPlaylist(
   provider: BrowseProvider,
   playlistId: string,
 ) {
-  return useQuery(editorialPlaylistQuery(provider, playlistId));
-}
-
-/**
- * Plays a Browse playlist from its card, as its page's Play does. `loadingId`
- * is the card whose playlist is still loading.
- */
-export function usePlayEditorialPlaylist() {
-  const queryClient = useQueryClient();
-  const startQueue = useStartQueue();
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-
-  const play = useCallback(
-    async (summary: EditorialPlaylistSummary) => {
-      const key = `${summary.provider}:${summary.id}`;
-      setLoadingId(key);
-      try {
-        const playlist = await queryClient.fetchQuery(
-          editorialPlaylistQuery(summary.provider, summary.id),
-        );
-        await startQueue(editorialQueue(playlist), editorialContext(playlist));
-      } catch {
-        Burnt.toast({ title: "Couldn't load this playlist", preset: "error" });
-      } finally {
-        setLoadingId((current) => (current === key ? null : current));
-      }
-    },
-    [queryClient, startQueue],
-  );
-
-  return { play, loadingId };
+  return useQuery({
+    queryKey: discoverKeys.editorialPlaylist(provider, playlistId),
+    queryFn: () => getEditorialPlaylist(provider, playlistId),
+    staleTime: PLAYLIST_STALE_MS,
+  });
 }
 
 /** The card's fields travel with the push, so the page has a header at once. */
