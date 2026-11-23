@@ -1,10 +1,12 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { Fonts } from "@/constants/theme";
 import type { ReleaseGroup } from "@/lib/types/library";
 import { releaseYear } from "@/lib/date-time";
+import { formatCompactCount } from "@/lib/discover/trending-format";
 import { useColors } from "@/hooks/use-colors";
 
 const CARD_WIDTH = 150;
@@ -33,6 +35,9 @@ export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
     secondary && secondary.length > 0
       ? `${type} · ${secondary.join(", ")}`
       : type;
+  const listeners = releaseGroup.listenerCount
+    ? formatCompactCount(releaseGroup.listenerCount)
+    : null;
 
   return (
     <Pressable
@@ -61,6 +66,20 @@ export const ReleaseGroupCard = React.memo(function ReleaseGroupCard({
           {year && `${year} · `}
           {typeLabel}
         </Text>
+        {listeners ? (
+          // Its own line, so a long type never cuts the count off.
+          <View style={styles.listeners}>
+            <Ionicons name="headset-outline" size={11} color={colors.subtle} />
+            <Text
+              variant="caption"
+              numberOfLines={1}
+              accessibilityLabel={`${listeners} listeners`}
+              style={{ color: colors.subtle }}
+            >
+              {listeners}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -82,5 +101,10 @@ const styles = StyleSheet.create({
     ...Fonts.medium,
     fontSize: 13,
     lineHeight: 17,
+  },
+  listeners: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
   },
 });

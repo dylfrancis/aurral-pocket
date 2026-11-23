@@ -68,7 +68,7 @@ export type ReleaseGroup = {
   "primary-type": PrimaryReleaseType;
   "secondary-types": SecondaryReleaseType[];
   /** From ListenBrainz, which has no figure for some releases. */
-  listenerCount?: number;
+  listenerCount?: number | null;
 };
 
 /** The fields pocket reads from `GET /artists/:mbid`. */
