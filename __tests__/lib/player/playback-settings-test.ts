@@ -32,7 +32,7 @@ async function settle() {
 }
 
 describe("playback settings", () => {
-  it("start at one track ahead, a gigabyte of cache, no queue limit, Wi-Fi Only off, and Autoplay and levelling on", async () => {
+  it("start at one track ahead, a gigabyte of cache, no queue limit, Wi-Fi Only off, and Autoplay, levelling and the lyrics screen on", async () => {
     await start();
 
     expect(settings.getPlaybackSettings()).toEqual({
@@ -42,6 +42,7 @@ describe("playback settings", () => {
       wifiOnly: false,
       autoplay: true,
       levelLoudTracks: true,
+      keepScreenOnWithLyrics: true,
       transcoding: settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
   });
@@ -53,6 +54,7 @@ describe("playback settings", () => {
       wifiOnly: true,
       autoplay: false,
       levelLoudTracks: false,
+      keepScreenOnWithLyrics: false,
     });
     const transcoding = {
       ...settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
@@ -73,6 +75,7 @@ describe("playback settings", () => {
       wifiOnly: true,
       autoplay: false,
       levelLoudTracks: false,
+      keepScreenOnWithLyrics: false,
       transcoding,
     });
   });
@@ -97,8 +100,8 @@ describe("playback settings", () => {
       JSON.stringify({ prefetchAhead: 7, queueLimit: 100, cacheBytes: 3 }),
     );
 
-    // A record from before Autoplay and levelling existed turns them on, as for
-    // a new install.
+    // A record from before Autoplay, levelling and the lyrics screen existed
+    // turns them on, as for a new install.
     expect(settings.getPlaybackSettings()).toEqual({
       prefetchAhead: 1,
       queueLimit: 100,
@@ -106,6 +109,7 @@ describe("playback settings", () => {
       wifiOnly: false,
       autoplay: true,
       levelLoudTracks: true,
+      keepScreenOnWithLyrics: true,
       transcoding: settings.DEFAULT_PLAYBACK_SETTINGS.transcoding,
     });
   });
