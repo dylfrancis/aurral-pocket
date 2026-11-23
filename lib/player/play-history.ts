@@ -116,8 +116,9 @@ export function startPlayHistory(userId: number): () => void {
     if (stopReporting !== stop) return;
     stopReporting = null;
     reportingUserId = null;
-    // The client sends whichever token is current, and the next session can
-    // be another account, or one with the same id on another server.
+    // The client sends whichever token is current, so a waiting now playing
+    // would go out as the next session: another account, or the same id on
+    // another server.
     nextNowPlaying = null;
     stopStarted();
     stopState();
@@ -130,8 +131,8 @@ export function startPlayHistory(userId: number): () => void {
 /** What one progress report means for the track. */
 type Heard = {
   /**
-   * The track is playing, after it starts or a pause: once the length is
-   * known, or the wait for it ends.
+   * Time to say now playing. True on one report after a start or a pause,
+   * once the length is known or the wait for it ends.
    */
   nowPlaying: boolean;
   /** The listener has heard enough for a play. True on one report. */
@@ -139,7 +140,6 @@ type Heard = {
 };
 
 type PlayTracker = {
-  /** Say what a progress report means for the track. */
   hear(progress: PlaybackProgress): Heard;
   /** Playback paused, so the next listening says now playing again. */
   pause(): void;

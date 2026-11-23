@@ -26,8 +26,7 @@ export async function recordPlayEvent(input: PlayEventInput) {
 
 /**
  * Tell the server what just started playing. It passes the track on to the
- * linked scrobble services and to the people who can see the account's
- * listening, and records nothing. It answers 202 before any of them replies.
+ * linked scrobble services and the people who see the account's listening.
  */
 export async function sendNowPlaying(input: NowPlayingInput) {
   await api.post("/play-events/now-playing", input, {
