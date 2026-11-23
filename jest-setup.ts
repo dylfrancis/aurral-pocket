@@ -244,6 +244,16 @@ jest.mock("@/modules/shazam", () => ({
   addLevelListener: jest.fn(() => null),
 }));
 
+// The native output module isn't linked under Jest: no output, so no button.
+// The Now Playing test drives a route of its own.
+jest.mock("@/modules/audio-output", () => ({
+  outputPicker: "none",
+  OutputPickerView: null,
+  getCurrentOutput: jest.fn(() => Promise.resolve(null)),
+  addOutputListener: jest.fn(() => null),
+  showOutputPicker: jest.fn(() => Promise.resolve(false)),
+}));
+
 // Saved-offline files live in memory. A test drives each download by hand
 // through test-support/expo-file-system.
 jest.mock("expo-file-system", () =>
@@ -295,6 +305,7 @@ jest.mock("react-native-nitro-player", () => ({
     updateTracks: jest.fn(() => Promise.resolve()),
     onTracksNeedUpdate: jest.fn(),
     setNotificationButtonState: jest.fn(),
+    isAndroidAutoConnected: jest.fn(() => false),
     getState: jest.fn(() =>
       Promise.resolve({
         currentTrack: null,
@@ -327,6 +338,7 @@ jest.mock("react-native-nitro-player/src/hooks/callbackManager", () => ({
     subscribeToPlaybackState: jest.fn(() => () => {}),
     subscribeToPlaybackProgressChange: jest.fn(() => () => {}),
     subscribeToNotificationButtonPress: jest.fn(() => () => {}),
+    subscribeToAndroidAutoConnection: jest.fn(() => () => {}),
   },
 }));
 

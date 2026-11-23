@@ -78,7 +78,7 @@ import {
   type RadioStation,
 } from "@/lib/player/radio";
 import type { LibraryQueueTrack, Track } from "@/lib/types/library";
-import { IS_IOS } from "@/constants/platform";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { useSyncExternalStore } from "react";
 import {
   PlayerQueue,
@@ -2259,4 +2259,26 @@ export function usePlayerModes(): PlayerModes {
     getModesSnapshot,
     getModesSnapshot,
   );
+}
+
+/**
+ * True while the phone is connected to Android Auto, which plays the audio
+ * whatever the phone's own route says. Always false on iOS, where CarPlay is
+ * an audio route of its own.
+ */
+export function useAndroidAutoConnected(): boolean {
+  return useSyncExternalStore(
+    subscribeAndroidAuto,
+    getAndroidAutoConnected,
+    getAndroidAutoConnected,
+  );
+}
+
+function subscribeAndroidAuto(onChange: () => void): () => void {
+  if (!IS_ANDROID) return () => {};
+  return callbackManager.subscribeToAndroidAutoConnection(onChange);
+}
+
+function getAndroidAutoConnected(): boolean {
+  return IS_ANDROID && TrackPlayer.isAndroidAutoConnected();
 }

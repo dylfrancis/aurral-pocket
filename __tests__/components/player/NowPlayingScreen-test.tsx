@@ -113,6 +113,26 @@ jest.mock("@/lib/player/queue-sync", () => ({
   forgetQueueSync: () => Promise.resolve(),
 }));
 
+// iOS lays AirPlay's own button over the label; Android opens the system's
+// switcher.
+let mockOutput: unknown = null;
+let mockOutputListener: ((output: unknown) => void) | null = null;
+const mockShowOutputPicker = jest.fn(() => Promise.resolve(true));
+jest.mock("@/modules/audio-output", () => {
+  const { View } = require("react-native");
+  const { IS_IOS } = require("@/constants/platform");
+  return {
+    outputPicker: IS_IOS ? "view" : "switcher",
+    OutputPickerView: IS_IOS ? View : null,
+    getCurrentOutput: () => Promise.resolve(mockOutput),
+    addOutputListener: (listener: (output: unknown) => void) => {
+      mockOutputListener = listener;
+      return { remove: () => (mockOutputListener = null) };
+    },
+    showOutputPicker: () => mockShowOutputPicker(),
+  };
+});
+
 jest.mock("@/lib/api/lyrics", () => ({ getLyrics: jest.fn() }));
 
 jest.mock("@/lib/api/plugins", () => ({
@@ -277,6 +297,7 @@ beforeAll(() => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockOtherDevice = null;
+  mockOutput = null;
   setBaseUrl("https://test.example");
   setAuthToken("test-token-123");
   queue.createPlaylist.mockResolvedValue("playlist-1");
@@ -1218,6 +1239,68 @@ describe("NowPlayingScreen devices", () => {
 
     expect(getByLabelText("Devices")).toBeTruthy();
   });
+});
+
+describe("NowPlayingScreen audio output", () => {
+  const airPods = { kind: "headphones", name: "AirPods Pro" };
+
+  afterEach(() => {
+    jest.mocked(TrackPlayer.isAndroidAutoConnected).mockReturnValue(false);
+  });
+
+  it("names where the audio plays and opens the system's picker", async () => {
+    mockOutput = airPods;
+    const { findByLabelText, getByText } = await renderPlaying();
+
+    const button = await findByLabelText("Audio output");
+    expect(button.props.accessibilityValue).toEqual({ text: "AirPods Pro" });
+    // On iOS the picker view on top speaks for the name underneath.
+    expect(
+      getByText("AirPods Pro", { includeHiddenElements: true }),
+    ).toBeTruthy();
+
+    if (IS_ANDROID) {
+      await fireEvent.press(button);
+      expect(mockShowOutputPicker).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("follows the output when it changes", async () => {
+    mockOutput = { kind: "phone", name: "iPhone" };
+    const { findByLabelText } = await renderPlaying();
+    const spoken = async () =>
+      (await findByLabelText("Audio output")).props.accessibilityValue;
+    expect(await spoken()).toEqual({ text: "iPhone" });
+
+    await act(async () => mockOutputListener?.(airPods));
+
+    expect(await spoken()).toEqual({ text: "AirPods Pro" });
+  });
+
+  if (IS_ANDROID) {
+    it("says when the output switcher won't open", async () => {
+      mockOutput = airPods;
+      mockShowOutputPicker.mockResolvedValueOnce(false);
+      const { findByLabelText } = await renderPlaying();
+
+      await act(async () => {
+        await fireEvent.press(await findByLabelText("Audio output"));
+      });
+
+      expect(Burnt.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Couldn't open the output switcher" }),
+      );
+    });
+
+    it("shows Android Auto as the output while the car is connected", async () => {
+      mockOutput = { kind: "phone", name: "This phone" };
+      jest.mocked(TrackPlayer.isAndroidAutoConnected).mockReturnValue(true);
+      const { findByText, queryByText } = await renderPlaying();
+
+      expect(await findByText("Android Auto")).toBeTruthy();
+      expect(queryByText("This phone")).toBeNull();
+    });
+  }
 });
 
 describe("NowPlayingScreen Library details", () => {
