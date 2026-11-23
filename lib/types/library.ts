@@ -460,8 +460,6 @@ export type LibraryFavoritesWire = {
    * id they were starred with, matched or not.
    */
   songIds?: string[];
-  /** Starred flow and playlist downloads Aurral hasn't matched to a track. */
-  playlistSongs?: { id: string }[];
   library?: {
     artists?: CanonicalArtistItem[];
     albums?: CanonicalAlbumItem[];
@@ -480,8 +478,8 @@ export type LibraryFavorites = {
   albums: Album[];
   tracks: FavoriteTrack[];
   /**
-   * Starred flow and shared-playlist downloads that Aurral hasn't matched to a
-   * library track, by favoriteEntityId. A matched one is in `tracks`.
+   * Starred flow and shared-playlist downloads by favoriteEntityId, matched to
+   * a library track or not. A matched one is in `tracks` too.
    */
   playlistSongIds: string[];
 };

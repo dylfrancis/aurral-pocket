@@ -1156,7 +1156,6 @@ describe("getLibraryFavorites", () => {
     artistIds: ["artist:mbid:radiohead"],
     albumIds: ["album:release-group:in-rainbows"],
     songIds: ["song:recording:nude"],
-    playlistSongs: [],
     library: {
       artists: [
         {
@@ -1272,7 +1271,7 @@ describe("getLibraryFavorites", () => {
     expect(result.albums.map((a) => a.title)).toEqual(["Second Album"]);
   });
 
-  it("keeps the ids of starred flow and playlist downloads it has no library row for", async () => {
+  it("keeps the ids of starred flow and playlist downloads, matched to a library track or not", async () => {
     mockApi.get.mockResolvedValue({
       data: {
         ...wire,
@@ -1281,10 +1280,8 @@ describe("getLibraryFavorites", () => {
           "flow-song:flow-1:job-1",
           "shared-song:pl-1:job-2",
         ],
-        playlistSongs: [
-          { id: "flow-song:flow-1:job-1" },
-          { id: "shared-song:pl-1:job-2" },
-        ],
+        // Aurral leaves out the one it matched to a library track.
+        playlistSongs: [{ id: "flow-song:flow-1:job-1" }],
       },
     });
 

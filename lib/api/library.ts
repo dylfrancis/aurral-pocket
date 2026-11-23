@@ -502,7 +502,11 @@ export async function getLibraryFavorites(): Promise<LibraryFavorites> {
           album: albumId ? albumsById.get(albumId) : undefined,
         };
       }),
-    playlistSongIds: (r.data.playlistSongs ?? []).map((song) => song.id),
+    // Not `playlistSongs`: it drops a download Aurral has matched to a library
+    // track, which stays starred under its own id.
+    playlistSongIds: (r.data.songIds ?? []).filter((id) =>
+      /^(flow|shared)-song:/.test(id),
+    ),
   };
 }
 
