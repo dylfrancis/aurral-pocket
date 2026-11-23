@@ -100,8 +100,7 @@ export function useLibraryFavorites(sort: LibrarySongSortMode) {
 
 /**
  * Every heart shares one cached unpaged read instead of rereading it on each
- * mount. `trackMbid` finds a starred flow or playlist download that Aurral
- * reports as the library track it matched.
+ * mount. `trackMbid` finds a library favorite playing from a flow or playlist.
  */
 export function useIsFavoriteTrack(
   favorite: TrackFavorite | null,

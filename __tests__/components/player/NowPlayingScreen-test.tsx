@@ -508,9 +508,9 @@ describe("NowPlayingScreen favorite button", () => {
         "starred under its own id",
         { ...favoritesWith(), playlistSongIds: ["flow-song:flow-1:job-1"] },
       ],
-      // Aurral reports a starred download it has kept as the library track.
+      // Only the library track is starred.
       [
-        "kept in the library",
+        "a library favorite",
         favoritesWith({
           identityKey: "recording:alison",
           mbid: "alison-mb",
