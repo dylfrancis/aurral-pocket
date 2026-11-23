@@ -1,8 +1,10 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Host } from "@expo/ui";
-import { useRouter, type Href } from "expo-router";
+import { usePreventRemove, useRouter, type Href } from "expo-router";
 import {
   useCallback,
+  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -29,6 +31,7 @@ import Animated, {
   LayoutAnimationConfig,
   ReduceMotion,
   type SharedValue,
+  useAnimatedReaction,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -42,6 +45,14 @@ import {
 import { CoverTintBackdrop } from "@/components/player/CoverTintBackdrop";
 import { DevicesButton } from "@/components/player/DevicesButton";
 import { LyricsView } from "@/components/player/LyricsView";
+import {
+  type CoverFrame,
+  type LayoutNode,
+  locateMiniPlayer,
+  MINI_COVER_RADIUS,
+  miniCoverHidden,
+  type Point,
+} from "@/components/player/mini-player-cover";
 import { OutputButton } from "@/components/player/OutputButton";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import {
@@ -147,6 +158,9 @@ export function NowPlayingScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const router = useRouter();
+  // So the art can travel from and back to the mini player. Reduce Motion
+  // keeps the route's fade.
+  const animatesItself = !useReducedMotion();
   const track = useCurrentTrack();
   const state = usePlaybackState();
   const modes = usePlayerModes();
@@ -166,13 +180,83 @@ export function NowPlayingScreen() {
   // Only the full-size art swipes. It leaves by the screen's edge.
   const swipe = useSwipeToSkip(track, { travel: width, enabled: !compact });
   const skipPan = usePanGesture(swipe.panConfig);
-  const art = useArtFrame(swipe.offset);
 
-  const close = useCallback(() => router.back(), [router]);
-  const drag = useDragToClose(close);
+  // Once the sheet has gone, the route's removal goes through at once.
+  const [hasLeft, setHasLeft] = useState(false);
+  const disablePreventionRef = useRef(() => {});
+  const markLeft = useCallback(() => {
+    setHasLeft(true);
+    disablePreventionRef.current();
+  }, []);
+  const finishDrag = useCallback(() => {
+    markLeft();
+    router.back();
+  }, [markLeft, router]);
+
+  // The tapped mini player, relative to this screen: the art lands on its
+  // cover and the sheet shrinks toward its center. Without one, the sheet
+  // slides and the art rides it.
+  const rootRef = useRef<LayoutNode>(null);
+  const miniCover = useSharedValue<CoverFrame | null>(null);
+  const miniCenter = useSharedValue<Point | null>(null);
+  useLayoutEffect(() => {
+    if (!animatesItself) return;
+    const miniPlayer = locateMiniPlayer(rootRef.current);
+    miniCover.set(miniPlayer?.cover ?? null);
+    miniCenter.set(miniPlayer?.center ?? null);
+  }, [animatesItself, miniCenter, miniCover]);
+
+  const drag = useDragToClose(finishDrag, {
+    startBelow: animatesItself,
+    collapseTo: miniCenter,
+  });
+  const { enter: enterSheet, leave: leaveSheet } = drag;
   // Two drag areas, so the list between them can scroll.
   const topPan = usePanGesture(drag.panConfig);
   const controlsPan = usePanGesture(drag.panConfig);
+  const art = useArtFrame(swipe.offset, drag, miniCover);
+
+  // The art has to be in its slot before it can grow into it.
+  const entered = useRef(!animatesItself);
+  const canEnter = art.size > 0 || compact || !track;
+  useEffect(() => {
+    if (entered.current || !canEnter) return;
+    entered.current = true;
+    enterSheet();
+  }, [canEnter, enterSheet]);
+
+  // From lift-off to landing, so the mini player shows one cover.
+  useAnimatedReaction(
+    () => drag.dismissal.get(),
+    (progress, previous) => {
+      if (!miniCover.get()) return;
+      miniCoverHidden.set(
+        previous !== null && progress > previous && progress < 1,
+      );
+    },
+  );
+  useEffect(() => () => miniCoverHidden.set(false), []);
+
+  const leave = useCallback(
+    (navigate: () => void) => {
+      const done = () => {
+        markLeft();
+        navigate();
+      };
+      if (animatesItself) leaveSheet(done);
+      else done();
+    },
+    [animatesItself, leaveSheet, markLeft],
+  );
+  const close = useCallback(() => leave(() => router.back()), [leave, router]);
+  // Android's Back, and any other removal, waits for the sheet to go.
+  const disablePrevention = usePreventRemove(
+    animatesItself && !hasLeft,
+    ({ repeat }) => leave(repeat),
+  );
+  useEffect(() => {
+    disablePreventionRef.current = disablePrevention;
+  }, [disablePrevention]);
 
   const isPlaying = state === "playing" || state === "buffering";
   // A missing match means the engine is on an item the facade did not
@@ -198,15 +282,16 @@ export function NowPlayingScreen() {
   // taps must not stack duplicate pages. On Android, Settings can
   // sit between the player and the tabs, so it pops back down to the tabs.
   const leaveFor = useCallback(
-    (href: Href) => {
-      if (IS_ANDROID) {
-        router.dismissTo(href);
-        return;
-      }
-      router.back();
-      router.navigate(href);
-    },
-    [router],
+    (href: Href) =>
+      leave(() => {
+        if (IS_ANDROID) {
+          router.dismissTo(href);
+          return;
+        }
+        router.back();
+        router.navigate(href);
+      }),
+    [leave, router],
   );
 
   const openArtist = useCallback(() => {
@@ -350,6 +435,7 @@ export function NowPlayingScreen() {
     // A native modal sits outside the app root's gesture host, so the player
     // brings its own.
     <GestureHandlerRootView style={styles.screen}>
+      <View ref={rootRef} collapsable={false} style={StyleSheet.absoluteFill} />
       <Animated.View
         style={[StyleSheet.absoluteFill, styles.backdrop, drag.backdropStyle]}
       />
@@ -613,30 +699,26 @@ export function NowPlayingScreen() {
               </View>
             </GestureDetector>
           )}
-
-          {track && (
-            // One copy of the art, moved between the two views' slots so it
-            // travels instead of swapping.
-            <Animated.View
-              style={[
-                styles.art,
-                { width: art.size, height: art.size },
-                art.style,
-              ]}
-            >
-              {art.size > 0 && (
-                <PlayerArtwork
-                  url={track.artwork}
-                  coverPath={track.coverPath}
-                  size={art.size}
-                  borderRadius={0}
-                  onLoad={swipe.onCoverLoad}
-                />
-              )}
-            </Animated.View>
-          )}
         </LayoutAnimationConfig>
       </Animated.View>
+      {track && (
+        // One copy of the art, moved between the two views' slots so it
+        // travels instead of swapping. Above the sheet, not in it, so it can
+        // leave the sheet for the mini player.
+        <Animated.View
+          style={[styles.art, { width: art.size, height: art.size }, art.style]}
+        >
+          {art.size > 0 && (
+            <PlayerArtwork
+              url={track.artwork}
+              coverPath={track.coverPath}
+              size={art.size}
+              borderRadius={0}
+              onLoad={swipe.onCoverLoad}
+            />
+          )}
+        </Animated.View>
+      )}
       <AddToPlaylistSheet
         track={addToPlaylist.track}
         onClose={addToPlaylist.close}
@@ -660,9 +742,18 @@ function describeFileQuality(
 
 /**
  * The art renders at the player view's size and is scaled, not resized, into
- * the queue header. `swipeOffset` slides it sideways for a skip.
+ * the queue header. `swipeOffset` slides it sideways for a skip. It rides the
+ * sheet, and as the sheet enters or leaves on its own it travels between its
+ * slot and `miniCover`.
  */
-function useArtFrame(swipeOffset: SharedValue<number>) {
+function useArtFrame(
+  swipeOffset: SharedValue<number>,
+  sheet: {
+    translateY: SharedValue<number>;
+    dismissal: SharedValue<number>;
+  },
+  miniCover: SharedValue<CoverFrame | null>,
+) {
   const [size, setSize] = useState(0);
   const fullSize = useSharedValue(0);
   const shownSize = useSharedValue(0);
@@ -687,7 +778,8 @@ function useArtFrame(swipeOffset: SharedValue<number>) {
   );
 
   // The slots are children of the top area, which starts at the sheet's
-  // origin, so their frames are already in the art's coordinates.
+  // origin, so their frames are in the art's coordinates less the sheet's
+  // offset.
   const onArtSlotLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const { x: slotX, y: slotY, width, height } = event.nativeEvent.layout;
@@ -710,29 +802,41 @@ function useArtFrame(swipeOffset: SharedValue<number>) {
   const style = useAnimatedStyle(() => {
     const full = fullSize.get();
     if (full === 0) return { opacity: 0 };
-    const shown = shownSize.get();
-    const scale = shown / full;
-    // Scaling pivots on the center; this keeps the top-left corner in place.
-    const offset = (shown - full) / 2;
-    const radius = interpolate(
-      shown,
+    const cover = miniCover.get();
+    const landing = cover ? sheet.dismissal.get() : 0;
+    const inSlot = shownSize.get();
+    const slotRadius = interpolate(
+      inSlot,
       [THUMB_SIZE, full],
       [THUMB_RADIUS, ART_RADIUS],
       Extrapolation.CLAMP,
     );
+    const x = left.get() + swipeOffset.get();
+    const y = top.get() + sheet.translateY.get();
+    const to = cover ?? { x, y, size: inSlot };
+    const shown = mix(inSlot, to.size, landing);
+    const scale = shown / full;
+    // Scaling pivots on the center; this keeps the top-left corner in place.
+    const offset = (shown - full) / 2;
+    const radius = mix(slotRadius, MINI_COVER_RADIUS, landing);
     return {
       opacity: 1,
       // The corner scales with the art, so it is set pre-scale.
       borderRadius: radius / scale,
       transform: [
-        { translateX: left.get() + offset + swipeOffset.get() },
-        { translateY: top.get() + offset },
+        { translateX: mix(x, to.x, landing) + offset },
+        { translateY: mix(y, to.y, landing) + offset },
         { scale },
       ],
     };
   });
 
   return { size, style, onArtSlotLayout, onThumbRowLayout };
+}
+
+function mix(from: number, to: number, progress: number) {
+  "worklet";
+  return from + (to - from) * progress;
 }
 
 function TransportButton({

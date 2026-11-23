@@ -22,7 +22,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 // Reanimated's shipped mock fails to load under jest-expo. This stand-in renders
-// every animated view at rest.
+// every animated view at rest and finishes every spring at once.
 jest.mock("react-native-reanimated", () => {
   const React = require("react");
   const { View } = require("react-native");
@@ -43,17 +43,32 @@ jest.mock("react-native-reanimated", () => {
     LayoutAnimationConfig: ({ children }: any) => children,
     interpolate: (_value: number, _input: number[], output: number[]) =>
       output[0],
-    useSharedValue: (initial: number) => {
+    makeMutable: (initial: unknown) => {
       let current = initial;
-      return { get: () => current, set: (next: number) => (current = next) };
+      return { get: () => current, set: (next: unknown) => (current = next) };
+    },
+    useSharedValue: (initial: unknown) => {
+      let current = initial;
+      return { get: () => current, set: (next: unknown) => (current = next) };
     },
     useAnimatedStyle: (fn: () => object) => fn(),
+    useAnimatedReaction: () => {},
     useReducedMotion: () => false,
     withTiming: (target: number) => target,
-    withSpring: (target: number) => target,
+    withSpring: (
+      target: number,
+      _config?: object,
+      done?: (finished: boolean) => void,
+    ) => {
+      done?.(true);
+      return target;
+    },
   };
 });
-jest.mock("react-native-worklets", () => ({ scheduleOnRN: jest.fn() }));
+jest.mock("react-native-worklets", () => ({
+  scheduleOnRN: (fn: (...args: unknown[]) => void, ...args: unknown[]) =>
+    fn(...args),
+}));
 // The drag to close needs a real gesture system, so it is checked on a device.
 jest.mock("react-native-gesture-handler", () => ({
   GestureHandlerRootView: ({ children }: any) => children,
@@ -84,6 +99,7 @@ jest.mock("expo-router", () => ({
     back: mockBack,
     dismissTo: mockDismissTo,
   })),
+  usePreventRemove: () => () => {},
 }));
 
 /**

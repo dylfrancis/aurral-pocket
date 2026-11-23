@@ -54,12 +54,14 @@ export default function AppLayout() {
           options={{ presentation: IS_IOS ? "modal" : "card" }}
         />
         {/* A native sheet stops short of the top edge, so the full player is a
-          transparent modal that draws its own sheet and drag-to-close. */}
+          transparent modal that draws its own sheet and drag-to-close. It
+          also animates itself in and out, so its art can travel from and
+          back to the mini player. */}
         <Stack.Screen
           name="now-playing"
           options={{
             presentation: "transparentModal",
-            animation: reduceMotion ? "fade" : "slide_from_bottom",
+            animation: reduceMotion ? "fade" : "none",
           }}
         />
       </Stack>

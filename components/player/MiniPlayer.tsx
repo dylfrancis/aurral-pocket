@@ -1,9 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
-import Animated from "react-native-reanimated";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import {
+  type LayoutNode,
+  MINI_COVER_RADIUS,
+  miniCoverHidden,
+  openFromMiniPlayer,
+} from "@/components/player/mini-player-cover";
 import { PlayerArtwork } from "@/components/player/PlayerArtwork";
 import { Text } from "@/components/ui/Text";
 import { Fonts } from "@/constants/theme";
@@ -41,6 +47,11 @@ export function MiniPlayer({ compact = false }: MiniPlayerProps) {
   const [slideWidth, setSlideWidth] = useState(0);
   const swipe = useSwipeToSkip(track, { travel: slideWidth });
   const skipPan = usePanGesture(swipe.panConfig);
+  const barRef = useRef<LayoutNode>(null);
+  const coverRef = useRef<LayoutNode>(null);
+  const coverStyle = useAnimatedStyle(() => ({
+    opacity: miniCoverHidden.get() ? 0 : 1,
+  }));
 
   if (!track) return null;
 
@@ -49,7 +60,11 @@ export function MiniPlayer({ compact = false }: MiniPlayerProps) {
   return (
     <GestureDetector gesture={skipPan}>
       <Pressable
-        onPress={() => router.push("/now-playing")}
+        ref={barRef}
+        onPress={() => {
+          openFromMiniPlayer({ cover: coverRef, bar: barRef });
+          router.push("/now-playing");
+        }}
         accessibilityRole="button"
         accessibilityLabel={`${track.title} by ${track.artist}. Open the player.`}
         style={styles.row}
@@ -61,13 +76,17 @@ export function MiniPlayer({ compact = false }: MiniPlayerProps) {
           onLayout={(event) => setSlideWidth(event.nativeEvent.layout.width)}
         >
           <Animated.View style={[styles.slide, swipe.style]}>
-            <PlayerArtwork
-              url={track.artwork}
-              coverPath={track.coverPath}
-              size={compact ? 32 : 40}
-              borderRadius={6}
-              onLoad={swipe.onCoverLoad}
-            />
+            <Animated.View style={coverStyle}>
+              <View ref={coverRef} collapsable={false}>
+                <PlayerArtwork
+                  url={track.artwork}
+                  coverPath={track.coverPath}
+                  size={compact ? 32 : 40}
+                  borderRadius={MINI_COVER_RADIUS}
+                  onLoad={swipe.onCoverLoad}
+                />
+              </View>
+            </Animated.View>
             {!compact && (
               <View style={styles.meta}>
                 <Text
