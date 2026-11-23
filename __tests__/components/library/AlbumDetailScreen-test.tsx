@@ -170,6 +170,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlbumDetailScreen } from "@/components/library/AlbumDetailScreen";
@@ -989,6 +990,50 @@ describe("AlbumDetailScreen", () => {
     expect(screen.getByText("Nude")).toBeTruthy();
   });
 
+  it("marks the tracks the album's edition flags as popular", async () => {
+    const track = (id: string, title: string, trackNumber: number) =>
+      ({
+        id,
+        mbid: `rec-${id}`,
+        trackName: title,
+        title,
+        trackNumber,
+        discNumber: 1,
+        hasFile: true,
+        streamPath: `/library/stream/14/${id}`,
+      }) as Track;
+    mockUseLibraryTracks.mockReturnValue({
+      data: [track("1", "Airbag", 1), track("2", "Paranoid Android", 2)],
+      isLoading: false,
+    });
+    mockGetReleaseGroupTracks.mockResolvedValue(
+      (
+        [
+          ["rec-1", false],
+          ["rec-2", true],
+        ] as const
+      ).map(([id, popular], index) => ({
+        id,
+        title: id,
+        trackNumber: index + 1,
+        discNumber: 1,
+        length: null,
+        popular,
+      })),
+    );
+
+    await openAlbumPage(album);
+
+    const [flame, ...others] = await screen.findAllByLabelText(
+      "Popular on this album",
+    );
+    expect(others).toHaveLength(0);
+    const titleLine = screen.getByText("Paranoid Android").parent!.parent!;
+    expect(within(titleLine).getByLabelText("Popular on this album")).toBe(
+      flame,
+    );
+  });
+
   describe("editions", () => {
     const editions = [
       { id: "rel-std", name: "Standard", date: "1997-05-21", trackCount: 12 },
@@ -1040,6 +1085,7 @@ describe("AlbumDetailScreen", () => {
         discNumber: 1,
         length: null,
         releaseMbid: "rel-cx",
+        popular: id === "rec-4",
       }));
       // The Library's own edition lists nothing, so its tracks keep their
       // places.
@@ -1064,9 +1110,11 @@ describe("AlbumDetailScreen", () => {
       await previewCollectorsEdition();
 
       expect(mockGetReleaseGroupTracks).toHaveBeenCalledWith("rg-1", "rel-cx");
-      // The missing track offers its clip, and a track the Library has never
-      // reads as missing.
-      expect(screen.getByLabelText("Preview Lull")).toBeTruthy();
+      // The missing track offers its clip, with the edition's popular flag, and
+      // a track the Library has never reads as missing.
+      expect(
+        screen.getByLabelText("Preview Lull, Popular on this album"),
+      ).toBeTruthy();
       expect(
         screen.queryByLabelText(
           "Subterranean Homesick Alien, not in your Library",

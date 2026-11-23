@@ -48,6 +48,7 @@ export const EditionClipRow = React.memo(function EditionClipRow({
         />
       }
       title={track.title}
+      popular={track.popular}
       active={isPlaying}
       trailing={
         isLoading ? (

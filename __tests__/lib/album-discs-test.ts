@@ -39,6 +39,7 @@ describe("placeOnEdition", () => {
     discNumber,
     trackNumber,
     length: null,
+    popular: false,
   });
 
   it("keeps the Library's place for what the edition doesn't place", () => {

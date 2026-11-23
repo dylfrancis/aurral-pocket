@@ -515,6 +515,7 @@ const PreviewTrackRow = React.memo(function PreviewTrackRow({
         )
       }
       title={track.title}
+      popular={track.popular}
       active={isPlaying}
       titleStyle={styles.trackTitle}
       below={

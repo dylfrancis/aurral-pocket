@@ -772,6 +772,8 @@ export type ReleaseGroupTrack = {
   /** MusicBrainz's name for the disc, when it has one. */
   discTitle?: string | null;
   length: number | null;
+  /** One of the up to three tracks the album is most listened to for. */
+  popular: boolean;
 };
 
 /**

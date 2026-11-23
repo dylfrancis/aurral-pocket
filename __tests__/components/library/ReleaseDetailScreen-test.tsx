@@ -88,7 +88,12 @@ jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
 }));
 
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { ReleaseDetailScreen } from "@/components/library/ReleaseDetailScreen";
@@ -172,6 +177,43 @@ describe("ReleaseDetailScreen", () => {
 
     expect(await screen.findByText("Disc 1 · Dawn to Dusk")).toBeTruthy();
     expect(screen.getByText("Disc 2")).toBeTruthy();
+  });
+
+  it("marks the album's popular tracks", async () => {
+    mockParams = {
+      mbid: "rg-9",
+      title: "OK Computer",
+      artistName: "Radiohead",
+    };
+    mockGetReleaseGroupTracks.mockResolvedValue(
+      (
+        [
+          ["Airbag", false],
+          ["Paranoid Android", true],
+        ] as const
+      ).map(([title, popular], index) => ({
+        id: `rec-${index}`,
+        title,
+        trackNumber: index + 1,
+        discNumber: 1,
+        length: null,
+        popular,
+      })),
+    );
+    await render(
+      <QueryClientProvider client={client}>
+        <ReleaseDetailScreen />
+      </QueryClientProvider>,
+    );
+
+    const [flame, ...others] = await screen.findAllByLabelText(
+      "Popular on this album",
+    );
+    expect(others).toHaveLength(0);
+    const titleLine = screen.getByText("Paranoid Android").parent!.parent!;
+    expect(within(titleLine).getByLabelText("Popular on this album")).toBe(
+      flame,
+    );
   });
 
   it("lists a picked edition's tracks and requests that edition", async () => {

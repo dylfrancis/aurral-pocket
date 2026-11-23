@@ -17,6 +17,8 @@ type TrackRowProps = {
   unavailable?: boolean;
   /** Shows ↓ once the track is on the phone. */
   markSaved?: boolean;
+  /** One of the album's popular tracks. */
+  popular?: boolean;
 };
 
 export const TrackRow = React.memo(function TrackRow({
@@ -26,6 +28,7 @@ export const TrackRow = React.memo(function TrackRow({
   onMenuPress,
   unavailable = false,
   markSaved = false,
+  popular = false,
 }: TrackRowProps) {
   const colors = useColors();
   const { isCurrent, isPlaying } = useTrackPlayback(String(track.id));
@@ -40,6 +43,7 @@ export const TrackRow = React.memo(function TrackRow({
         />
       }
       title={track.trackName}
+      popular={popular}
       active={isCurrent}
       trailing={
         <>

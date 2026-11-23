@@ -7,6 +7,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import {
   TRACK_MENU_BUTTON_WIDTH,
@@ -18,6 +19,8 @@ type AlbumTrackRowProps = {
   /** Before the title: the track number, or a play button. */
   leading: React.ReactNode;
   title: string;
+  /** Marks one of the album's popular tracks with a flame after its title. */
+  popular?: boolean;
   /** Tints the title while the player or a clip is on this track. */
   active?: boolean;
   titleStyle?: StyleProp<TextStyle>;
@@ -40,6 +43,8 @@ type AlbumTrackRowProps = {
   accessibilityLabel?: string;
 };
 
+const POPULAR_LABEL = "Popular on this album";
+
 /**
  * A row in an album's track list, shared by the Library album page and the
  * release page so their rows keep one height and inset.
@@ -47,6 +52,7 @@ type AlbumTrackRowProps = {
 export function AlbumTrackRow({
   leading,
   title,
+  popular = false,
   active = false,
   titleStyle,
   below,
@@ -71,7 +77,11 @@ export function AlbumTrackRow({
       // readers to reach the buttons inside it on their own.
       accessible={interactive || accessibilityLabel !== undefined}
       accessibilityRole={accessibilityRole}
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={
+        accessibilityLabel && popular
+          ? `${accessibilityLabel}, ${POPULAR_LABEL}`
+          : accessibilityLabel
+      }
       style={({ pressed }) => [
         styles.row,
         { borderBottomColor: colors.separator },
@@ -81,13 +91,27 @@ export function AlbumTrackRow({
     >
       {leading}
       <View style={styles.body}>
-        <Text
-          variant="body"
-          numberOfLines={1}
-          style={[styles.title, titleStyle, active && { color: colors.brand }]}
-        >
-          {title}
-        </Text>
+        <View style={styles.titleLine}>
+          <Text
+            variant="body"
+            numberOfLines={1}
+            style={[
+              styles.title,
+              titleStyle,
+              active && { color: colors.brand },
+            ]}
+          >
+            {title}
+          </Text>
+          {popular ? (
+            <Ionicons
+              name="flame"
+              size={13}
+              color={colors.subtle}
+              accessibilityLabel={POPULAR_LABEL}
+            />
+          ) : null}
+        </View>
         {below}
       </View>
       {trailing}
@@ -113,8 +137,14 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  titleLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   // A step up from body text, which reads small in a list this roomy.
   title: {
+    flexShrink: 1,
     fontSize: 16,
     lineHeight: 22,
   },

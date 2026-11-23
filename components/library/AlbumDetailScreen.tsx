@@ -278,6 +278,16 @@ export function AlbumDetailScreen() {
         : undefined,
     [tracks, placesPending, libraryEditionTracks],
   );
+  // The album's popular recordings, which every copy of them shares.
+  const popularRecordings = useMemo(
+    () =>
+      new Set(
+        (libraryEditionTracks ?? []).flatMap((track) =>
+          track.popular ? [track.id] : [],
+        ),
+      ),
+    [libraryEditionTracks],
+  );
 
   // Re-renders the rows' unavailable state as the connection comes and goes.
   useIsOffline();
@@ -416,11 +426,19 @@ export function AlbumDetailScreen() {
     },
   });
 
-  /** A Library track's row. `number` is its place in a previewed edition. */
-  const renderTrack = (track: Track, number?: number) => (
+  /**
+   * A Library track's row. `number` and `popular` come from a previewed
+   * edition, which flags its own popular tracks.
+   */
+  const renderTrack = (
+    track: Track,
+    number?: number,
+    popular = !!track.mbid && popularRecordings.has(track.mbid),
+  ) => (
     <TrackRow
       key={track.id}
       track={number === undefined ? track : { ...track, trackNumber: number }}
+      popular={popular}
       unavailable={!canPlayNow(track.id)}
       // A saved album's toolbar already says its tracks are on the phone.
       markSaved={saveOffline.status?.state !== "saved"}
@@ -683,7 +701,11 @@ export function AlbumDetailScreen() {
                   first={index === 0}
                 />
                 {row.libraryTrack?.streamPath ? (
-                  renderTrack(row.libraryTrack, row.editionTrack.trackNumber)
+                  renderTrack(
+                    row.libraryTrack,
+                    row.editionTrack.trackNumber,
+                    row.editionTrack.popular,
+                  )
                 ) : (
                   <EditionClipRow
                     track={row.editionTrack}

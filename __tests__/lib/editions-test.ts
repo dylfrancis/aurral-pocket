@@ -25,6 +25,7 @@ describe("editionRows", () => {
           trackNumber: 1,
           discNumber: 1,
           length: null,
+          popular: false,
         },
       ],
       [liveAirbag],
