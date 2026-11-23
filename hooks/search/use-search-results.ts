@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useCatalogSearch } from "@/hooks/search/use-catalog-search";
 import { useLibrarySearch } from "@/hooks/search/use-library-search";
 import { useTagSuggestions } from "@/hooks/search/use-tag-suggestions";
-import { mergeAlbums, mergeArtists } from "@/lib/search-results";
+import { mergeAlbums, mergeArtists, mergeSongs } from "@/lib/search-results";
 
 /** From two characters a search runs. A tag search starts with "#". */
 export function searchQueryKind(query: string) {
@@ -44,7 +44,10 @@ export function useSearchResults(query: string) {
     () => mergeAlbums(libraryData?.albums ?? [], catalogData?.albums ?? []),
     [libraryData, catalogData],
   );
-  const songs = libraryData?.tracks ?? [];
+  const songs = useMemo(
+    () => mergeSongs(libraryData?.tracks ?? [], catalogData?.songs ?? []),
+    [libraryData, catalogData],
+  );
   const playlists = libraryData?.playlists ?? [];
 
   const catalogDown =
@@ -75,8 +78,8 @@ export function useSearchResults(query: string) {
     albums,
     songs,
     playlists,
-    artistsAndAlbumsPending: pending,
-    libraryPending,
+    /** Either source is still answering, so a merged section may grow. */
+    pending,
     catalogDown,
     retryCatalog,
     refetch,

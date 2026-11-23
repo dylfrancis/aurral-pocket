@@ -142,22 +142,41 @@ export type SearchAlbum = {
   coverUrl: string | null;
 };
 
-/**
- * Body of `GET /search/unified`, as far as pocket reads it. The route also
- * finds Deezer songs, which pocket leaves out: only Library songs play.
- */
+/** A catalog song from `GET /search/unified`, which plays as a clip. */
+export type CatalogSong = {
+  /** Recording MBID. */
+  id: string;
+  title: string;
+  artistName: string;
+  albumTitle: string | null;
+  /** Release-group MBID. */
+  albumMbid: string | null;
+  artistMbid: string | null;
+  /** The album's cover, an absolute URL. */
+  coverUrl: string | null;
+  /** The server found the song in the Library. */
+  inLibrary: boolean;
+};
+
+/** Body of `GET /search/unified`, as far as pocket reads it. */
 export type CatalogSearchWire = {
   /** "unavailable" when the metadata server didn't answer. */
   status: "ok" | "unavailable";
   artists: SearchArtist[];
   albums: (Omit<SearchAlbum, "id" | "type"> & { id: string | null })[];
+  tracks: (Omit<CatalogSong, "albumMbid" | "artistMbid" | "coverUrl"> & {
+    albumMbid?: string | null;
+    artistMbid?: string | null;
+    coverUrl?: string | null;
+  })[];
 };
 
-/** Catalog artists and albums for a search, best match first. */
+/** Catalog artists, albums and songs for a search, best match first. */
 export type CatalogSearchResponse = {
   status: "ok" | "unavailable";
   artists: SearchArtist[];
   albums: SearchAlbum[];
+  songs: CatalogSong[];
 };
 
 export type SimilarArtist = {

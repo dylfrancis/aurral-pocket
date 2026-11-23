@@ -3,8 +3,9 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
 import { TrackIndexSlot } from "@/components/library/TrackIndexSlot";
 import { TrackMenuButton } from "@/components/library/TrackMenuButton";
+import { PreviewTag } from "@/components/ui/PreviewTag";
 import { Text } from "@/components/ui/Text";
-import { Fonts, Radius } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import type { TopTrack } from "@/lib/top-tracks";
 
@@ -64,16 +65,7 @@ export const TopTrackRow = React.memo(function TopTrackRow({
           >
             {title}
           </Text>
-          {library ? null : (
-            <View style={[styles.tag, { borderColor: colors.subtle }]}>
-              <Text
-                variant="caption"
-                style={[styles.tagLabel, { color: colors.subtle }]}
-              >
-                Preview
-              </Text>
-            </View>
-          )}
+          {library ? null : <PreviewTag />}
         </View>
         {album ? (
           <Text variant="caption" numberOfLines={1}>
@@ -105,17 +97,5 @@ const styles = StyleSheet.create({
   title: {
     ...Fonts.medium,
     flexShrink: 1,
-  },
-  tag: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.round,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  tagLabel: {
-    ...Fonts.semiBold,
-    fontSize: 10,
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
   },
 });

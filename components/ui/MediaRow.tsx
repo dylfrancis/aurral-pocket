@@ -12,6 +12,10 @@ type MediaRowProps = {
   imageType?: CoverArtType;
   mbid?: string | null;
   title: string;
+  /** After the title, on its line, such as a Preview tag. */
+  titleAccessory?: React.ReactNode;
+  /** Tints the title while the player is on this row. */
+  active?: boolean;
   subtitle?: string;
   /** A second caption line under the subtitle. */
   detail?: string;
@@ -37,6 +41,8 @@ export const MediaRow = React.memo(function MediaRow({
   imageType,
   mbid,
   title,
+  titleAccessory,
+  active = false,
   subtitle,
   detail,
   trailing,
@@ -85,13 +91,19 @@ export const MediaRow = React.memo(function MediaRow({
           )))}
 
       <View style={styles.meta}>
-        <Text
-          variant="body"
-          numberOfLines={1}
-          style={[styles.title, { color: colors.text }]}
-        >
-          {title}
-        </Text>
+        <View style={styles.titleLine}>
+          <Text
+            variant="body"
+            numberOfLines={1}
+            style={[
+              styles.title,
+              { color: active ? colors.brandStrong : colors.text },
+            ]}
+          >
+            {title}
+          </Text>
+          {titleAccessory}
+        </View>
         {!!subtitle && (
           <Text
             variant="caption"
@@ -134,7 +146,13 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  titleLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   title: {
     ...Fonts.medium,
+    flexShrink: 1,
   },
 });

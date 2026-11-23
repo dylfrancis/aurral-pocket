@@ -50,7 +50,7 @@ export async function searchArtists(
 }
 
 /**
- * Up to 30 catalog artists and albums for `query`, the server's most. Unlike
+ * Up to 30 catalog artists, albums and songs for `query`, the server's most. Unlike
  * `GET /search`, which answers an empty list when the metadata server is
  * down, this route says so with `status: "unavailable"`.
  */
@@ -85,6 +85,16 @@ export async function searchCatalog(
           ]
         : [],
     ),
+    songs: r.data.tracks.map((song) => ({
+      id: song.id,
+      title: song.title,
+      artistName: song.artistName,
+      albumTitle: song.albumTitle,
+      albumMbid: song.albumMbid ?? null,
+      artistMbid: song.artistMbid ?? null,
+      coverUrl: song.coverUrl ?? null,
+      inLibrary: song.inLibrary,
+    })),
   };
 }
 

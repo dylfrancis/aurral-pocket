@@ -162,7 +162,7 @@ describe("resolveStreamingLink", () => {
 });
 
 describe("searchCatalog", () => {
-  it("reads catalog artists, albums and the outage status from GET /search/unified", async () => {
+  it("reads catalog artists, albums, songs and the outage status from GET /search/unified", async () => {
     mockApi.get.mockResolvedValue({
       data: {
         query: "abbey road",
@@ -183,7 +183,22 @@ describe("searchCatalog", () => {
           // A Library album with no MBID has no release page to open.
           { id: null, title: "Rips", artistName: "Unknown", artistMbid: null },
         ],
-        tracks: [{ id: "deezer-1", title: "Come Together" }],
+        tracks: [
+          {
+            type: "track",
+            source: "metadata",
+            id: "rec-1",
+            key: "rec-1",
+            title: "Come Together",
+            artistName: "The Beatles",
+            albumTitle: "Abbey Road",
+            albumMbid: "rg-1",
+            artistMbid: "a-1",
+            coverUrl: "https://coverartarchive.org/release/r-1/front.jpg",
+            streamPath: null,
+            inLibrary: false,
+          },
+        ],
       },
     });
 
@@ -206,6 +221,18 @@ describe("searchCatalog", () => {
           primaryType: "Album",
           secondaryTypes: [],
           coverUrl: null,
+        },
+      ],
+      songs: [
+        {
+          id: "rec-1",
+          title: "Come Together",
+          artistName: "The Beatles",
+          albumTitle: "Abbey Road",
+          albumMbid: "rg-1",
+          artistMbid: "a-1",
+          coverUrl: "https://coverartarchive.org/release/r-1/front.jpg",
+          inLibrary: false,
         },
       ],
     });

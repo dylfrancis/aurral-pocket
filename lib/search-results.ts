@@ -1,7 +1,11 @@
+import { authenticatedClipUrl } from "@/lib/api/client";
 import { albumRouteParams } from "@/lib/library-read";
+import type { PlayerAlbumContext, PlayerTrack } from "@/lib/player/track-item";
 import type {
+  CatalogSong,
   LibrarySearchAlbum,
   LibrarySearchArtist,
+  LibrarySearchTrack,
   SearchAlbum,
   SearchArtist,
 } from "@/lib/types/search";
@@ -62,6 +66,77 @@ export function mergeAlbums(
     results.push({ kind: "catalog", key: `catalog-${album.id}`, album });
   }
   return results;
+}
+
+/** A song row in search: a Library file to play, or a catalog song's clip. */
+export type SongResult =
+  | { kind: "library"; key: string; track: LibrarySearchTrack }
+  | { kind: "catalog"; key: string; song: CatalogSong };
+
+/**
+ * Library songs first, then catalog songs to preview, as the web merges them.
+ * A catalog song the Library has, by the server's mark or by recording, is
+ * left out.
+ */
+export function mergeSongs(
+  library: readonly LibrarySearchTrack[],
+  catalog: readonly CatalogSong[],
+): SongResult[] {
+  const results: SongResult[] = library.map((track) => ({
+    kind: "library",
+    key: `library-${track.id}`,
+    track,
+  }));
+  const seen = new Set(library.flatMap((track) => track.trackMbid ?? []));
+  for (const song of catalog) {
+    if (song.inLibrary || seen.has(song.id)) continue;
+    seen.add(song.id);
+    results.push({ kind: "catalog", key: `catalog-${song.id}`, song });
+  }
+  return results;
+}
+
+/** A clip's queue id, shared with the same recording's Top Tracks clip. */
+export function catalogSongClipId(song: CatalogSong): string {
+  return `preview:${song.id}`;
+}
+
+/** The server finds the clip on Deezer by artist and title, as the web asks. */
+export function catalogSongClipPath(song: CatalogSong): string {
+  return `/api/deezer/preview?artist=${encodeURIComponent(song.artistName)}&track=${encodeURIComponent(song.title)}`;
+}
+
+export function catalogSongContext(song: CatalogSong): PlayerAlbumContext {
+  return {
+    albumTitle: song.albumTitle ?? "",
+    artistName: song.artistName,
+    coverPath: null,
+    artworkUrl: song.coverUrl,
+    albumMbid: song.albumMbid,
+    artistMbid: song.artistMbid,
+  };
+}
+
+/** A catalog song's clip as a queue item. Null while signed out. */
+export function catalogSongClip(song: CatalogSong): PlayerTrack | null {
+  const url = authenticatedClipUrl(catalogSongClipPath(song));
+  if (!url) return null;
+  return {
+    id: catalogSongClipId(song),
+    title: song.title,
+    artist: song.artistName,
+    album: song.albumTitle ?? "",
+    duration: 0,
+    url,
+    artwork: song.coverUrl,
+    streamPath: null,
+    coverPath: null,
+    trackMbid: null,
+    artistMbid: song.artistMbid,
+    albumMbid: null,
+    favorite: null,
+    isPreview: true,
+  };
 }
 
 /** A bare path, so expo-router opens the album in the search's own stack. */

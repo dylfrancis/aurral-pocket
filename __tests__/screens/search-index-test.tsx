@@ -47,6 +47,17 @@ jest.mock("@/hooks/search/use-library-search", () => ({
 
 jest.mock("@/lib/player/player", () => ({
   playQueueFrom: jest.fn(() => Promise.resolve(true)),
+  playItem: jest.fn(() => Promise.resolve()),
+  pause: jest.fn(),
+  pauseClip: jest.fn(),
+  resume: jest.fn(),
+  usePlayerStatus: () => ({
+    currentId: null,
+    isPlaying: false,
+    isPaused: false,
+    isBuffering: false,
+    progress: 0,
+  }),
 }));
 
 jest.mock("@/contexts/auth-context", () => ({
@@ -161,9 +172,10 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SearchScreen from "@/app/(app)/(tabs)/(search)/index";
 import { setAuthToken, setBaseUrl } from "@/lib/api/client";
-import { playQueueFrom } from "@/lib/player/player";
+import { playItem, playQueueFrom } from "@/lib/player/player";
 import type {
   CatalogSearchResponse,
+  CatalogSong,
   LibrarySearchResponse,
   LibrarySearchPlaylist,
   LibrarySearchTrack,
@@ -178,6 +190,7 @@ const mockUseTagSuggestions = useTagSuggestions as jest.Mock;
 const mockUseLibraryLookup = useLibraryLookup as jest.Mock;
 const mockUseLibrarySearch = useLibrarySearch as jest.Mock;
 const mockPlayQueueFrom = playQueueFrom as jest.Mock;
+const mockPlayItem = playItem as jest.Mock;
 
 function song(id: string, title: string): LibrarySearchTrack {
   return {
@@ -193,6 +206,24 @@ function song(id: string, title: string): LibrarySearchTrack {
     durationMs: 261000,
     streamPath: `/library/stream/12/${id}`,
     coverUrl: "/api/library/albums/12/cover",
+  };
+}
+
+function catalogSong(
+  id: string,
+  title: string,
+  artistName: string,
+  albumTitle: string,
+): CatalogSong {
+  return {
+    id,
+    title,
+    artistName,
+    albumTitle,
+    albumMbid: null,
+    artistMbid: null,
+    coverUrl: null,
+    inLibrary: false,
   };
 }
 
@@ -330,6 +361,44 @@ describe("SearchScreen", () => {
       screen.getByLabelText("More actions for Karma Police"),
     );
     expect(screen.getByText("Actions for Karma Police (77)")).toBeTruthy();
+  });
+
+  it("previews catalog songs after the Library's, leaving out ones the Library has", async () => {
+    libraryResults([{ ...song("77", "Creep"), trackMbid: "rec-own" }]);
+    catalogResults({
+      songs: [
+        catalogSong("rec-own", "Creep", "Radiohead", "Pablo Honey"),
+        catalogSong("rec-tlc", "Creep", "TLC", "CrazySexyCool"),
+        {
+          ...catalogSong("rec-marked", "Creep (Acoustic)", "Radiohead", "EP"),
+          inLibrary: true,
+        },
+      ],
+    });
+    await renderSearch();
+    await typeQuery("creep");
+
+    expect(screen.getAllByText(/ · /).map((row) => row.props.children)).toEqual(
+      ["Radiohead · OK Computer", "TLC · CrazySexyCool"],
+    );
+    expect(screen.getAllByText("Preview")).toHaveLength(1);
+    expect(screen.queryByText("Creep (Acoustic)")).toBeNull();
+
+    await fireEvent.press(screen.getByText("TLC · CrazySexyCool"));
+    expect(mockPlayItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "preview:rec-tlc",
+        url: "http://server/api/deezer/preview?artist=TLC&track=Creep&token=token",
+      }),
+    );
+    expect(mockPlayQueueFrom).not.toHaveBeenCalled();
+
+    await fireEvent.press(
+      screen.getAllByLabelText("More actions for Creep")[1],
+    );
+    expect(
+      screen.getByText("Actions for Creep (preview:rec-tlc)"),
+    ).toBeTruthy();
   });
 
   it("keeps the results on screen when Search is pressed, with more rows and pills", async () => {

@@ -8,11 +8,13 @@ import {
   searchTrackContext,
   searchTrackToPlayerTrack,
 } from "@/lib/player/track-item";
-import type { LibrarySearchTrack } from "@/lib/types/search";
+import { catalogSongClip, catalogSongContext } from "@/lib/search-results";
+import type { CatalogSong, LibrarySearchTrack } from "@/lib/types/search";
 
 /**
  * A Library song in search results plays on its own, as on the web, and
- * Autoplay carries on after it.
+ * Autoplay carries on after it. A catalog song's actions act on its clip, as a
+ * Top Tracks clip's do.
  */
 export function useSearchSongActions() {
   const queryClient = useQueryClient();
@@ -47,5 +49,22 @@ export function useSearchSongActions() {
     [playerItem, openItem],
   );
 
-  return { play, openActions, actionsTarget: target, closeActions: close };
+  const openCatalogActions = useCallback(
+    (song: CatalogSong) =>
+      // Built at the tap: the URL carries the session token.
+      openItem(catalogSongClip(song), catalogSongContext(song), {
+        title: song.title,
+        // A clip is only a cut of the song, not a file to keep.
+        canSaveOffline: false,
+      }),
+    [openItem],
+  );
+
+  return {
+    play,
+    openActions,
+    openCatalogActions,
+    actionsTarget: target,
+    closeActions: close,
+  };
 }

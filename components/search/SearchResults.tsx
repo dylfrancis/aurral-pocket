@@ -19,6 +19,7 @@ import {
   SearchSectionLabel,
   SeeAllRow,
 } from "@/components/search/SearchSections";
+import { SearchCatalogSongRow } from "@/components/search/SearchCatalogSongRow";
 import { SearchSongRow } from "@/components/search/SearchSongRow";
 import { SkeletonRows } from "@/components/search/SkeletonRows";
 import { MediaRow } from "@/components/ui/MediaRow";
@@ -36,6 +37,7 @@ import {
   libraryAlbumHref,
   type AlbumResult,
   type ArtistResult,
+  type SongResult,
 } from "@/lib/search-results";
 import type { SearchArtist } from "@/lib/types/search";
 
@@ -114,8 +116,7 @@ export function SearchResults({
     songs,
     playlists,
     tags,
-    artistsAndAlbumsPending,
-    libraryPending,
+    pending,
     catalogDown,
     retryCatalog,
     nothingFound,
@@ -203,14 +204,21 @@ export function SearchResults({
       />
     );
 
-  const songRow = (track: (typeof songs)[number]) => (
-    <SearchSongRow
-      key={`song-${track.id}`}
-      track={track}
-      onPress={() => void songActions.play(track)}
-      onOpenActions={() => songActions.openActions(track)}
-    />
-  );
+  const songRow = (result: SongResult) =>
+    result.kind === "library" ? (
+      <SearchSongRow
+        key={result.key}
+        track={result.track}
+        onPress={() => void songActions.play(result.track)}
+        onOpenActions={() => songActions.openActions(result.track)}
+      />
+    ) : (
+      <SearchCatalogSongRow
+        key={result.key}
+        song={result.song}
+        onOpenActions={() => songActions.openCatalogActions(result.song)}
+      />
+    );
 
   const playlistRow = (playlist: (typeof playlists)[number]) => (
     <SearchPlaylistRow
@@ -233,16 +241,16 @@ export function SearchResults({
     artists: {
       title: "Artists",
       rows: artists.map(artistRow),
-      pending: artistsAndAlbumsPending,
+      pending,
       skeleton: "artist",
       emptyMessage: `No artists match “${trimmedQuery}”`,
     },
     songs: {
       title: "Songs",
       rows: songs.map(songRow),
-      pending: libraryPending,
+      pending,
       skeleton: "album",
-      emptyMessage: `No songs in your Library match “${trimmedQuery}”`,
+      emptyMessage: `No songs match “${trimmedQuery}”`,
     },
     // Most searches match no playlist, so the section gets no skeleton.
     playlists: {
@@ -255,13 +263,12 @@ export function SearchResults({
     albums: {
       title: "Albums",
       rows: albums.map(albumRow),
-      pending: artistsAndAlbumsPending,
+      pending,
       skeleton: "album",
       emptyMessage: `No albums match “${trimmedQuery}”`,
     },
   };
-  const usesCatalog = (key: SearchFilter) =>
-    key === "all" || key === "artists" || key === "albums";
+  const usesCatalog = (key: SearchFilter) => key !== "playlists";
 
   let content: ReactNode;
   if (activeFilter !== "all") {
