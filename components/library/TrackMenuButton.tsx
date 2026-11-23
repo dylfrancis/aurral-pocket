@@ -2,6 +2,12 @@ import { Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
 
+const ICON_SIZE = 18;
+const LEADING_SPACE = 4;
+
+/** The room the button takes in a row, for rows that hold it empty. */
+export const TRACK_MENU_BUTTON_WIDTH = LEADING_SPACE + ICON_SIZE;
+
 export function TrackMenuButton({
   trackName,
   onPress,
@@ -21,13 +27,17 @@ export function TrackMenuButton({
       accessibilityLabel={`More actions for ${trackName}`}
       style={({ pressed }) => [styles.button, { opacity: pressed ? 0.5 : 1 }]}
     >
-      <Ionicons name="ellipsis-horizontal" size={18} color={colors.subtle} />
+      <Ionicons
+        name="ellipsis-horizontal"
+        size={ICON_SIZE}
+        color={colors.subtle}
+      />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    paddingLeft: 4,
+    paddingLeft: LEADING_SPACE,
   },
 });

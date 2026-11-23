@@ -33,6 +33,7 @@ import { AlbumSearchStatusBadge } from "@/components/search/AlbumSearchStatusBad
 import { AppSheet, useSheet } from "@/components/ui/AppSheet";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
+import { AlbumTrackRow } from "./AlbumTrackRow";
 import { DiscHeading } from "./DiscHeading";
 import { EditionPicker } from "./EditionPicker";
 import { useAudioPreview } from "@/hooks/library/use-audio-preview";
@@ -589,44 +590,42 @@ const PreviewTrackRow = React.memo(function PreviewTrackRow({
   const duration = formatDuration(track.length);
 
   return (
-    <View style={[styles.row, { borderBottomColor: colors.separator }]}>
-      {hasPreview ? (
-        <Pressable
-          onPress={onToggle}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`${isPlaying ? "Pause" : "Preview"} ${track.title}`}
-          style={({ pressed }) => [
-            styles.playButton,
-            {
-              backgroundColor: isPlaying ? colors.brand : colors.separator,
-              opacity: pressed ? 0.7 : 1,
-            },
-          ]}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color={colors.text} />
-          ) : (
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={12}
-              color={isPlaying ? colors.buttonPrimaryText : colors.text}
-              style={isPlaying ? undefined : styles.playIcon}
-            />
-          )}
-        </Pressable>
-      ) : (
-        <View style={styles.playButtonPlaceholder} />
-      )}
-      <View style={styles.trackMeta}>
-        <Text
-          variant="body"
-          numberOfLines={1}
-          style={[styles.trackTitle, isPlaying && { color: colors.brand }]}
-        >
-          {track.title}
-        </Text>
-        {isPlaying && (
+    <AlbumTrackRow
+      leading={
+        hasPreview ? (
+          <Pressable
+            onPress={onToggle}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`${isPlaying ? "Pause" : "Preview"} ${track.title}`}
+            style={({ pressed }) => [
+              styles.playButton,
+              {
+                backgroundColor: isPlaying ? colors.brand : colors.separator,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color={colors.text} />
+            ) : (
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={12}
+                color={isPlaying ? colors.buttonPrimaryText : colors.text}
+                style={isPlaying ? undefined : styles.playIcon}
+              />
+            )}
+          </Pressable>
+        ) : (
+          <View style={styles.playButtonPlaceholder} />
+        )
+      }
+      title={track.title}
+      active={isPlaying}
+      titleStyle={styles.trackTitle}
+      below={
+        isPlaying ? (
           <View
             style={[styles.progressBar, { backgroundColor: colors.separator }]}
           >
@@ -637,32 +636,17 @@ const PreviewTrackRow = React.memo(function PreviewTrackRow({
               ]}
             />
           </View>
-        )}
-      </View>
-      {duration && (
-        <Text variant="caption" style={{ color: colors.subtle }}>
-          {duration}
-        </Text>
-      )}
-      {onMenuPress && (
-        <Pressable
-          onPress={onMenuPress}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel={`More actions for ${track.title}`}
-          style={({ pressed }) => [
-            styles.menuButton,
-            { opacity: pressed ? 0.5 : 1 },
-          ]}
-        >
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={18}
-            color={colors.subtle}
-          />
-        </Pressable>
-      )}
-    </View>
+        ) : null
+      }
+      trailing={
+        duration ? (
+          <Text variant="caption" style={{ color: colors.subtle }}>
+            {duration}
+          </Text>
+        ) : null
+      }
+      onMenuPress={onMenuPress}
+    />
   );
 });
 
@@ -699,14 +683,6 @@ const styles = StyleSheet.create({
   callout: {
     textAlign: "center",
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 10,
-  },
   playButton: {
     width: 26,
     height: 26,
@@ -720,10 +696,6 @@ const styles = StyleSheet.create({
   playIcon: {
     marginLeft: 1,
   },
-  trackMeta: {
-    flex: 1,
-    gap: 2,
-  },
   trackTitle: {
     ...Fonts.medium,
   },
@@ -736,9 +708,6 @@ const styles = StyleSheet.create({
   progressFill: {
     height: "100%",
     borderRadius: 1,
-  },
-  menuButton: {
-    paddingLeft: 4,
   },
   loader: {
     paddingVertical: 32,

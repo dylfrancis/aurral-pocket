@@ -1,7 +1,7 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Text } from "@/components/ui/Text";
+import { AlbumTrackRow } from "@/components/library/AlbumTrackRow";
 import { TrackIndexSlot } from "@/components/library/TrackIndexSlot";
 import { useAudioPreview } from "@/hooks/library/use-audio-preview";
 import type { EditionTrack } from "@/hooks/library/use-edition-tracks";
@@ -39,68 +39,42 @@ export const EditionClipRow = React.memo(function EditionClipRow({
   const tint = isPlaying ? colors.brand : colors.subtle;
 
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={!hasClip}
+    <AlbumTrackRow
+      leading={
+        <TrackIndexSlot
+          number={track.trackNumber}
+          isCurrent={isPlaying || isLoading}
+          isPlaying={isPlaying}
+        />
+      }
+      title={track.title}
+      active={isPlaying}
+      trailing={
+        isLoading ? (
+          <ActivityIndicator size="small" color={colors.subtle} />
+        ) : (
+          <Ionicons
+            name={
+              !hasClip
+                ? "remove-circle-outline"
+                : isPlaying
+                  ? "pause-circle"
+                  : "play-circle-outline"
+            }
+            size={16}
+            color={tint}
+          />
+        )
+      }
+      // It sits among Library tracks, so its icon lines up with theirs.
+      holdMenuSpace
+      onPress={hasClip ? onPress : undefined}
       accessibilityRole={hasClip ? "button" : undefined}
       accessibilityLabel={
         hasClip
           ? `${isPlaying ? "Pause" : "Preview"} ${track.title}`
           : `${track.title}, not in your Library`
       }
-      style={({ pressed }) => [
-        styles.row,
-        { borderBottomColor: colors.separator },
-        pressed && hasClip ? { opacity: 0.6 } : null,
-      ]}
-    >
-      <TrackIndexSlot
-        number={track.trackNumber}
-        isCurrent={isPlaying || isLoading}
-        isPlaying={isPlaying}
-      />
-      <Text
-        variant="body"
-        numberOfLines={1}
-        style={[styles.title, isPlaying && { color: colors.brand }]}
-      >
-        {track.title}
-      </Text>
-      {isLoading ? (
-        <ActivityIndicator size="small" color={colors.subtle} />
-      ) : (
-        <Ionicons
-          name={
-            !hasClip
-              ? "remove-circle-outline"
-              : isPlaying
-                ? "pause-circle"
-                : "play-circle-outline"
-          }
-          size={16}
-          color={tint}
-        />
-      )}
-      <View style={styles.menuSpace} />
-    </Pressable>
+    />
   );
-});
-
-const styles = StyleSheet.create({
-  // TrackRow's, so the two kinds of row line up.
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 8,
-  },
-  title: {
-    flex: 1,
-  },
-  // Where TrackRow has its ⋯ button, so the icons stay in one column.
-  menuSpace: {
-    width: 22,
-  },
 });
