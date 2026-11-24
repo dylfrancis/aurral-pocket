@@ -6,16 +6,16 @@ import { Text } from "@/components/ui/Text";
 import { Card } from "@/components/ui/Card";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { EmptyState } from "@/components/library/EmptyState";
-import { SegmentedRow } from "@/components/flow/SegmentedRow";
+import { MenuPicker } from "@/components/ui/MenuPicker";
 import { useUpdateWorkerSettings, useWorkerSettings } from "@/hooks/flow";
 import { Fonts } from "@/constants/theme";
 import { WorkerSettings } from "@/lib/types/flow";
 import { useColors } from "@/hooks/use-colors";
 
 const CONCURRENCY_OPTIONS = [
-  { value: 1 as const, label: "1" },
-  { value: 2 as const, label: "2" },
-  { value: 3 as const, label: "3" },
+  { value: "1", label: "1" },
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
 ];
 
 export default function WorkerSettingsScreen() {
@@ -49,10 +49,15 @@ export default function WorkerSettingsScreen() {
         title="Concurrency"
         subtitle="Number of tracks downloaded in parallel."
       >
-        <SegmentedRow
-          value={data.concurrency}
+        <MenuPicker
+          accessibilityLabel="Concurrency"
+          value={String(data.concurrency)}
           options={CONCURRENCY_OPTIONS}
-          onChange={(concurrency) => apply({ concurrency })}
+          onChange={(value) =>
+            apply({
+              concurrency: Number(value) as WorkerSettings["concurrency"],
+            })
+          }
         />
       </Section>
     </ScrollView>
@@ -119,8 +124,11 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
     gap: 12,
+    flexDirection: "row",
+    alignItems: "center",
   },
   sectionHead: {
+    flex: 1,
     gap: 4,
   },
   sectionTitle: {
