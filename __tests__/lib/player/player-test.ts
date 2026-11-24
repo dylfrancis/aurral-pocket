@@ -67,6 +67,7 @@ import { setAuthToken, setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import {
   addToQueue,
   forgetQueue,
+  holdPlayback,
   next,
   onPlaybackStateChange,
   onProgress,
@@ -83,6 +84,7 @@ import {
   playQueueFrom,
   playQueueItem,
   resume,
+  resumeAfterHold,
   seekTo,
   setQueuedAlbumCovers,
   setRepeatMode,
@@ -1298,6 +1300,83 @@ describe("playback events", () => {
       expect(queued.ids()).toEqual([]);
       expect(queued.currentId()).toBeNull();
       await queued.unmount();
+    });
+  });
+
+  describe("while a hold keeps playback paused", () => {
+    async function playing() {
+      await forgetQueue();
+      await playAlbumFromTrack([track()], track(), album);
+      engine.trackChange({ ...clip, id: "77" }, "user_action");
+      engine.stateChange("playing", undefined);
+      jest.clearAllMocks();
+    }
+
+    async function holdThenRelease() {
+      const hold = holdPlayback();
+      await hold.paused;
+      engine.stateChange("paused", undefined);
+      hold.release();
+    }
+
+    it("pauses again a play the engine reports, until released", async () => {
+      await playing();
+      const hold = holdPlayback();
+      await hold.paused;
+      engine.stateChange("paused", undefined);
+      expect(player.pause).toHaveBeenCalledTimes(1);
+
+      // Play pressed on the lock screen.
+      engine.stateChange("playing", undefined);
+      expect(player.pause).toHaveBeenCalledTimes(2);
+
+      hold.release();
+      engine.stateChange("playing", undefined);
+      expect(player.pause).toHaveBeenCalledTimes(2);
+    });
+
+    it("plays on from where the hold paused it", async () => {
+      await playing();
+      await holdThenRelease();
+
+      await resumeAfterHold();
+
+      expect(player.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves alone a track that was paused when the hold began", async () => {
+      await playing();
+      engine.stateChange("paused", undefined);
+      await holdThenRelease();
+
+      await resumeAfterHold();
+
+      expect(player.pause).not.toHaveBeenCalled();
+      expect(player.play).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
+        "a new queue started",
+        () =>
+          playAlbumFromTrack([track({ id: "78" })], track({ id: "78" }), album),
+      ],
+      [
+        "the track played and paused again",
+        () => {
+          engine.stateChange("playing", undefined);
+          engine.stateChange("paused", undefined);
+        },
+      ],
+    ])("does not play on once %s after the hold", async (_, playedSince) => {
+      await playing();
+      await holdThenRelease();
+      await playedSince();
+      jest.clearAllMocks();
+
+      await resumeAfterHold();
+
+      expect(player.play).not.toHaveBeenCalled();
     });
   });
 });

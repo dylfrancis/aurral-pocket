@@ -13,6 +13,11 @@ import {
   shazamReducer,
   type ShazamState,
 } from "@/lib/shazam/listening-machine";
+import {
+  holdPlayback,
+  resumeAfterHold,
+  type PlaybackHold,
+} from "@/lib/player/player";
 import { IS_ANDROID } from "@/constants/platform";
 
 /** Listen for at most this long before giving up with a "no match" result. */
@@ -35,6 +40,8 @@ export type UseShazam = ShazamState & {
 export function useShazam(): UseShazam {
   const [state, dispatch] = useReducer(shazamReducer, initialShazamState);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The player stays paused while the mic listens, so it doesn't hear pocket.
+  const holdRef = useRef<PlaybackHold | null>(null);
 
   const clearTimer = useCallback(() => {
     if (timeoutRef.current) {
@@ -43,40 +50,57 @@ export function useShazam(): UseShazam {
     }
   }, []);
 
+  // A stop sent while the mic is still starting, as behind the permission
+  // prompt, finds nothing to stop.
+  const lastNativeCallRef = useRef<Promise<void>>(Promise.resolve());
+  const runInTurn = useCallback((op: () => Promise<void>): Promise<void> => {
+    const run = lastNativeCallRef.current.then(op);
+    lastNativeCallRef.current = run.catch(() => {});
+    return run;
+  }, []);
+
+  const endListening = useCallback((): Promise<void> => {
+    clearTimer();
+    const hold = holdRef.current;
+    holdRef.current = null;
+    // Playback waits for the mic to give iOS its audio session back.
+    return runInTurn(stopListening)
+      .catch(() => {})
+      .then(() => hold?.release());
+  }, [clearTimer, runInTurn]);
+
   // Subscribe to native events once; the reducer guards against late events.
   useEffect(() => {
     if (!isShazamAvailable) return;
 
     const subscriptions = [
       addMatchListener((match) => {
-        clearTimer();
         dispatch({ type: "MATCH", match });
-        void stopListening();
+        void endListening();
       }),
       addNoMatchListener(() => {
-        clearTimer();
         dispatch({ type: "NO_MATCH" });
-        void stopListening();
+        void endListening();
       }),
       addErrorListener((error) => {
-        clearTimer();
         dispatch({ type: "ERROR", error });
-        void stopListening();
+        void endListening();
       }),
     ];
 
     return () => {
       subscriptions.forEach((sub) => sub?.remove());
     };
-  }, [clearTimer]);
+  }, [endListening]);
 
-  // Stop the mic if the consumer unmounts mid-session.
+  // The session ends with the sheet, and a song that listening paused plays on.
   useEffect(() => {
     return () => {
-      clearTimer();
-      void stopListening();
+      endListening()
+        .then(resumeAfterHold)
+        .catch(() => {});
     };
-  }, [clearTimer]);
+  }, [endListening]);
 
   const start = useCallback(() => {
     if (!isShazamAvailable) {
@@ -89,29 +113,41 @@ export function useShazam(): UseShazam {
 
     dispatch({ type: "START" });
     clearTimer();
+    holdRef.current?.release();
+    const hold = holdPlayback();
+    holdRef.current = hold;
     timeoutRef.current = setTimeout(() => {
       dispatch({ type: "TIMEOUT" });
-      void stopListening();
+      void endListening();
     }, LISTEN_TIMEOUT_MS);
 
-    startListening(getDeveloperToken()).catch((err: unknown) => {
-      clearTimer();
-      dispatch({
-        type: "ERROR",
-        error: {
-          code: "unavailable",
-          message:
-            err instanceof Error ? err.message : "Could not start listening",
-        },
+    // On iOS, listening takes over the audio session, which cuts off a song
+    // still playing and skips it.
+    hold.paused
+      .then(() =>
+        runInTurn(async () => {
+          if (holdRef.current !== hold) return;
+          await startListening(getDeveloperToken());
+        }),
+      )
+      .catch((err: unknown) => {
+        if (holdRef.current !== hold) return;
+        void endListening();
+        dispatch({
+          type: "ERROR",
+          error: {
+            code: "unavailable",
+            message:
+              err instanceof Error ? err.message : "Could not start listening",
+          },
+        });
       });
-    });
-  }, [clearTimer]);
+  }, [clearTimer, endListening, runInTurn]);
 
   const cancel = useCallback(() => {
-    clearTimer();
-    void stopListening();
+    void endListening();
     dispatch({ type: "CANCEL" });
-  }, [clearTimer]);
+  }, [endListening]);
 
   const reset = useCallback(() => {
     clearTimer();
