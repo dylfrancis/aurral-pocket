@@ -39,6 +39,10 @@ dependencies {
   // .aar carries no POM, so they're declared explicitly).
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
   implementation "com.squareup.okhttp3:okhttp:4.12.0"
-  implementation "com.squareup.retrofit2:retrofit:2.9.0"
-  implementation "com.squareup.retrofit2:converter-gson:2.9.0"
+  // Retrofit follows Apple's ShazamKit for Android setup page. Never go below
+  // 2.10.0: release builds shrink with R8 full mode, and older Retrofit rules
+  // let R8 strip the Continuation type that ShazamKit's suspend match call
+  // reads, which fails every match with MATCH_ATTEMPT_FAILED.
+  implementation "com.squareup.retrofit2:retrofit:2.11.0"
+  implementation "com.squareup.retrofit2:converter-gson:2.11.0"
 }
