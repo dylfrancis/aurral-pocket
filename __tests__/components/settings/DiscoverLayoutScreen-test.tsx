@@ -7,14 +7,6 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ back: mockBack }),
 }));
 
-jest.mock("expo-router/react-navigation", () => ({
-  useHeaderHeight: () => 0,
-}));
-
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
-
 const mockLayout = {
   sections: [] as DiscoverSection[],
   hydrated: true,
@@ -25,6 +17,8 @@ jest.mock("@/hooks/discover/use-discover-layout", () => ({
   useDiscoverLayout: () => mockLayout,
 }));
 
+// Android's list renders as a FlatList, keeping its onReorder for the test.
+let mockOnReorder: ((event: { from: number; to: number }) => void) | undefined;
 jest.mock("react-native-reorderable-list", () => {
   const React = require("react");
   const { FlatList } = require("react-native");
@@ -32,18 +26,21 @@ jest.mock("react-native-reorderable-list", () => {
     __esModule: true,
     default: ({
       data,
+      onReorder,
       renderItem,
       keyExtractor,
       ListHeaderComponent,
       ListFooterComponent,
-    }: any) =>
-      React.createElement(FlatList, {
+    }: any) => {
+      mockOnReorder = onReorder;
+      return React.createElement(FlatList, {
         data,
         renderItem,
         keyExtractor,
         ListHeaderComponent,
         ListFooterComponent,
-      }),
+      });
+    },
     reorderItems: <T,>(items: T[], from: number, to: number): T[] => {
       const next = [...items];
       const [moved] = next.splice(from, 1);
@@ -54,10 +51,67 @@ jest.mock("react-native-reorderable-list", () => {
   };
 });
 
+// SwiftUI can't render under Jest, so iOS's list stands in as plain views: a
+// labelled switch per section, buttons named by their labels, and the rows'
+// onMove kept for the test.
+let mockOnMove: ((source: number[], destination: number) => void) | undefined;
+jest.mock("@expo/ui", () => require("@/test-support/expo-ui"));
+jest.mock("@expo/ui/swift-ui", () => {
+  const React = require("react");
+  const { Pressable, Switch, Text, View } = require("react-native");
+  const Group = ({ children }: any) =>
+    React.createElement(View, null, children);
+  const ForEach = ({ data, children, onMove }: any) => {
+    mockOnMove = onMove;
+    return React.createElement(
+      View,
+      null,
+      data.map((item: any, index: number) =>
+        React.createElement(
+          React.Fragment,
+          { key: item.id },
+          children({ item, index }),
+        ),
+      ),
+    );
+  };
+  return {
+    List: Object.assign(Group, { ForEach }),
+    Section: ({ header, children }: any) =>
+      React.createElement(View, null, header, children),
+    VStack: Group,
+    Text: ({ children }: any) => React.createElement(Text, null, children),
+    Toggle: ({ label, isOn, onIsOnChange }: any) =>
+      React.createElement(
+        View,
+        null,
+        React.createElement(Text, null, label),
+        React.createElement(Switch, {
+          accessibilityLabel: label,
+          value: isOn,
+          onValueChange: onIsOnChange,
+        }),
+      ),
+    Button: ({ label, onPress }: any) =>
+      React.createElement(
+        Pressable,
+        { onPress },
+        React.createElement(Text, null, label),
+      ),
+  };
+});
+
 import React from "react";
 import { Alert } from "react-native";
-import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { DiscoverLayoutScreen } from "@/components/settings/DiscoverLayoutScreen";
+import { IS_IOS } from "@/constants/platform";
 import { DEFAULT_DISCOVER_SECTIONS } from "@/hooks/discover/use-discover-layout";
 import type { DiscoverSection } from "@/lib/types/me";
 
@@ -72,6 +126,29 @@ async function renderScreen(sections = defaults()) {
 async function save(getByText: (text: string) => unknown) {
   await act(async () => {
     await fireEvent.press(getByText("Save") as never);
+  });
+}
+
+// iOS draws a section as a SwiftUI toggle named by its label, and Android as a
+// row named with its state that holds React Native's switch.
+async function turnOff(label: string) {
+  // getByRole only recognises the iOS switch host, so it misses Android's.
+  const control = IS_IOS
+    ? screen.getByLabelText(label)
+    : screen
+        .getByLabelText(`${label}, enabled`)
+        .queryAll((node) => node.props.accessibilityRole === "switch")[0];
+  await act(async () => {
+    await fireEvent(control, "valueChange", false);
+  });
+}
+
+// SwiftUI counts a drop's destination before the moved row comes out, and
+// Android's list reports the row's new index.
+async function moveToEnd(index: number, count: number) {
+  await act(async () => {
+    if (IS_IOS) mockOnMove!([index], count);
+    else mockOnReorder!({ from: index, to: count - 1 });
   });
 }
 
@@ -95,20 +172,23 @@ describe("DiscoverLayoutScreen", () => {
   });
 
   it("saves a section turned off", async () => {
-    const { getByLabelText, getByText } = await renderScreen();
+    const { getByText } = await renderScreen();
 
-    const row = getByLabelText("Recently Added, enabled");
-    // getByRole only recognises the iOS switch host, so it misses Android's.
-    const [switchControl] = row.queryAll(
-      (node) => node.props.accessibilityRole === "switch",
-    );
-    await act(async () => {
-      await fireEvent(switchControl, "valueChange", false);
-    });
+    await turnOff("Recently Added");
     await save(getByText);
 
     const sent = mockLayout.saveLayout.mock.calls[0][0] as DiscoverSection[];
     expect(sent.find((s) => s.id === "recentlyAdded")?.enabled).toBe(false);
+  });
+
+  it("saves the sections in their new order", async () => {
+    const { getByText } = await renderScreen();
+
+    await moveToEnd(0, DEFAULT_DISCOVER_SECTIONS.length);
+    await save(getByText);
+
+    const [first, ...rest] = defaults();
+    expect(mockLayout.saveLayout).toHaveBeenCalledWith([...rest, first]);
   });
 
   it("resets to the default layout", async () => {
