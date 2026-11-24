@@ -16,7 +16,6 @@ type AlbumStatus =
   | "blocked"
   | "cancelled"
   | "failed"
-  | "partial"
   | "monitored"
   | "unmonitored";
 
@@ -35,13 +34,12 @@ const OVERRIDING_STATUSES: ReadonlySet<DownloadStatusValue> = new Set([
 
 function getAlbumStatus(
   album: Album,
+  complete: boolean,
   downloadStatus?: DownloadStatusValue,
 ): AlbumStatus {
-  const percent = album.statistics.percentOfTracks;
-  if (percent >= 100 || album.statistics.sizeOnDisk > 0) return "complete";
+  if (complete) return "complete";
   if (downloadStatus && OVERRIDING_STATUSES.has(downloadStatus))
     return downloadStatus as AlbumStatus;
-  if (percent > 0) return "partial";
   if (album.monitored) return "monitored";
   return "unmonitored";
 }
@@ -81,11 +79,6 @@ const statusConfig: Record<
     variant: "subtle",
   },
   failed: { label: "Failed", icon: "alert-circle", variant: "error" },
-  partial: {
-    label: "Downloading",
-    icon: "cloud-download-outline",
-    variant: "brand",
-  },
   monitored: { label: "Monitored", icon: "eye", variant: "subtle" },
   unmonitored: {
     label: "Unmonitored",
@@ -96,22 +89,23 @@ const statusConfig: Record<
 
 type AlbumStatusBadgeProps = {
   album: Album;
+  /** Every track the album page lists has a file. */
+  complete: boolean;
   downloadStatus?: DownloadStatusValue;
 };
 
 export function AlbumStatusBadge({
   album,
+  complete,
   downloadStatus,
 }: AlbumStatusBadgeProps) {
   useDateTimeFormat();
-  const status = getAlbumStatus(album, downloadStatus);
+  const status = getAlbumStatus(album, complete, downloadStatus);
   const config = statusConfig[status];
   const label =
-    status === "partial"
-      ? `${Math.round(album.statistics.percentOfTracks)}%`
-      : status === "unreleased"
-        ? formatReleaseWait(album.releaseDate)
-        : config.label;
+    status === "unreleased"
+      ? formatReleaseWait(album.releaseDate)
+      : config.label;
 
   return <Chip label={label} icon={config.icon} variant={config.variant} />;
 }

@@ -1,5 +1,4 @@
-import { discHeadings, placeOnEdition, sortByDisc } from "@/lib/album-discs";
-import type { Track } from "@/lib/types/library";
+import { discHeadings, sortByDisc } from "@/lib/album-discs";
 
 describe("sortByDisc", () => {
   it("orders by disc, then number, with unnumbered tracks ending their disc", () => {
@@ -16,57 +15,6 @@ describe("sortByDisc", () => {
       "1-2",
       "1-?",
       "2-1",
-    ]);
-  });
-});
-
-describe("placeOnEdition", () => {
-  const track = (id: string, mbid: string, trackNumber: number) =>
-    ({
-      id,
-      mbid,
-      trackName: id,
-      title: id,
-      trackNumber,
-      discNumber: 1,
-      hasFile: true,
-      size: 1,
-      quality: null,
-    }) satisfies Track;
-  const place = (id: string, discNumber: number, trackNumber: number) => ({
-    id,
-    title: id,
-    discNumber,
-    trackNumber,
-    length: null,
-    popular: false,
-  });
-
-  it("keeps the Library's place for what the edition doesn't place", () => {
-    const placed = placeOnEdition(
-      [
-        track("a", "rec-a", 1),
-        track("copy", "rec-a", 2),
-        track("bonus", "rec-bonus", 3),
-        track("unnumbered", "rec-b", 9),
-      ],
-      [place("rec-a", 2, 1), place("rec-b", 1, 0)],
-    );
-
-    expect(
-      placed.map(({ id, discNumber, trackNumber }) => [
-        id,
-        discNumber,
-        trackNumber,
-      ]),
-    ).toEqual([
-      // The first copy of a recording takes its place, and a second stays
-      // where the Library has it.
-      ["copy", 1, 2],
-      ["bonus", 1, 3],
-      // The edition gives no number, so the Library's stands.
-      ["unnumbered", 1, 9],
-      ["a", 2, 1],
     ]);
   });
 });

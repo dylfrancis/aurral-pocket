@@ -70,19 +70,21 @@ import { useCoverTint } from "@/hooks/player/use-cover-color";
 import { usePluginActions } from "@/hooks/plugins/use-plugin-actions";
 import { useStartRadio } from "@/hooks/player/use-start-radio";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import {
-  discHeadings,
-  discOf,
-  discTitles,
-  placeOnEdition,
-} from "@/lib/album-discs";
+import { discHeadings, discOf, discTitles } from "@/lib/album-discs";
+import { formatAlbumTrackCount } from "@/lib/album-status";
 import { formatBytes, saveStatusLine } from "@/lib/offline/format";
 import { useIsOffline } from "@/lib/offline/network";
 import { canPlayNow, saveAlbum } from "@/lib/offline/saved-library";
 import { setAlbumEdition } from "@/lib/api/library";
 import { ApiError } from "@/lib/api/client";
 import { formatTrackCount } from "@/lib/discover/format";
-import { editionLabel, editionRows, editionSubtitle } from "@/lib/editions";
+import {
+  editionLabel,
+  editionRows,
+  editionSubtitle,
+  libraryAlbumRows,
+  type AlbumRow,
+} from "@/lib/editions";
 import { albumDownloadStatus } from "@/lib/library-read";
 import { invalidateLibraryLists } from "@/hooks/library/library-lists";
 import { libraryKeys } from "@/lib/query-keys";
@@ -210,7 +212,6 @@ export function AlbumDetailScreen() {
   };
 
   const year = releaseYear(album?.releaseDate);
-  const trackCount = album?.statistics.trackCount ?? tracks?.length ?? 0;
   const albumArtist = {
     id: params.artistId || album?.artistId,
     mbid: artistMbid || undefined,
@@ -272,12 +273,27 @@ export function AlbumDetailScreen() {
   // that fails doesn't hold it up through its retries.
   const placesPending =
     libraryEdition.isLoading && libraryEdition.failureCount === 0;
-  const placedTracks = useMemo(
+  const placedRows = useMemo(
     () =>
       tracks && !placesPending
-        ? placeOnEdition(tracks, libraryEditionTracks ?? [])
+        ? libraryAlbumRows(tracks, libraryEditionTracks ?? [])
         : undefined,
     [tracks, placesPending, libraryEditionTracks],
+  );
+  const placedTracks = useMemo(
+    () => placedRows?.flatMap((row) => (row.track ? [row.track] : [])),
+    [placedRows],
+  );
+  // A track the Library lacks offers its clip, so clips load only then.
+  const hasMissingRows = !!placedRows?.some((row) => row.missing);
+  const { tracks: libraryEditionClips } = useEditionTracks(
+    albumMbid || undefined,
+    { artistMbid: artistMbid || undefined, enabled: hasMissingRows },
+  );
+  const clipTrackByRecording = useMemo(
+    () =>
+      new Map((libraryEditionClips ?? []).map((track) => [track.id, track])),
+    [libraryEditionClips],
   );
   // The album's popular recordings, which every copy of them shares.
   const popularRecordings = useMemo(
@@ -322,13 +338,29 @@ export function AlbumDetailScreen() {
     () => placedTracks ?? savedTracks ?? [],
     [placedTracks, savedTracks],
   );
+  const albumRows = useMemo<AlbumRow[]>(
+    () =>
+      placedRows ??
+      (savedTracks ?? []).map((track) => ({ key: track.id, track })),
+    [placedRows, savedTracks],
+  );
   const showTracksLoading = (tracksLoading || placesPending) && !savedTracks;
   // Before saving, the files' size on the server.
   const albumBytes = albumTracks
     .filter((track) => track.streamPath)
     .reduce((sum, track) => sum + (track.size > 0 ? track.size : 0), 0);
   const saveLine = saveStatusLine(saveOffline.status);
-  const shownTrackCount = trackCount || albumTracks.length;
+  // Aurral drops a deleted song from the album's count, so the rows the page
+  // lists count too, as on the web: a delete reads 11/12, not 11/11.
+  const shownTrackCount = Math.max(
+    albumRows.length,
+    album?.statistics.trackCount ?? 0,
+  );
+  const fileCount = Math.max(
+    albumTracks.filter((track) => track.streamPath).length,
+    album?.statistics.trackFileCount ?? 0,
+  );
+  const complete = shownTrackCount > 0 && fileCount >= shownTrackCount;
 
   const editions = useAlbumEditions(albumMbid || undefined, {
     inLibrary: true,
@@ -370,13 +402,16 @@ export function AlbumDetailScreen() {
       })),
     );
     return discHeadings(
-      albumTracks.map((track) => ({
-        disc: discOf(track),
-        tagTitle: track.discTitle,
-        musicBrainzTitle: musicBrainzTitles.get(discOf(track)),
-      })),
+      albumRows.map((row) => {
+        const disc = discOf(row.track ?? row.missing);
+        return {
+          disc,
+          tagTitle: row.track?.discTitle,
+          musicBrainzTitle: musicBrainzTitles.get(disc),
+        };
+      }),
     );
-  }, [albumTracks, libraryEditionTracks]);
+  }, [albumRows, libraryEditionTracks]);
 
   // Play follows the list as shown, so nothing plays until the edition's list
   // is in.
@@ -605,7 +640,14 @@ export function AlbumDetailScreen() {
                 ]
               : [
                   year,
-                  formatTrackCount(shownTrackCount),
+                  shownTrackCount > 0
+                    ? formatAlbumTrackCount(
+                        shownTrackCount,
+                        // As on the web, only a Library album shows how many
+                        // have files.
+                        album ? fileCount : undefined,
+                      )
+                    : null,
                   albumBytes > 0 ? formatBytes(albumBytes) : null,
                 ]
             )
@@ -661,7 +703,11 @@ export function AlbumDetailScreen() {
             </View>
           ) : null}
           {album && (
-            <AlbumStatusBadge album={album} downloadStatus={downloadStatus} />
+            <AlbumStatusBadge
+              album={album}
+              complete={complete}
+              downloadStatus={downloadStatus}
+            />
           )}
         </View>
 
@@ -726,11 +772,22 @@ export function AlbumDetailScreen() {
             ) : null}
             {preview.extras.map((track) => renderTrack(track))}
           </>
-        ) : albumTracks.length > 0 ? (
-          albumTracks.map((track, index) => (
-            <Fragment key={track.id}>
+        ) : albumRows.length > 0 ? (
+          albumRows.map((row, index) => (
+            <Fragment key={row.key}>
               <DiscHeading title={albumHeadings[index]} first={index === 0} />
-              {renderTrack(track)}
+              {row.track ? (
+                renderTrack(row.track)
+              ) : (
+                <EditionClipRow
+                  track={
+                    clipTrackByRecording.get(row.missing.id) ?? row.missing
+                  }
+                  artistName={artistName}
+                  albumTitle={title}
+                  artwork={artworkUrl}
+                />
+              )}
             </Fragment>
           ))
         ) : (

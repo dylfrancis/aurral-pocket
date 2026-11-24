@@ -74,3 +74,14 @@ export function formatReleaseWait(releaseDate: string | null | undefined) {
     year: "numeric",
   })}`;
 }
+
+/**
+ * "11/12 tracks" while a Library album is missing songs, as on the web. A
+ * complete album, or one with no file count, just counts its tracks.
+ */
+export function formatAlbumTrackCount(trackCount: number, fileCount?: number) {
+  const unit = trackCount === 1 ? "track" : "tracks";
+  return fileCount !== undefined && fileCount < trackCount
+    ? `${fileCount}/${trackCount} ${unit}`
+    : `${trackCount} ${unit}`;
+}
