@@ -74,6 +74,16 @@ jest.mock("@/components/auth/ConnectSheet", () => {
   };
 });
 
+// The rotating word animates natively; its own suite covers it.
+jest.mock("@/components/ui/DiaText", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+  return {
+    DiaText: ({ words }: { words: readonly string[] }) =>
+      React.createElement(Text, null, words[0]),
+  };
+});
+
 jest.mock("@/components/AurralLogo", () => {
   const React = require("react");
   const { View } = require("react-native");
@@ -91,11 +101,11 @@ import * as Haptics from "expo-haptics";
 import GetStartedScreen from "@/app/(auth)/get-started";
 
 describe("GetStartedScreen", () => {
-  it("renders headline text", async () => {
-    const { getByText } = await render(<GetStartedScreen />);
-    expect(getByText(/A new way to/)).toBeTruthy();
-    expect(getByText("discover")).toBeTruthy();
-    expect(getByText("Powered by your library")).toBeTruthy();
+  it("reads the headline as one heading, whichever verb is showing", async () => {
+    const { getByRole } = await render(<GetStartedScreen />);
+    expect(
+      getByRole("header", { name: "Discover music without the busywork." }),
+    ).toBeTruthy();
   });
 
   it("renders the Get Started button", async () => {

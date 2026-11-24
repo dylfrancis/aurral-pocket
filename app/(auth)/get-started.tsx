@@ -4,7 +4,6 @@ import {
   Image,
   ImageSourcePropType,
   StyleSheet,
-  Text as RNText,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -22,12 +21,15 @@ import * as Haptics from "expo-haptics";
 import { AurralLogo } from "@/components/AurralLogo";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
+import { DiaText } from "@/components/ui/DiaText";
 import { ConnectSheet } from "@/components/auth/ConnectSheet";
 import { useSheet } from "@/components/ui/AppSheet";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+import { Colors, Fonts } from "@/constants/theme";
 
 const CARD_GAP = 8;
+
+const HEADLINE_VERBS = ["Discover", "Collect", "Stream"] as const;
 
 // Maps number to padded filename at build time — Metro resolves each require statically.
 const COVER_MAP: Record<number, ImageSourcePropType> = {
@@ -196,12 +198,22 @@ export default function GetStartedScreen() {
       {/* Content */}
       <View style={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <AurralLogo size={56} />
-        <Text variant="title" style={styles.headline}>
-          A new way to{"\n"}
-          <RNText style={{ color: colors.brand }}>discover</RNText> music
-        </Text>
+        <View
+          accessible
+          accessibilityRole="header"
+          accessibilityLabel={`${HEADLINE_VERBS[0]} music without the busywork.`}
+          style={styles.headline}
+        >
+          <DiaText
+            words={HEADLINE_VERBS}
+            textStyle={[Fonts.bold, styles.headlineText]}
+          />
+          <Text variant="title" style={[styles.headlineText, styles.centered]}>
+            {"music without\nthe busywork."}
+          </Text>
+        </View>
         <Text variant="subtitle" style={styles.subtext}>
-          Powered by your library
+          Your own server, in your pocket.
         </Text>
         <Button
           title="Get Started"
@@ -244,10 +256,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   headline: {
-    fontSize: 32,
-    textAlign: "center",
+    alignItems: "center",
     marginTop: 20,
+  },
+  headlineText: {
+    fontSize: 32,
     lineHeight: 40,
+  },
+  centered: {
+    textAlign: "center",
   },
   subtext: {
     textAlign: "center",
