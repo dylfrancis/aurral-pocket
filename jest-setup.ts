@@ -6,12 +6,12 @@
 const { NativeModulesProxy } = require("expo-modules-core");
 delete (NativeModulesProxy as Record<string, unknown>).ExpoObserve;
 
-// The generated ExpoUI mock has no getMaterialColors, which @expo/ui's Compose
+// jest-expo's ExpoUI stub has no getMaterialColors, which @expo/ui's Compose
 // Host calls as it renders. Stack.Toolbar renders through that Host on Android,
 // so a suite with a real header crashes under the Android preset without this.
-(
-  NativeModulesProxy as Record<string, Record<string, unknown>>
-).ExpoUI.getMaterialColors = () => ({});
+// The stub lives on globalThis.expo.modules, which requireNativeModule reads
+// before NativeModulesProxy, so patching the proxy's copy has no effect.
+globalThis.expo.modules.ExpoUI.getMaterialColors = () => ({});
 
 // React Query defers observer notifications behind a setTimeout(0), so an update
 // can land after the test that caused it has finished and its act() scope has
