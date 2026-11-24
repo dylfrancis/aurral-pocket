@@ -3,6 +3,7 @@ jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
   AFTER_FIRST_UNLOCK: "after-first-unlock",
+  WHEN_UNLOCKED: "when-unlocked",
 }));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -95,7 +96,6 @@ function TestConsumer() {
         {String(auth.rememberCredentials)}
       </Text>
       <Text testID="useBiometrics">{String(auth.useBiometrics)}</Text>
-      <Text testID="hasCredentials">{String(auth.hasCredentials)}</Text>
       <Pressable testID="setAuth" onPress={handleSetAuth} />
       <Pressable testID="saveCredentials" onPress={handleSaveCredentials} />
       <Pressable testID="rememberOn" onPress={handleRememberOn} />
@@ -158,17 +158,23 @@ describe("AuthProvider — restore on mount", () => {
     });
   });
 
-  // Saved before Siri, they kept the keychain's default, which a locked phone
-  // can't read, and Siri can start the app on a locked phone.
+  // Saved earlier, they kept the keychain's default, which a locked phone
+  // can't read. Siri can start the app on a locked phone, and a session can
+  // run out while it plays music there, with a silent sign-in to make.
   it("saves a restored session again, where a locked phone can read it", async () => {
+    const stored: Record<string, string> = {
+      auth_token: "my-token",
+      user_json: '{"id":1,"username":"alice"}',
+      custom_headers: '{"CF-Access-Client-Id":"id.access"}',
+      remember_credentials: "true",
+      saved_username: "alice",
+      saved_password: "pass123",
+      token_expires_at: String(Date.now() + 86_400_000),
+    };
     mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "my-token";
-      if (key === "user_json") return '{"id":1,"username":"alice"}';
-      if (key === "custom_headers")
-        return '{"CF-Access-Client-Id":"id.access"}';
-      return null;
-    });
+    mockSecureStore.getItemAsync.mockImplementation(
+      async (key) => stored[key] ?? null,
+    );
 
     const { getByTestId } = await renderWithProvider();
 
@@ -178,19 +184,46 @@ describe("AuthProvider — restore on mount", () => {
     const readableWhileLocked = {
       keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
     };
+    for (const [key, value] of Object.entries(stored)) {
+      expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+        key,
+        value,
+        readableWhileLocked,
+      );
+    }
+  });
+
+  // Face ID needs the phone unlocked, so its password stays readable only then.
+  it("leaves a Face ID password readable only while unlocked", async () => {
+    const stored: Record<string, string> = {
+      auth_token: "my-token",
+      user_json: '{"id":1,"username":"alice"}',
+      use_biometrics: "true",
+      saved_username: "alice",
+      saved_password: "pass123",
+    };
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(
+      async (key) => stored[key] ?? null,
+    );
+
+    const { getByTestId } = await renderWithProvider();
+
+    await waitFor(() => {
+      expect(getByTestId("token").props.children).toBe("my-token");
+    });
+    const readableWhileLocked = {
+      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+    };
+    // The prompt reads it on a locked-phone launch to offer Face ID.
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
-      "auth_token",
-      "my-token",
+      "use_biometrics",
+      "true",
       readableWhileLocked,
     );
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
-      "user_json",
-      '{"id":1,"username":"alice"}',
-      readableWhileLocked,
-    );
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
-      "custom_headers",
-      '{"CF-Access-Client-Id":"id.access"}',
+    expect(mockSecureStore.setItemAsync).not.toHaveBeenCalledWith(
+      "saved_password",
+      "pass123",
       readableWhileLocked,
     );
   });
@@ -350,6 +383,7 @@ describe("AuthProvider — credential clearing logic", () => {
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "use_biometrics",
       "false",
+      expect.anything(),
     );
     expect(mockSecureStore.deleteItemAsync).not.toHaveBeenCalledWith(
       "saved_username",
@@ -447,6 +481,7 @@ describe("AuthProvider — an SSO session keeps no saved password", () => {
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "remember_credentials",
       "false",
+      expect.anything(),
     );
   });
 
@@ -487,14 +522,16 @@ describe("AuthProvider — saveCredentials conditional", () => {
     expect(mockSecureStore.setItemAsync).not.toHaveBeenCalledWith(
       "saved_username",
       "alice",
+      expect.anything(),
     );
     expect(mockSecureStore.setItemAsync).not.toHaveBeenCalledWith(
       "saved_password",
       "pass123",
+      expect.anything(),
     );
   });
 
-  it("saves when remember is enabled", async () => {
+  it("saves when remember is enabled, where a locked phone can read them", async () => {
     const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
@@ -514,14 +551,17 @@ describe("AuthProvider — saveCredentials conditional", () => {
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "saved_username",
       "alice",
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "saved_password",
       "pass123",
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
   });
 
-  it("saves when biometrics is enabled (even without remember)", async () => {
+  // Face ID needs the phone unlocked anyway.
+  it("saves when biometrics is enabled (even without remember), readable only while unlocked", async () => {
     const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
@@ -541,10 +581,12 @@ describe("AuthProvider — saveCredentials conditional", () => {
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "saved_username",
       "alice",
+      { keychainAccessible: SecureStore.WHEN_UNLOCKED },
     );
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "saved_password",
       "pass123",
+      { keychainAccessible: SecureStore.WHEN_UNLOCKED },
     );
   });
 });

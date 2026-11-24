@@ -81,7 +81,6 @@ export function ReAuthModal() {
     sessionExpired,
     accountSuspended,
     useBiometrics,
-    hasCredentials,
     isOidcSession,
     dismissSessionExpired,
     markAccountSuspended,
@@ -136,12 +135,17 @@ export function ReAuthModal() {
 
   const onSubmit = (data: ReAuthForm) => handleReAuth(data.password);
 
+  // The saved password is read only after Face ID, when the phone is unlocked.
+  // Face ID alone keeps it readable only then, so a launch on a locked phone
+  // can't tell whether there is one.
   const handleBiometric = async () => {
     const success = await authenticateWithBiometrics();
     if (!success) return;
     const creds = await SecureStorage.getCredentials();
     if (creds) {
       await handleReAuth(creds.password);
+    } else {
+      setError(new Error("No saved password. Enter your password."));
     }
   };
 
@@ -174,8 +178,7 @@ export function ReAuthModal() {
   // An OIDC user has no password on the Aurral server, so the password field
   // and the biometric shortcut — which replays a stored password — cannot
   // renew their session. Send them back through the provider instead.
-  const showBiometric =
-    !isOidcSession && useBiometrics && hasCredentials && !!biometricLabel;
+  const showBiometric = !isOidcSession && useBiometrics && !!biometricLabel;
 
   // iOS refuses Face ID while the app is in the background, which is where a
   // music app often is when its session runs out. A prompt that opens there

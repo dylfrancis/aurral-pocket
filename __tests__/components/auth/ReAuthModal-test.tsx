@@ -375,6 +375,33 @@ describe("ReAuthModal", () => {
       expect(mockFaceId).toHaveBeenCalledTimes(1);
     });
 
+    // With Face ID alone the password is readable only while the phone is
+    // unlocked, so a launch on a locked phone, as CarPlay or Siri makes, can't
+    // read it.
+    it("still signs in after a launch that couldn't read the saved password", async () => {
+      testedAppState.currentState = "active";
+      mockFaceId.mockResolvedValue(true);
+      serveLostSession(() =>
+        jsonResponse(200, {
+          token: "new-token",
+          user: { id: 1, username: "ada", role: "user" },
+          expiresAt: Date.now() + 86_400_000,
+        }),
+      );
+      const { getByTestId, secure } = await renderSignedIn({
+        use_biometrics: "true",
+      });
+      // The phone has been unlocked since.
+      secure.set("saved_username", "ada");
+      secure.set("saved_password", "secret");
+
+      await hitLostSession();
+
+      await waitFor(() =>
+        expect(getByTestId("token").props.children).toBe("new-token"),
+      );
+    });
+
     it("waits for the app to come back when the prompt opens in the background", async () => {
       testedAppState.currentState = "background";
       const { findByText } = await renderSignedIn(faceIdOn);
