@@ -163,7 +163,7 @@ jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
 }));
 
 import React from "react";
-import { Alert } from "react-native";
+import { Alert, StyleSheet } from "react-native";
 import {
   act,
   fireEvent,
@@ -175,6 +175,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlbumDetailScreen } from "@/components/library/AlbumDetailScreen";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
+import { PlayerColors } from "@/components/player/player-colors";
 import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import {
@@ -253,6 +254,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockHasPermission.mockReturnValue(true);
   mockUseLibraryTracks.mockReturnValue({ data: [], isLoading: false });
+  // clearAllMocks keeps a test's edition, which would list rows in the next.
+  mockGetReleaseGroupTracks.mockResolvedValue([]);
+  mockGetReleaseGroupPreviews.mockResolvedValue({});
   mockGetPluginActions.mockResolvedValue([]);
   mockRunPluginAction.mockResolvedValue("Noted");
   jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons) => {
@@ -654,6 +658,45 @@ describe("AlbumDetailScreen", () => {
         expect(mockBack).toHaveBeenCalledTimes(leaves ? 1 : 0);
       },
     );
+
+    it("still lists and counts a song Aurral dropped from the album", async () => {
+      // After the delete the server counts two of two; the edition lists three.
+      mockUseLibraryTracks.mockReturnValue({
+        data: [song("100", "Airbag"), song("102", "Lucky")],
+        isLoading: false,
+      });
+      mockGetReleaseGroupTracks.mockResolvedValue(
+        ["Airbag", "Karma Police", "Lucky"].map((title, index) => ({
+          id: `rec-${index + 1}`,
+          title,
+          trackNumber: index + 1,
+          discNumber: 1,
+          length: null,
+          popular: false,
+        })),
+      );
+      mockGetReleaseGroupPreviews.mockResolvedValue({
+        "rec-2": { preview_url: "/api/deezer/preview/2.mp3" },
+      });
+
+      await openAlbumPage({
+        ...album,
+        statistics: {
+          trackCount: 2,
+          trackFileCount: 2,
+          sizeOnDisk: 0,
+          percentOfTracks: 100,
+        },
+      });
+
+      expect(await screen.findByLabelText("Preview Karma Police")).toBeTruthy();
+      expect(screen.getByText("2007 · 2/3 tracks")).toBeTruthy();
+      const count = StyleSheet.flatten(
+        screen.getByText("2/3 tracks").props.style,
+      );
+      expect(count.color).toBe(PlayerColors.dark.warning);
+      expect(screen.getByText("Monitored")).toBeTruthy();
+    });
   });
 
   describe("radio", () => {
@@ -796,7 +839,7 @@ describe("AlbumDetailScreen", () => {
 
     it("shows the size before saving, the progress while saving, and a filled button once it's all saved", async () => {
       await openAlbumPage(album);
-      expect(screen.getByText("2007 · 10 tracks · 62 MB")).toBeTruthy();
+      expect(screen.getByText("2007 · 2/10 tracks · 62 MB")).toBeTruthy();
 
       await act(async () => {
         fireEvent.press(screen.getByLabelText("Save offline"));

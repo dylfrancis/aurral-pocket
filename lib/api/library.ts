@@ -84,8 +84,7 @@ function canonicalArtistToArtist(item: CanonicalArtistItem): Artist {
  * The field choices follow buildAlbum in the server's
  * backend/services/libraryReadModel.ts, with one deviation: percentOfTracks is
  * the real file ratio from the counts the page route adds, where buildAlbum
- * reads 0 until every track has a file. The artist screen shows partial
- * progress, and useResearchMissingAlbums counts it.
+ * reads 0 until every track has a file.
  *
  * Library album rows carry no size, so sizeOnDisk is 0.
  */

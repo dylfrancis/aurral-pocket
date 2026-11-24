@@ -1,8 +1,21 @@
 import {
   canResearchAurralAlbum,
+  formatAlbumTrackCount,
   formatReleaseWait,
   isUnreleased,
 } from "@/lib/album-status";
+
+describe("formatAlbumTrackCount", () => {
+  it.each([
+    [12, 12, "12 tracks"],
+    [12, 11, "11/12 tracks"],
+    [1, 0, "0/1 track"],
+    // A saved album carries no file count.
+    [12, undefined, "12 tracks"],
+  ])("words %p tracks with %p files as %p", (trackCount, fileCount, label) => {
+    expect(formatAlbumTrackCount(trackCount, fileCount)).toBe(label);
+  });
+});
 
 describe("formatReleaseWait", () => {
   it.each([

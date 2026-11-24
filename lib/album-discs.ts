@@ -1,6 +1,3 @@
-import type { ReleaseGroupTrack } from "@/lib/api/library";
-import type { Track } from "@/lib/types/library";
-
 /** Where a track sits on an album: its disc, and its number on that disc. */
 type DiscPosition = {
   discNumber?: number | null;
@@ -22,33 +19,6 @@ const numberOf = (track: DiscPosition) =>
 export function sortByDisc<T extends DiscPosition>(tracks: readonly T[]): T[] {
   return [...tracks].sort(
     (a, b) => discOf(a) - discOf(b) || numberOf(a) - numberOf(b),
-  );
-}
-
-/**
- * Each track at the place its edition lists it, matched by recording as on the
- * web, in disc order. A track the edition doesn't list keeps the Library's place.
- */
-export function placeOnEdition(
-  libraryTracks: readonly Track[],
-  editionTracks: readonly ReleaseGroupTrack[],
-): Track[] {
-  const places = new Map<string, ReleaseGroupTrack>();
-  for (const track of editionTracks) {
-    if (track.id && !places.has(track.id)) places.set(track.id, track);
-  }
-  return sortByDisc(
-    libraryTracks.map((track) => {
-      const place = track.mbid ? places.get(track.mbid) : undefined;
-      if (!place) return track;
-      // A second copy of the recording keeps its own place.
-      places.delete(track.mbid);
-      return {
-        ...track,
-        discNumber: discOf(place),
-        trackNumber: place.trackNumber || track.trackNumber,
-      };
-    }),
   );
 }
 

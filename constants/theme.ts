@@ -11,7 +11,8 @@ export const Colors = {
     tabIconDefault: "#6b6b6b",
     tabIconSelected: "#65a30d",
     error: "#dc2626",
-    warning: "#a18b62",
+    // Amber at 4.5:1 or more on every surface warning text sits on, light or dark.
+    warning: "#955e02",
     subtle: "#6b6b6b",
     tertiary: "#a1a1a1",
     separator: "#ececec",
@@ -42,7 +43,7 @@ export const Colors = {
     tabIconDefault: "#b3b3b3",
     tabIconSelected: "#84cc16",
     error: "#f87171",
-    warning: "#c8b491",
+    warning: "#f59e0b",
     subtle: "#b3b3b3",
     tertiary: "#535353",
     separator: "#212121",

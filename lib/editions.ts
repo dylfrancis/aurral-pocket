@@ -1,4 +1,4 @@
-import { discOf } from "@/lib/album-discs";
+import { discOf, sortByDisc } from "@/lib/album-discs";
 import type { AlbumEdition, ReleaseGroupTrack } from "@/lib/api/library";
 import { releaseYear } from "@/lib/date-time";
 import { formatTrackCount } from "@/lib/discover/format";
@@ -45,6 +45,57 @@ export function editionRows(
   editionTracks: readonly ReleaseGroupTrack[],
   libraryTracks: readonly Track[],
 ): { rows: EditionRow[]; extras: Track[] } {
+  const { rows, unmatched } = matchEdition(editionTracks, libraryTracks);
+  return {
+    rows,
+    extras: unmatched.filter((track) => !!track.streamPath),
+  };
+}
+
+/** A Library album page row: a Library track, or one its edition lists that the Library lacks. */
+export type AlbumRow =
+  | { key: string; track: Track; missing?: undefined }
+  | { key: string; track?: undefined; missing: ReleaseGroupTrack };
+
+/**
+ * The Library album's tracks at their edition's places, plus the edition's
+ * tracks the Library lacks, as on the web. Unlisted tracks keep their place.
+ */
+export function libraryAlbumRows(
+  libraryTracks: readonly Track[],
+  editionTracks: readonly ReleaseGroupTrack[],
+): AlbumRow[] {
+  type Placed = { discNumber?: number; trackNumber: number; row: AlbumRow };
+  const { rows: matchedRows, unmatched } = matchEdition(
+    editionTracks,
+    libraryTracks,
+  );
+  // A scanned album gets the standard edition, so files from another edition
+  // match none of it and would each show twice.
+  const rows = matchedRows.some((row) => row.libraryTrack) ? matchedRows : [];
+  const placed = rows.map(({ key, editionTrack, libraryTrack }): Placed => {
+    const discNumber = discOf(editionTrack);
+    if (!libraryTrack) {
+      const { trackNumber } = editionTrack;
+      return { discNumber, trackNumber, row: { key, missing: editionTrack } };
+    }
+    // The edition gives no number, so the Library's stands.
+    const trackNumber = editionTrack.trackNumber || libraryTrack.trackNumber;
+    const track = { ...libraryTrack, discNumber, trackNumber };
+    return { discNumber, trackNumber, row: { key, track } };
+  });
+  const kept = unmatched.map((track): Placed => ({
+    discNumber: track.discNumber,
+    trackNumber: track.trackNumber,
+    row: { key: track.id, track },
+  }));
+  return sortByDisc([...placed, ...kept]).map(({ row }) => row);
+}
+
+function matchEdition(
+  editionTracks: readonly ReleaseGroupTrack[],
+  libraryTracks: readonly Track[],
+): { rows: EditionRow[]; unmatched: Track[] } {
   const unmatched = new Set(libraryTracks);
   const rows = editionTracks.map((editionTrack, index) => {
     const title = normalizeTitle(editionTrack.title);
@@ -71,8 +122,6 @@ export function editionRows(
   });
   return {
     rows,
-    extras: libraryTracks.filter(
-      (track) => unmatched.has(track) && !!track.streamPath,
-    ),
+    unmatched: libraryTracks.filter((track) => unmatched.has(track)),
   };
 }
