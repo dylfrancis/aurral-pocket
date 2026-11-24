@@ -71,7 +71,8 @@
         }
       ],
       "./modules/siri/app.plugin.js",
-      "./plugins/with-background-audio.js"
+      "./plugins/with-background-audio.js",
+      "./plugins/with-optional-hardware-features.js"
     ],
     "experiments": {
       "typedRoutes": true,
