@@ -122,9 +122,7 @@ function ConnectForm({ sheet }: { sheet: Sheet }) {
         Enter the URL of your Aurral server
       </Text>
       <Pressable
-        onPress={() =>
-          Linking.openURL("https://github.com/lklynet/aurral#readme")
-        }
+        onPress={() => Linking.openURL("https://docs.aurral.org/")}
         style={styles.link}
       >
         <Text variant="caption" style={{ color: colors.brand }}>
