@@ -1303,7 +1303,7 @@ describe("the artist's songs", () => {
     await fireEvent.press(
       await screen.findByRole("tab", { name: "All Songs" }),
     );
-    await fireEvent.press(await screen.findByLabelText("Play all songs"));
+    await fireEvent.press(await screen.findByLabelText("Song 80"));
     expect(queuedIds()).toEqual(["80", "81", "82", "70", "71", "72"]);
     expect(screen.queryByLabelText("Song 72")).toBeNull();
 

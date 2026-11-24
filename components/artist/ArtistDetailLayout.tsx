@@ -530,7 +530,6 @@ export function ArtistDetailLayout({
     songs: (
       <ArtistSongsSection
         title={songs.title}
-        currentLabel={songs.currentLabel}
         pills={songs.pills}
         selected={songs.selected}
         onSelect={songs.select}
@@ -540,7 +539,6 @@ export function ArtistDetailLayout({
         currentId={songs.currentId}
         isPlaying={songs.isPlaying}
         onPlayFrom={songs.playFrom}
-        onPlayAll={songs.playAll}
         onOpenActions={songs.openActions}
         onShowAll={songs.showAll}
         filter={

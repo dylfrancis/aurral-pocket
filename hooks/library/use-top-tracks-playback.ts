@@ -10,8 +10,8 @@ import type { PlayerAlbumContext, PlayerTrack } from "@/lib/player/track-item";
 import { topTrackClipId, topTrackItem, type TopTrack } from "@/lib/top-tracks";
 
 /**
- * Plays a list as one queue from any row or the top. `items` runs at the tap,
- * since each URL carries the session token.
+ * Plays a list as one queue from any row. `items` runs at the tap, since each
+ * URL carries the session token.
  */
 export function useQueuePlayback(
   itemIds: string[],
@@ -34,17 +34,12 @@ export function useQueuePlayback(
     },
     [itemIds, currentTrack?.id, startQueue, items, context],
   );
-  const playAll = useCallback(
-    () => void startQueue(items(), context, { startId: itemIds[0] }),
-    [startQueue, items, context, itemIds],
-  );
 
   return {
     itemIds,
     currentId: currentTrack?.id ?? null,
     isPlaying: playbackState === "playing",
     playFrom,
-    playAll,
   };
 }
 

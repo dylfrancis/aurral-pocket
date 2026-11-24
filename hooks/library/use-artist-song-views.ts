@@ -274,7 +274,6 @@ export function useArtistSongViews({
       views.length > 1 || (inLibrary && (isLoading || views.length === 0))
         ? "Songs"
         : currentLabel,
-    currentLabel,
     pills: views.length > 1 ? views : NO_VIEWS,
     selected: current,
     select,
@@ -294,7 +293,6 @@ export function useArtistSongViews({
     currentId: playback.currentId,
     isPlaying: playback.isPlaying,
     playFrom: playback.playFrom,
-    playAll: playback.playAll,
     openActions:
       current === "top" ? topTracksPlayback.openActions : openLibraryActions,
     showAll,

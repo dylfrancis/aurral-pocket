@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import {
   ArtistSongRow,
@@ -11,18 +10,12 @@ import { PillRow } from "@/components/ui/PillRow";
 import type { PillRowItem } from "@/components/ui/pill-row";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { ShowAllLink } from "@/components/ui/ShowAllLink";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
-import { Fonts, Radius } from "@/constants/theme";
-import { useColors } from "@/hooks/use-colors";
 
-const PLAY_ALL_PLACEHOLDER = { width: 68, height: 26 };
 const ROWS_BEFORE_SHOW_ALL = 5;
 
 type ArtistSongsSectionProps<Id extends string> = {
   title: string;
-  /** Names what Play plays. */
-  currentLabel: string;
   /** Empty for no pill row. */
   pills: readonly PillRowItem<Id>[];
   selected: Id | null;
@@ -34,10 +27,9 @@ type ArtistSongsSectionProps<Id extends string> = {
   currentId: string | null;
   isPlaying: boolean;
   onPlayFrom: (index: number) => void;
-  onPlayAll: () => void;
   onOpenActions: (index: number) => void;
   onShowAll: () => void;
-  /** The filter's menu button, beside Play. */
+  /** The filter's menu button, at the header's end. */
   filter?: ReactNode;
   /** Shown when the filter leaves nothing to list. */
   emptyMessage?: string | null;
@@ -45,7 +37,6 @@ type ArtistSongsSectionProps<Id extends string> = {
 
 export function ArtistSongsSection<Id extends string>({
   title,
-  currentLabel,
   pills,
   selected,
   onSelect,
@@ -55,26 +46,14 @@ export function ArtistSongsSection<Id extends string>({
   currentId,
   isPlaying,
   onPlayFrom,
-  onPlayAll,
   onOpenActions,
   onShowAll,
   filter,
   emptyMessage,
 }: ArtistSongsSectionProps<Id>) {
-  const colors = useColors();
-
   if (isLoading) {
     return (
-      <SectionFrame
-        title={title}
-        trailing={
-          <Skeleton
-            width={PLAY_ALL_PLACEHOLDER.width}
-            height={PLAY_ALL_PLACEHOLDER.height}
-            borderRadius={Radius.round}
-          />
-        }
-      >
+      <SectionFrame title={title}>
         <TopTracksSkeleton />
       </SectionFrame>
     );
@@ -93,43 +72,10 @@ export function ArtistSongsSection<Id extends string>({
     );
   }
 
-  const playButton = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Play ${currentLabel.toLowerCase()}`}
-      hitSlop={8}
-      onPress={() => {
-        void Haptics.selectionAsync();
-        onPlayAll();
-      }}
-      style={({ pressed }) => [
-        styles.playAll,
-        { backgroundColor: colors.brandMuted, opacity: pressed ? 0.7 : 1 },
-      ]}
-    >
-      <Ionicons name="play" size={13} color={colors.brandStrong} />
-      <Text
-        variant="caption"
-        style={[styles.playAllLabel, { color: colors.brandStrong }]}
-      >
-        Play
-      </Text>
-    </Pressable>
-  );
-
   return (
     <SectionFrame
       title={title}
-      trailing={
-        filter ? (
-          <View style={styles.actions}>
-            {playButton}
-            {filter}
-          </View>
-        ) : (
-          playButton
-        )
-      }
+      trailing={filter}
       pills={
         pills.length > 0 && selected ? (
           <PillRow
@@ -170,7 +116,7 @@ function SectionFrame({
   children,
 }: {
   title: string;
-  trailing: ReactNode;
+  trailing?: ReactNode;
   pills?: ReactNode;
   children: ReactNode;
 }) {
@@ -204,23 +150,7 @@ const styles = StyleSheet.create({
   rows: {
     paddingHorizontal: 16,
   },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   empty: {
     paddingVertical: 12,
-  },
-  playAll: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: Radius.round,
-  },
-  playAllLabel: {
-    ...Fonts.semiBold,
   },
 });
