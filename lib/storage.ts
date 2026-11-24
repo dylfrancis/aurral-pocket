@@ -16,11 +16,17 @@ const THIS_DEVICE: SecureStore.SecureStoreOptions = {
 };
 
 /**
- * Readable on a locked phone once unlocked since it started, as Siri needs.
- * Still moves to a new phone with a backup, as the keychain's default does.
+ * Readable on a locked phone once unlocked since it started, as Siri and a
+ * silent sign-in during background playback need. Still moves to a new phone
+ * with a backup, as the keychain's default does.
  */
 const WHILE_LOCKED: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+};
+
+/** The keychain's default: readable only while the phone is unlocked. */
+const UNLOCKED: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.WHEN_UNLOCKED,
 };
 
 /** After this long unopened, the app forgets the server and the account. */
@@ -104,7 +110,7 @@ export const SecureStorage = {
 
   async setExpiresAt(ms: number): Promise<void> {
     try {
-      await SecureStore.setItemAsync(KEYS.EXPIRES_AT, String(ms));
+      await SecureStore.setItemAsync(KEYS.EXPIRES_AT, String(ms), WHILE_LOCKED);
     } catch {}
   },
 
@@ -156,11 +162,21 @@ export const SecureStorage = {
     }
   },
 
-  async setCredentials(username: string, password: string): Promise<void> {
+  /**
+   * Remember me signs in with these when a session runs out, which can happen
+   * on a locked phone playing music. Face ID alone needs the phone in hand, so
+   * its saved password stays readable only while the phone is unlocked.
+   */
+  async setCredentials(
+    username: string,
+    password: string,
+    { whileLocked }: { whileLocked: boolean },
+  ): Promise<void> {
+    const options = whileLocked ? WHILE_LOCKED : UNLOCKED;
     try {
       await Promise.all([
-        SecureStore.setItemAsync(KEYS.SAVED_USERNAME, username),
-        SecureStore.setItemAsync(KEYS.SAVED_PASSWORD, password),
+        SecureStore.setItemAsync(KEYS.SAVED_USERNAME, username, options),
+        SecureStore.setItemAsync(KEYS.SAVED_PASSWORD, password, options),
       ]);
     } catch {}
   },
@@ -186,7 +202,11 @@ export const SecureStorage = {
 
   async setRememberCredentials(value: boolean): Promise<void> {
     try {
-      await SecureStore.setItemAsync(KEYS.REMEMBER_CREDENTIALS, String(value));
+      await SecureStore.setItemAsync(
+        KEYS.REMEMBER_CREDENTIALS,
+        String(value),
+        WHILE_LOCKED,
+      );
     } catch {}
   },
 
@@ -206,7 +226,11 @@ export const SecureStorage = {
 
   async setUseBiometrics(value: boolean): Promise<void> {
     try {
-      await SecureStore.setItemAsync(KEYS.USE_BIOMETRICS, String(value));
+      await SecureStore.setItemAsync(
+        KEYS.USE_BIOMETRICS,
+        String(value),
+        WHILE_LOCKED,
+      );
     } catch {}
   },
 

@@ -1,6 +1,5 @@
-import { getMe, login } from "@/lib/api/auth";
+import { getMe } from "@/lib/api/auth";
 import {
-  ApiError,
   notifyReAuthResult,
   setAuthToken,
   setBaseUrl,
@@ -56,7 +55,6 @@ type AuthContextValue = {
   pendingOidcLogoutUrl: string | null;
   rememberCredentials: boolean;
   useBiometrics: boolean;
-  hasCredentials: boolean;
   sessionExpired: boolean;
   /**
    * The server refused a sign-in because the account is suspended or disabled.
@@ -117,12 +115,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isRestoring, setIsRestoring] = useState(true);
   const [rememberCreds, setRememberCreds] = useState(false);
   const [biometrics, setBiometrics] = useState(false);
-  const [hasCredentials, setHasCredentials] = useState(false);
   const [sessionExpired, setSessionExpiredState] = useState(false);
   const [accountSuspended, setAccountSuspended] = useState(false);
   const [userRecoveryAttempted, setUserRecoveryAttempted] = useState(false);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
-  const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Restore persisted state on mount
   useEffect(() => {
@@ -187,6 +183,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setCustomHeadersState(storedHeaders);
         }
 
+        // An SSO session keeps no saved password. One beside it was left by an
+        // older Sign Out on Session Expired, and a lost session would sign in
+        // with it, as the account that saved it.
+        const strayCreds = oidcSession && !!creds;
+        if (strayCreds) {
+          await Promise.all([
+            SecureStorage.deleteCredentials(),
+            SecureStorage.setRememberCredentials(false),
+          ]);
+        }
+        const keptRemember = remember && !strayCreds;
+        const keptCreds = strayCreds ? null : creds;
+
         if (storedToken) {
           setToken(storedToken);
           setAuthToken(storedToken);
@@ -200,6 +209,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (Object.keys(storedHeaders).length > 0) {
             void SecureStorage.setCustomHeaders(storedHeaders);
           }
+          // The same for what a 401 reads to sign in again silently, which a
+          // locked phone playing music must read too.
+          if (keptRemember) void SecureStorage.setRememberCredentials(true);
+          if (bio) void SecureStorage.setUseBiometrics(true);
+          if (keptRemember && keptCreds) {
+            void SecureStorage.setCredentials(
+              keptCreds.username,
+              keptCreds.password,
+              { whileLocked: true },
+            );
+          }
+          if (storedExpiry) void SecureStorage.setExpiresAt(storedExpiry);
         }
 
         if (storedUserJson) {
@@ -208,10 +229,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
 
-        setRememberCreds(remember);
+        setRememberCreds(keptRemember);
         setBiometrics(bio);
         setIsOidcSession(oidcSession);
-        setHasCredentials(!!creds);
         if (storedExpiry) setExpiresAt(storedExpiry);
       } finally {
         setIsRestoring(false);
@@ -267,47 +287,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Proactive session renewal — fires ~60s before token expires
+  // Aurral moves a session's expiry forward as it's used, so the expiry saved
+  // at sign-in falls behind. A minute before it, or at once on a launch
+  // after it, the server says whether the session still stands. An answer
+  // brings the new expiry. A refused session reaches the client's 401
+  // handling, which signs in again silently or opens Session Expired.
   useEffect(() => {
-    if (expiryTimer.current) clearTimeout(expiryTimer.current);
     if (!expiresAt || !token) return;
-
-    const msUntilExpiry = expiresAt - Date.now();
-    // Fire 60s before expiry, or immediately if already past
-    const delay = Math.max(0, msUntilExpiry - 60_000);
-
-    expiryTimer.current = setTimeout(async () => {
-      // Try silent re-auth if remember is on
-      const remember = await SecureStorage.getRememberCredentials();
-      if (remember) {
-        const creds = await SecureStorage.getCredentials();
-        if (creds) {
-          try {
-            const data = await login(creds);
-            setToken(data.token);
-            setUser(data.user);
-            setAuthToken(data.token);
-            setExpiresAt(data.expiresAt);
-            await Promise.all([
-              SecureStorage.setToken(data.token),
-              SecureStorage.setUser(JSON.stringify(data.user)),
-              SecureStorage.setExpiresAt(data.expiresAt),
-            ]);
-            return;
-          } catch (error) {
-            if (error instanceof ApiError && error.isAccountSuspended) {
-              setAccountSuspended(true);
-              return;
-            }
-          }
-        }
+    let cancelled = false;
+    const delay = Math.max(0, expiresAt - Date.now() - 60_000);
+    const timer = setTimeout(async () => {
+      try {
+        const me = await getMe();
+        if (cancelled || !me.expiresAt) return;
+        setExpiresAt(me.expiresAt);
+        await SecureStorage.setExpiresAt(me.expiresAt);
+      } catch {
+        // Anything else, such as no connection, says nothing about the
+        // session, so the next request finds out.
       }
-      // Silent re-auth unavailable or failed
-      setSessionExpiredState(true);
     }, delay);
-
     return () => {
-      if (expiryTimer.current) clearTimeout(expiryTimer.current);
+      cancelled = true;
+      clearTimeout(timer);
     };
   }, [expiresAt, token]);
 
@@ -361,9 +363,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  // An SSO session keeps no saved password. One from an earlier account
+  // would sign this session's lost session back in as that account.
   const markOidcSession = useCallback(async (logoutUrl: string | null) => {
     setIsOidcSession(true);
-    await AppStorage.setOidcSession(logoutUrl);
+    setRememberCreds(false);
+    await Promise.all([
+      AppStorage.setOidcSession(logoutUrl),
+      SecureStorage.setRememberCredentials(false),
+      SecureStorage.deleteCredentials(),
+    ]);
   }, []);
 
   const requestOidcLogout = useCallback((logoutUrl: string) => {
@@ -404,7 +413,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthToken(null);
     setRememberCreds(false);
     setBiometrics(false);
-    setHasCredentials(false);
     setIsOidcSession(false);
     await Promise.all([
       AppStorage.deleteServerUrl(),
@@ -438,7 +446,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // If both remember and biometrics are off, clear stored credentials
       if (!value && !biometrics) {
-        setHasCredentials(false);
         writes.push(SecureStorage.deleteCredentials());
       }
       await Promise.all(writes);
@@ -452,7 +459,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await SecureStorage.setUseBiometrics(value);
       // If both remember and biometrics are off, clear stored credentials
       if (!value && !rememberCreds) {
-        setHasCredentials(false);
         await SecureStorage.deleteCredentials();
       }
     },
@@ -463,8 +469,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (username: string, password: string) => {
       // Save if either remember or biometrics is enabled
       if (!rememberCreds && !biometrics) return;
-      setHasCredentials(true);
-      await SecureStorage.setCredentials(username, password);
+      await SecureStorage.setCredentials(username, password, {
+        whileLocked: rememberCreds,
+      });
     },
     [rememberCreds, biometrics],
   );
@@ -504,7 +511,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       pendingOidcLogoutUrl,
       rememberCredentials: rememberCreds,
       useBiometrics: biometrics,
-      hasCredentials,
       sessionExpired,
       accountSuspended,
       setServer,
@@ -536,7 +542,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       pendingOidcLogoutUrl,
       rememberCreds,
       biometrics,
-      hasCredentials,
       sessionExpired,
       accountSuspended,
       setServer,

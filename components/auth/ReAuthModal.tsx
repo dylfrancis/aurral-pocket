@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { AppState, Modal, Pressable, StyleSheet, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -81,15 +81,13 @@ export function ReAuthModal() {
     sessionExpired,
     accountSuspended,
     useBiometrics,
-    hasCredentials,
     isOidcSession,
     dismissSessionExpired,
     markAccountSuspended,
     dismissAccountSuspended,
     setAuth,
-    clearAuth,
   } = useAuth();
-  const { mutate: signOut } = useLogout();
+  const { mutate: signOut, isPending: signingOut } = useLogout();
   const queryClient = useQueryClient();
   const applyOidcSession = useOidcSignIn();
   const [oidcVisible, setOidcVisible] = useState(false);
@@ -137,12 +135,17 @@ export function ReAuthModal() {
 
   const onSubmit = (data: ReAuthForm) => handleReAuth(data.password);
 
+  // The saved password is read only after Face ID, when the phone is unlocked.
+  // Face ID alone keeps it readable only then, so a launch on a locked phone
+  // can't tell whether there is one.
   const handleBiometric = async () => {
     const success = await authenticateWithBiometrics();
     if (!success) return;
     const creds = await SecureStorage.getCredentials();
     if (creds) {
       await handleReAuth(creds.password);
+    } else {
+      setError(new Error("No saved password. Enter your password."));
     }
   };
 
@@ -153,9 +156,11 @@ export function ReAuthModal() {
     dismissSessionExpired();
   };
 
-  const handleSignOut = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    await clearAuth();
+  // The same sign-out as Settings. A saved password left behind would sign a
+  // later account's lost session back in as this one.
+  const handleSignOut = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    signOut();
   };
 
   const handleOidcSuspended = () => {
@@ -173,18 +178,32 @@ export function ReAuthModal() {
   // An OIDC user has no password on the Aurral server, so the password field
   // and the biometric shortcut — which replays a stored password — cannot
   // renew their session. Send them back through the provider instead.
-  const showBiometric =
-    !isOidcSession && useBiometrics && hasCredentials && !!biometricLabel;
+  const showBiometric = !isOidcSession && useBiometrics && !!biometricLabel;
 
+  // iOS refuses Face ID while the app is in the background, which is where a
+  // music app often is when its session runs out. A prompt that opens there
+  // starts it once the app is back. Only once per prompt: the Face ID sheet
+  // itself takes the app out of active and back.
   const autoTriggeredRef = useRef(false);
   useEffect(() => {
     if (!sessionExpired) {
       autoTriggeredRef.current = false;
       return;
     }
-    if (!showBiometric || autoTriggeredRef.current) return;
-    autoTriggeredRef.current = true;
-    handleBiometric();
+    if (!showBiometric) return;
+    const start = () => {
+      if (autoTriggeredRef.current) return;
+      autoTriggeredRef.current = true;
+      handleBiometric();
+    };
+    if (AppState.currentState === "active") {
+      start();
+      return;
+    }
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") start();
+    });
+    return () => subscription.remove();
     // handleBiometric is stable within a render; we intentionally avoid adding
     // it to deps to prevent re-firing on unrelated re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -259,7 +278,7 @@ export function ReAuthModal() {
                   textContentType="password"
                   returnKeyType="go"
                   onSubmitEditing={() => handleSubmit(onSubmit)()}
-                  editable={!loading}
+                  editable={!loading && !signingOut}
                   style={styles.input}
                 />
               )}
@@ -277,6 +296,7 @@ export function ReAuthModal() {
               title="Continue"
               onPress={() => handleSubmit(onSubmit)()}
               loading={loading}
+              disabled={signingOut}
               style={styles.button}
             />
           )}
@@ -286,14 +306,17 @@ export function ReAuthModal() {
               title={`Use ${biometricLabel}`}
               variant="inline"
               onPress={handleBiometric}
+              disabled={signingOut || loading}
               style={styles.biometric}
             />
           )}
 
           <Button
-            title="Sign Out"
+            title={signingOut ? "Signing Out…" : "Sign Out"}
             variant="inline"
             onPress={handleSignOut}
+            loading={signingOut}
+            disabled={loading}
             style={styles.signOut}
           />
         </Card>

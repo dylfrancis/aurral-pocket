@@ -3,6 +3,7 @@ jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
   AFTER_FIRST_UNLOCK: "after-first-unlock",
+  WHEN_UNLOCKED: "when-unlocked",
 }));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -23,7 +24,6 @@ jest.mock("@/lib/api/client", () => ({
 }));
 
 jest.mock("@/lib/api/auth", () => ({
-  login: jest.fn(),
   getMe: jest.fn(),
 }));
 
@@ -33,18 +33,12 @@ import { render, waitFor, fireEvent, act } from "@testing-library/react-native";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
-import {
-  ApiError,
-  setAuthToken,
-  setBaseUrl,
-  setCustomHeaders,
-} from "@/lib/api/client";
-import { getMe, login } from "@/lib/api/auth";
+import { setAuthToken, setBaseUrl, setCustomHeaders } from "@/lib/api/client";
+import { getMe } from "@/lib/api/auth";
 import { TrackPlayer } from "react-native-nitro-player";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
-const mockLogin = login as jest.Mock;
 const mockGetMe = getMe as jest.Mock;
 
 // Interactive consumer that exposes context state and actions
@@ -87,6 +81,10 @@ function TestConsumer() {
     await auth.clearAuth();
   }, [auth]);
 
+  const handleMarkOidc = useCallback(async () => {
+    await auth.markOidcSession(null);
+  }, [auth]);
+
   return (
     <>
       <Text testID="token">{auth.token ?? "null"}</Text>
@@ -98,7 +96,6 @@ function TestConsumer() {
         {String(auth.rememberCredentials)}
       </Text>
       <Text testID="useBiometrics">{String(auth.useBiometrics)}</Text>
-      <Text testID="hasCredentials">{String(auth.hasCredentials)}</Text>
       <Pressable testID="setAuth" onPress={handleSetAuth} />
       <Pressable testID="saveCredentials" onPress={handleSaveCredentials} />
       <Pressable testID="rememberOn" onPress={handleRememberOn} />
@@ -107,6 +104,7 @@ function TestConsumer() {
       <Pressable testID="biometricsOff" onPress={handleBiometricsOff} />
       <Pressable testID="clearAll" onPress={handleClearAll} />
       <Pressable testID="clearAuth" onPress={handleClearAuth} />
+      <Pressable testID="markOidc" onPress={handleMarkOidc} />
     </>
   );
 }
@@ -160,17 +158,23 @@ describe("AuthProvider — restore on mount", () => {
     });
   });
 
-  // Saved before Siri, they kept the keychain's default, which a locked phone
-  // can't read, and Siri can start the app on a locked phone.
+  // Saved earlier, they kept the keychain's default, which a locked phone
+  // can't read. Siri can start the app on a locked phone, and a session can
+  // run out while it plays music there, with a silent sign-in to make.
   it("saves a restored session again, where a locked phone can read it", async () => {
+    const stored: Record<string, string> = {
+      auth_token: "my-token",
+      user_json: '{"id":1,"username":"alice"}',
+      custom_headers: '{"CF-Access-Client-Id":"id.access"}',
+      remember_credentials: "true",
+      saved_username: "alice",
+      saved_password: "pass123",
+      token_expires_at: String(Date.now() + 86_400_000),
+    };
     mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "my-token";
-      if (key === "user_json") return '{"id":1,"username":"alice"}';
-      if (key === "custom_headers")
-        return '{"CF-Access-Client-Id":"id.access"}';
-      return null;
-    });
+    mockSecureStore.getItemAsync.mockImplementation(
+      async (key) => stored[key] ?? null,
+    );
 
     const { getByTestId } = await renderWithProvider();
 
@@ -180,19 +184,46 @@ describe("AuthProvider — restore on mount", () => {
     const readableWhileLocked = {
       keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
     };
+    for (const [key, value] of Object.entries(stored)) {
+      expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+        key,
+        value,
+        readableWhileLocked,
+      );
+    }
+  });
+
+  // Face ID needs the phone unlocked, so its password stays readable only then.
+  it("leaves a Face ID password readable only while unlocked", async () => {
+    const stored: Record<string, string> = {
+      auth_token: "my-token",
+      user_json: '{"id":1,"username":"alice"}',
+      use_biometrics: "true",
+      saved_username: "alice",
+      saved_password: "pass123",
+    };
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(
+      async (key) => stored[key] ?? null,
+    );
+
+    const { getByTestId } = await renderWithProvider();
+
+    await waitFor(() => {
+      expect(getByTestId("token").props.children).toBe("my-token");
+    });
+    const readableWhileLocked = {
+      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+    };
+    // The prompt reads it on a locked-phone launch to offer Face ID.
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
-      "auth_token",
-      "my-token",
+      "use_biometrics",
+      "true",
       readableWhileLocked,
     );
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
-      "user_json",
-      '{"id":1,"username":"alice"}',
-      readableWhileLocked,
-    );
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
-      "custom_headers",
-      '{"CF-Access-Client-Id":"id.access"}',
+    expect(mockSecureStore.setItemAsync).not.toHaveBeenCalledWith(
+      "saved_password",
+      "pass123",
       readableWhileLocked,
     );
   });
@@ -352,6 +383,7 @@ describe("AuthProvider — credential clearing logic", () => {
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "use_biometrics",
       "false",
+      expect.anything(),
     );
     expect(mockSecureStore.deleteItemAsync).not.toHaveBeenCalledWith(
       "saved_username",
@@ -417,6 +449,63 @@ describe("AuthProvider — credential clearing logic", () => {
   });
 });
 
+// A saved password beside an SSO session came from an earlier account, and a
+// lost session would sign in with it, switching to that account.
+describe("AuthProvider — an SSO session keeps no saved password", () => {
+  const leftover: Record<string, string> = {
+    auth_token: "sso-token",
+    user_json:
+      '{"id":2,"username":"bob","permissions":{"accessPlaylists":true}}',
+    remember_credentials: "true",
+    saved_username: "alice",
+    saved_password: "pass123",
+  };
+
+  it("drops one left from before, at launch", async () => {
+    mockAsyncStorage.getItem.mockImplementation(async (key) =>
+      key === "oidc_session" ? "true" : "https://my-server.com",
+    );
+    mockSecureStore.getItemAsync.mockImplementation(
+      async (key) => leftover[key] ?? null,
+    );
+
+    const { getByTestId } = await renderWithProvider();
+
+    await waitFor(() => {
+      expect(getByTestId("token").props.children).toBe("sso-token");
+    });
+    expect(getByTestId("rememberCredentials").props.children).toBe("false");
+    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(
+      "saved_password",
+    );
+    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+      "remember_credentials",
+      "false",
+      expect.anything(),
+    );
+  });
+
+  it("drops one when an SSO session starts", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(
+      async (key) => leftover[key] ?? null,
+    );
+    const { getByTestId } = await renderWithProvider();
+    await waitFor(() => {
+      expect(getByTestId("rememberCredentials").props.children).toBe("true");
+    });
+
+    await act(async () => {
+      await fireEvent.press(getByTestId("markOidc"));
+    });
+
+    expect(getByTestId("rememberCredentials").props.children).toBe("false");
+    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(
+      "saved_password",
+    );
+  });
+});
+
 describe("AuthProvider — saveCredentials conditional", () => {
   it("does not save when neither remember nor biometrics is enabled", async () => {
     const { getByTestId } = await renderWithProvider();
@@ -433,14 +522,16 @@ describe("AuthProvider — saveCredentials conditional", () => {
     expect(mockSecureStore.setItemAsync).not.toHaveBeenCalledWith(
       "saved_username",
       "alice",
+      expect.anything(),
     );
     expect(mockSecureStore.setItemAsync).not.toHaveBeenCalledWith(
       "saved_password",
       "pass123",
+      expect.anything(),
     );
   });
 
-  it("saves when remember is enabled", async () => {
+  it("saves when remember is enabled, where a locked phone can read them", async () => {
     const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
@@ -460,14 +551,17 @@ describe("AuthProvider — saveCredentials conditional", () => {
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "saved_username",
       "alice",
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "saved_password",
       "pass123",
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
   });
 
-  it("saves when biometrics is enabled (even without remember)", async () => {
+  // Face ID needs the phone unlocked anyway.
+  it("saves when biometrics is enabled (even without remember), readable only while unlocked", async () => {
     const { getByTestId } = await renderWithProvider();
 
     await waitFor(() => {
@@ -487,10 +581,12 @@ describe("AuthProvider — saveCredentials conditional", () => {
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "saved_username",
       "alice",
+      { keychainAccessible: SecureStore.WHEN_UNLOCKED },
     );
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "saved_password",
       "pass123",
+      { keychainAccessible: SecureStore.WHEN_UNLOCKED },
     );
   });
 });
@@ -581,139 +677,6 @@ describe("AuthProvider — clearAuth", () => {
     expect(getByTestId("serverUrl").props.children).toBe(
       "https://my-server.com",
     );
-  });
-});
-
-describe("AuthProvider — proactive expiry timer", () => {
-  it("triggers sessionExpired when token expires and no remember", async () => {
-    const expiresIn = 120_000; // 2 minutes from now
-    const expiresAt = String(Date.now() + expiresIn);
-
-    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "my-token";
-      if (key === "user_json")
-        return '{"id":1,"username":"alice","role":"user"}';
-      if (key === "token_expires_at") return expiresAt;
-      if (key === "remember_credentials") return null;
-      return null;
-    });
-
-    const { getByTestId } = await renderWithProvider();
-
-    await waitFor(() => {
-      expect(getByTestId("token").props.children).toBe("my-token");
-      expect(getByTestId("sessionExpired").props.children).toBe("false");
-    });
-
-    // Timer fires 60s before expiry, so at expiresIn - 60000 = 60000ms
-    await act(async () => {
-      jest.advanceTimersByTime(expiresIn);
-    });
-
-    await waitFor(() => {
-      expect(getByTestId("sessionExpired").props.children).toBe("true");
-    });
-  });
-
-  it("silently re-auths when token expires and remember is on", async () => {
-    // Use real timers for this test since the timer callback has async/await
-    jest.useRealTimers();
-
-    // 61s from now — timer fires at expiresIn - 60s = 1s
-    const expiresIn = 61_000;
-    const expiresAt = String(Date.now() + expiresIn);
-    const newExpiresAt = Date.now() + expiresIn + 86400000;
-
-    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "my-token";
-      if (key === "user_json")
-        return '{"id":1,"username":"alice","role":"user"}';
-      if (key === "token_expires_at") return expiresAt;
-      if (key === "remember_credentials") return "true";
-      if (key === "saved_username") return "alice";
-      if (key === "saved_password") return "pass123";
-      return null;
-    });
-
-    mockLogin.mockResolvedValue({
-      token: "renewed-token",
-      expiresAt: newExpiresAt,
-      user: { id: 1, username: "alice", role: "user" },
-    });
-
-    const { getByTestId } = await renderWithProvider();
-
-    await waitFor(() => {
-      expect(getByTestId("token").props.children).toBe("my-token");
-    });
-
-    // Timer fires at ~1s (61s - 60s buffer). Wait for re-auth to complete.
-    await waitFor(
-      () => {
-        expect(getByTestId("sessionExpired").props.children).toBe("false");
-        expect(getByTestId("token").props.children).toBe("renewed-token");
-      },
-      { timeout: 5000 },
-    );
-
-    jest.useFakeTimers();
-  });
-
-  it("reports a suspension when the silent renewal is refused", async () => {
-    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "expired-token";
-      if (key === "user_json")
-        return '{"id":1,"username":"alice","role":"user"}';
-      if (key === "token_expires_at") return String(Date.now() - 60_000);
-      if (key === "remember_credentials") return "true";
-      if (key === "saved_username") return "alice";
-      if (key === "saved_password") return "pass123";
-      return null;
-    });
-    mockLogin.mockRejectedValue(
-      new ApiError(403, "This account has been suspended or disabled"),
-    );
-
-    const { getByTestId } = await renderWithProvider();
-
-    await act(async () => {
-      await jest.runOnlyPendingTimersAsync();
-    });
-    await waitFor(() => {
-      expect(getByTestId("accountSuspended").props.children).toBe("true");
-    });
-    expect(getByTestId("sessionExpired").props.children).toBe("false");
-  });
-
-  it("fires immediately when token is already expired on restore", async () => {
-    const expiredAt = String(Date.now() - 60_000); // expired 1 minute ago
-
-    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "expired-token";
-      if (key === "user_json")
-        return '{"id":1,"username":"alice","role":"user"}';
-      if (key === "token_expires_at") return expiredAt;
-      if (key === "remember_credentials") return null;
-      return null;
-    });
-
-    const { getByTestId } = await renderWithProvider();
-
-    await waitFor(() => {
-      expect(getByTestId("token").props.children).toBe("expired-token");
-    });
-
-    await act(async () => {
-      jest.advanceTimersByTime(0);
-    });
-
-    await waitFor(() => {
-      expect(getByTestId("sessionExpired").props.children).toBe("true");
-    });
   });
 });
 

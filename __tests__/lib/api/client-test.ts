@@ -31,6 +31,7 @@ import {
   setOnSessionExpired,
 } from "@/lib/api/client";
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetch } from "expo/fetch";
 
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
@@ -490,6 +491,20 @@ describe("401 handling", () => {
     const res = await api.get<{ ok: boolean }>("/me");
     expect(res.data).toEqual({ ok: true });
     expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks for a password instead of using a saved one for an SSO session", async () => {
+    rememberAlice();
+    // The SSO flag, the only thing this path reads from AsyncStorage.
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce("true");
+    mockFetch.mockResolvedValueOnce(lostSession());
+    const onExpired = jest.fn(() => notifyReAuthResult(false));
+    setOnSessionExpired(onExpired);
+
+    await expect(api.get("/library/artists")).rejects.toThrow(ApiError);
+
+    expect(onExpired).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it("performs silent re-auth and retries when remember is on", async () => {

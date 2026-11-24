@@ -3,6 +3,7 @@ jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
   AFTER_FIRST_UNLOCK: "after-first-unlock",
+  WHEN_UNLOCKED: "when-unlocked",
 }));
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -46,17 +47,27 @@ describe("SecureStorage.credentials", () => {
     expect(await SecureStorage.getCredentials()).toBeNull();
   });
 
-  it("sets credentials", async () => {
-    await SecureStorage.setCredentials("alice", "pass123");
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
-      "saved_username",
-      "alice",
-    );
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
-      "saved_password",
-      "pass123",
-    );
-  });
+  // Remember me signs in again with these when a session runs out during
+  // background playback. Face ID needs the phone unlocked anyway.
+  it.each([
+    [true, SecureStore.AFTER_FIRST_UNLOCK],
+    [false, SecureStore.WHEN_UNLOCKED],
+  ])(
+    "sets credentials, readable while locked: %s",
+    async (whileLocked, keychainAccessible) => {
+      await SecureStorage.setCredentials("alice", "pass123", { whileLocked });
+      expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+        "saved_username",
+        "alice",
+        { keychainAccessible },
+      );
+      expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+        "saved_password",
+        "pass123",
+        { keychainAccessible },
+      );
+    },
+  );
 
   it("deletes credentials", async () => {
     await SecureStorage.deleteCredentials();
@@ -85,11 +96,12 @@ describe("SecureStorage.rememberCredentials", () => {
     expect(await SecureStorage.getRememberCredentials()).toBe(false);
   });
 
-  it("sets remember credentials", async () => {
+  it("sets remember credentials a locked phone can still read", async () => {
     await SecureStorage.setRememberCredentials(true);
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "remember_credentials",
       "true",
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
   });
 
@@ -112,11 +124,13 @@ describe("SecureStorage.useBiometrics", () => {
     expect(await SecureStorage.getUseBiometrics()).toBe(false);
   });
 
-  it("sets biometrics preference", async () => {
+  // A launch on a locked phone reads it, and the prompt shows Face ID by it.
+  it("sets biometrics preference a locked phone can still read", async () => {
     await SecureStorage.setUseBiometrics(true);
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "use_biometrics",
       "true",
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
   });
 
@@ -144,11 +158,12 @@ describe("SecureStorage.expiresAt", () => {
     expect(await SecureStorage.getExpiresAt()).toBeNull();
   });
 
-  it("sets expiry timestamp", async () => {
+  it("sets an expiry timestamp a locked phone can still read", async () => {
     await SecureStorage.setExpiresAt(1700000000000);
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       "token_expires_at",
       "1700000000000",
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
     );
   });
 
