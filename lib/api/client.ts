@@ -1,4 +1,4 @@
-import { SecureStorage } from "@/lib/storage";
+import { AppStorage, SecureStorage } from "@/lib/storage";
 import type { LoginResponse } from "@/lib/types/auth";
 import { originOf } from "@/lib/url";
 import { fetch } from "expo/fetch";
@@ -288,7 +288,12 @@ async function handle401<T>(
 
   if (!reAuthPromise) {
     reAuthPromise = (async () => {
-      if (await SecureStorage.getRememberCredentials()) {
+      // An SSO account has no password to sign in with. One saved beside its
+      // session came from an earlier account, and would switch to that one.
+      if (
+        (await SecureStorage.getRememberCredentials()) &&
+        !(await AppStorage.getOidcSession())
+      ) {
         const outcome = await attemptSilentReAuth();
         if (outcome === "refreshed") return true;
         if (outcome === "suspended") {

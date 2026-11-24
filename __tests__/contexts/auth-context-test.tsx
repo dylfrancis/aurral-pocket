@@ -80,6 +80,10 @@ function TestConsumer() {
     await auth.clearAuth();
   }, [auth]);
 
+  const handleMarkOidc = useCallback(async () => {
+    await auth.markOidcSession(null);
+  }, [auth]);
+
   return (
     <>
       <Text testID="token">{auth.token ?? "null"}</Text>
@@ -100,6 +104,7 @@ function TestConsumer() {
       <Pressable testID="biometricsOff" onPress={handleBiometricsOff} />
       <Pressable testID="clearAll" onPress={handleClearAll} />
       <Pressable testID="clearAuth" onPress={handleClearAuth} />
+      <Pressable testID="markOidc" onPress={handleMarkOidc} />
     </>
   );
 }
@@ -404,6 +409,62 @@ describe("AuthProvider — credential clearing logic", () => {
     expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(
       "saved_username",
     );
+    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(
+      "saved_password",
+    );
+  });
+});
+
+// A saved password beside an SSO session came from an earlier account, and a
+// lost session would sign in with it, switching to that account.
+describe("AuthProvider — an SSO session keeps no saved password", () => {
+  const leftover: Record<string, string> = {
+    auth_token: "sso-token",
+    user_json:
+      '{"id":2,"username":"bob","permissions":{"accessPlaylists":true}}',
+    remember_credentials: "true",
+    saved_username: "alice",
+    saved_password: "pass123",
+  };
+
+  it("drops one left from before, at launch", async () => {
+    mockAsyncStorage.getItem.mockImplementation(async (key) =>
+      key === "oidc_session" ? "true" : "https://my-server.com",
+    );
+    mockSecureStore.getItemAsync.mockImplementation(
+      async (key) => leftover[key] ?? null,
+    );
+
+    const { getByTestId } = await renderWithProvider();
+
+    await waitFor(() => {
+      expect(getByTestId("token").props.children).toBe("sso-token");
+    });
+    expect(getByTestId("rememberCredentials").props.children).toBe("false");
+    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(
+      "saved_password",
+    );
+    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+      "remember_credentials",
+      "false",
+    );
+  });
+
+  it("drops one when an SSO session starts", async () => {
+    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
+    mockSecureStore.getItemAsync.mockImplementation(
+      async (key) => leftover[key] ?? null,
+    );
+    const { getByTestId } = await renderWithProvider();
+    await waitFor(() => {
+      expect(getByTestId("rememberCredentials").props.children).toBe("true");
+    });
+
+    await act(async () => {
+      await fireEvent.press(getByTestId("markOidc"));
+    });
+
+    expect(getByTestId("rememberCredentials").props.children).toBe("false");
     expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(
       "saved_password",
     );

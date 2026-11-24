@@ -185,6 +185,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setCustomHeadersState(storedHeaders);
         }
 
+        // An SSO session keeps no saved password. One beside it was left by an
+        // older Sign Out on Session Expired, and a lost session would sign in
+        // with it, as the account that saved it.
+        const strayCreds = oidcSession && !!creds;
+        if (strayCreds) {
+          await Promise.all([
+            SecureStorage.deleteCredentials(),
+            SecureStorage.setRememberCredentials(false),
+          ]);
+        }
+        const keptRemember = remember && !strayCreds;
+        const keptCreds = strayCreds ? null : creds;
+
         if (storedToken) {
           setToken(storedToken);
           setAuthToken(storedToken);
@@ -206,10 +219,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
 
-        setRememberCreds(remember);
+        setRememberCreds(keptRemember);
         setBiometrics(bio);
         setIsOidcSession(oidcSession);
-        setHasCredentials(!!creds);
+        setHasCredentials(!!keptCreds);
         if (storedExpiry) setExpiresAt(storedExpiry);
       } finally {
         setIsRestoring(false);
@@ -341,9 +354,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  // An SSO session keeps no saved password. One from an earlier account
+  // would sign this session's lost session back in as that account.
   const markOidcSession = useCallback(async (logoutUrl: string | null) => {
     setIsOidcSession(true);
-    await AppStorage.setOidcSession(logoutUrl);
+    setRememberCreds(false);
+    setHasCredentials(false);
+    await Promise.all([
+      AppStorage.setOidcSession(logoutUrl),
+      SecureStorage.setRememberCredentials(false),
+      SecureStorage.deleteCredentials(),
+    ]);
   }, []);
 
   const requestOidcLogout = useCallback((logoutUrl: string) => {

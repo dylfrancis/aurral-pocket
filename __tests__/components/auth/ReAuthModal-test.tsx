@@ -292,6 +292,29 @@ describe("ReAuthModal", () => {
     await expect(request).resolves.toMatchObject({ status: 401 });
   });
 
+  // Left behind, it would sign a later account's lost session, say one
+  // signed in with SSO, back in as this one.
+  it("forgets the saved password on Sign Out, as Settings does", async () => {
+    serveLostSession(() => jsonResponse(500, {}));
+    const { findByText, getByText, getByTestId, secure } = await renderSignedIn(
+      {
+        remember_credentials: "true",
+        saved_username: "ada",
+        saved_password: "secret",
+      },
+    );
+
+    await hitLostSession();
+    await findByText("Session Expired");
+    await fireEvent.press(getByText("Sign Out"));
+
+    await waitFor(() =>
+      expect(getByTestId("token").props.children).toBe("signed-out"),
+    );
+    expect(secure.has("saved_password")).toBe(false);
+    expect(secure.get("remember_credentials")).not.toBe("true");
+  });
+
   describe("at the saved expiry", () => {
     const pastExpiry = { token_expires_at: String(Date.now() - 60_000) };
 

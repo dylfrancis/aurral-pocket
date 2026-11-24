@@ -87,9 +87,8 @@ export function ReAuthModal() {
     markAccountSuspended,
     dismissAccountSuspended,
     setAuth,
-    clearAuth,
   } = useAuth();
-  const { mutate: signOut } = useLogout();
+  const { mutate: signOut, isPending: signingOut } = useLogout();
   const queryClient = useQueryClient();
   const applyOidcSession = useOidcSignIn();
   const [oidcVisible, setOidcVisible] = useState(false);
@@ -153,9 +152,11 @@ export function ReAuthModal() {
     dismissSessionExpired();
   };
 
-  const handleSignOut = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    await clearAuth();
+  // The same sign-out as Settings. A saved password left behind would sign a
+  // later account's lost session back in as this one.
+  const handleSignOut = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    signOut();
   };
 
   const handleOidcSuspended = () => {
@@ -274,7 +275,7 @@ export function ReAuthModal() {
                   textContentType="password"
                   returnKeyType="go"
                   onSubmitEditing={() => handleSubmit(onSubmit)()}
-                  editable={!loading}
+                  editable={!loading && !signingOut}
                   style={styles.input}
                 />
               )}
@@ -292,6 +293,7 @@ export function ReAuthModal() {
               title="Continue"
               onPress={() => handleSubmit(onSubmit)()}
               loading={loading}
+              disabled={signingOut}
               style={styles.button}
             />
           )}
@@ -301,14 +303,17 @@ export function ReAuthModal() {
               title={`Use ${biometricLabel}`}
               variant="inline"
               onPress={handleBiometric}
+              disabled={signingOut || loading}
               style={styles.biometric}
             />
           )}
 
           <Button
-            title="Sign Out"
+            title={signingOut ? "Signing Out…" : "Sign Out"}
             variant="inline"
             onPress={handleSignOut}
+            loading={signingOut}
+            disabled={loading}
             style={styles.signOut}
           />
         </Card>
