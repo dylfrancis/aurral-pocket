@@ -5,10 +5,9 @@ export type NativeSliderProps = {
   /** Snaps the value to steps of this size from `min`, drawing no ticks. */
   step?: number;
   disabled?: boolean;
-  /** The track left of the thumb. */
-  color: string;
-  /** The track right of the thumb. Android only: iOS draws the system color. */
-  trackColor: string;
+  filledTrackColor: string;
+  /** Android only: iOS draws the system color. */
+  unfilledTrackColor: string;
   /** Android only: iOS draws the system thumb. */
   thumbColor: string;
   /** VoiceOver and TalkBack read it before the value. */

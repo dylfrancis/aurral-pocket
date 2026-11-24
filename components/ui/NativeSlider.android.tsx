@@ -18,8 +18,8 @@ export function NativeSlider({
   max,
   step,
   disabled = false,
-  color,
-  trackColor,
+  filledTrackColor,
+  unfilledTrackColor,
   thumbColor,
   accessibilityLabel,
   testID,
@@ -29,11 +29,11 @@ export function NativeSlider({
 }: NativeSliderProps) {
   const scheme = useColorScheme();
   const sliding = useRef(false);
-  const last = useRef(value);
+  const latestValue = useRef(value);
   const modifiers = [semantics({ contentDescription: accessibilityLabel })];
   if (testID) modifiers.push(testIDModifier(testID));
   // Compose counts the stops between the ends, not the size of a step.
-  const steps = step ? Math.max(0, Math.round((max - min) / step) - 1) : 0;
+  const stopCount = step ? Math.max(0, Math.round((max - min) / step) - 1) : 0;
 
   return (
     <Host matchContents={{ vertical: true }} colorScheme={scheme}>
@@ -41,12 +41,12 @@ export function NativeSlider({
         value={value}
         min={min}
         max={max}
-        steps={steps}
+        steps={stopCount}
         enabled={!disabled}
         colors={{
           thumbColor,
-          activeTrackColor: color,
-          inactiveTrackColor: trackColor,
+          activeTrackColor: filledTrackColor,
+          inactiveTrackColor: unfilledTrackColor,
           activeTickColor: NO_TICKS,
           inactiveTickColor: NO_TICKS,
         }}
@@ -57,14 +57,14 @@ export function NativeSlider({
             sliding.current = true;
             onSlidingStart?.();
           }
-          last.current = next;
+          latestValue.current = next;
           if (next !== value) onValueChange?.(next);
         }}
         onValueChangeFinished={() => {
           // A finish with no change before it has nothing to report.
           if (!sliding.current) return;
           sliding.current = false;
-          onSlidingComplete?.(last.current);
+          onSlidingComplete?.(latestValue.current);
         }}
         modifiers={modifiers}
       />

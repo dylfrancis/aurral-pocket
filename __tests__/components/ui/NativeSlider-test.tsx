@@ -47,8 +47,8 @@ async function renderSlider({
       value={value}
       min={0}
       max={240}
-      color="#1db954"
-      trackColor="#212121"
+      filledTrackColor="#1db954"
+      unfilledTrackColor="#212121"
       thumbColor="#ffffff"
       accessibilityLabel="Seek within the track"
       {...callbacks}

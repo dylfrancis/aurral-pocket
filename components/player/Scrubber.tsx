@@ -66,8 +66,8 @@ export function Scrubber() {
             setSeekTarget((current) => (current === value ? null : current)),
           );
         }}
-        color={colors.brand}
-        trackColor={colors.separator}
+        filledTrackColor={colors.brand}
+        unfilledTrackColor={colors.separator}
         thumbColor={colors.text}
         accessibilityLabel="Seek within the track"
       />

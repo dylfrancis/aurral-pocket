@@ -11,7 +11,7 @@ import type { NativeSliderProps } from "./native-slider";
 
 /**
  * SwiftUI's slider. It has no colors for the thumb or the track right of it,
- * so only `color` applies.
+ * so only `filledTrackColor` applies.
  */
 export function NativeSlider({
   value,
@@ -19,7 +19,7 @@ export function NativeSlider({
   max,
   step,
   disabled = false,
-  color,
+  filledTrackColor,
   accessibilityLabel,
   testID,
   onValueChange,
@@ -28,7 +28,7 @@ export function NativeSlider({
 }: NativeSliderProps) {
   const scheme = useColorScheme();
   const editing = useRef(false);
-  const last = useRef(value);
+  const latestValue = useRef(value);
 
   return (
     // Inside a scroll view the slider passes under the header, and a host
@@ -45,7 +45,7 @@ export function NativeSlider({
         step={step}
         testID={testID}
         onValueChange={(next) => {
-          last.current = next;
+          latestValue.current = next;
           onValueChange?.(next);
           // A VoiceOver adjustment may arrive with no editing events around
           // it, so a change outside a drag counts as finished at once.
@@ -55,14 +55,14 @@ export function NativeSlider({
           editing.current = isEditing;
           if (isEditing) {
             // A press that moves nothing ends where the thumb rests.
-            last.current = value;
+            latestValue.current = value;
             onSlidingStart?.();
           } else {
-            onSlidingComplete?.(last.current);
+            onSlidingComplete?.(latestValue.current);
           }
         }}
         modifiers={[
-          tint(color),
+          tint(filledTrackColor),
           disabledModifier(disabled),
           accessibilityLabelModifier(accessibilityLabel),
         ]}

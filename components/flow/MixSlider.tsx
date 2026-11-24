@@ -97,8 +97,8 @@ function SingleSlider({
         min={MIN_VALUE}
         max={MAX_VALUE}
         step={1}
-        color={accent}
-        trackColor={colors.separator}
+        filledTrackColor={accent}
+        unfilledTrackColor={colors.separator}
         thumbColor={accent}
         onValueChange={onChange}
         accessibilityLabel={`${label} percentage`}
