@@ -146,32 +146,35 @@ export function useArtistSongViews({
     parseRemembered,
   );
 
-  const isLibrary = inLibrary && !!libraryArtistId;
+  const hasLibraryViews = inLibrary && !!libraryArtistId;
   // Only a Library artist has songs to narrow.
-  const show: ArtistSongsShow = isLibrary ? remembered.show : "everything";
+  const show: ArtistSongsShow = hasLibraryViews
+    ? remembered.show
+    : "everything";
   const plays = useArtistSongList(libraryArtistId, {
     order: "plays",
-    enabled: isLibrary,
+    enabled: hasLibraryViews,
   });
   const favorites = useArtistSongList(libraryArtistId, {
     order: "favorited",
     favorite: true,
-    enabled: isLibrary,
+    enabled: hasLibraryViews,
   });
   const shownTopTracks = useShownTopTracks(topTracks, show);
   const shownPlays = useShownSongs(plays.songs, show);
   const shownFavorites = useShownSongs(favorites.songs, show);
 
-  const unsavedAvailable: Record<ArtistSongsView, boolean> = {
+  const availableUnlessSaved: Record<ArtistSongsView, boolean> = {
     top: shownTopTracks.length > 0,
-    plays: isLibrary && !!shownPlays?.length,
-    favorites: isLibrary && !!shownFavorites?.length,
-    all: isLibrary && hasSongs,
+    plays: hasLibraryViews && !!shownPlays?.length,
+    favorites: hasLibraryViews && !!shownFavorites?.length,
+    all: hasLibraryViews && hasSongs,
   };
   // Whether any song is saved takes the whole list.
   const allEnabled =
-    isLibrary &&
-    (show === "saved" || pickView(unsavedAvailable, remembered.view) === "all");
+    hasLibraryViews &&
+    (show === "saved" ||
+      pickView(availableUnlessSaved, remembered.view) === "all");
   const all = useArtistSongList(libraryArtistId, {
     order: "album",
     enabled: allEnabled,
@@ -179,8 +182,8 @@ export function useArtistSongViews({
   const shownAll = useShownSongs(all.songs, show);
   const available =
     show === "saved"
-      ? { ...unsavedAvailable, all: isLibrary && !!shownAll?.length }
-      : unsavedAvailable;
+      ? { ...availableUnlessSaved, all: hasLibraryViews && !!shownAll?.length }
+      : availableUnlessSaved;
   const views = ARTIST_SONGS_VIEWS.filter((view) => available[view.id]);
   const current = pickView(available, remembered.view);
 
@@ -196,7 +199,7 @@ export function useArtistSongViews({
   const isLoading =
     topTracksLoading ||
     libraryLoading ||
-    (isLibrary &&
+    (hasLibraryViews &&
       (plays.isLoading ||
         favorites.isLoading ||
         (allEnabled && all.isLoading)));
@@ -282,7 +285,7 @@ export function useArtistSongViews({
     selected: current,
     select,
     /** Null for an artist outside the Library, which has nothing to narrow. */
-    show: isLibrary ? show : null,
+    show: hasLibraryViews ? show : null,
     setShow,
     /** Shown when the filter leaves no view with songs. */
     emptyMessage:

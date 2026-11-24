@@ -93,7 +93,7 @@ export function ArtistSongsSection<Id extends string>({
     );
   }
 
-  const play = (
+  const playButton = (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Play ${currentLabel.toLowerCase()}`}
@@ -123,11 +123,11 @@ export function ArtistSongsSection<Id extends string>({
       trailing={
         filter ? (
           <View style={styles.actions}>
-            {play}
+            {playButton}
             {filter}
           </View>
         ) : (
-          play
+          playButton
         )
       }
       pills={
