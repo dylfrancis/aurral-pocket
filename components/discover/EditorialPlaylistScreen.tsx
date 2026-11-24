@@ -271,7 +271,7 @@ export function EditorialPlaylistScreen() {
             <PlayRow
               title={name}
               disabled={!hasLibrarySongs}
-              onPlay={() => playLibrarySongs()}
+              onPlay={() => playLibrarySongs({ shuffled: false })}
               onShuffle={() => playLibrarySongs({ shuffled: true })}
             >
               {/* The spacer keeps Play centered for someone who can't save

@@ -146,7 +146,9 @@ function PlaylistActions({
     <>
       <PlayShuffleButtons
         title={playlist.name}
-        onPlay={withSongs((list) => startQueue(list, context))}
+        onPlay={withSongs((list) =>
+          startQueue(list, context, { shuffled: false }),
+        )}
         onShuffle={withSongs((list) =>
           startQueue(list, context, { shuffled: true }),
         )}

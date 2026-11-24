@@ -90,6 +90,7 @@ export function LibraryAlbumsScreen({
             void readAndPlay(
               () => readFirstSongs({ genre }, "artist"),
               songListContext(genre),
+              { shuffled: false },
             )
           }
           onShuffle={() =>

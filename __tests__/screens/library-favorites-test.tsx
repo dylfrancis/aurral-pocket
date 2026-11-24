@@ -15,7 +15,6 @@ jest.mock("@/lib/player/player", () => ({
   playQueueFrom: jest.fn(() => Promise.resolve(true)),
   playNextInQueue: jest.fn(),
   addToQueue: jest.fn(),
-  setShuffle: jest.fn(),
 }));
 
 jest.mock("@/hooks/library/use-library-view", () =>
@@ -75,11 +74,7 @@ import LibraryFavoritesScreen, {
 import LibraryHome from "@/app/(app)/(tabs)/(library)/index";
 import ArtistFavoritesScreen from "@/app/(app)/(tabs)/(library)/artist/favorites";
 import { api, setAuthToken, setBaseUrl } from "@/lib/api/client";
-import {
-  playAlbumFromTrack,
-  playQueueFrom,
-  setShuffle,
-} from "@/lib/player/player";
+import { playAlbumFromTrack, playQueueFrom } from "@/lib/player/player";
 import {
   applyFavorites,
   forgetSavedLibrary,
@@ -458,7 +453,9 @@ describe("favorites screen", () => {
     ]);
     expect(queue[0].album).toBe("Second Album");
     expect(context).toMatchObject({ albumTitle: "Favorites" });
-    expect(setShuffle).toHaveBeenCalledWith(true);
+    expect((playQueueFrom as jest.Mock).mock.calls[0][3]).toEqual({
+      shuffle: true,
+    });
   });
 
   it("offers saving every favorite to the phone", async () => {

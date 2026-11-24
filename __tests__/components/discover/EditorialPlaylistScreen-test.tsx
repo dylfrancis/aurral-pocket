@@ -46,7 +46,6 @@ jest.mock("@/lib/player/player", () => ({
   pauseClip: jest.fn(),
   playItem: jest.fn(() => Promise.resolve()),
   playQueueFrom: jest.fn(() => Promise.resolve(true)),
-  setShuffle: jest.fn(() => Promise.resolve()),
   togglePlayback: jest.fn(() => Promise.resolve()),
   useCurrentTrack: () => (mockCurrentId ? { id: mockCurrentId } : null),
   usePlaybackState: () => (mockCurrentId ? "playing" : "stopped"),
@@ -115,7 +114,6 @@ import {
   pauseClip,
   playItem,
   playQueueFrom,
-  setShuffle,
   togglePlayback,
 } from "@/lib/player/player";
 import { flowKeys } from "@/lib/query-keys";
@@ -507,7 +505,9 @@ describe("tracks in the Library", () => {
     await fireEvent.press(await screen.findByLabelText("Shuffle 90s Hits"));
 
     await waitFor(() => expect(playQueueFrom).toHaveBeenCalled());
-    expect(setShuffle).toHaveBeenCalledWith(true);
+    expect((playQueueFrom as jest.Mock).mock.calls[0][3]).toEqual({
+      shuffle: true,
+    });
     expect(queuedIds()).toEqual(["42", "43"]);
   });
 

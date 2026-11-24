@@ -216,6 +216,14 @@ export function playItem(item: PlayerClip): Promise<void> {
 }
 
 /**
+ * How a play leaves shuffle. True or false sets it for the new queue, as the
+ * Shuffle and Play buttons do; left out, it stays as it is, as for a tapped
+ * song. Set inside the play, so the old queue isn't reordered on its way out
+ * and a play that doesn't start leaves shuffle alone.
+ */
+export type PlayOptions = { shuffle?: boolean };
+
+/**
  * Play one track from an album, queueing the whole album in order. The whole
  * album — not just the remainder — so previous can walk back past the tapped
  * track and repeat-all cycles the full album. A queue length set in Settings
@@ -228,6 +236,7 @@ export async function playAlbumFromTrack(
   tracks: Track[],
   startTrack: Track,
   album: PlayerAlbumContext,
+  { shuffle }: PlayOptions = {},
 ): Promise<boolean> {
   const startItem = toPlayerTrack(startTrack, album);
   if (!startItem || !canPlayNow(startItem.id)) return false;
@@ -246,7 +255,10 @@ export async function playAlbumFromTrack(
     : [startItem];
 
   queueClaims++;
-  const run = lastPlay.then(() => replaceAndPlay(queued, startItem.id, album));
+  const run = lastPlay.then(() => {
+    setShuffleFor(shuffle);
+    return replaceAndPlay(queued, startItem.id, album);
+  });
   lastPlay = run.then(
     () => {},
     () => {},
@@ -416,11 +428,15 @@ export async function playQueueFrom(
   items: PlayerTrack[],
   startId: string,
   context: PlayerAlbumContext,
+  { shuffle }: PlayOptions = {},
 ): Promise<boolean> {
   const playable = playableNow(items);
   if (!playable.some((item) => item.id === startId)) return false;
   queueClaims++;
-  const run = lastPlay.then(() => replaceAndPlay(playable, startId, context));
+  const run = lastPlay.then(() => {
+    setShuffleFor(shuffle);
+    return replaceAndPlay(playable, startId, context);
+  });
   lastPlay = run.then(
     () => {},
     () => {},
@@ -2026,6 +2042,13 @@ export function setShuffle(on: boolean): Promise<void> {
   });
   lastPlay = run.catch(() => {});
   return run;
+}
+
+/** The mode alone, for a play that is about to build its queue in it. */
+function setShuffleFor(on: boolean | undefined): void {
+  if (on === undefined || on === shuffleOn) return;
+  shuffleOn = on;
+  notifyModesChanged();
 }
 
 async function shuffleUpcoming(): Promise<void> {

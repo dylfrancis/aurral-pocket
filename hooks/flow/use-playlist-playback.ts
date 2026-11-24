@@ -5,7 +5,7 @@ import { toastNotSaved } from "@/hooks/offline/toast-not-saved";
 import { isOffline } from "@/lib/offline/network";
 import { canPlayNow } from "@/lib/offline/saved-library";
 import { cachedAlbumCover, fillQueueCovers } from "@/hooks/player/queue-covers";
-import { playQueueFrom, setShuffle } from "@/lib/player/player";
+import { playQueueFrom } from "@/lib/player/player";
 import {
   collectionPlayerContext,
   isPlayableJob,
@@ -27,7 +27,8 @@ export function usePlaylistPlayback(
   const start = useCallback(
     async (
       pickFirst: (items: PlayerTrack[]) => PlayerTrack | undefined,
-      { shuffled = false } = {},
+      // Left out, shuffle stays as it is, for a tapped song.
+      { shuffled }: { shuffled?: boolean } = {},
     ) => {
       const items = jobs
         .map((job) =>
@@ -48,12 +49,11 @@ export function usePlaylistPlayback(
         return;
       }
       try {
-        // Before the play, so the rebuilt queue comes out shuffled.
-        if (shuffled) await setShuffle(true);
         const started = await playQueueFrom(
           items,
           first.id,
           collectionPlayerContext(collection),
+          { shuffle: shuffled },
         );
         if (!started) {
           toastNotSaved();
@@ -76,7 +76,10 @@ export function usePlaylistPlayback(
     (jobId: string) => start((items) => items.find((i) => i.id === jobId)),
     [start],
   );
-  const playAll = useCallback(() => start((items) => items[0]), [start]);
+  const playAll = useCallback(
+    () => start((items) => items[0], { shuffled: false }),
+    [start],
+  );
   const shuffle = useCallback(
     () =>
       start((items) => items[Math.floor(Math.random() * items.length)], {
