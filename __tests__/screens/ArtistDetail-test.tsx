@@ -1268,7 +1268,8 @@ describe("the artist's songs", () => {
     return await renderScreen();
   }
 
-  it("offers a pill for each view with songs", async () => {
+  it("offers a pill for each view with songs, leaving favorites to their row", async () => {
+    favorites = [song("70", "7", 1)];
     await renderWithSongs();
 
     expect(await screen.findByText("Songs")).toBeTruthy();
@@ -1311,21 +1312,6 @@ describe("the artist's songs", () => {
     expect(mockPush).toHaveBeenCalledWith({
       pathname: "/artist/songs",
       params: { artistId: "1", order: "album", show: "all" },
-    });
-  });
-
-  it("opens favorites from Show All filtered to them", async () => {
-    favorites = ALL_SONGS;
-    await renderWithSongs();
-
-    await fireEvent.press(
-      await screen.findByRole("tab", { name: "Favorites" }),
-    );
-    await fireEvent.press(screen.getByText("Show All 6"));
-
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/artist/songs",
-      params: { artistId: "1", order: "favorited", show: "favorites" },
     });
   });
 

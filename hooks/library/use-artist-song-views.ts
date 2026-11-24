@@ -29,7 +29,7 @@ import {
 import type { TopTrack } from "@/lib/top-tracks";
 import type { AlbumTrack } from "@/lib/types/library";
 
-export type ArtistSongsView = "top" | "plays" | "favorites" | "all";
+export type ArtistSongsView = "top" | "plays" | "all";
 
 export const ARTIST_SONGS_VIEWS: readonly {
   id: ArtistSongsView;
@@ -37,19 +37,14 @@ export const ARTIST_SONGS_VIEWS: readonly {
 }[] = [
   { id: "top", label: "Top Tracks" },
   { id: "plays", label: "Most Played" },
-  { id: "favorites", label: "Favorites" },
   { id: "all", label: "All Songs" },
 ];
 
-/** How each Library view's Show All page opens. */
-const SONGS_PAGE: Record<
+/** The sort each Library view's Show All page opens on. */
+const SONGS_PAGE_ORDER: Record<
   Exclude<ArtistSongsView, "top">,
-  { order: ArtistSongOrder; show: "all" | "favorites" }
-> = {
-  plays: { order: "plays", show: "all" },
-  favorites: { order: "favorited", show: "favorites" },
-  all: { order: "album", show: "all" },
-};
+  ArtistSongOrder
+> = { plays: "plays", all: "album" };
 
 type Remembered = { view: ArtistSongsView; show: ArtistSongsShow };
 
@@ -153,19 +148,12 @@ export function useArtistSongViews({
     order: "plays",
     enabled: hasLibraryViews,
   });
-  const favorites = useArtistSongList(libraryArtistId, {
-    order: "favorited",
-    favorite: true,
-    enabled: hasLibraryViews,
-  });
   const shownTopTracks = useShownTopTracks(topTracks, show);
   const shownPlays = useShownSongs(plays.songs, show);
-  const shownFavorites = useShownSongs(favorites.songs, show);
 
   const availableUnlessSaved: Record<ArtistSongsView, boolean> = {
     top: shownTopTracks.length > 0,
     plays: hasLibraryViews && !!shownPlays?.length,
-    favorites: hasLibraryViews && !!shownFavorites?.length,
     all: hasLibraryViews && hasSongs,
   };
   // Whether any song is saved takes the whole list.
@@ -186,21 +174,12 @@ export function useArtistSongViews({
   const current = pickView(available, remembered.view);
 
   const librarySongs: AlbumTrack[] | undefined =
-    current === "plays"
-      ? shownPlays
-      : current === "favorites"
-        ? shownFavorites
-        : current === "all"
-          ? shownAll
-          : undefined;
+    current === "plays" ? shownPlays : current === "all" ? shownAll : undefined;
 
   const isLoading =
     topTracksLoading ||
     libraryLoading ||
-    (hasLibraryViews &&
-      (plays.isLoading ||
-        favorites.isLoading ||
-        (allEnabled && all.isLoading)));
+    (hasLibraryViews && (plays.isLoading || (allEnabled && all.isLoading)));
 
   const topTracksPlayback = useTopTracksPlayback(
     shownTopTracks,
@@ -243,14 +222,12 @@ export function useArtistSongViews({
       return;
     }
     if (!current || !libraryArtistId) return;
-    const page = SONGS_PAGE[current];
     router.push({
       pathname: "/artist/songs",
       params: {
         artistId: libraryArtistId,
-        order: page.order,
-        // The page shows one filter, and Favorites keeps its own.
-        show: show === "saved" && current !== "favorites" ? "saved" : page.show,
+        order: SONGS_PAGE_ORDER[current],
+        show: show === "saved" ? "saved" : "all",
       },
     });
   }, [current, show, mbid, libraryArtistId, artistName, router]);
