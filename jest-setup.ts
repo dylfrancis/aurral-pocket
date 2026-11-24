@@ -276,6 +276,19 @@ jest.mock("@/components/artist/ArtistSongsFilter", () => {
   };
 });
 
+// The slider is SwiftUI or Compose as well. It stands in as a plain view
+// carrying its props, so fireEvent can drive "valueChange", "slidingStart" and
+// "slidingComplete" on it. NativeSlider-test unmocks it to drive the real one.
+jest.mock("@/components/ui/NativeSlider", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require("react");
+  const { View } = require("react-native");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return {
+    NativeSlider: (props: any) => React.createElement(View, props),
+  };
+});
+
 jest.mock("@/components/ui/NumberStepper", () => {
   /* eslint-disable @typescript-eslint/no-require-imports */
   const React = require("react");

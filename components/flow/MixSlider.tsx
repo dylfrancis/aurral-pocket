@@ -1,5 +1,5 @@
 import { StyleSheet, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { NativeSlider } from "@/components/ui/NativeSlider";
 import { Text } from "@/components/ui/Text";
 import { useSourceMixColors } from "./MixPills";
 import { Fonts } from "@/constants/theme";
@@ -92,22 +92,16 @@ function SingleSlider({
           {Math.round(value)}%
         </Text>
       </View>
-      <Slider
+      <NativeSlider
         value={value}
-        minimumValue={MIN_VALUE}
-        maximumValue={MAX_VALUE}
+        min={MIN_VALUE}
+        max={MAX_VALUE}
         step={1}
-        minimumTrackTintColor={accent}
-        maximumTrackTintColor={colors.separator}
-        thumbTintColor={accent}
+        color={accent}
+        trackColor={colors.separator}
+        thumbColor={accent}
         onValueChange={onChange}
         accessibilityLabel={`${label} percentage`}
-        accessibilityValue={{
-          min: MIN_VALUE,
-          max: MAX_VALUE,
-          now: value,
-          text: `${Math.round(value)} percent`,
-        }}
         testID={`mix-slider-${source}`}
       />
     </View>
