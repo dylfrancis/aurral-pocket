@@ -27,6 +27,7 @@ import {
   waitFor,
 } from "expo-router/testing-library";
 import { IS_IOS } from "@/constants/platform";
+import { showsMenuCheck } from "@/test-support/menu-action";
 import LibraryLayout from "@/app/(app)/(tabs)/(library)/_layout";
 import GenreDetailRoute from "@/app/(app)/(tabs)/(library)/genre/[genre]";
 import LibraryGenresScreen from "@/app/(app)/(tabs)/(library)/genres";
@@ -113,7 +114,7 @@ function headerMenuItems(): HeaderMenuItem[] {
       title: item.queryAll((node) => typeof node.props.text === "string")[0]
         .props.text,
       // Compose highlights the chosen item and shows its checkmark from this.
-      isOn: item.props.selected === true,
+      isOn: showsMenuCheck(item),
       press: () => item.props.onItemPressed({ nativeEvent: {} }),
     }));
   }
