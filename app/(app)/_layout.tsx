@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { useReducedMotion } from "react-native-reanimated";
 import { ItemActionsProvider } from "@/components/actions/ItemActionsProvider";
+import { SavesStayUpdated } from "@/components/offline/SavesStayUpdated";
 import { LockScreenFavorite } from "@/components/player/LockScreenFavorite";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { IS_IOS } from "@/constants/platform";
@@ -49,6 +50,7 @@ export default function AppLayout() {
       {/* Long-press sheets for album, artist and playlist tiles in every tab. */}
       <ItemActionsProvider>
         {IS_IOS && <LockScreenFavorite />}
+        <SavesStayUpdated />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           {/* Opened from the person button on each tab's first screen. */}

@@ -1,4 +1,4 @@
-import type { SaveStatus } from "@/lib/offline/saved-library";
+import type { SaveProgress, SaveStatus } from "@/lib/offline/saved-library";
 
 /** Decimal units, as both platforms show storage: "412 MB", "1.2 GB". */
 export function formatBytes(bytes: number): string {
@@ -15,13 +15,21 @@ function shortNumber(value: number): string {
 /** The line under a hero while an item saves. Null once it's all saved. */
 export function saveStatusLine(status: SaveStatus | null): string | null {
   if (!status) return null;
-  const { state, saved, total, failed } = status;
+  const { state } = status;
   if (state === "saved") return null;
   // Not "Saving 0 of 1".
   if (status.item.kind === "song") {
     if (state === "incomplete") return "Couldn’t be saved";
     return state === "waiting" ? "Waiting to save" : "Saving…";
   }
+  return progressLine(status);
+}
+
+/** saveStatusLine for many tracks, as Favorites keeps. Null once all are saved. */
+export function progressLine(progress: SaveProgress | null): string | null {
+  if (!progress) return null;
+  const { state, saved, total, failed } = progress;
+  if (state === "saved") return null;
   if (state === "incomplete") {
     return failed === 1
       ? "1 track couldn’t be saved"

@@ -1,11 +1,21 @@
-import { useCallback, useMemo, useState } from "react";
-import { RefreshControl, StyleSheet } from "react-native";
+import { useCallback, useMemo, useState, type ReactElement } from "react";
+import {
+  RefreshControl,
+  StyleSheet,
+  type RefreshControlProps,
+} from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Stack, useRouter, type ErrorBoundaryProps } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useItemActions } from "@/components/actions/item-actions-context";
-import { libraryAlbumTarget } from "@/components/actions/targets";
-import { FAVORITE_SORT_OPTIONS } from "@/components/library/AlbumSortPicker";
+import {
+  libraryAlbumTarget,
+  savedAlbumTarget,
+} from "@/components/actions/targets";
+import {
+  FAVORITE_SORT_OPTIONS,
+  type LibrarySongSortMode,
+} from "@/components/library/AlbumSortPicker";
 import { EmptyState } from "@/components/library/EmptyState";
 import { sortMenu } from "@/components/library/LibraryListMenus";
 import { NO_SCROLL_ANCHOR } from "@/components/library/ReleaseGrid";
@@ -15,6 +25,7 @@ import {
   useTrackActions,
 } from "@/components/library/TrackActionsSheet";
 import { ListPlayRow } from "@/components/library/ListPlayRow";
+import { favoritesSaveMenu } from "@/components/offline/favorites-save-menu";
 import { CircleButton } from "@/components/ui/CircleButton";
 import { MediaRow } from "@/components/ui/MediaRow";
 import { RouteErrorBoundary } from "@/components/ui/RouteErrorBoundary";
@@ -24,6 +35,7 @@ import {
   useToggleFavorite,
 } from "@/hooks/library/use-library-favorites";
 import {
+  offeredSort,
   useLibraryView,
   type LibraryShow,
 } from "@/hooks/library/use-library-view";
@@ -44,6 +56,18 @@ import type {
   FavoriteLists,
   FavoriteTrack,
 } from "@/lib/types/library";
+import { useFavoritesSaveChoice } from "@/hooks/offline/use-favorites-save";
+import {
+  SAVED_FAVORITE_SORT_OPTIONS,
+  useSavedFavorites,
+} from "@/hooks/offline/use-saved-favorites";
+import { progressLine } from "@/lib/offline/format";
+import { useIsOffline } from "@/lib/offline/network";
+import { savedAlbumRoute } from "@/lib/offline/saved-routes";
+import {
+  retryFavorites,
+  useFavoritesStatus,
+} from "@/lib/offline/saved-library";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useOpenArtist } from "@/hooks/use-open-artist";
 import { useColors } from "@/hooks/use-colors";
@@ -120,20 +144,129 @@ function matchingFavorites(
   };
 }
 
+/**
+ * Favorites from the server, or with no connection, the favorites Favorites
+ * keeps on the phone, as a saved playlist opens offline.
+ */
 export default function LibraryFavoritesScreen() {
-  const router = useRouter();
-  const openArtist = useOpenArtist();
-  const itemActions = useItemActions();
-  const queryClient = useQueryClient();
-  const colors = useColors();
+  const isOffline = useIsOffline();
   const { view, setSort } = useLibraryView(
     "library-favorites",
     FAVORITE_SORTS,
     FAVORITE_SHOWS,
   );
-  const { data: favorites, refetch } = useLibraryFavorites(view.sort);
+  return isOffline ? (
+    <SavedFavorites sort={view.sort} onSort={setSort} />
+  ) : (
+    <ServerFavorites sort={view.sort} onSort={setSort} />
+  );
+}
+
+type SortProps = {
+  sort: LibrarySongSortMode;
+  onSort: (sort: LibrarySongSortMode) => void;
+};
+
+function ServerFavorites({ sort, onSort }: SortProps) {
+  const router = useRouter();
+  const itemActions = useItemActions();
+  const colors = useColors();
+  const { data: favorites, refetch } = useLibraryFavorites(sort);
+  const { refreshing, onRefresh } = usePullToRefresh(
+    refetch,
+    "Couldn't refresh favorites",
+  );
   // Recently Played and Most Played leave out what hasn't been played.
-  const playedOnly = view.sort === "played" || view.sort === "plays";
+  const playedOnly = sort === "played" || sort === "plays";
+  return (
+    <FavoritesList
+      favorites={favorites}
+      sortOptions={FAVORITE_SORT_OPTIONS}
+      sort={sort}
+      onSort={onSort}
+      canUnfavorite
+      openAlbum={(album) =>
+        router.push({
+          pathname: "/album/[ref]",
+          params: albumRouteParams(album, undefined, album.artistMbid),
+        })
+      }
+      openAlbumActions={(album) =>
+        itemActions.openAlbum(libraryAlbumTarget(album))
+      }
+      emptyMessage={
+        playedOnly
+          ? "You haven't played any of your favorites yet"
+          : "Add albums and tracks to your favorites to find them here"
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.brand}
+        />
+      }
+    />
+  );
+}
+
+/** The favorites kept on the phone, with only the sorts the phone can do. */
+function SavedFavorites({ sort, onSort }: SortProps) {
+  const router = useRouter();
+  const itemActions = useItemActions();
+  const savedSort = offeredSort(SAVED_FAVORITE_SORT_OPTIONS, sort);
+  const { lists, savedAlbumFor } = useSavedFavorites(savedSort);
+  const keepsFavorites = useFavoritesStatus() !== null;
+  return (
+    <FavoritesList
+      favorites={lists}
+      sortOptions={SAVED_FAVORITE_SORT_OPTIONS}
+      sort={savedSort}
+      onSort={onSort}
+      canUnfavorite={false}
+      openAlbum={(album) => {
+        const save = savedAlbumFor(album);
+        if (save) router.push(savedAlbumRoute(save));
+      }}
+      openAlbumActions={(album) => {
+        const save = savedAlbumFor(album);
+        if (save) itemActions.openAlbum(savedAlbumTarget(save));
+      }}
+      emptyMessage={
+        keepsFavorites
+          ? "None of your favorites are on this phone yet"
+          : "Save your favorites to this phone to play them without a connection"
+      }
+    />
+  );
+}
+
+function FavoritesList({
+  favorites,
+  sortOptions,
+  sort,
+  onSort,
+  canUnfavorite,
+  openAlbum,
+  openAlbumActions,
+  emptyMessage,
+  refreshControl,
+}: {
+  favorites: FavoriteLists;
+  sortOptions: readonly (typeof FAVORITE_SORT_OPTIONS)[number][];
+  sort: LibrarySongSortMode;
+  onSort: (sort: LibrarySongSortMode) => void;
+  /** Hearts need the server, so a list from the phone has none. */
+  canUnfavorite: boolean;
+  openAlbum: (album: Album) => void;
+  openAlbumActions: (album: Album) => void;
+  emptyMessage: string;
+  refreshControl?: ReactElement<RefreshControlProps>;
+}) {
+  const openArtist = useOpenArtist();
+  const itemActions = useItemActions();
+  const queryClient = useQueryClient();
+  const colors = useColors();
   const toggleFavorite = useToggleFavorite();
   const trackActions = useTrackActions();
   const play = usePlayTrack();
@@ -153,35 +286,43 @@ export default function LibraryFavoritesScreen() {
     [],
   );
   const handleSearchCancel = useCallback(() => setSearchQuery(""), []);
+  const saveStatus = useFavoritesStatus();
+  const { choose: chooseSave } = useFavoritesSaveChoice();
+  const saveLine = progressLine(saveStatus);
+  // Only these, so the toolbar isn't rebuilt with every file saved.
+  const saveMode = saveStatus?.mode ?? null;
+  const saveState = saveStatus?.state ?? null;
   const toolbar = useMemo(
     () => (
       <Stack.Toolbar placement="right">
-        {sortMenu(FAVORITE_SORT_OPTIONS, view.sort, setSort)}
+        {favoritesSaveMenu({
+          mode: saveMode,
+          state: saveState,
+          onChoose: chooseSave,
+          onRetry: retryFavorites,
+        })}
+        {sortMenu(sortOptions, sort, onSort)}
       </Stack.Toolbar>
     ),
-    [view.sort, setSort],
-  );
-
-  const { refreshing, onRefresh } = usePullToRefresh(
-    refetch,
-    "Couldn't refresh favorites",
+    [sortOptions, sort, onSort, saveMode, saveState, chooseSave],
   );
 
   const renderRemoveButton = (
     kind: "artist" | "album",
     name: string,
     identityKey?: string,
-  ) => (
-    <CircleButton
-      icon="heart"
-      size={ROW_HEART_SIZE}
-      accessibilityLabel={`Remove ${name} from favorites`}
-      onPress={() => {
-        if (!identityKey) return;
-        toggleFavorite.mutate({ kind, key: identityKey, starred: false });
-      }}
-    />
-  );
+  ) =>
+    canUnfavorite ? (
+      <CircleButton
+        icon="heart"
+        size={ROW_HEART_SIZE}
+        accessibilityLabel={`Remove ${name} from favorites`}
+        onPress={() => {
+          if (!identityKey) return;
+          toggleFavorite.mutate({ kind, key: identityKey, starred: false });
+        }}
+      />
+    ) : undefined;
 
   const renderRow = ({ item: row }: { item: FavoriteRow }) => {
     switch (row.type) {
@@ -235,19 +376,8 @@ export default function LibraryFavoritesScreen() {
               row.album.albumName,
               row.album.identityKey,
             )}
-            onPress={() =>
-              router.push({
-                pathname: "/album/[ref]",
-                params: albumRouteParams(
-                  row.album,
-                  undefined,
-                  row.album.artistMbid,
-                ),
-              })
-            }
-            onLongPress={() =>
-              itemActions.openAlbum(libraryAlbumTarget(row.album))
-            }
+            onPress={() => openAlbum(row.album)}
+            onLongPress={() => openAlbumActions(row.album)}
           />
         );
       case "track": {
@@ -277,22 +407,32 @@ export default function LibraryFavoritesScreen() {
       {toolbar}
       <FlashList
         // A new sort opens at the top; see NO_SCROLL_ANCHOR.
-        key={view.sort}
+        key={sort}
         maintainVisibleContentPosition={NO_SCROLL_ANCHOR}
         data={rows}
         renderItem={renderRow}
         keyExtractor={rowKey}
         getItemType={(row) => row.type}
         ListHeaderComponent={
-          shown.tracks.length > 0 ? (
-            <ListPlayRow
-              title="Favorites"
-              onPlay={() => void playSongs(shown.tracks, FAVORITES)}
-              onShuffle={() =>
-                void playSongs(shown.tracks, FAVORITES, { shuffled: true })
-              }
-            />
-          ) : null
+          <>
+            {shown.tracks.length > 0 ? (
+              <ListPlayRow
+                title="Favorites"
+                onPlay={() => void playSongs(shown.tracks, FAVORITES)}
+                onShuffle={() =>
+                  void playSongs(shown.tracks, FAVORITES, { shuffled: true })
+                }
+              />
+            ) : null}
+            {saveLine ? (
+              <Text
+                variant="caption"
+                style={[styles.saveLine, { color: colors.subtle }]}
+              >
+                {saveLine}
+              </Text>
+            ) : null}
+          </>
         }
         ListEmptyComponent={
           trimmedQuery ? (
@@ -300,28 +440,14 @@ export default function LibraryFavoritesScreen() {
               icon="search-outline"
               message={`No results matching “${trimmedQuery}”`}
             />
-          ) : playedOnly ? (
-            <EmptyState
-              icon="heart-outline"
-              message="You haven't played any of your favorites yet"
-            />
           ) : (
-            <EmptyState
-              icon="heart-outline"
-              message="Add albums and tracks to your favorites to find them here"
-            />
+            <EmptyState icon="heart-outline" message={emptyMessage} />
           )
         }
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
         contentContainerStyle={{ backgroundColor: colors.background }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.brand}
-          />
-        }
+        refreshControl={refreshControl}
       />
       <TrackActionsSheet
         target={trackActions.target}
@@ -336,6 +462,11 @@ export function ErrorBoundary(props: ErrorBoundaryProps) {
 }
 
 const styles = StyleSheet.create({
+  // As the Offline screen's total sits under its play row.
+  saveLine: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
   header: {
     paddingHorizontal: 16,
     paddingTop: 24,

@@ -201,7 +201,9 @@ function parseAlbum(raw: unknown): PlayerAlbumContext | null {
   };
 }
 
-export function toSavedTrack(item: PlayerTrack): SavedTrack | null {
+export function toSavedTrack(
+  item: Omit<PlayerTrack, "url">,
+): SavedTrack | null {
   if (!item.streamPath) return null;
   return {
     id: item.id,

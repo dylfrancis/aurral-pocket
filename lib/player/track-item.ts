@@ -98,11 +98,21 @@ export function toPlayerTrack(
   track: Track,
   album: PlayerAlbumContext,
 ): PlayerTrack | null {
+  const fields = libraryTrackFields(track, album);
+  if (!fields) return null;
+  const url = buildAuthenticatedUrl(fields.streamPath);
+  return url ? { ...fields, url } : null;
+}
+
+/**
+ * toPlayerTrack without the URL, for saving a track to the phone with no
+ * session in hand. Null when the track has no streamPath.
+ */
+export function libraryTrackFields(
+  track: Track,
+  album: PlayerAlbumContext,
+): (Omit<PlayerTrack, "url"> & { streamPath: string }) | null {
   if (!track.streamPath) return null;
-
-  const url = buildAuthenticatedUrl(track.streamPath);
-  if (!url) return null;
-
   return {
     id: String(track.id),
     title: track.trackName,
@@ -110,7 +120,6 @@ export function toPlayerTrack(
     artist: track.artistName || album.artistName || "Unknown Artist",
     album: album.albumTitle || "Unknown Album",
     duration: 0,
-    url,
     artwork: album.artworkUrl || null,
     streamPath: track.streamPath,
     coverPath: album.coverPath || null,

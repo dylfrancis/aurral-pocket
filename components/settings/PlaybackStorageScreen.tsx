@@ -3,6 +3,9 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   CACHE_SIZE_CHOICES,
+  FAVORITES_SAVE_CHOICES,
+  favoritesSaveAt,
+  favoritesSaveValue,
   PREFETCH_CHOICES,
   QUEUE_LIMIT_CHOICES,
   formatAt,
@@ -16,6 +19,7 @@ import {
   useSettingsRow,
 } from "@/components/settings/SettingsRows";
 import { SettingsSwitch } from "@/components/settings/SettingsSwitch";
+import { useFavoritesSaveChoice } from "@/hooks/offline/use-favorites-save";
 import { clearAudioCache, useCachedBytes } from "@/lib/offline/audio-cache";
 import { formatBytes } from "@/lib/offline/format";
 import { useSavedBytes } from "@/lib/offline/saved-library";
@@ -32,6 +36,10 @@ export function PlaybackStorageScreen() {
   const savedBytes = useSavedBytes();
   const [clearing, setClearing] = useState(false);
   const profiles = settings.transcoding;
+  const favoritesSave = useFavoritesSaveChoice();
+  // A choice turned down at its question leaves the picker on it, so the
+  // picker is drawn again to show the setting.
+  const [favoritesPickerKey, setFavoritesPickerKey] = useState(0);
 
   const clear = () => {
     setClearing(true);
@@ -200,6 +208,22 @@ export function PlaybackStorageScreen() {
           {row({ label: "Cache", value: formatBytes(cachedBytes) })}
           {row({ label: "Saved Offline", value: formatBytes(savedBytes) })}
           {row({
+            label: "Save Favorites",
+            trailing: (
+              <SettingsPicker
+                key={favoritesPickerKey}
+                accessibilityLabel="Save Favorites"
+                value={favoritesSaveValue(favoritesSave.mode)}
+                options={FAVORITES_SAVE_CHOICES}
+                onChange={(value) =>
+                  favoritesSave.choose(favoritesSaveAt(value), {
+                    onCancel: () => setFavoritesPickerKey((key) => key + 1),
+                  })
+                }
+              />
+            ),
+          })}
+          {row({
             key: "clear-cache",
             label: clearing ? "Clearing…" : "Clear Cache",
             action: true,
@@ -208,8 +232,10 @@ export function PlaybackStorageScreen() {
           })}
           <FieldGroup.SectionFooter>
             <SettingsNote>
-              Clearing keeps the track that’s playing and fetches again from the
-              next one. What you saved offline stays.
+              Save Favorites keeps your favorite songs, and albums if you
+              choose, on this phone, and saves new favorites as you add them.
+              Clearing the cache keeps the track that’s playing and fetches
+              again from the next one. What you saved offline stays.
             </SettingsNote>
           </FieldGroup.SectionFooter>
         </FieldGroup.Section>

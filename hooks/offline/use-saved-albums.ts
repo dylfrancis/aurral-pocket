@@ -20,7 +20,7 @@ export function useSavedAlbums(query: string, sortMode: SavedAlbumSortMode) {
     for (const { item } of saves) {
       if (item.kind !== "album") continue;
       byId.set(item.id, item);
-      cards.push({ album: cardFor(item), savedAt: item.savedAt });
+      cards.push({ album: savedAlbumCard(item), savedAt: item.savedAt });
     }
 
     const needle = query.trim().toLowerCase();
@@ -40,7 +40,8 @@ export function useSavedAlbums(query: string, sortMode: SavedAlbumSortMode) {
   }, [saves, query, sortMode]);
 }
 
-function cardFor(item: SavedAlbum): Album {
+/** A saved album as a card or row draws it, keyed by its save. */
+export function savedAlbumCard(item: SavedAlbum): Album {
   const { route } = item;
   const album: Album = item.album ?? {
     id: item.id,
@@ -61,14 +62,14 @@ function cardFor(item: SavedAlbum): Album {
   return { ...album, id: item.id };
 }
 
-function byName(a: Album, b: Album): number {
+export function byAlbumName(a: Album, b: Album): number {
   return stripArticle(a.albumName).localeCompare(stripArticle(b.albumName));
 }
 
-function byArtist(a: Album, b: Album): number {
+export function byAlbumArtist(a: Album, b: Album): number {
   return (
     stripArticle(a.artistName).localeCompare(stripArticle(b.artistName)) ||
-    byName(a, b)
+    byAlbumName(a, b)
   );
 }
 
@@ -79,13 +80,13 @@ function sorted<T extends { album: Album; savedAt: number }>(
   const list = [...cards];
   switch (mode) {
     case "name-asc":
-      return list.sort((a, b) => byName(a.album, b.album));
+      return list.sort((a, b) => byAlbumName(a.album, b.album));
     case "name-desc":
-      return list.sort((a, b) => byName(b.album, a.album));
+      return list.sort((a, b) => byAlbumName(b.album, a.album));
     case "artist-asc":
-      return list.sort((a, b) => byArtist(a.album, b.album));
+      return list.sort((a, b) => byAlbumArtist(a.album, b.album));
     case "artist-desc":
-      return list.sort((a, b) => byArtist(b.album, a.album));
+      return list.sort((a, b) => byAlbumArtist(b.album, a.album));
     case "newest":
       return list.sort((a, b) => b.savedAt - a.savedAt);
   }

@@ -80,15 +80,22 @@ const mockBack = jest.fn();
 const mockPush = jest.fn();
 jest.mock("expo-router", () => {
   const React = require("react");
-  const { Pressable, Text } = require("react-native");
+  const { Pressable, Text, View } = require("react-native");
   // The native menu renders nothing under Jest, so each action renders as a
-  // pressable labelled by its title.
-  const MenuAction = ({ children, onPress }: any) =>
+  // pressable labelled by its title, inside a group named like the menu.
+  const MenuAction = ({ children, onPress, isOn, disabled }: any) =>
     React.createElement(
       Pressable,
-      { onPress },
+      {
+        // A checkable action reads as a checkbox.
+        accessibilityRole: isOn === undefined ? "menuitem" : "checkbox",
+        accessibilityState: { checked: !!isOn, disabled: !!disabled },
+        onPress: disabled ? undefined : onPress,
+      },
       React.createElement(Text, null, children),
     );
+  const Menu = ({ accessibilityLabel, children }: any) =>
+    React.createElement(View, { accessibilityLabel }, children);
   const Passthrough = ({ children }: any) =>
     React.createElement(React.Fragment, null, children);
   // A toolbar button renders as a pressable named by its label.
@@ -101,7 +108,7 @@ jest.mock("expo-router", () => {
     });
   const Toolbar = Object.assign(Passthrough, {
     Button,
-    Menu: Passthrough,
+    Menu,
     MenuAction,
   });
   return {
@@ -161,6 +168,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Burnt from "burnt";
@@ -264,7 +272,7 @@ function openTrackSheet(trackName: string) {
 
 async function pressTrackMenu(trackName: string, action: string) {
   await openTrackSheet(trackName);
-  return fireEvent.press(screen.getByText(action));
+  return fireEvent.press(screen.getByRole("button", { name: action }));
 }
 
 function confirmAlert(buttonText: string) {
@@ -833,9 +841,12 @@ describe("saving a playlist offline", () => {
     resetFileSystem();
   });
 
-  async function saveFromToolbar() {
+  /** Picks a choice from the toolbar's ↓ menu, then lets each file finish. */
+  async function saveFromToolbar(choice = "Save Offline") {
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Save offline"));
+      fireEvent.press(
+        within(screen.getByLabelText("Save offline")).getByText(choice),
+      );
       await settle();
     });
     const asked: string[] = [];
@@ -854,7 +865,7 @@ describe("saving a playlist offline", () => {
     await open();
     // Still downloading to the server, so there's no file to save yet.
     await openTrackSheet("Track b");
-    expect(screen.queryByText("Save Offline")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save Offline" })).toBeNull();
 
     await pressTrackMenu("Track a", "Save Offline");
     await act(settle);
@@ -866,7 +877,9 @@ describe("saving a playlist offline", () => {
       await settle();
     });
     await openTrackSheet("Track a");
-    expect(screen.getByText("Remove from Phone")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Remove from Phone" }),
+    ).toBeTruthy();
 
     await saveFromToolbar();
     await openTrackSheet("Track c");
@@ -912,6 +925,44 @@ describe("saving a playlist offline", () => {
       expect.stringContaining("/stream/c?token=token"),
     ]);
     expect(screen.getByLabelText("Saved offline")).toBeTruthy();
+  });
+
+  it("follows the playlist when saved with Keep Updated, and can stop following", async () => {
+    await open();
+
+    await saveFromToolbar("Save Offline and Keep Updated");
+
+    const menu = () => within(screen.getByLabelText("Saved offline"));
+    expect(
+      menu().getByRole("checkbox", { name: "Keep Updated" }),
+    ).toBeChecked();
+    const keepsUpdated = async () =>
+      JSON.parse((await AsyncStorage.getItem("saved_offline")) ?? "{}").items[0]
+        .keepUpdated;
+    expect(await keepsUpdated()).toBe(true);
+
+    await act(async () => {
+      fireEvent.press(menu().getByRole("checkbox", { name: "Keep Updated" }));
+      await settle();
+    });
+    expect(
+      menu().getByRole("checkbox", { name: "Keep Updated" }),
+    ).not.toBeChecked();
+    expect(await keepsUpdated()).toBeUndefined();
+  });
+
+  it("marks the tracks a save without Keep Updated holds once the playlist gains one", async () => {
+    await open();
+    await saveFromToolbar();
+    // Fully saved, the toolbar alone says so.
+    expect(screen.getAllByLabelText("Saved offline")).toHaveLength(1);
+    await cleanup();
+
+    serve({ jobs: [job("new"), job("a"), job("c")] });
+    await open();
+
+    // The toolbar, then Track a and Track c. Track new isn't on the phone.
+    expect(await screen.findAllByLabelText("Saved offline")).toHaveLength(3);
   });
 
   it("opens from the phone with no connection, without asking the server", async () => {

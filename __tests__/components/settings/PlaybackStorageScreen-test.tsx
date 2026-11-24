@@ -49,15 +49,23 @@ jest.mock("@/lib/offline/audio-cache", () => ({
   useCachedBytes: () => 84_000_000,
   clearAudioCache: () => mockClearAudioCache(),
 }));
+const mockSetFavoritesSave = jest.fn((_mode: string | null) =>
+  Promise.resolve(),
+);
 jest.mock("@/lib/offline/saved-library", () => ({
   useSavedBytes: () => 2_400_000_000,
+  useFavoritesSave: () => null,
+  setFavoritesSave: (mode: string | null) => mockSetFavoritesSave(mode),
 }));
 
+import { Alert } from "react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
-  render,
+  render as renderScreen,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react-native";
 import { PlaybackStorageScreen } from "@/components/settings/PlaybackStorageScreen";
@@ -67,6 +75,24 @@ import {
   getPlaybackSettings,
   setPlaybackSettings,
 } from "@/lib/player/playback-settings";
+import { libraryKeys } from "@/lib/query-keys";
+import { serverSort } from "@/lib/library-sorts";
+
+let queryClient = new QueryClient();
+function render(element: React.ReactElement) {
+  return renderScreen(
+    <QueryClientProvider client={queryClient}>{element}</QueryClientProvider>,
+  );
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  // No gc timer, which a seeded read would otherwise leave running.
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity } },
+  });
+  jest.spyOn(Alert, "alert").mockImplementation(() => {});
+});
 
 afterEach(async () => {
   await act(async () => setPlaybackSettings(DEFAULT_PLAYBACK_SETTINGS));
@@ -120,6 +146,71 @@ describe("PlaybackStorageScreen", () => {
       ...DEFAULT_PLAYBACK_SETTINGS.transcoding,
       cellular: { format: "aac", kbps: 96, losslessOnly: true },
     });
+  });
+
+  it("asks before Save Favorites saves, saying how much it adds", async () => {
+    queryClient.setQueryData(
+      libraryKeys.favoriteLists(serverSort("favorited")),
+      {
+        artists: [],
+        albums: [],
+        tracks: [
+          { id: "1", streamPath: "/library/stream/4/1", size: 40_000_000 },
+          { id: "2", streamPath: "/library/stream/4/2", size: 60_000_000 },
+        ],
+      },
+    );
+    await render(<PlaybackStorageScreen />);
+
+    await fireEvent.press(
+      within(screen.getByLabelText("Save Favorites")).getByLabelText("Songs"),
+    );
+    expect(mockSetFavoritesSave).not.toHaveBeenCalled();
+    const [title, message, buttons] = (Alert.alert as jest.Mock).mock.calls[0];
+    expect(title).toBe("Save Favorites Offline?");
+    expect(message).toBe(
+      "2 songs, about 100 MB. Songs you favorite later are saved too.",
+    );
+
+    await act(async () =>
+      buttons
+        .find((button: { text: string }) => button.text === "Save")
+        .onPress(),
+    );
+    expect(mockSetFavoritesSave).toHaveBeenCalledWith("songs");
+  });
+
+  it("sizes favorite albums from their tracks, counting a favorite song on one once", async () => {
+    const onAlbum = (id: string, size: number) => ({
+      id,
+      streamPath: `/library/stream/8/${id}`,
+      size,
+    });
+    queryClient.setQueryData(
+      libraryKeys.favoriteLists(serverSort("favorited")),
+      {
+        artists: [],
+        // Library album rows carry no size.
+        albums: [{ id: "8", canonicalId: "8", statistics: { sizeOnDisk: 0 } }],
+        tracks: [onAlbum("1", 40_000_000)],
+      },
+    );
+    queryClient.setQueryData(libraryKeys.tracks("8"), [
+      onAlbum("1", 40_000_000),
+      onAlbum("2", 60_000_000),
+    ]);
+    await render(<PlaybackStorageScreen />);
+
+    await fireEvent.press(
+      within(screen.getByLabelText("Save Favorites")).getByLabelText(
+        "Songs and Albums",
+      ),
+    );
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
+    expect((Alert.alert as jest.Mock).mock.calls[0][1]).toBe(
+      "1 song and 1 album, about 100 MB. Songs and albums you favorite later are saved too.",
+    );
   });
 
   it("shows what the cache and saves take, and clears the cache", async () => {
