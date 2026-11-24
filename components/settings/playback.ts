@@ -1,4 +1,5 @@
 import type { SettingsPickerOption } from "@/components/settings/settings-controls";
+import type { FavoritesSaveMode } from "@/lib/offline/saved-library";
 import {
   CACHE_SIZE_OPTIONS,
   PREFETCH_OPTIONS,
@@ -63,4 +64,24 @@ export function profileSummary({ format, kbps }: TranscodeProfile): string {
   return format && supportsTranscodeFormat(format)
     ? `${TRANSCODE_OUTPUT[format].label} · ${kbps} kbps`
     : "Server Default";
+}
+
+const FAVORITES_SAVES: readonly (FavoritesSaveMode | null)[] = [
+  null,
+  "songs",
+  "songs-and-albums",
+];
+
+export const FAVORITES_SAVE_CHOICES: SettingsPickerOption[] = [
+  { value: 0, label: "Off" },
+  { value: 1, label: "Songs" },
+  { value: 2, label: "Songs and Albums" },
+];
+
+export function favoritesSaveValue(mode: FavoritesSaveMode | null): number {
+  return FAVORITES_SAVES.indexOf(mode);
+}
+
+export function favoritesSaveAt(value: number): FavoritesSaveMode | null {
+  return FAVORITES_SAVES[value] ?? null;
 }

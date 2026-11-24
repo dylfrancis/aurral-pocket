@@ -5,6 +5,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
 import DeleteIcon from "@expo/material-symbols/delete.xml";
+import ArrowCircleDown from "@expo/material-symbols/arrow_circle_down.xml";
+import Sync from "@expo/material-symbols/sync.xml";
+import Refresh from "@expo/material-symbols/refresh.xml";
+import FileDownloadOff from "@expo/material-symbols/file_download_off.xml";
 
 import { EmptyState } from "@/components/library/EmptyState";
 import { pluginMenuSection } from "@/components/plugins/PluginMenuActions";
@@ -37,7 +41,11 @@ import {
 } from "@/lib/player/track-item";
 import { saveStatusLine } from "@/lib/offline/format";
 import { useIsOffline } from "@/lib/offline/network";
-import { savePlaylist, useSavedStatus } from "@/lib/offline/saved-library";
+import {
+  savePlaylist,
+  setKeepUpdated,
+  useSavedStatus,
+} from "@/lib/offline/saved-library";
 import {
   TrackActionsSheet,
   useTrackActions,
@@ -102,16 +110,27 @@ function PlaylistPage({
   const { data: liveJobs, isLoading: liveJobsLoading } = usePlaylistJobs(
     playlist.id,
   );
+  const canSave = !!liveJobs?.some((job) => job.status === "done");
   const saveOffline = useSaveOffline({
     kind: "playlist",
     id: playlist.id,
     title: playlist.name,
-    save: liveJobs?.some((job) => job.status === "done")
-      ? () => savePlaylist({ playlist, jobs: liveJobs })
-      : null,
+    save:
+      canSave && liveJobs
+        ? () => savePlaylist({ playlist, jobs: liveJobs })
+        : null,
   });
   const savedItem = saveOffline.status?.item;
   const savedJobs = savedItem?.kind === "playlist" ? savedItem.jobs : null;
+  const keepUpdated = savedItem?.kind === "playlist" && !!savedItem.keepUpdated;
+  // Without Keep Updated, tracks finished since the save aren't on the phone.
+  const savedJobIds = useMemo(
+    () => new Set(savedJobs?.map((job) => job.id)),
+    [savedJobs],
+  );
+  const holdsEveryTrack =
+    saveOffline.status?.state === "saved" &&
+    !liveJobs?.some((job) => job.status === "done" && !savedJobIds.has(job.id));
   // A saved playlist still lists and plays its tracks with no connection.
   const jobs = liveJobs ?? savedJobs ?? NO_JOBS;
   const jobsLoading = liveJobsLoading && !savedJobs;
@@ -218,17 +237,90 @@ function PlaylistPage({
     ],
   );
 
+  const saveState = saveOffline.status?.state ?? null;
+  const { remove: removeSave, retry: retrySave } = saveOffline;
+  const saveMenu = useMemo(() => {
+    const save = (keep: boolean) => {
+      if (!liveJobs) return;
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      savePlaylist({ playlist, jobs: liveJobs }, { keepUpdated: keep });
+    };
+    // Plain elements, not a component, so the Menu sees them as its actions.
+    const actions =
+      saveState === null
+        ? [
+            <Stack.Toolbar.MenuAction
+              key="save"
+              icon={IS_IOS ? "arrow.down.circle" : ArrowCircleDown}
+              disabled={!canSave}
+              onPress={() => save(false)}
+            >
+              Save Offline
+            </Stack.Toolbar.MenuAction>,
+            <Stack.Toolbar.MenuAction
+              key="save-updated"
+              icon={IS_IOS ? "arrow.triangle.2.circlepath" : Sync}
+              disabled={!canSave}
+              onPress={() => save(true)}
+            >
+              Save Offline and Keep Updated
+            </Stack.Toolbar.MenuAction>,
+          ]
+        : [
+            <Stack.Toolbar.MenuAction
+              key="keep-updated"
+              icon={IS_IOS ? "arrow.triangle.2.circlepath" : Sync}
+              isOn={keepUpdated}
+              onPress={() => setKeepUpdated(playlist.id, !keepUpdated)}
+            >
+              Keep Updated
+            </Stack.Toolbar.MenuAction>,
+            saveState === "incomplete" ? (
+              <Stack.Toolbar.MenuAction
+                key="retry"
+                icon={IS_IOS ? "arrow.clockwise" : Refresh}
+                onPress={retrySave}
+              >
+                Try Again
+              </Stack.Toolbar.MenuAction>
+            ) : null,
+            <Stack.Toolbar.MenuAction
+              key="remove"
+              icon={IS_IOS ? "xmark.circle" : FileDownloadOff}
+              destructive
+              onPress={removeSave}
+            >
+              {saveState === "saving" || saveState === "waiting"
+                ? "Stop Saving"
+                : "Remove from Phone"}
+            </Stack.Toolbar.MenuAction>,
+          ];
+    return (
+      <Stack.Toolbar.Menu
+        icon={saveOffline.icon}
+        accessibilityLabel={saveOffline.label}
+        disabled={saveOffline.disabled}
+      >
+        {actions}
+      </Stack.Toolbar.Menu>
+    );
+  }, [
+    saveState,
+    canSave,
+    keepUpdated,
+    liveJobs,
+    playlist,
+    removeSave,
+    retrySave,
+    saveOffline.icon,
+    saveOffline.label,
+    saveOffline.disabled,
+  ]);
+
   const toolbar = useMemo(
     () => (
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon={saveOffline.icon}
-          accessibilityLabel={saveOffline.label}
-          disabled={saveOffline.disabled}
-          onPress={saveOffline.onPress}
-        >
-          {saveOffline.label}
-        </Stack.Toolbar.Button>
+        {saveMenu}
         <Stack.Toolbar.Menu
           icon={IS_IOS ? "ellipsis" : MoreVert}
           accessibilityLabel="More actions"
@@ -244,14 +336,7 @@ function PlaylistPage({
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
     ),
-    [
-      pluginActions,
-      handleDelete,
-      saveOffline.icon,
-      saveOffline.label,
-      saveOffline.disabled,
-      saveOffline.onPress,
-    ],
+    [pluginActions, handleDelete, saveMenu],
   );
 
   const summary = summaryLine(playlist.trackCount, stats);
@@ -268,7 +353,7 @@ function PlaylistPage({
         onPlayTrack={playFrom}
         onTrackMenuPress={openTrackSheet}
         // A saved playlist's toolbar already says its tracks are on the phone.
-        markSavedTracks={saveOffline.status?.state !== "saved"}
+        markSavedTracks={!holdsEveryTrack}
         header={
           <>
             <CollectionHero

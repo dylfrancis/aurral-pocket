@@ -1,6 +1,8 @@
 import type * as Testing from "@testing-library/react-native/pure";
 import type * as SavedLibrary from "@/lib/offline/saved-library";
 import type * as FakeFileSystem from "@/test-support/expo-file-system";
+import type { PlayerTrack } from "@/lib/player/track-item";
+import type { FlowJob, SharedPlaylist } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
 
 // The saved library and the fake disk both keep module state. Each test loads
@@ -529,6 +531,180 @@ describe("loudness", () => {
     expect(lib.savedLoudness("71")).toBe(-7);
     const record = JSON.parse((await storage.getItem("saved_offline"))!);
     expect(record.files["71"].loudness).toBe(-7);
+  });
+});
+
+/** Lets every file waiting to save finish, one at a time. */
+async function finishAll() {
+  await settle();
+  while (fs.downloads.some((download) => !download.cancelled)) {
+    const pending = fs.downloads.splice(0);
+    pending.forEach((download) => download.finish(1_000));
+    await settle();
+  }
+}
+
+describe("Favorites", () => {
+  /** A favorite song as the queue keeps it. */
+  function favoriteSong(
+    id: string,
+  ): Omit<PlayerTrack, "url" | "duration"> & { streamPath: string } {
+    return {
+      id,
+      title: `Track ${id}`,
+      artist: "Radiohead",
+      album: "Kid A",
+      artwork: null,
+      streamPath: `/library/stream/12/${id}`,
+      coverPath: null,
+      trackMbid: null,
+      artistMbid: null,
+      albumMbid: null,
+      favorite: { kind: "song", key: `recording:${id}` },
+      audioFormat: "FLAC",
+    };
+  }
+
+  /** A favorite song with the Favorites row it came from. */
+  const favorite = (id: string) => ({
+    track: favoriteSong(id),
+    row: track(id),
+  });
+
+  const saved = (id: string, extension = "flac") =>
+    fs.fakeFileExists(`${DIRECTORY}/${id}.${extension}`);
+
+  it("saves favorite songs, lets go of one two reads leave out, and keeps one saved by hand too", async () => {
+    start();
+    lib.setSavedLibraryUser(1);
+    await lib.setFavoritesSave("songs");
+    await lib.applyFavorites({
+      songs: [favorite("71"), favorite("72")],
+      albums: [],
+    });
+    await finishAll();
+    expect(saved("71")).toBe(true);
+    expect(saved("72")).toBe(true);
+    // Its song menu can't remove it while Favorites keeps it.
+    const { result } = await renderHook(() => lib.useTrackSaves());
+    expect(result.current("71")).toEqual({ kind: "held", by: "Favorites" });
+
+    await act(async () => {
+      lib.saveSong({
+        ...favoriteSong("72"),
+        duration: 0,
+        url: "https://music.example/stream",
+      });
+      await settle();
+    });
+    // One read can miss a favorite as its pages shift, so it takes two.
+    await lib.applyFavorites({ songs: [], albums: [] });
+    await settle();
+    expect(saved("71")).toBe(true);
+    await lib.applyFavorites({ songs: [], albums: [] });
+    await settle();
+
+    expect(saved("71")).toBe(false);
+    expect(lib.savedFilePath("72")).not.toBeNull();
+    expect(result.current("72")).toEqual({ kind: "own", state: "saved" });
+  });
+
+  it("keeps favorite albums only with Songs and Albums, and turning it off removes only what Favorites alone kept", async () => {
+    start();
+    lib.setSavedLibraryUser(1);
+    // Saved by hand before it was a favorite.
+    await saveAndFinish("13", [track("74")]);
+    await lib.setFavoritesSave("songs-and-albums");
+    await lib.applyFavorites({
+      songs: [favorite("71")],
+      albums: [
+        { ref: "12", route, tracks: [track("72"), track("73")] },
+        { ref: "13", route, tracks: [track("74")] },
+        // Its tracks couldn't be read, so it waits for the next read.
+        { ref: "14", route, tracks: null },
+      ],
+    });
+    await finishAll();
+    expect(["71", "72", "73", "74"].map((id) => saved(id))).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+
+    await lib.setFavoritesSave("songs");
+    await settle();
+    expect(saved("71")).toBe(true);
+    expect(saved("72")).toBe(false);
+    expect(saved("73")).toBe(false);
+    expect(saved("74")).toBe(true);
+
+    await lib.setFavoritesSave(null);
+    await settle();
+    expect(saved("71")).toBe(false);
+    expect(saved("74")).toBe(true);
+    const { result } = await renderHook(() => lib.useSavedItems());
+    expect(result.current.map((save) => save.item.id)).toEqual(["13"]);
+  });
+
+  it("remembers what each account's Favorites saves across a restart", async () => {
+    start();
+    lib.setSavedLibraryUser(1);
+    await lib.setFavoritesSave("songs-and-albums");
+    await settle();
+    const record = JSON.parse((await storage.getItem("saved_offline"))!);
+
+    start({ record });
+    lib.setSavedLibraryUser(2);
+    await settle();
+    const { result } = await renderHook(() => lib.useFavoritesSave());
+    expect(result.current).toBeNull();
+
+    await act(async () => {
+      lib.setSavedLibraryUser(1);
+      await settle();
+    });
+    expect(result.current).toBe("songs-and-albums");
+  });
+});
+
+describe("a playlist saved with Keep Updated", () => {
+  const playlist = { id: "pl-1", name: "Road Trip" } as SharedPlaylist;
+  const job = (id: string, status: FlowJob["status"] = "done") =>
+    ({ id, status, streamFormat: "flac" }) as FlowJob;
+  const saved = (id: string) => fs.fakeFileExists(`${DIRECTORY}/${id}.flac`);
+
+  it("saves tracks the playlist finishes and lets go of ones it drops, keeping a saved one the server works on again", async () => {
+    start();
+    lib.setSavedLibraryUser(1);
+    lib.savePlaylist(
+      { playlist, jobs: [job("a"), job("b")] },
+      { keepUpdated: true },
+    );
+    await finishAll();
+
+    await lib.refreshSavedPlaylist({
+      id: "pl-1",
+      jobs: [job("a", "downloading"), job("c"), job("d", "pending")],
+    });
+    await finishAll();
+
+    expect(saved("a")).toBe(true);
+    expect(saved("b")).toBe(false);
+    expect(saved("c")).toBe(true);
+    expect(saved("d")).toBe(false);
+  });
+
+  it("leaves a playlist saved without it as it was saved", async () => {
+    start();
+    lib.setSavedLibraryUser(1);
+    lib.savePlaylist({ playlist, jobs: [job("a"), job("b")] });
+    await finishAll();
+
+    await lib.refreshSavedPlaylist({ id: "pl-1", jobs: [job("c")] });
+    await finishAll();
+
+    expect([saved("a"), saved("b"), saved("c")]).toEqual([true, true, false]);
   });
 });
 

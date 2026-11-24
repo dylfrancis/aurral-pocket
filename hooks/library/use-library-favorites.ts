@@ -1,4 +1,5 @@
 import {
+  queryOptions,
   useMutation,
   useQuery,
   useQueryClient,
@@ -84,15 +85,22 @@ async function getFavoriteLists(order: FavoriteOrder): Promise<FavoriteLists> {
   };
 }
 
+/** Every favorite, by section, in `sort` order. */
+export function favoriteListsQuery(sort: LibrarySongSortMode) {
+  const order = serverSort(sort);
+  return queryOptions({
+    queryKey: libraryKeys.favoriteLists(order),
+    queryFn: () => getFavoriteLists(order),
+  });
+}
+
 /**
  * The Favorites screen's sections in `sort` order, read in full so search,
  * Play and Shuffle cover every favorite. No auth guard: call it inside `(app)`.
  */
 export function useLibraryFavorites(sort: LibrarySongSortMode) {
-  const order = serverSort(sort);
   return useSuspenseQuery({
-    queryKey: libraryKeys.favoriteLists(order),
-    queryFn: () => getFavoriteLists(order),
+    ...favoriteListsQuery(sort),
     // Other clients change favorites too, so opening the screen rereads them.
     staleTime: 0,
   });

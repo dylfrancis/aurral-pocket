@@ -3,6 +3,13 @@ jest.mock("@/lib/api/client", () => ({
   api: { get: jest.fn(), post: jest.fn() },
 }));
 
+let mockOffline = false;
+jest.mock("@/lib/offline/network", () => ({
+  ...jest.requireActual("@/lib/offline/network"),
+  isOffline: () => mockOffline,
+  useIsOffline: () => mockOffline,
+}));
+
 jest.mock("@/lib/player/player", () => ({
   playAlbumFromTrack: jest.fn(() => Promise.resolve(true)),
   playQueueFrom: jest.fn(() => Promise.resolve(true)),
@@ -67,8 +74,19 @@ import LibraryFavoritesScreen, {
 import LibraryHome from "@/app/(app)/(tabs)/(library)/index";
 import { api, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import { playAlbumFromTrack, playQueueFrom } from "@/lib/player/player";
+import {
+  applyFavorites,
+  forgetSavedLibrary,
+  setFavoritesSave,
+  setSavedLibraryUser,
+} from "@/lib/offline/saved-library";
 import { libraryKeys } from "@/lib/query-keys";
-import type { LibraryAlbumsParams } from "@/lib/types/library";
+import type {
+  Album,
+  AlbumTrack,
+  LibraryAlbumsParams,
+} from "@/lib/types/library";
+import { resetFileSystem } from "@/test-support/expo-file-system";
 
 const mockGet = api.get as jest.Mock;
 const mockPost = api.post as jest.Mock;
@@ -775,5 +793,118 @@ describe("favorites screen", () => {
     await openFavorites("/favorites", client);
 
     expect(await screen.findByText("Sigur Ros")).toBeTruthy();
+  });
+});
+
+describe("favorites with no connection", () => {
+  const album = {
+    id: "8",
+    artistId: "3",
+    artistName: "Test Artist",
+    mbid: "second-album",
+    albumName: "Second Album",
+    title: "Second Album",
+    releaseDate: null,
+    monitored: false,
+    statistics: { trackCount: 1, sizeOnDisk: 1_000, percentOfTracks: 100 },
+  } as Album;
+
+  /** A Favorites row, with the queue's copy the store saves from it. */
+  function favorite(id: string, trackName: string) {
+    const row = {
+      id,
+      mbid: `mb-${id}`,
+      trackName,
+      title: trackName,
+      trackNumber: 1,
+      hasFile: true,
+      size: 1_000,
+      quality: "FLAC",
+      streamPath: `/library/stream/4/${id}`,
+      streamFormat: "flac",
+      artistName: "Test Artist",
+    } as AlbumTrack;
+    const track = {
+      id,
+      title: trackName,
+      artist: "Test Artist",
+      album: "First Album",
+      artwork: null,
+      streamPath: row.streamPath!,
+    };
+    return { track, row };
+  }
+
+  beforeEach(async () => {
+    await act(async () => {
+      await setSavedLibraryUser(1);
+      await setFavoritesSave("songs-and-albums");
+      // Newest favorite first, as Favorites reads them to save them.
+      await applyFavorites({
+        songs: [favorite("31", "Zebra Song"), favorite("30", "First Song")],
+        albums: [
+          {
+            ref: "8",
+            route: {
+              title: "Second Album",
+              artistName: "Test Artist",
+              artistMbid: "test-artist",
+              albumMbid: "second-album",
+              coverUrl: "",
+              libraryAlbumId: "8",
+              artistId: "3",
+            },
+            album,
+            tracks: [favorite("80", "Album Song").row],
+          },
+        ],
+      });
+    });
+    mockOffline = true;
+  });
+
+  afterEach(async () => {
+    mockOffline = false;
+    await act(async () => {
+      await forgetSavedLibrary();
+      await setSavedLibraryUser(null);
+    });
+    resetFileSystem();
+  });
+
+  it("lists the favorites the phone keeps, newest favorite first, without asking the server", async () => {
+    await openFavorites();
+
+    expect(await screen.findByText("Second Album")).toBeTruthy();
+    const songs = screen
+      .getAllByText(/^(Zebra|First) Song$/)
+      .map((node) => node.props.children);
+    expect(songs).toEqual(["Zebra Song", "First Song"]);
+    expect(favoriteReads()).toEqual([]);
+    // Hearts need the server.
+    expect(
+      screen.queryByLabelText("Remove Second Album from favorites"),
+    ).toBeNull();
+  });
+
+  it("sorts on the phone, offering only the sorts it can do", async () => {
+    await openFavorites();
+    await screen.findByText("Second Album");
+
+    const titles = headerMenuItems().map((item) => item.title);
+    expect(titles).toEqual(expect.arrayContaining(["Name A-Z", "Artist A-Z"]));
+    expect(titles).not.toContain("Most Played");
+
+    await chooseSort("Name Z-A");
+    const songs = screen
+      .getAllByText(/^(Zebra|First) Song$/)
+      .map((node) => node.props.children);
+    expect(songs).toEqual(["Zebra Song", "First Song"]);
+    await chooseSort("Name A-Z");
+    expect(
+      screen
+        .getAllByText(/^(Zebra|First) Song$/)
+        .map((node) => node.props.children),
+    ).toEqual(["First Song", "Zebra Song"]);
   });
 });

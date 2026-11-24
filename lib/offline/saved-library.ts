@@ -26,7 +26,7 @@ import {
 import type { PlayerTrack } from "@/lib/player/track-item";
 import { AppStorage } from "@/lib/storage";
 import type { FlowJob, SharedPlaylist } from "@/lib/types/flow";
-import type { Album, Track } from "@/lib/types/library";
+import type { Album, AlbumTrack, Track } from "@/lib/types/library";
 
 /**
  * Albums, playlists and songs saved on the phone for offline play.
@@ -43,6 +43,12 @@ import type { Album, Track } from "@/lib/types/library";
  * No session token is written: a file keeps the stream path it came from, and
  * each download builds its URL from the token of the moment. A download that
  * outlives its session waits for the next one.
+ *
+ * Favorites can keep an account's favorite songs, and its favorite albums, on
+ * the phone. Each is an ordinary song or album save marked `favorite`, so it
+ * shows and plays as one. A favorite saved by hand as well outlasts the
+ * favorite. A playlist saved with Keep Updated takes the playlist's new tracks
+ * and lets go of the ones it loses.
  */
 
 export type SavedKind = "album" | "playlist" | "song";
@@ -72,6 +78,18 @@ type ItemBase = {
   id: string;
   userId: number;
   savedAt: number;
+  /** Favorites keeps it on the phone. */
+  favorite?: boolean;
+  /**
+   * False when only Favorites keeps it. A save from before Favorites kept
+   * anything has neither field, and was saved by hand.
+   */
+  byHand?: boolean;
+  /**
+   * Its place in Recently Favorited, newest first, as Favorites last read
+   * it, so Favorites lists it in that order offline.
+   */
+  favoriteRank?: number;
 };
 
 /**
@@ -90,15 +108,37 @@ export type SavedPlaylist = ItemBase & {
   kind: "playlist";
   playlist: SharedPlaylist;
   jobs: FlowJob[];
+  /** Tracks the playlist gains are saved too, and ones it loses go. */
+  keepUpdated?: boolean;
 };
 
 /** One song saved on its own, as the queue keeps a track. `id` is the track's. */
 export type SavedSong = ItemBase & {
   kind: "song";
   track: SavedTrack;
+  /** A favorite's row as Favorites read it, which Favorites shows offline. */
+  row?: AlbumTrack;
 };
 
 export type SavedItem = SavedAlbum | SavedPlaylist | SavedSong;
+
+/** What Favorites keeps on the phone. An account without one keeps nothing. */
+export type FavoritesSaveMode = "songs" | "songs-and-albums";
+
+/** A favorite song, as the queue keeps it and as Favorites lists it. */
+export type FavoriteSongSave = { track: SavedTrack; row: AlbumTrack };
+
+/** A favorite album, as its page would save it. */
+export type FavoriteAlbumSave = {
+  ref: string;
+  route: SavedAlbumRoute;
+  album?: Album;
+  /**
+   * Null when the album's tracks couldn't be read. An album already saved
+   * stays as it is, and one not yet saved waits for a read that works.
+   */
+  tracks: Track[] | null;
+};
 
 export type TrackSave =
   | { kind: "none" }
@@ -123,8 +163,7 @@ type SavedFile = {
 
 export type SaveState = "saving" | "waiting" | "saved" | "incomplete";
 
-export type SaveStatus = {
-  item: SavedItem;
+export type SaveProgress = {
   state: SaveState;
   total: number;
   saved: number;
@@ -132,16 +171,29 @@ export type SaveStatus = {
   bytes: number;
 };
 
+export type SaveStatus = SaveProgress & { item: SavedItem };
+
+/** Everything Favorites keeps, as one save. A file two favorites hold counts once. */
+export type FavoritesStatus = SaveProgress & { mode: FavoritesSaveMode };
+
 type Snapshot = {
   items: SavedItem[];
   files: Record<string, SavedFile>;
+  /** By account id. */
+  favorites: Record<string, FavoritesSaveMode>;
   userId: number | null;
   blocked: "session" | "network" | null;
 };
 
 const RECORD_VERSION = 1;
 
-let snapshot: Snapshot = { items: [], files: {}, userId: null, blocked: null };
+let snapshot: Snapshot = {
+  items: [],
+  files: {},
+  favorites: {},
+  userId: null,
+  blocked: null,
+};
 /** The signed-in account's tracks with a file on disk. */
 let savedTrackIds = new Set<string>();
 let loaded: Promise<void> | null = null;
@@ -155,6 +207,13 @@ let inFlight: {
   cancelled: boolean;
 } | null = null;
 const attempts = new Map<string, number>();
+/**
+ * Favorites one read left out, by account and item. A favorite goes only
+ * when a second read in a row leaves it out too: the pages of a read can
+ * shift under a change made elsewhere, and a rescan can hide a file for a
+ * moment, and either would otherwise delete a file only to fetch it again.
+ */
+const unseenFavorites = new Set<string>();
 const listeners = new Set<() => void>();
 const refusedListeners = new Set<() => void>();
 
@@ -186,6 +245,16 @@ function itemsOf(state: Snapshot): SavedItem[] {
     : state.items.filter((item) => item.userId === state.userId);
 }
 
+function isByHand(item: SavedItem): boolean {
+  return item.byHand !== false;
+}
+
+function favoritesModeOf(state: Snapshot): FavoritesSaveMode | null {
+  return state.userId === null
+    ? null
+    : (state.favorites[String(state.userId)] ?? null);
+}
+
 function commit(next: Partial<Snapshot>, { persist = true } = {}): void {
   snapshot = { ...snapshot, ...next };
   savedTrackIds = new Set(
@@ -202,6 +271,7 @@ function write(): void {
     version: RECORD_VERSION,
     items: snapshot.items,
     files: snapshot.files,
+    favorites: snapshot.favorites,
   };
   lastWrite = lastWrite
     .then(() => AppStorage.setSavedOffline(JSON.stringify(record)))
@@ -211,11 +281,11 @@ function write(): void {
 function load(): Promise<void> {
   loaded ??= (async () => {
     const raw = await AppStorage.getSavedOffline();
-    const { items, files } = parseRecord(raw);
+    const { items, files, favorites } = parseRecord(raw);
     // The account can be named before the record is read, and a restored
     // queue needs to know its saves the moment this settles.
     commit(
-      { items, files: reconcile(files), userId: requestedUserId },
+      { items, files: reconcile(files), favorites, userId: requestedUserId },
       { persist: false },
     );
     write();
@@ -323,6 +393,11 @@ export function savedFilePath(trackId: string): string | null {
   return enginePath(fileFor(file.name));
 }
 
+/** Whether the signed-in account has this item saved, in any state. */
+export function hasSaved(kind: SavedKind, id: string): boolean {
+  return itemsOf(snapshot).some((item) => item.kind === kind && item.id === id);
+}
+
 /** Undefined until Aurral has measured the file. */
 export function savedLoudness(trackId: string): number | undefined {
   return snapshot.files[trackId]?.loudness;
@@ -340,14 +415,9 @@ export function canPlayNow(trackId: string): boolean {
   );
 }
 
-export function saveAlbum(input: {
-  ref: string;
-  route: SavedAlbumRoute;
-  tracks: Track[];
-  album?: Album;
-}): void {
+function albumFiles(tracks: Track[]): Record<string, SavedFile> {
   const files: Record<string, SavedFile> = {};
-  for (const track of input.tracks) {
+  for (const track of tracks) {
     if (!track.streamPath) continue;
     files[track.id] = {
       streamPath: track.streamPath,
@@ -357,29 +427,10 @@ export function saveAlbum(input: {
       failed: false,
     };
   }
-  add(
-    (userId) => ({
-      kind: "album",
-      id: input.ref,
-      userId,
-      savedAt: Date.now(),
-      route: input.route,
-      tracks: input.tracks.filter((track) => track.streamPath),
-      ...(input.album ? { album: input.album } : {}),
-    }),
-    files,
-  );
+  return files;
 }
 
-/**
- * Only finished tracks are saved. A saved-for-later one streams a 30-second
- * clip from elsewhere, and the rest have no file yet.
- */
-export function savePlaylist(input: {
-  playlist: SharedPlaylist;
-  jobs: FlowJob[];
-}): void {
-  const jobs = input.jobs.filter((job) => job.status === "done");
+function jobFiles(jobs: FlowJob[]): Record<string, SavedFile> {
   const files: Record<string, SavedFile> = {};
   for (const job of jobs) {
     files[job.id] = {
@@ -390,6 +441,58 @@ export function savePlaylist(input: {
       failed: false,
     };
   }
+  return files;
+}
+
+function songFile(track: SavedTrack): SavedFile {
+  return {
+    streamPath: track.streamPath,
+    name: fileName(track.id, null, track.audioFormat),
+    expectedBytes: 0,
+    bytes: null,
+    failed: false,
+  };
+}
+
+function albumItem(
+  userId: number,
+  input: {
+    ref: string;
+    route: SavedAlbumRoute;
+    tracks: Track[];
+    album?: Album;
+  },
+): SavedAlbum {
+  return {
+    kind: "album",
+    id: input.ref,
+    userId,
+    savedAt: Date.now(),
+    route: input.route,
+    tracks: input.tracks.filter((track) => track.streamPath),
+    ...(input.album ? { album: input.album } : {}),
+  };
+}
+
+export function saveAlbum(input: {
+  ref: string;
+  route: SavedAlbumRoute;
+  tracks: Track[];
+  album?: Album;
+}): void {
+  add((userId) => albumItem(userId, input), albumFiles(input.tracks));
+}
+
+/**
+ * Only finished tracks are saved. A saved-for-later one streams a 30-second
+ * clip from elsewhere, and the rest have no file yet. With `keepUpdated`, the
+ * save follows the playlist through refreshSavedPlaylist.
+ */
+export function savePlaylist(
+  input: { playlist: SharedPlaylist; jobs: FlowJob[] },
+  { keepUpdated = false } = {},
+): void {
+  const jobs = input.jobs.filter((job) => job.status === "done");
   add(
     (userId) => ({
       kind: "playlist",
@@ -398,8 +501,9 @@ export function savePlaylist(input: {
       savedAt: Date.now(),
       playlist: input.playlist,
       jobs,
+      ...(keepUpdated ? { keepUpdated } : {}),
     }),
-    files,
+    jobFiles(jobs),
   );
 }
 
@@ -415,15 +519,7 @@ export function saveSong(track: PlayerTrack): void {
       savedAt: Date.now(),
       track: saved,
     }),
-    {
-      [saved.id]: {
-        streamPath: saved.streamPath,
-        name: fileName(saved.id, null, saved.audioFormat),
-        expectedBytes: 0,
-        bytes: null,
-        failed: false,
-      },
-    },
+    { [saved.id]: songFile(saved) },
   );
 }
 
@@ -434,13 +530,25 @@ function add(
   void load().then(() => {
     const userId = snapshot.userId;
     if (userId === null) return;
-    const item = build(userId);
-    const key = itemKey(item.kind, item.id);
+    const built = build(userId);
+    const key = itemKey(built.kind, built.id);
+    const existing = snapshot.items.find(
+      (other) =>
+        other.userId === userId && itemKey(other.kind, other.id) === key,
+    );
+    // Saved by hand, a favorite outlasts its favorite.
+    const item: SavedItem = existing?.favorite
+      ? ({
+          ...built,
+          favorite: true,
+          favoriteRank: existing.favoriteRank,
+          ...(existing.kind === "song" && existing.row
+            ? { row: existing.row }
+            : {}),
+        } as SavedItem)
+      : built;
     const items = [
-      ...snapshot.items.filter(
-        (other) =>
-          other.userId !== userId || itemKey(other.kind, other.id) !== key,
-      ),
+      ...snapshot.items.filter((other) => other !== existing),
       item,
     ];
     // A file already on the phone stays as it is. One that failed, or never
@@ -526,6 +634,261 @@ export function retrySaved(kind: SavedKind, id: string): void {
   });
 }
 
+export function setKeepUpdated(playlistId: string, keepUpdated: boolean): void {
+  void load().then(() => {
+    const item = itemsOf(snapshot).find(
+      (entry) => entry.kind === "playlist" && entry.id === playlistId,
+    );
+    if (item?.kind !== "playlist" || !!item.keepUpdated === keepUpdated) {
+      return;
+    }
+    const { keepUpdated: _was, ...rest } = item;
+    const updated: SavedPlaylist = keepUpdated
+      ? { ...rest, keepUpdated }
+      : rest;
+    commit({
+      items: snapshot.items.map((entry) => (entry === item ? updated : entry)),
+    });
+  });
+}
+
+/**
+ * Brings a Keep Updated playlist's save in line with the playlist: finished
+ * tracks it gained are saved, and ones it lost go. A saved track keeps its
+ * file while it stays in the playlist, even if the server works on it again.
+ * Any other save is left alone.
+ */
+export function refreshSavedPlaylist(input: {
+  id: string;
+  jobs: FlowJob[];
+  playlist?: SharedPlaylist;
+}): Promise<void> {
+  return load().then(() => {
+    const item = itemsOf(snapshot).find(
+      (entry) => entry.kind === "playlist" && entry.id === input.id,
+    );
+    if (item?.kind !== "playlist" || !item.keepUpdated) return;
+    const savedJobs = new Map(item.jobs.map((job) => [job.id, job]));
+    const jobs = input.jobs.flatMap((job) => {
+      if (job.status === "done") return [job];
+      const saved = savedJobs.get(job.id);
+      return saved ? [saved] : [];
+    });
+    const playlist = input.playlist ?? item.playlist;
+    if (
+      sameIds(jobs, item.jobs) &&
+      JSON.stringify(playlist) === JSON.stringify(item.playlist)
+    ) {
+      return;
+    }
+    const updated: SavedPlaylist = { ...item, playlist, jobs };
+    const items = snapshot.items.map((entry) =>
+      entry === item ? updated : entry,
+    );
+    const files = withNewFiles(snapshot.files, jobFiles(jobs));
+    commit({ items, files: dropUnheldFiles(items, files) });
+    void saveWaitingFiles();
+  });
+}
+
+function sameIds(a: { id: string }[], b: { id: string }[]): boolean {
+  return a.length === b.length && a.every((entry, i) => entry.id === b[i].id);
+}
+
+/**
+ * Files a follow-up save brings, added to the record. One already known
+ * stays as it is, even one that failed: Try Again restarts that.
+ */
+function withNewFiles(
+  current: Record<string, SavedFile>,
+  added: Record<string, SavedFile>,
+): Record<string, SavedFile> {
+  let files = current;
+  for (const [id, file] of Object.entries(added)) {
+    if (current[id]) continue;
+    if (files === current) files = { ...current };
+    files[id] = file;
+  }
+  return files;
+}
+
+/**
+ * Turns Favorites' saving on, off or between songs and songs and albums, for
+ * the signed-in account. What it no longer keeps leaves the phone, unless it
+ * was saved by hand too. applyFavorites brings in what it now keeps.
+ */
+export function setFavoritesSave(
+  mode: FavoritesSaveMode | null,
+): Promise<void> {
+  return load().then(() => {
+    const userId = snapshot.userId;
+    if (userId === null || favoritesModeOf(snapshot) === mode) return;
+    unseenFavorites.clear();
+    const favorites = { ...snapshot.favorites };
+    if (mode) favorites[String(userId)] = mode;
+    else delete favorites[String(userId)];
+    const keeps = (item: SavedItem) =>
+      item.kind === "song"
+        ? mode !== null
+        : item.kind === "album" && mode === "songs-and-albums";
+    const items = snapshot.items.flatMap((item) =>
+      item.userId === userId && item.favorite && !keeps(item)
+        ? letGoOfFavorite(item)
+        : [item],
+    );
+    commit({ favorites, items, files: dropUnheldFiles(items, snapshot.files) });
+  });
+}
+
+/** An item Favorites no longer keeps: kept if saved by hand, else dropped. */
+function letGoOfFavorite(item: SavedItem): SavedItem[] {
+  if (!isByHand(item)) return [];
+  const {
+    favorite: _favorite,
+    byHand: _byHand,
+    favoriteRank: _favoriteRank,
+    ...rest
+  } = item;
+  if (rest.kind === "song") {
+    const { row: _row, ...song } = rest;
+    return [song];
+  }
+  return [rest as SavedItem];
+}
+
+/**
+ * Sets the signed-in account's favorites on the phone to exactly these, as
+ * far as Favorites' mode reaches. Pass only a full read, newest favorite
+ * first: a favorite left out is let go of.
+ */
+export function applyFavorites(input: {
+  songs: FavoriteSongSave[];
+  albums: FavoriteAlbumSave[];
+}): Promise<void> {
+  return load().then(() => {
+    const userId = snapshot.userId;
+    const mode = favoritesModeOf(snapshot);
+    if (userId === null || mode === null) return;
+    type Want =
+      | { kind: "song"; rank: number; song: FavoriteSongSave }
+      | { kind: "album"; rank: number; album: FavoriteAlbumSave };
+    const wanted = new Map<string, Want>();
+    input.songs.forEach((song, rank) => {
+      wanted.set(itemKey("song", song.track.id), { kind: "song", rank, song });
+    });
+    if (mode === "songs-and-albums") {
+      input.albums.forEach((album, rank) => {
+        // An album with no file left to play isn't kept.
+        if (album.tracks && albumTracksOf(album.tracks).length === 0) return;
+        wanted.set(itemKey("album", album.ref), { kind: "album", rank, album });
+      });
+    }
+
+    let changed = false;
+    let files = snapshot.files;
+    const found = new Set<string>();
+    const items = snapshot.items.flatMap((item): SavedItem[] => {
+      if (item.userId !== userId || item.kind === "playlist") return [item];
+      const key = itemKey(item.kind, item.id);
+      const want = wanted.get(key);
+      const unseenKey = `${userId}:${key}`;
+      if (!want) {
+        if (!item.favorite) return [item];
+        if (!unseenFavorites.has(unseenKey)) {
+          unseenFavorites.add(unseenKey);
+          return [item];
+        }
+        unseenFavorites.delete(unseenKey);
+        changed = true;
+        return letGoOfFavorite(item);
+      }
+      unseenFavorites.delete(unseenKey);
+      found.add(key);
+      let next: SavedItem = item;
+      // An album only Favorites keeps follows the album's tracks.
+      if (next.kind === "album" && want.kind === "album" && !isByHand(next)) {
+        const tracks = want.album.tracks;
+        if (tracks && !sameIds(albumTracksOf(tracks), next.tracks)) {
+          files = withNewFiles(files, albumFiles(tracks));
+          next = {
+            ...albumItem(userId, { ...want.album, tracks }),
+            savedAt: next.savedAt,
+            byHand: false,
+          };
+        }
+      }
+      if (
+        next.kind === "song" &&
+        want.kind === "song" &&
+        JSON.stringify(next.row) !== JSON.stringify(want.song.row)
+      ) {
+        next = { ...next, row: want.song.row };
+      }
+      if (!next.favorite || next.favoriteRank !== want.rank) {
+        next = { ...next, favorite: true, favoriteRank: want.rank };
+      }
+      if (next !== item) changed = true;
+      return [next];
+    });
+
+    for (const [key, want] of wanted) {
+      if (found.has(key)) continue;
+      const favorite = {
+        favorite: true,
+        byHand: false,
+        favoriteRank: want.rank,
+      };
+      if (want.kind === "album") {
+        const { tracks } = want.album;
+        if (!tracks) continue;
+        items.push({
+          ...albumItem(userId, { ...want.album, tracks }),
+          ...favorite,
+        });
+        files = withNewFiles(files, albumFiles(tracks));
+      } else {
+        const { track, row } = want.song;
+        items.push({
+          kind: "song",
+          id: track.id,
+          userId,
+          savedAt: Date.now(),
+          track,
+          row,
+          ...favorite,
+        });
+        files = withNewFiles(files, { [track.id]: songFile(track) });
+      }
+      changed = true;
+    }
+
+    if (!changed) return;
+    commit({ items, files: dropUnheldFiles(items, files) });
+    void saveWaitingFiles();
+  });
+}
+
+function albumTracksOf(tracks: Track[]): Track[] {
+  return tracks.filter((track) => track.streamPath);
+}
+
+/** Try the files Favorites keeps that the server refused or lost once more. */
+export function retryFavorites(): void {
+  void load().then(() => {
+    const files = { ...snapshot.files };
+    for (const item of itemsOf(snapshot)) {
+      if (!item.favorite) continue;
+      for (const trackId of trackIdsOf(item)) {
+        const file = files[trackId];
+        if (file?.failed) files[trackId] = { ...file, failed: false };
+        attempts.delete(trackId);
+      }
+    }
+    commit({ files, blocked: null });
+    void saveWaitingFiles();
+  });
+}
+
 /**
  * Delete every account's saves, files and record. Change Server and the
  * 30-day reset call this: the files belong to the server they came from.
@@ -536,11 +899,15 @@ export function forgetSavedLibrary(): Promise<void> {
     .then(() => {
       cancelInFlight();
       attempts.clear();
+      unseenFavorites.clear();
       try {
         const directory = audioDirectory();
         if (directory.exists) directory.delete();
       } catch {}
-      commit({ items: [], files: {}, blocked: null }, { persist: false });
+      commit(
+        { items: [], files: {}, favorites: {}, blocked: null },
+        { persist: false },
+      );
       lastWrite = lastWrite
         .then(() => AppStorage.deleteSavedOffline())
         .catch(() => {});
@@ -685,7 +1052,10 @@ function setFile(trackId: string, change: Partial<SavedFile>): void {
 }
 
 function statusOf(state: Snapshot, item: SavedItem): SaveStatus {
-  const ids = trackIdsOf(item);
+  return { item, ...progressOf(state, trackIdsOf(item)) };
+}
+
+function progressOf(state: Snapshot, ids: string[]): SaveProgress {
   let saved = 0;
   let failed = 0;
   let bytes = 0;
@@ -707,7 +1077,7 @@ function statusOf(state: Snapshot, item: SavedItem): SaveStatus {
         : state.blocked !== null
           ? "waiting"
           : "saving";
-  return { item, state: stage, total, saved, failed, bytes };
+  return { state: stage, total, saved, failed, bytes };
 }
 
 function findStatus(
@@ -745,6 +1115,41 @@ export function useSavedStatus(
     () => (id ? findStatus(state, kind, id) : null),
     [state, kind, id],
   );
+}
+
+/** What Favorites keeps on the phone for the signed-in account. Null when off. */
+export function useFavoritesSave(): FavoritesSaveMode | null {
+  const getMode = () => favoritesModeOf(snapshot);
+  return useSyncExternalStore(subscribe, getMode, getMode);
+}
+
+/** All that Favorites keeps, taken together. Null when Favorites saves nothing. */
+export function useFavoritesStatus(): FavoritesStatus | null {
+  const state = useSnapshot();
+  return useMemo(() => {
+    const mode = favoritesModeOf(state);
+    if (!mode) return null;
+    const ids = new Set(
+      itemsOf(state)
+        .filter((item) => item.favorite)
+        .flatMap(trackIdsOf),
+    );
+    return { mode, ...progressOf(state, [...ids]) };
+  }, [state]);
+}
+
+/**
+ * The ids of the signed-in account's Keep Updated playlists. Re-renders only
+ * when the list changes, not with every file saved.
+ */
+export function useKeptPlaylistIds(): string[] {
+  const getIds = () =>
+    itemsOf(snapshot)
+      .filter((item) => item.kind === "playlist" && item.keepUpdated)
+      .map((item) => item.id)
+      .join("\n");
+  const joined = useSyncExternalStore(subscribe, getIds, getIds);
+  return useMemo(() => (joined ? joined.split("\n") : []), [joined]);
 }
 
 /**
@@ -794,11 +1199,15 @@ export function useSavedIds(kind: SavedKind): ReadonlySet<string> {
 function trackSaveIn(state: Snapshot, trackId: string): TrackSave {
   const items = itemsOf(state);
   const own = items.find((item) => item.kind === "song" && item.id === trackId);
-  if (own) return { kind: "own", state: statusOf(state, own).state };
+  // A favorite stays while it's a favorite, even one saved by hand too.
+  if (own && !own.favorite) {
+    return { kind: "own", state: statusOf(state, own).state };
+  }
   const holder = items.find(
     (item) => item.kind !== "song" && trackIdsOf(item).includes(trackId),
   );
-  if (!holder) return { kind: "none" };
+  if (!holder)
+    return own ? { kind: "held", by: "Favorites" } : { kind: "none" };
   if (holder.kind === "album") {
     return { kind: "held", by: holder.route.title };
   }
@@ -852,8 +1261,9 @@ function statusesOf(state: Snapshot): SaveStatus[] {
 function parseRecord(raw: string | null): {
   items: SavedItem[];
   files: Record<string, SavedFile>;
+  favorites: Record<string, FavoritesSaveMode>;
 } {
-  const empty = { items: [], files: {} };
+  const empty = { items: [], files: {}, favorites: {} };
   if (!raw) return empty;
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -875,7 +1285,15 @@ function parseRecord(raw: string | null): {
         }
       }
     }
-    return { items, files };
+    const favorites: Record<string, FavoritesSaveMode> = {};
+    if (isRecord(parsed.favorites)) {
+      for (const [userId, mode] of Object.entries(parsed.favorites)) {
+        if (mode === "songs" || mode === "songs-and-albums") {
+          favorites[userId] = mode;
+        }
+      }
+    }
+    return { items, files, favorites };
   } catch {
     return empty;
   }
