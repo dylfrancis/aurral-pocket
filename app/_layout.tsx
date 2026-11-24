@@ -69,6 +69,7 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   const isAuthenticated = !!serverUrl && !!token;
+  const statusBarStyle = colorScheme === "dark" ? "light" : "dark";
 
   useEffect(() => {
     if (!isRestoring && isThemeLoaded) {
@@ -82,7 +83,13 @@ function RootLayoutNav() {
     <ThemeProvider
       value={colorScheme === "dark" ? AurralDarkTheme : AurralLightTheme}
     >
-      <Stack screenOptions={{ headerShown: false }}>
+      {/* On iOS the status bar style comes either from <StatusBar> or from
+          react-native-screens, depending on which view controllers are
+          mounted. A screen with no style of its own uses "auto", which
+          follows the phone's appearance rather than the app's, so a phone in
+          Dark Mode with the app set to Light got white text. Nested screens
+          inherit this one. */}
+      <Stack screenOptions={{ headerShown: false, statusBarStyle }}>
         {/* Auth screens — visible when NOT authenticated */}
         <Stack.Protected guard={!isAuthenticated}>
           <Stack.Screen name="(auth)" />
@@ -98,7 +105,7 @@ function RootLayoutNav() {
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>
-      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+      <StatusBar style={statusBarStyle} />
     </ThemeProvider>
   );
 }
