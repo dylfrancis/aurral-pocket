@@ -4,7 +4,7 @@ import { SavedMark, albumSavedId } from "@/components/offline/SavedMark";
 import { Text } from "@/components/ui/Text";
 import { CoverArtImage } from "./CoverArtImage";
 import { useDateTimeFormat } from "@/hooks/use-date-time-format";
-import { formatReleaseWait } from "@/lib/album-status";
+import { formatAlbumTrackCount, formatReleaseWait } from "@/lib/album-status";
 import { Fonts } from "@/constants/theme";
 import type { Album, DownloadStatusValue } from "@/lib/types/library";
 import { releaseYear } from "@/lib/date-time";
@@ -53,8 +53,10 @@ export const AlbumCard = React.memo(function AlbumCard({
 
   const year = releaseYear(album.releaseDate);
 
-  const { trackCount, percentOfTracks } = album.statistics;
-  const percent = Math.round(percentOfTracks);
+  const { trackCount, trackFileCount } = album.statistics;
+  const partial = (trackFileCount ?? trackCount) < trackCount;
+  const statusLabel =
+    downloadStatus && partial ? STATUS_LABELS[downloadStatus] : undefined;
 
   return (
     <Pressable
@@ -81,7 +83,7 @@ export const AlbumCard = React.memo(function AlbumCard({
             {album.artistName || "Unknown Artist"}
           </Text>
         )}
-        {downloadStatus === "unreleased" && percent < 100 ? (
+        {downloadStatus === "unreleased" && partial ? (
           // The date already names the year, and a card is too narrow for
           // the track count beside it.
           <Text variant="caption" numberOfLines={1}>
@@ -96,23 +98,18 @@ export const AlbumCard = React.memo(function AlbumCard({
               inline
             />
             {year && `${year} · `}
-            {trackCount} {trackCount === 1 ? "track" : "tracks"}
-            {" · "}
-            <Text
-              variant="caption"
-              style={{
-                color:
-                  percent === 100
-                    ? colors.brandStrong
-                    : downloadStatus === "failed"
-                      ? colors.error
-                      : colors.subtle,
-              }}
-            >
-              {downloadStatus && percent < 100
-                ? (STATUS_LABELS[downloadStatus] ?? `${percent}%`)
-                : `${percent}%`}
-            </Text>
+            {formatAlbumTrackCount(trackCount, trackFileCount)}
+            {statusLabel ? (
+              <Text
+                variant="caption"
+                style={{
+                  color:
+                    downloadStatus === "failed" ? colors.error : colors.subtle,
+                }}
+              >
+                {` · ${statusLabel}`}
+              </Text>
+            ) : null}
           </Text>
         )}
       </View>
