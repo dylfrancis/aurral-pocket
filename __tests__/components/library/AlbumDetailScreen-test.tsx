@@ -163,7 +163,7 @@ jest.mock("@/components/flow/AddToPlaylistSheet", () => ({
 }));
 
 import React from "react";
-import { Alert } from "react-native";
+import { Alert, StyleSheet } from "react-native";
 import {
   act,
   fireEvent,
@@ -175,6 +175,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AlbumDetailScreen } from "@/components/library/AlbumDetailScreen";
 import { CoverArtImage } from "@/components/library/CoverArtImage";
+import { PlayerColors } from "@/components/player/player-colors";
 import { useLibraryAlbum } from "@/hooks/library/use-library-albums";
 import { useLibraryTracks } from "@/hooks/library/use-library-tracks";
 import {
@@ -690,6 +691,10 @@ describe("AlbumDetailScreen", () => {
 
       expect(await screen.findByLabelText("Preview Karma Police")).toBeTruthy();
       expect(screen.getByText("2007 · 2/3 tracks")).toBeTruthy();
+      const count = StyleSheet.flatten(
+        screen.getByText("2/3 tracks").props.style,
+      );
+      expect(count.color).toBe(PlayerColors.dark.warning);
       expect(screen.getByText("Monitored")).toBeTruthy();
     });
   });

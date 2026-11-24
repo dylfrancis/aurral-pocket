@@ -1,4 +1,11 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -486,6 +493,35 @@ export function AlbumDetailScreen() {
     />
   );
 
+  // As on the web, only a Library album shows how many have files, in amber
+  // while songs are missing.
+  const trackCountText = formatAlbumTrackCount(
+    shownTrackCount,
+    album ? fileCount : undefined,
+  );
+  const heroMeta: ReactNode[] = (
+    previewRelease && editions.viewing
+      ? [
+          releaseYear(editions.viewing.date),
+          formatTrackCount(editions.viewing.trackCount),
+        ]
+      : [
+          year,
+          shownTrackCount > 0 && album && !complete ? (
+            <Text
+              key="tracks"
+              variant="caption"
+              style={{ color: heroColors.warning }}
+            >
+              {trackCountText}
+            </Text>
+          ) : shownTrackCount > 0 ? (
+            trackCountText
+          ) : null,
+          albumBytes > 0 ? formatBytes(albumBytes) : null,
+        ]
+  ).filter(Boolean);
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollHeaderTitle name={title} scrollY={scrollY} />
@@ -633,26 +669,9 @@ export function AlbumDetailScreen() {
             </Text>
           </Pressable>
           <Text variant="caption" style={{ color: heroColors.subtle }}>
-            {(previewRelease && editions.viewing
-              ? [
-                  releaseYear(editions.viewing.date),
-                  formatTrackCount(editions.viewing.trackCount),
-                ]
-              : [
-                  year,
-                  shownTrackCount > 0
-                    ? formatAlbumTrackCount(
-                        shownTrackCount,
-                        // As on the web, only a Library album shows how many
-                        // have files.
-                        album ? fileCount : undefined,
-                      )
-                    : null,
-                  albumBytes > 0 ? formatBytes(albumBytes) : null,
-                ]
-            )
-              .filter(Boolean)
-              .join(" · ")}
+            {heroMeta.flatMap((part, index) =>
+              index > 0 ? [" · ", part] : [part],
+            )}
           </Text>
           {saveLine ? (
             <Text variant="caption" style={{ color: heroColors.subtle }}>
