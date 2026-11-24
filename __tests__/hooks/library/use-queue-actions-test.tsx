@@ -14,7 +14,6 @@ jest.mock("@/lib/player/player", () => ({
   addToQueue: jest.fn(),
   playAlbumFromTrack: jest.fn(),
   playNextInQueue: jest.fn(),
-  setShuffle: jest.fn(),
 }));
 
 import { act, renderHook } from "@testing-library/react-native";
@@ -24,7 +23,6 @@ import {
   addToQueue,
   playAlbumFromTrack,
   playNextInQueue,
-  setShuffle,
 } from "@/lib/player/player";
 import type { Track } from "@/lib/types/library";
 
@@ -35,7 +33,6 @@ const mockPlayNextInQueue = playNextInQueue as jest.MockedFunction<
 const mockPlayAlbumFromTrack = playAlbumFromTrack as jest.MockedFunction<
   typeof playAlbumFromTrack
 >;
-const mockSetShuffle = setShuffle as jest.MockedFunction<typeof setShuffle>;
 const mockToast = Burnt.toast as jest.Mock;
 
 const TRACK: Track = {
@@ -149,7 +146,7 @@ describe("addToQueue", () => {
 });
 
 describe("playAlbum", () => {
-  it("starts from the first track Aurral can stream", async () => {
+  it("starts from the first track Aurral can stream, with shuffle off", async () => {
     mockPlayAlbumFromTrack.mockResolvedValue(true);
     const { result } = await renderHook(() => useQueueActions());
 
@@ -164,6 +161,7 @@ describe("playAlbum", () => {
       [{ ...EARLIER_TRACK, streamPath: null }, TRACK],
       TRACK,
       ALBUM,
+      { shuffle: false },
     );
     expect(mockToast).not.toHaveBeenCalled();
   });
@@ -198,28 +196,24 @@ describe("playAlbum", () => {
 });
 
 describe("shuffleAlbum", () => {
-  it("turns shuffle on before the play so the queue comes out shuffled", async () => {
+  it("starts from a random track with shuffle turned on", async () => {
     mockPlayAlbumFromTrack.mockResolvedValue(true);
-    const order: string[] = [];
-    mockSetShuffle.mockImplementation(async () => {
-      order.push("shuffle");
-    });
-    mockPlayAlbumFromTrack.mockImplementation(async () => {
-      order.push("play");
-      return true;
-    });
     const { result } = await renderHook(() => useQueueActions());
 
     await act(async () => {
       await result.current.shuffleAlbum(ALBUM_TRACKS, ALBUM);
     });
 
-    expect(mockSetShuffle).toHaveBeenCalledWith(true);
-    expect(order).toEqual(["shuffle", "play"]);
+    expect(mockPlayAlbumFromTrack).toHaveBeenCalledWith(
+      ALBUM_TRACKS,
+      expect.objectContaining({ id: expect.any(String) }),
+      ALBUM,
+      { shuffle: true },
+    );
     expect(mockToast).not.toHaveBeenCalled();
   });
 
-  it("does not touch shuffle when no track has a readable file", async () => {
+  it("does not play, so shuffle stays as it is, when no track has a readable file", async () => {
     const { result } = await renderHook(() => useQueueActions());
 
     await act(async () => {
@@ -229,7 +223,7 @@ describe("shuffleAlbum", () => {
       );
     });
 
-    expect(mockSetShuffle).not.toHaveBeenCalled();
+    expect(mockPlayAlbumFromTrack).not.toHaveBeenCalled();
     expect(mockToast).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Cannot play this album" }),
     );

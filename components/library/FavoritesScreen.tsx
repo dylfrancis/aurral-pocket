@@ -458,7 +458,9 @@ function FavoritesList({
             {shown.tracks.length > 0 ? (
               <ListPlayRow
                 title="Favorites"
-                onPlay={() => void playSongs(shown.tracks, FAVORITES)}
+                onPlay={() =>
+                  void playSongs(shown.tracks, FAVORITES, { shuffled: false })
+                }
                 onShuffle={() =>
                   void playSongs(shown.tracks, FAVORITES, { shuffled: true })
                 }

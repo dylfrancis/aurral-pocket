@@ -536,6 +536,48 @@ describe("shuffle", () => {
     await setShuffle(false);
     expect(playlistIds).toEqual(albumIds);
   });
+
+  it("turns shuffle off for a play that asks, without reordering the old queue first", async () => {
+    await setShuffle(true);
+    queue.reorderTrackInPlaylist.mockClear();
+
+    await playAlbumFromTrack(albumTracks, albumTracks[0], album, {
+      shuffle: false,
+    });
+
+    expect(playlistIds).toEqual(albumIds);
+    expect(queue.reorderTrackInPlaylist).not.toHaveBeenCalled();
+    // Off for the plays after it too.
+    await playAlbumFromTrack(albumTracks, albumTracks[1], album);
+    expect(playlistIds).toEqual(albumIds);
+  });
+
+  it("turns shuffle on for a play that asks", async () => {
+    await setShuffle(false);
+
+    await playAlbumFromTrack(albumTracks, albumTracks[0], album, {
+      shuffle: true,
+    });
+
+    expect(playlistIds[0]).toBe("1");
+    expect([...playlistIds].sort()).toEqual([...albumIds].sort());
+    expect(playlistIds.slice(1)).not.toEqual(albumIds.slice(1));
+  });
+
+  it("leaves shuffle alone when the play can't start", async () => {
+    await setShuffle(true);
+
+    const started = await playAlbumFromTrack(
+      albumTracks,
+      track({ id: "99", streamPath: null }),
+      album,
+      { shuffle: false },
+    );
+
+    expect(started).toBe(false);
+    await playAlbumFromTrack(albumTracks, albumTracks[0], album);
+    expect(playlistIds.slice(1)).not.toEqual(albumIds.slice(1));
+  });
 });
 
 describe("queue edits", () => {

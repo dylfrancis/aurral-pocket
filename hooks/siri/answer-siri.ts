@@ -11,7 +11,10 @@ import {
   offlineQueue,
 } from "@/hooks/offline/use-play-saved-songs";
 import { cachedAlbumCover } from "@/hooks/player/queue-covers";
-import { startQueue } from "@/hooks/player/use-start-queue";
+import {
+  startQueue,
+  type StartQueueOptions,
+} from "@/hooks/player/use-start-queue";
 import { sortByDisc } from "@/lib/album-discs";
 import { ApiError } from "@/lib/api/client";
 import { getPlaylistJobs } from "@/lib/api/flow";
@@ -568,7 +571,7 @@ async function playCollection(
     queryClient,
     items,
     collectionPlayerContext(collection),
-    { shuffled: shuffle },
+    siriShuffle(shuffle),
   );
   return result === "started";
 }
@@ -590,9 +593,12 @@ async function playArtist(
     albumMbid: null,
     artistMbid: artist.id,
   };
-  const result = await startQueue(queryClient, items, context, {
-    shuffled: shuffle,
-  });
+  const result = await startQueue(
+    queryClient,
+    items,
+    context,
+    siriShuffle(shuffle),
+  );
   return result === "started";
 }
 
@@ -604,8 +610,18 @@ async function playSongs(
   const items = songs
     .map((song) => toPlayerTrack(song, albumTrackContext(song, queryClient)))
     .filter(isTrack);
-  const result = await startQueue(queryClient, items, context, { shuffled });
+  const result = await startQueue(
+    queryClient,
+    items,
+    context,
+    siriShuffle(shuffled),
+  );
   return result === "started";
+}
+
+/** Siri turns shuffle on when asked to and otherwise leaves it as it is. */
+function siriShuffle(shuffle: boolean): StartQueueOptions {
+  return shuffle ? { shuffled: true } : {};
 }
 
 /**

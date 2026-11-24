@@ -247,7 +247,6 @@ jest.mock("@/hooks/library/use-artist-details", () => ({
 jest.mock("@/lib/player/player", () => ({
   ...jest.requireActual("@/lib/player/player"),
   playQueueFrom: jest.fn(() => Promise.resolve(true)),
-  setShuffle: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock("@/components/library/ArtistTags", () => {
@@ -339,7 +338,7 @@ import { useLibraryLookup } from "@/hooks/search/use-library-lookup";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
 import { ApiError, setAuthToken, setBaseUrl } from "@/lib/api/client";
 import * as Burnt from "burnt";
-import { playQueueFrom, setShuffle } from "@/lib/player/player";
+import { playQueueFrom } from "@/lib/player/player";
 import { getPluginActions, runPluginAction } from "@/lib/api/plugins";
 import type {
   Artist,
@@ -352,7 +351,6 @@ const mockGetArtistQueue = getArtistQueue as jest.Mock;
 const mockGetArtistPreviewTracks = getArtistPreviewTracks as jest.Mock;
 const mockGetCanonicalLibraryPage = getCanonicalLibraryPage as jest.Mock;
 const mockPlayQueueFrom = playQueueFrom as jest.Mock;
-const mockSetShuffle = setShuffle as jest.Mock;
 
 async function renderScreen(Screen: React.ComponentType = ArtistDetailScreen) {
   const queryClient = new QueryClient({
@@ -851,20 +849,20 @@ describe("ArtistDetailScreen", () => {
         ]);
       });
 
-      it("plays every Library track by the artist, in album order", async () => {
+      it("plays every Library track by the artist, in album order, with shuffle off", async () => {
         const { findByLabelText } = await renderScreen();
         await fireEvent.press(await findByLabelText("Play Test Artist"));
 
         expect(queuedIds()).toEqual(["11", "12"]);
         expect(mockPlayQueueFrom.mock.calls[0][1]).toBe("11");
-        expect(mockSetShuffle).not.toHaveBeenCalled();
+        expect(mockPlayQueueFrom.mock.calls[0][3]).toEqual({ shuffle: false });
       });
 
-      it("turns shuffle on before shuffling the artist", async () => {
+      it("turns shuffle on for the artist's queue", async () => {
         const { findByLabelText } = await renderScreen();
         await fireEvent.press(await findByLabelText("Shuffle Test Artist"));
 
-        expect(mockSetShuffle).toHaveBeenCalledWith(true);
+        expect(mockPlayQueueFrom.mock.calls[0][3]).toEqual({ shuffle: true });
         expect(queuedIds()).toEqual(["11", "12"]);
       });
 
@@ -874,6 +872,8 @@ describe("ArtistDetailScreen", () => {
 
         expect(queuedIds()).toEqual(["12", "preview:dz-2"]);
         expect(mockPlayQueueFrom.mock.calls[0][1]).toBe("preview:dz-2");
+        // A tapped song leaves shuffle as it was.
+        expect(mockPlayQueueFrom.mock.calls[0][3].shuffle).toBeUndefined();
         const clip = mockPlayQueueFrom.mock.calls[0][0][1];
         expect(clip).toMatchObject({
           streamPath: null,

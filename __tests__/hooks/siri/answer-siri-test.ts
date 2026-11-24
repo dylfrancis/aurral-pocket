@@ -69,7 +69,6 @@ import {
   hasQueue,
   playAlbumFromTrack,
   playQueueFrom,
-  setShuffle,
   startRadio,
   togglePlayback,
 } from "@/lib/player/player";
@@ -245,7 +244,6 @@ describe("findForSiri", () => {
     await playForSiri({ itemId: itemIdOf(answer) });
 
     expect(readShuffleSongs).toHaveBeenCalledWith({ genre: "Rock" });
-    expect(setShuffle).toHaveBeenCalledWith(true);
     expect(playQueueFrom).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ id: "5" }),
@@ -253,6 +251,7 @@ describe("findForSiri", () => {
       ]),
       expect.any(String),
       expect.objectContaining({ albumTitle: "Rock" }),
+      { shuffle: true },
     );
   });
 

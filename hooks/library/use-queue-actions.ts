@@ -6,7 +6,6 @@ import {
   playAlbumFromTrack,
   playItemsNext,
   playNextInQueue,
-  setShuffle,
 } from "@/lib/player/player";
 import { toastNotSaved } from "@/hooks/offline/toast-not-saved";
 import { isOffline } from "@/lib/offline/network";
@@ -44,6 +43,7 @@ export function useQueueActions() {
     [],
   );
 
+  // Play means in order, so it turns shuffle off for the new queue.
   const playAlbum = useCallback(
     async (tracks: Track[], album: PlayerAlbumContext) => {
       const first = firstPlayable(tracks);
@@ -52,7 +52,9 @@ export function useQueueActions() {
         return;
       }
       try {
-        const started = await playAlbumFromTrack(tracks, first, album);
+        const started = await playAlbumFromTrack(tracks, first, album, {
+          shuffle: false,
+        });
         if (!started) toastNothingPlayable();
       } catch (error) {
         toastFailure(error);
@@ -61,8 +63,7 @@ export function useQueueActions() {
     [],
   );
 
-  // Turning shuffle on before the play makes the rebuilt queue come out
-  // shuffled — replaceAndPlay reorders the upcoming tracks itself.
+  // The play turns shuffle on, and the new queue comes out shuffled.
   const shuffleAlbum = useCallback(
     async (tracks: Track[], album: PlayerAlbumContext) => {
       const playable = tracks.filter(canPlay);
@@ -72,8 +73,9 @@ export function useQueueActions() {
       }
       const start = playable[Math.floor(Math.random() * playable.length)];
       try {
-        await setShuffle(true);
-        const started = await playAlbumFromTrack(tracks, start, album);
+        const started = await playAlbumFromTrack(tracks, start, album, {
+          shuffle: true,
+        });
         if (!started) toastNothingPlayable();
       } catch (error) {
         toastFailure(error);

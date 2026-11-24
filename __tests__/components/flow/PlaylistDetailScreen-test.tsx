@@ -46,7 +46,6 @@ jest.mock("@/lib/player/player", () => ({
   addItemsToQueue: jest.fn(() => Promise.resolve(1)),
   resume: jest.fn(),
   setQueuedAlbumCovers: jest.fn(() => Promise.resolve()),
-  setShuffle: jest.fn(() => Promise.resolve()),
   useCurrentTrack: () =>
     mockCurrentTrackId ? { id: mockCurrentTrackId } : null,
   usePlaybackState: () => "playing",
@@ -191,7 +190,6 @@ import {
   playItemsNext,
   playQueueFrom,
   setQueuedAlbumCovers,
-  setShuffle,
 } from "@/lib/player/player";
 import type { FlowJob, FlowStatusSnapshot } from "@/lib/types/flow";
 import {
@@ -506,26 +504,28 @@ describe("PlaylistDetailScreen", () => {
     const queuedIds = () =>
       mockPlayQueueFrom.mock.calls[0][0].map((item: { id: string }) => item.id);
 
-    it("plays the ready tracks in order from the first", async () => {
+    it("plays the ready tracks in order from the first, with shuffle off", async () => {
       await open();
 
       await fireEvent.press(screen.getByText("Play"));
 
       expect(queuedIds()).toEqual(["a", "c"]);
       expect(mockPlayQueueFrom.mock.calls[0][1]).toBe("a");
+      expect(mockPlayQueueFrom.mock.calls[0][3]).toEqual({ shuffle: false });
       // The context is what keeps the queue playing once the page closes.
       expect(mockPlayQueueFrom.mock.calls[0][2]).toMatchObject({
         albumTitle: "Road Trip",
       });
     });
 
-    it("plays from a tapped track, with the rest queued around it", async () => {
+    it("plays from a tapped track, with the rest queued around it and shuffle as it was", async () => {
       await open();
 
       await fireEvent.press(screen.getByText("Track c"));
 
       expect(queuedIds()).toEqual(["a", "c"]);
       expect(mockPlayQueueFrom.mock.calls[0][1]).toBe("c");
+      expect(mockPlayQueueFrom.mock.calls[0][3].shuffle).toBeUndefined();
     });
 
     it("does nothing for a track still downloading", async () => {
@@ -536,16 +536,13 @@ describe("PlaylistDetailScreen", () => {
       expect(mockPlayQueueFrom).not.toHaveBeenCalled();
     });
 
-    it("turns shuffle on before the queue is built", async () => {
+    it("turns shuffle on for the new queue", async () => {
       await open();
 
       await fireEvent.press(screen.getByLabelText("Shuffle Road Trip"));
 
       await waitFor(() => expect(mockPlayQueueFrom).toHaveBeenCalled());
-      expect(setShuffle).toHaveBeenCalledWith(true);
-      expect(
-        (setShuffle as jest.Mock).mock.invocationCallOrder[0],
-      ).toBeLessThan(mockPlayQueueFrom.mock.invocationCallOrder[0]);
+      expect(mockPlayQueueFrom.mock.calls[0][3]).toEqual({ shuffle: true });
     });
 
     it("can't play a playlist with nothing downloaded", async () => {
@@ -566,22 +563,6 @@ describe("PlaylistDetailScreen", () => {
       expect(mockPlayQueueFrom.mock.calls[0][0][0].url).toContain(
         "token=rotated-token",
       );
-    });
-
-    it("reports a failed shuffle instead of doing nothing", async () => {
-      (setShuffle as jest.Mock).mockRejectedValueOnce(new Error("no engine"));
-      await open();
-
-      await fireEvent.press(screen.getByLabelText("Shuffle Road Trip"));
-
-      await waitFor(() =>
-        expect(Burnt.toast).toHaveBeenCalledWith({
-          title: "Playback failed",
-          message: "no engine",
-          preset: "error",
-        }),
-      );
-      expect(mockPlayQueueFrom).not.toHaveBeenCalled();
     });
 
     it("says so when playback fails", async () => {
@@ -990,6 +971,7 @@ describe("saving a playlist offline", () => {
       expect.any(Array),
       "a",
       expect.anything(),
+      { shuffle: false },
     );
   });
 });

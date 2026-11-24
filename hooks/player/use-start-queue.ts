@@ -5,11 +5,14 @@ import { fillQueueCovers } from "@/hooks/player/queue-covers";
 import { toastNotSaved } from "@/hooks/offline/toast-not-saved";
 import { isOffline } from "@/lib/offline/network";
 import { canPlayNow } from "@/lib/offline/saved-library";
-import { playQueueFrom, setShuffle } from "@/lib/player/player";
+import { playQueueFrom } from "@/lib/player/player";
 import type { PlayerAlbumContext, PlayerTrack } from "@/lib/player/track-item";
 
 export type StartQueueOptions = {
-  /** Turns shuffle on and starts from a random track. */
+  /**
+   * True turns shuffle on and starts from a random track; false turns it off,
+   * as a Play button does. Left out, shuffle stays as it is, for a tapped song.
+   */
   shuffled?: boolean;
   /** The track to start from. Defaults to the first one that can play. */
   startId?: string;
@@ -57,7 +60,7 @@ export async function startQueue(
   queryClient: QueryClient,
   items: PlayerTrack[],
   context: PlayerAlbumContext,
-  { shuffled = false, startId }: StartQueueOptions = {},
+  { shuffled, startId }: StartQueueOptions = {},
 ): Promise<StartQueueResult> {
   // Offline, the queue holds only saved tracks, so the pick comes from
   // those.
@@ -69,9 +72,9 @@ export async function startQueue(
       : playable[0];
   if (!first) return "nothingPlayable";
 
-  // Before the play, so the rebuilt queue comes out shuffled.
-  if (shuffled) await setShuffle(true);
-  const started = await playQueueFrom(items, first.id, context);
+  const started = await playQueueFrom(items, first.id, context, {
+    shuffle: shuffled,
+  });
   if (!started) return "notStarted";
   // The track that's starting goes first: its cover is the one on
   // screen.
