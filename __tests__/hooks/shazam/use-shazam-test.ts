@@ -8,6 +8,14 @@ const mockListeners: { match: Listener; noMatch: Listener; error: Listener } = {
 };
 const mockStart = jest.fn((_token: string | null) => Promise.resolve());
 const mockStop = jest.fn(() => Promise.resolve());
+let mockPaused: Promise<void> = Promise.resolve();
+const mockRelease = jest.fn();
+const mockResume = jest.fn(() => Promise.resolve());
+
+jest.mock("@/lib/player/player", () => ({
+  holdPlayback: () => ({ paused: mockPaused, release: mockRelease }),
+  resumeAfterHold: () => mockResume(),
+}));
 
 jest.mock("@/modules/shazam", () => ({
   isShazamAvailable: true,
@@ -44,12 +52,21 @@ const MATCH = {
   shazamId: null,
 };
 
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
   mockListeners.match = null;
   mockListeners.noMatch = null;
   mockListeners.error = null;
+  mockPaused = Promise.resolve();
 });
 
 afterEach(() => {
@@ -70,13 +87,70 @@ describe("useShazam", () => {
     expect(mockStart).toHaveBeenCalledTimes(1);
   });
 
-  it("a native match transitions to matched and stops the mic", async () => {
+  it("opens the mic only once the player has paused", async () => {
+    const pause = deferred();
+    mockPaused = pause.promise;
+    const { result } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
+    expect(mockStart).not.toHaveBeenCalled();
+
+    await act(async () => pause.resolve());
+
+    expect(mockStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the mic closed after a cancel while the player pauses", async () => {
+    const pause = deferred();
+    mockPaused = pause.promise;
+    const { result } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
+    await act(() => result.current.cancel());
+
+    await act(async () => pause.resolve());
+
+    expect(mockStart).not.toHaveBeenCalled();
+    expect(mockRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops a mic that was still starting when the session ended", async () => {
+    const starting = deferred();
+    mockStart.mockReturnValueOnce(starting.promise);
+    const { result } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
+    await act(() => result.current.cancel());
+    expect(mockStop).not.toHaveBeenCalled();
+    expect(mockRelease).not.toHaveBeenCalled();
+
+    await act(async () => starting.resolve());
+
+    expect(mockStop).toHaveBeenCalledTimes(1);
+    expect(mockRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("a native match transitions to matched, stops the mic and lets the player play", async () => {
     const { result } = await renderHook(() => useShazam());
     await act(() => result.current.start());
     await act(() => mockListeners.match?.(MATCH));
     expect(result.current.status).toBe("matched");
     expect(result.current.match).toEqual(MATCH);
     expect(mockStop).toHaveBeenCalled();
+    expect(mockRelease).toHaveBeenCalledTimes(1);
+    // The paused song waits for the sheet to close.
+    expect(mockResume).not.toHaveBeenCalled();
+  });
+
+  it("plays the paused song on once the mic has stopped, when the session unmounts", async () => {
+    const { result, unmount } = await renderHook(() => useShazam());
+    await act(() => result.current.start());
+    const stop = deferred();
+    mockStop.mockReturnValueOnce(stop.promise);
+
+    await unmount();
+    expect(mockStop).toHaveBeenCalledTimes(1);
+    expect(mockResume).not.toHaveBeenCalled();
+
+    await act(async () => stop.resolve());
+    expect(mockResume).toHaveBeenCalledTimes(1);
   });
 
   it("times out to no_match after 60s of listening", async () => {

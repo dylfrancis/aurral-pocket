@@ -697,6 +697,55 @@ export function togglePlayback(): Promise<void> {
   return resume();
 }
 
+export type PlaybackHold = {
+  /** Settles once the engine has paused. */
+  paused: Promise<void>;
+  /** Lets playback start again. Calls after the first do nothing. */
+  release: () => void;
+};
+
+let playbackHoldCount = 0;
+/**
+ * The queue claim that was playing when a hold paused it, for
+ * resumeAfterHold. Cleared once anything plays outside a hold.
+ */
+let claimPausedByHold: number | null = null;
+
+/**
+ * Pause playback until released. A play that starts meanwhile, as from the
+ * lock screen or a headset, is paused again once the engine reports it.
+ */
+export function holdPlayback(): PlaybackHold {
+  wireEngineEvents();
+  playbackHoldCount++;
+  let paused = Promise.resolve();
+  if (isPlaybackActive()) {
+    claimPausedByHold = queueClaims;
+    paused = pause().catch(() => {});
+  }
+  let released = false;
+  return {
+    paused,
+    release() {
+      if (released) return;
+      released = true;
+      playbackHoldCount--;
+    },
+  };
+}
+
+/**
+ * Play on from where a hold paused playback. Does nothing while a hold
+ * remains, when no hold paused it, or when something has played since.
+ */
+export async function resumeAfterHold(): Promise<void> {
+  const claim = claimPausedByHold;
+  if (playbackHoldCount > 0 || claim === null) return;
+  claimPausedByHold = null;
+  if (claim !== queueClaims || isPlaybackActive()) return;
+  await resume();
+}
+
 export async function next(): Promise<void> {
   pendingRestoreSeek = null;
   await TrackPlayer.skipToNext();
@@ -1773,6 +1822,11 @@ function wireEngineEvents(): void {
   callbackManager.subscribeToPlaybackState(
     function handleStateChange(state, reason): void {
       playbackState = state;
+      if (playbackHoldCount > 0 && isPlaybackActive()) {
+        void pause().catch(() => {});
+      } else if (state === "playing") {
+        claimPausedByHold = null;
+      }
       // A tap shows its track before the engine lets go of the last one.
       if (state === "playing" && currentEventTrack?.id === displayedTrack?.id) {
         currentTrackHeard = true;
