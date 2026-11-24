@@ -1,6 +1,7 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Host } from "@expo/ui";
 import { usePreventRemove, useRouter, type Href } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import {
   useCallback,
   useEffect,
@@ -69,7 +70,7 @@ import type {
 } from "@/components/player/track-menu-types";
 import { MarqueeText } from "@/components/ui/MarqueeText";
 import { Text } from "@/components/ui/Text";
-import { IS_ANDROID } from "@/constants/platform";
+import { IS_ANDROID, IS_IOS } from "@/constants/platform";
 import { Fonts } from "@/constants/theme";
 import { useLyricsOpen } from "@/contexts/now-playing-context";
 import {
@@ -621,7 +622,16 @@ export function NowPlayingScreen() {
                     accessibilityState={{ selected: modes.repeat !== "off" }}
                     accessibilityLabel={`Repeat: ${modes.repeat}`}
                   >
-                    {modes.repeat === "one" ? (
+                    {IS_IOS ? (
+                      <SymbolView
+                        name={modes.repeat === "one" ? "repeat.1" : "repeat"}
+                        size={24}
+                        tintColor={
+                          modes.repeat === "off" ? colors.subtle : colors.brand
+                        }
+                        style={styles.repeatSymbol}
+                      />
+                    ) : modes.repeat === "one" ? (
                       <MaterialIcons
                         name="repeat-one"
                         size={28}
@@ -1265,6 +1275,9 @@ const styles = StyleSheet.create({
   },
   modeButton: {
     alignItems: "center",
+  },
+  repeatSymbol: {
+    margin: 2,
   },
   // Out of the flow, so the row doesn't shift when it appears.
   modeDot: {
