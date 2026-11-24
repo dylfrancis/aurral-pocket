@@ -74,7 +74,11 @@ import LibraryFavoritesScreen, {
 import LibraryHome from "@/app/(app)/(tabs)/(library)/index";
 import ArtistFavoritesScreen from "@/app/(app)/(tabs)/(library)/artist/favorites";
 import { api, setAuthToken, setBaseUrl } from "@/lib/api/client";
-import { playAlbumFromTrack, playQueueFrom } from "@/lib/player/player";
+import {
+  playAlbumFromTrack,
+  playQueueFrom,
+  setShuffle,
+} from "@/lib/player/player";
 import {
   applyFavorites,
   forgetSavedLibrary,
@@ -416,6 +420,44 @@ describe("favorites screen", () => {
     expect(screen.getByText("Second Album")).toBeTruthy();
     // Saving keeps every favorite, not one artist's.
     expect(allHeaderMenuTitles()).not.toContain("Save Songs");
+  });
+
+  it("plays every song on the favorite albums when no song is a favorite", async () => {
+    setBaseUrl("https://music.example");
+    setAuthToken("token");
+    answerFavorites({ tracks: [libraryPage("tracks")] });
+    const answerFavoriteReads = mockGet.getMockImplementation()!;
+    const albumSong = (id: number, title: string, trackNumber: number) => ({
+      id,
+      title,
+      artistName: "Test Artist",
+      identityKey: `recording:${title.toLowerCase()}`,
+      albums: [{ albumId: 8, trackNumber }],
+      files: [{ id, albumId: 8, available: true }],
+    });
+    mockGet.mockImplementation((url: string, config?: { params?: Params }) =>
+      config?.params?.albumId === "8"
+        ? Promise.resolve({
+            data: libraryPage("tracks", {
+              tracks: [albumSong(82, "Closer", 2), albumSong(81, "Opener", 1)],
+              albums: [SECOND_ALBUM],
+            }),
+          })
+        : answerFavoriteReads(url, config),
+    );
+    await openFavorites("/artist/favorites?artistId=3");
+    await screen.findByText("Second Album");
+
+    await fireEvent.press(screen.getByLabelText("Shuffle Favorites"));
+
+    const [queue, , context] = (playQueueFrom as jest.Mock).mock.calls[0];
+    expect(queue.map((item: { title: string }) => item.title)).toEqual([
+      "Opener",
+      "Closer",
+    ]);
+    expect(queue[0].album).toBe("Second Album");
+    expect(context).toMatchObject({ albumTitle: "Favorites" });
+    expect(setShuffle).toHaveBeenCalledWith(true);
   });
 
   it("offers saving every favorite to the phone", async () => {

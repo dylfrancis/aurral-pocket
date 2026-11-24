@@ -44,6 +44,7 @@ import {
 } from "@/hooks/library/album-track-context";
 import { usePlayTrack } from "@/hooks/library/use-play-track";
 import {
+  readAlbumsSongs,
   songListContext,
   usePlayLibrarySongs,
 } from "@/hooks/library/use-play-library-songs";
@@ -201,6 +202,7 @@ function ServerFavorites({
       onSort={onSort}
       canUnfavorite
       canSave={!artistId}
+      canPlayAlbums
       openAlbum={(album) =>
         router.push({
           pathname: "/album/[ref]",
@@ -243,6 +245,7 @@ function SavedFavorites({ sort, onSort }: SortProps) {
       onSort={onSort}
       canUnfavorite={false}
       canSave
+      canPlayAlbums={false}
       openAlbum={(album) => {
         const save = savedAlbumFor(album);
         if (save) router.push(savedAlbumRoute(save));
@@ -267,6 +270,7 @@ function FavoritesList({
   onSort,
   canUnfavorite,
   canSave,
+  canPlayAlbums,
   openAlbum,
   openAlbumActions,
   emptyMessage,
@@ -280,6 +284,8 @@ function FavoritesList({
   canUnfavorite: boolean;
   /** Saving keeps every favorite, so one artist's list doesn't offer it. */
   canSave: boolean;
+  /** With no favorite songs, Play reads the albums' songs from the server. */
+  canPlayAlbums: boolean;
   openAlbum: (album: Album) => void;
   openAlbumActions: (album: Album) => void;
   emptyMessage: string;
@@ -292,7 +298,11 @@ function FavoritesList({
   const toggleFavorite = useToggleFavorite();
   const trackActions = useTrackActions();
   const play = usePlayTrack();
-  const { playSongs } = usePlayLibrarySongs();
+  const {
+    playSongs,
+    readAndPlay,
+    isLoading: isReadingAlbums,
+  } = usePlayLibrarySongs();
 
   const [searchQuery, setSearchQuery] = useState("");
   const trimmedQuery = searchQuery.trim();
@@ -301,6 +311,12 @@ function FavoritesList({
     [favorites, trimmedQuery],
   );
   const rows = useMemo(() => favoriteRows(shown), [shown]);
+  const playAlbums = (shuffled: boolean) =>
+    void readAndPlay(
+      () => readAlbumsSongs(shown.albums, queryClient),
+      FAVORITES,
+      { shuffled },
+    );
   // Stable, because a header rebuild can drop the Android search icon.
   const handleSearchChange = useCallback(
     (event: { nativeEvent: { text: string } }) =>
@@ -446,6 +462,13 @@ function FavoritesList({
                 onShuffle={() =>
                   void playSongs(shown.tracks, FAVORITES, { shuffled: true })
                 }
+              />
+            ) : canPlayAlbums && shown.albums.length > 0 ? (
+              <ListPlayRow
+                title="Favorites"
+                disabled={isReadingAlbums}
+                onPlay={() => playAlbums(false)}
+                onShuffle={() => playAlbums(true)}
               />
             ) : null}
             {saveLine ? (
