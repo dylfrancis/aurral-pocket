@@ -10,9 +10,8 @@ import type { PlayerAlbumContext, PlayerTrack } from "@/lib/player/track-item";
 import { topTrackClipId, topTrackItem, type TopTrack } from "@/lib/top-tracks";
 
 /**
- * Plays a list as one queue, from any row or from the top. `itemIds` are the
- * rows' queue ids in order. `items` is called at the tap, since each URL
- * carries the session token.
+ * Plays a list as one queue from any row or the top. `items` runs at the tap,
+ * since each URL carries the session token.
  */
 export function useQueuePlayback(
   itemIds: string[],

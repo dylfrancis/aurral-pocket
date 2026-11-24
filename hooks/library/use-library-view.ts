@@ -135,9 +135,8 @@ export function useLibraryView<Sort extends string>(
 }
 
 /**
- * A value of another shape kept with the Library lists' views under
- * `listKey`. `parse` turns what's stored, or nothing, into a value the list
- * offers; keep it outside the component, since only the key reloads.
+ * A value of any shape kept beside the list views under `listKey`. Only the
+ * key reloads it, so define `parse` outside the component.
  */
 export function useRememberedListValue<T>(
   listKey: string,

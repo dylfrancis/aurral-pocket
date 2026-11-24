@@ -73,9 +73,8 @@ function matches(song: AlbumTrack, query: string) {
 }
 
 /**
- * A Library artist's songs, opened from Show All on the artist page with that
- * view's sort and filter. Changes here aren't remembered: each Show All
- * opens on its own view.
+ * A Library artist's songs, opened from Show All on that view's sort and
+ * filter. Changes aren't remembered, since each Show All brings its own.
  */
 export function ArtistSongsScreen() {
   const params = useLocalSearchParams<RouteParams>();

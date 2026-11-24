@@ -124,10 +124,8 @@ type ArtistSongViewsOptions = {
 };
 
 /**
- * The artist page's songs: Top Tracks, or for a Library artist its Most
- * Played, Favorites or All Songs, narrowed by the filter. A view with no
- * songs offers no pill, and a remembered view this artist can't show falls
- * back to Top Tracks. Render a TrackActionsSheet with `actions`.
+ * The artist page's songs views and filter; an empty view gets no pill and
+ * falls back to Top Tracks. Render a TrackActionsSheet with `actions`.
  */
 export function useArtistSongViews({
   mbid,
@@ -272,10 +270,6 @@ export function useArtistSongViews({
     "Top Tracks";
 
   return {
-    /**
-     * Songs over a pill row, and for a Library artist while its views load
-     * or when the filter leaves none; with one view, that view's name.
-     */
     title:
       views.length > 1 || (inLibrary && (isLoading || views.length === 0))
         ? "Songs"

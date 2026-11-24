@@ -12,10 +12,7 @@ import type { AlbumTrack } from "@/lib/types/library";
 /** The server's page cap. */
 const PAGE_SIZE = 100;
 
-/**
- * Album order is the hero's Play order. The server has no such sort, so the
- * phone orders its title-sorted read and shares Name A-Z's cache.
- */
+/** "album" is the hero Play's order, which only the phone can sort. */
 export type ArtistSongOrder = "album" | LibrarySongSortMode;
 
 type ArtistSongListOptions = {
@@ -27,10 +24,8 @@ type ArtistSongListOptions = {
 };
 
 /**
- * Every playable song on a Library artist's own albums, read in full: one
- * artist's songs stay few enough that the phone can filter and search them.
- * `libraryArtistId` is the canonical artist id, the only one the route
- * matches.
+ * Every playable song on a Library artist's own albums, all pages read so the
+ * phone can filter them. Takes the canonical id, the only one the route takes.
  */
 export function useArtistSongList(
   libraryArtistId: string | undefined,
