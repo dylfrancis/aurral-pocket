@@ -17,6 +17,9 @@
   <a href="./LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" />
   </a>
+  <a href="https://github.com/sponsors/dylfrancis">
+    <img src="https://img.shields.io/badge/sponsor-ea4aaa?logo=githubsponsors&logoColor=white" alt="Sponsor" />
+  </a>
 </p>
 
 A mobile app for [Aurral](https://github.com/lklynet/aurral). Discover music, manage your library, and play it from your own server, online or offline.
@@ -130,6 +133,10 @@ Built with Expo SDK 58 (React Native 0.88, React 19.3), Expo Router, TanStack Qu
 ## Contributing
 
 Contributions are welcome. [CONTRIBUTING.md](./CONTRIBUTING.md) covers how to propose a change and open a pull request.
+
+## Sponsor
+
+If Pocket is useful to you, you can support its development through [GitHub Sponsors](https://github.com/sponsors/dylfrancis).
 
 ## AI disclosure
 
