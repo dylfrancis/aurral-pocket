@@ -1,53 +1,8 @@
-import { Colors, Fonts } from "@/constants/theme";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useMemo } from "react";
+import type { SegmentedRowProps } from "./segmented-row";
 
-type Option<T extends string | number> = {
-  value: T;
-  label: string;
-};
-
-type Props<T extends string | number> = {
-  value: T;
-  options: Option<T>[];
-  onChange: (value: T) => void;
-};
-
-export function SegmentedRow<T extends string | number>({
-  value,
-  options,
-  onChange,
-}: Props<T>) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme];
-
-  const labels = useMemo(
-    () => options.map((option) => option.label),
-    [options],
-  );
-  const selectedIndex = options.findIndex((option) => option.value === value);
-
-  return (
-    <SegmentedControl
-      values={labels}
-      selectedIndex={selectedIndex >= 0 ? selectedIndex : 0}
-      appearance={colorScheme}
-      backgroundColor={colors.inputBackground}
-      tintColor={colors.brand}
-      fontStyle={{
-        color: colors.text,
-        ...Fonts.medium,
-      }}
-      activeFontStyle={{
-        color: colors.buttonPrimaryText,
-        ...Fonts.semiBold,
-      }}
-      onChange={(event) => {
-        const index = event.nativeEvent.selectedSegmentIndex;
-        const next = options[index];
-        if (next) onChange(next.value);
-      }}
-    />
-  );
+/** Only the .ios and .android versions render: pocket ships no other platform. */
+export function SegmentedRow<T extends string | number>(
+  _props: SegmentedRowProps<T>,
+) {
+  return null;
 }
