@@ -98,7 +98,12 @@ export const AlbumCard = React.memo(function AlbumCard({
               inline
             />
             {year && `${year} · `}
-            {formatAlbumTrackCount(trackCount, trackFileCount)}
+            <Text
+              variant="caption"
+              style={partial ? { color: colors.warning } : undefined}
+            >
+              {formatAlbumTrackCount(trackCount, trackFileCount)}
+            </Text>
             {statusLabel ? (
               <Text
                 variant="caption"
