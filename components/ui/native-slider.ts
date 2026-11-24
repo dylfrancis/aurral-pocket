@@ -13,9 +13,11 @@ export type NativeSliderProps = {
   /** VoiceOver and TalkBack read it before the value. */
   accessibilityLabel: string;
   testID?: string;
-  /** Each change while the value moves. */
   onValueChange?: (value: number) => void;
   onSlidingStart?: () => void;
-  /** Once the finger lifts, with the value it settled on. */
+  /**
+   * When a change finishes, with its value: as the finger lifts, or at once
+   * for a change outside a drag.
+   */
   onSlidingComplete?: (value: number) => void;
 };

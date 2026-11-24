@@ -8,7 +8,7 @@ import {
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { NativeSliderProps } from "./native-slider";
 
-// A tick at each of MixSlider's 99 stops would dot the whole track.
+// A tick at every stop dots the track when steps are fine.
 const NO_TICKS = "#00000000";
 
 /** Material 3's slider. */

@@ -19,9 +19,8 @@ type Result<T> = {
  * Resolves the entity being edited from the flow status cache exactly once,
  * with a one-shot fetch fallback for cold starts (deep links).
  *
- * Edit screens must not subscribe to the live status query: a re-render
- * mid-gesture snaps the iOS hour wheel back to the stale value, and a
- * background update must never reset an in-progress draft.
+ * Edit screens must not subscribe to the live status query: a background
+ * update must never reset an in-progress draft.
  */
 export function useEditSnapshot<T>(
   enabled: boolean,
