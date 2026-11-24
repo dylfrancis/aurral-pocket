@@ -33,7 +33,7 @@ const ids = (sections: { id: string; enabled: boolean }[]) =>
   sections.map(({ id, enabled }) => (enabled ? id : `-${id}`));
 
 describe("useArtistPageLayout", () => {
-  it("reads the account's saved layout, dropping old sections and adding new ones", async () => {
+  it("reads the account's saved layout, dropping old sections and adding new ones beside their neighbors", async () => {
     const { AsyncStorage, rntl, layout } = launch();
     await AsyncStorage.setItem(
       "artistPageLayout:7",
@@ -51,9 +51,10 @@ describe("useArtistPageLayout", () => {
     await rntl.waitFor(() => expect(result.current.hydrated).toBe(true));
 
     expect(ids(result.current.sections)).toEqual([
+      "tags",
+      "favorites",
       "about",
       "-songs",
-      "tags",
       "library",
       "releases",
       "similar",
@@ -77,6 +78,7 @@ describe("useArtistPageLayout", () => {
       "releases",
       "library",
       "songs",
+      "favorites",
       "-tags",
     ]);
     expect(

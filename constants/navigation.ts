@@ -138,6 +138,16 @@ export function artistSongsScreenOptions(colors: ThemeColors) {
   };
 }
 
+/** One artist's favorite albums and songs, opened from its Favorites row. */
+export function artistFavoritesScreenOptions(colors: ThemeColors) {
+  return {
+    title: "Favorites",
+    headerLargeTitleEnabled: true,
+    headerBackButtonDisplayMode: "minimal" as const,
+    ...layoutSearchBar(SEARCH_PLACEHOLDERS.favorites, colors),
+  };
+}
+
 /**
  * An artist's Albums or Releases list, titled by the category it was opened
  * from.

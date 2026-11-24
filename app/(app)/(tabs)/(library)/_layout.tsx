@@ -4,6 +4,7 @@ import {
   SEARCH_PLACEHOLDERS,
   artistListScreenOptions,
   TOP_TRACKS_SCREEN_OPTIONS,
+  artistFavoritesScreenOptions,
   artistSongsScreenOptions,
   layoutSearchBar,
   stackScreenOptions,
@@ -125,6 +126,10 @@ export default function LibraryLayout() {
         <Stack.Screen
           name="artist/songs"
           options={artistSongsScreenOptions(colors)}
+        />
+        <Stack.Screen
+          name="artist/favorites"
+          options={artistFavoritesScreenOptions(colors)}
         />
         <Stack.Screen
           name="blocklist"

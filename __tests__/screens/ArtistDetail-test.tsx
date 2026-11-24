@@ -1123,6 +1123,65 @@ describe("an artist's plugin actions", () => {
   });
 });
 
+describe("the artist's Favorites row", () => {
+  const favoriteSong = (id: string) => ({
+    id,
+    mbid: "",
+    trackName: `Song ${id}`,
+    trackNumber: 1,
+    hasFile: true,
+    streamPath: `/library/stream/7/${id}`,
+  });
+
+  beforeEach(() => {
+    mockUseCanonicalArtist.mockReturnValue({
+      data: { ...baseArtist, identityKey: "mbid:artist:test" },
+      isPending: false,
+      refetch: jest.fn().mockResolvedValue({}),
+    });
+  });
+
+  it("counts favorite albums and songs, and opens the artist's Favorites", async () => {
+    mockGetCanonicalLibraryPage.mockImplementation((params) =>
+      Promise.resolve(
+        !params.favorite
+          ? tracksPage([])
+          : params.kind === "albums"
+            ? tracksPage([], [makeAlbum({ id: "7" })])
+            : tracksPage([favoriteSong("70"), favoriteSong("71")]),
+      ),
+    );
+
+    await renderScreen();
+    const row = await screen.findByLabelText(
+      "Favorites, 1 album · 2 songs · Test Artist",
+    );
+
+    expect(mockGetCanonicalLibraryPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "albums",
+        favorite: true,
+        artistId: "1",
+      }),
+    );
+    expect(mockGetCanonicalLibraryPage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "artists" }),
+    );
+    await fireEvent.press(row);
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/artist/favorites",
+      params: { artistId: "1" },
+    });
+  });
+
+  it("stays hidden while nothing by the artist is a favorite", async () => {
+    await renderScreen();
+
+    expect(await screen.findByText("Block Artist")).toBeTruthy();
+    expect(screen.queryByLabelText(/^Favorites,/)).toBeNull();
+  });
+});
+
 describe("the artist's songs", () => {
   const ALBUMS = [
     makeAlbum({ id: "7", albumName: "Second", releaseDate: "2020-01-01" }),

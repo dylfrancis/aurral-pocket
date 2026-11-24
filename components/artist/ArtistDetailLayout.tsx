@@ -1,4 +1,5 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
+import { ArtistFavoritesRow } from "@/components/artist/ArtistFavoritesRow";
 import { ArtistLibraryControl } from "@/components/artist/ArtistLibraryControl";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import {
@@ -43,7 +44,10 @@ import {
   useCanonicalArtist,
   useLibraryArtist,
 } from "@/hooks/library/use-library-artist";
-import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
+import {
+  useArtistFavoriteCounts,
+  useToggleFavorite,
+} from "@/hooks/library/use-library-favorites";
 import { useLibraryScan } from "@/hooks/library/use-library-scan";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -457,9 +461,14 @@ export function ArtistDetailLayout({
     inLibrary || libraryStatusLoading
       ? pageLayout.sections
       : DEFAULT_ARTIST_PAGE_SECTIONS;
+  // The Library's paged reads match only the canonical id.
+  const canonicalId = canonicalArtist?.id ?? (mbid ? undefined : artistRef);
+  const favoriteCounts = useArtistFavoriteCounts(
+    inLibrary ? canonicalId : undefined,
+  );
   const songs = useArtistSongViews({
     mbid,
-    libraryArtistId: canonicalArtist?.id ?? (mbid ? undefined : artistRef),
+    libraryArtistId: canonicalId,
     artistName,
     inLibrary,
     topTracks,
@@ -502,6 +511,22 @@ export function ArtistDetailLayout({
   // The page's sections, drawn in the order Settings › Artist Page keeps.
   const pageSections: Record<ArtistPageSectionId, ReactNode> = {
     tags: mbid ? <ArtistTags mbid={mbid} /> : null,
+    favorites:
+      canonicalId && favoriteCounts.albums + favoriteCounts.songs > 0 ? (
+        <ArtistFavoritesRow
+          artistName={artistName}
+          mbid={mbid ?? ""}
+          coverUrl={canonicalArtist?.coverUrl || coverUrl}
+          albumCount={favoriteCounts.albums}
+          songCount={favoriteCounts.songs}
+          onPress={() =>
+            router.push({
+              pathname: "/artist/favorites",
+              params: { artistId: canonicalId },
+            })
+          }
+        />
+      ) : null,
     songs: (
       <ArtistSongsSection
         title={songs.title}

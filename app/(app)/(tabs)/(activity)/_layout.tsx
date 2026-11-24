@@ -4,6 +4,7 @@ import {
   DETAIL_SCREEN_OPTIONS,
   artistListScreenOptions,
   TOP_TRACKS_SCREEN_OPTIONS,
+  artistFavoritesScreenOptions,
   artistSongsScreenOptions,
   stackScreenOptions,
 } from "@/constants/navigation";
@@ -53,6 +54,10 @@ export default function ActivityLayout() {
         <Stack.Screen
           name="artist/songs"
           options={artistSongsScreenOptions(colors)}
+        />
+        <Stack.Screen
+          name="artist/favorites"
+          options={artistFavoritesScreenOptions(colors)}
         />
       </Stack>
     </MiniPlayerHost>

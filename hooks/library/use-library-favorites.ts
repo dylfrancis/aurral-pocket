@@ -6,7 +6,10 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import * as Burnt from "burnt";
-import type { LibrarySongSortMode } from "@/components/library/AlbumSortPicker";
+import {
+  FAVORITE_SORT_OPTIONS,
+  type LibrarySongSortMode,
+} from "@/components/library/AlbumSortPicker";
 import type { ApiError } from "@/lib/api/client";
 import {
   favoriteEntityId,
@@ -39,6 +42,7 @@ type FavoriteOrder = Pick<LibraryListParams, "sort" | "direction">;
 async function readFavoritePages(
   kind: CanonicalPageKind,
   order: FavoriteOrder,
+  artistId: string | undefined,
 ): Promise<CanonicalPage[]> {
   const read = (page: number) =>
     getCanonicalLibraryPage({
@@ -49,6 +53,7 @@ async function readFavoritePages(
       page,
       pageSize: PAGE_SIZE,
       favorite: true,
+      artistId,
       ...order,
     });
   const first = await read(1);
@@ -72,12 +77,16 @@ function artistsOfPages(pages: readonly CanonicalPage[]): Artist[] {
   return artists;
 }
 
-async function getFavoriteLists(order: FavoriteOrder): Promise<FavoriteLists> {
-  const [artists, albums, tracks] = await Promise.all(
-    (["artists", "albums", "tracks"] as const).map((kind) =>
-      readFavoritePages(kind, order),
-    ),
-  );
+/** One artist's favorites leave out Artists: the artist is the page. */
+async function getFavoriteLists(
+  order: FavoriteOrder,
+  artistId: string | undefined,
+): Promise<FavoriteLists> {
+  const [artists, albums, tracks] = await Promise.all([
+    artistId ? [] : readFavoritePages("artists", order, artistId),
+    readFavoritePages("albums", order, artistId),
+    readFavoritePages("tracks", order, artistId),
+  ]);
   return {
     artists: artistsOfPages(artists),
     albums: albumsOfPages(albums),
@@ -85,12 +94,18 @@ async function getFavoriteLists(order: FavoriteOrder): Promise<FavoriteLists> {
   };
 }
 
-/** Every favorite, by section, in `sort` order. */
-export function favoriteListsQuery(sort: LibrarySongSortMode) {
+/**
+ * Every favorite, by section, in `sort` order. `artistId`, a canonical id,
+ * narrows them to one artist's albums and songs.
+ */
+export function favoriteListsQuery(
+  sort: LibrarySongSortMode,
+  artistId?: string,
+) {
   const order = serverSort(sort);
   return queryOptions({
-    queryKey: libraryKeys.favoriteLists(order),
-    queryFn: () => getFavoriteLists(order),
+    queryKey: libraryKeys.favoriteLists(order, artistId),
+    queryFn: () => getFavoriteLists(order, artistId),
   });
 }
 
@@ -98,12 +113,28 @@ export function favoriteListsQuery(sort: LibrarySongSortMode) {
  * The Favorites screen's sections in `sort` order, read in full so search,
  * Play and Shuffle cover every favorite. No auth guard: call it inside `(app)`.
  */
-export function useLibraryFavorites(sort: LibrarySongSortMode) {
+export function useLibraryFavorites(
+  sort: LibrarySongSortMode,
+  artistId?: string,
+) {
   return useSuspenseQuery({
-    ...favoriteListsQuery(sort),
+    ...favoriteListsQuery(sort, artistId),
     // Other clients change favorites too, so opening the screen rereads them.
     staleTime: 0,
   });
+}
+
+/**
+ * How many of one Library artist's albums and songs are favorites, from the
+ * read its Favorites page opens on first.
+ */
+export function useArtistFavoriteCounts(libraryArtistId: string | undefined) {
+  const { data } = useQuery({
+    ...favoriteListsQuery(FAVORITE_SORT_OPTIONS[0].key, libraryArtistId),
+    staleTime: 0,
+    enabled: !!libraryArtistId,
+  });
+  return { albums: data?.albums.length ?? 0, songs: data?.tracks.length ?? 0 };
 }
 
 /**

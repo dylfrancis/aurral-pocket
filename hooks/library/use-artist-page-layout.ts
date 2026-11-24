@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@/contexts/auth-context";
 
 export type ArtistPageSectionId =
-  "tags" | "songs" | "library" | "releases" | "similar" | "about";
+  "tags" | "favorites" | "songs" | "library" | "releases" | "similar" | "about";
 
 export type ArtistPageSection = {
   id: ArtistPageSectionId;
@@ -14,6 +14,7 @@ export type ArtistPageSection = {
 /** Every section below the hero, in the page's own order. */
 export const DEFAULT_ARTIST_PAGE_SECTIONS: readonly ArtistPageSection[] = [
   { id: "tags", label: "Tags", enabled: true },
+  { id: "favorites", label: "Favorites", enabled: true },
   { id: "songs", label: "Songs", enabled: true },
   { id: "library", label: "In Your Library", enabled: true },
   { id: "releases", label: "Albums & Releases", enabled: true },
@@ -31,7 +32,7 @@ const defaultSections = () =>
 
 /**
  * Reads a stored layout. Unknown and repeated ids are dropped, and a section
- * added since the layout was saved joins at the end, turned on.
+ * added since it was saved joins after its default neighbor, turned on.
  */
 export function normalizeArtistPageLayout(value: unknown): ArtistPageSection[] {
   if (!Array.isArray(value)) return defaultSections();
@@ -50,7 +51,12 @@ export function normalizeArtistPageLayout(value: unknown): ArtistPageSection[] {
       enabled: typeof enabled === "boolean" ? enabled : true,
     });
   }
-  remaining.forEach((section) => sections.push({ ...section }));
+  DEFAULT_ARTIST_PAGE_SECTIONS.forEach((section, index) => {
+    if (!remaining.has(section.id)) return;
+    const before = DEFAULT_ARTIST_PAGE_SECTIONS[index - 1]?.id;
+    const at = sections.findIndex((placed) => placed.id === before);
+    sections.splice(at + 1, 0, { ...section });
+  });
   return sections;
 }
 
