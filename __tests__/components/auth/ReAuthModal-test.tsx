@@ -38,10 +38,20 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { fetch } from "expo/fetch";
 import { openAuthSessionAsync } from "expo-web-browser";
-import { Alert, Pressable, Text } from "react-native";
+import {
+  Alert,
+  AppState,
+  type AppStateStatus,
+  Pressable,
+  Text,
+} from "react-native";
 import { ReAuthModal } from "@/components/auth/ReAuthModal";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { api, notifyReAuthResult, setAuthToken } from "@/lib/api/client";
+import {
+  authenticateWithBiometrics,
+  useBiometricAvailability,
+} from "@/hooks/auth/use-biometric-availability";
 
 const SERVER = "https://aurral.example.com";
 const SUSPENDED = "This account has been suspended or disabled";
@@ -49,6 +59,8 @@ const SUSPENDED = "This account has been suspended or disabled";
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 const mockOpenAuthSession = openAuthSessionAsync as jest.Mock;
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
+const mockFaceId = authenticateWithBiometrics as jest.Mock;
+const mockBiometricLabel = useBiometricAvailability as jest.Mock;
 
 function jsonResponse(status: number, body: unknown): any {
   return {
@@ -124,6 +136,17 @@ async function renderSignedIn(stored: Record<string, string> = {}) {
   return { ...utils, secure };
 }
 
+const appStateListeners = new Set<(state: AppStateStatus) => void>();
+const testedAppState = AppState as { currentState: unknown };
+const presetAppState = testedAppState.currentState;
+
+async function moveApp(state: AppStateStatus) {
+  testedAppState.currentState = state;
+  for (const listener of [...appStateListeners]) {
+    await act(async () => listener(state));
+  }
+}
+
 /** Any call from a screen, which is how a lost session comes to light. */
 async function hitLostSession() {
   // Wrapped, because returning a promise from here would wait on it, and it
@@ -143,6 +166,19 @@ beforeEach(async () => {
   setAuthToken(null);
   // A prompt a test left open would hold the client's one re-auth in flight.
   notifyReAuthResult(false);
+  appStateListeners.clear();
+  jest
+    .spyOn(AppState, "addEventListener")
+    .mockImplementation((_type, listener) => {
+      appStateListeners.add(listener);
+      return { remove: () => appStateListeners.delete(listener) };
+    });
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+  testedAppState.currentState = presetAppState;
+  mockBiometricLabel.mockReturnValue(null);
 });
 
 describe("ReAuthModal", () => {
@@ -289,6 +325,48 @@ describe("ReAuthModal", () => {
       const { findByText } = await renderSignedIn(pastExpiry);
 
       await findByText("Session Expired");
+    });
+  });
+
+  describe("Face ID", () => {
+    const faceIdOn = {
+      use_biometrics: "true",
+      saved_username: "ada",
+      saved_password: "secret",
+    };
+
+    beforeEach(() => {
+      mockBiometricLabel.mockReturnValue("Face ID");
+      // The user cancels, so the prompt stays open.
+      mockFaceId.mockResolvedValue(false);
+      serveLostSession(() => jsonResponse(500, {}));
+    });
+
+    it("starts as soon as the prompt opens in the foreground", async () => {
+      testedAppState.currentState = "active";
+      const { findByText } = await renderSignedIn(faceIdOn);
+
+      await hitLostSession();
+      await findByText("Session Expired");
+
+      expect(mockFaceId).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for the app to come back when the prompt opens in the background", async () => {
+      testedAppState.currentState = "background";
+      const { findByText } = await renderSignedIn(faceIdOn);
+
+      await hitLostSession();
+      await findByText("Session Expired");
+      expect(mockFaceId).not.toHaveBeenCalled();
+
+      await moveApp("active");
+      expect(mockFaceId).toHaveBeenCalledTimes(1);
+
+      // The Face ID sheet itself takes the app out of active and back.
+      await moveApp("inactive");
+      await moveApp("active");
+      expect(mockFaceId).toHaveBeenCalledTimes(1);
     });
   });
 });

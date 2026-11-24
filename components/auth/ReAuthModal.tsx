@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { AppState, Modal, Pressable, StyleSheet, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -176,15 +176,30 @@ export function ReAuthModal() {
   const showBiometric =
     !isOidcSession && useBiometrics && hasCredentials && !!biometricLabel;
 
+  // iOS refuses Face ID while the app is in the background, which is where a
+  // music app often is when its session runs out. A prompt that opens there
+  // starts it once the app is back. Only once per prompt: the Face ID sheet
+  // itself takes the app out of active and back.
   const autoTriggeredRef = useRef(false);
   useEffect(() => {
     if (!sessionExpired) {
       autoTriggeredRef.current = false;
       return;
     }
-    if (!showBiometric || autoTriggeredRef.current) return;
-    autoTriggeredRef.current = true;
-    handleBiometric();
+    if (!showBiometric) return;
+    const start = () => {
+      if (autoTriggeredRef.current) return;
+      autoTriggeredRef.current = true;
+      handleBiometric();
+    };
+    if (AppState.currentState === "active") {
+      start();
+      return;
+    }
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") start();
+    });
+    return () => subscription.remove();
     // handleBiometric is stable within a render; we intentionally avoid adding
     // it to deps to prevent re-firing on unrelated re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
