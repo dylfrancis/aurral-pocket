@@ -255,4 +255,40 @@ describe("ReAuthModal", () => {
     await waitFor(() => expect(queryByText("Session Expired")).toBeNull());
     await expect(request).resolves.toMatchObject({ status: 401 });
   });
+
+  describe("at the saved expiry", () => {
+    const pastExpiry = { token_expires_at: String(Date.now() - 60_000) };
+
+    it("keeps a session the server still accepts, with its new expiry", async () => {
+      const renewed = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      mockFetch.mockImplementation(async () =>
+        jsonResponse(200, {
+          user: { id: 1, username: "ada", role: "user" },
+          expiresAt: renewed,
+        }),
+      );
+      const { queryByText, secure } = await renderSignedIn(pastExpiry);
+
+      await waitFor(() =>
+        expect(secure.get("token_expires_at")).toBe(String(renewed)),
+      );
+      expect(queryByText("Session Expired")).toBeNull();
+    });
+
+    it("opens no prompt while the server can't be reached", async () => {
+      mockFetch.mockRejectedValue(new TypeError("Network request failed"));
+      const { queryByText } = await renderSignedIn(pastExpiry);
+
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+      await act(async () => {});
+      expect(queryByText("Session Expired")).toBeNull();
+    });
+
+    it("opens Session Expired once the server refuses the session", async () => {
+      serveLostSession(() => jsonResponse(500, {}));
+      const { findByText } = await renderSignedIn(pastExpiry);
+
+      await findByText("Session Expired");
+    });
+  });
 });

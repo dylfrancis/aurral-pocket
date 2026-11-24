@@ -23,7 +23,6 @@ jest.mock("@/lib/api/client", () => ({
 }));
 
 jest.mock("@/lib/api/auth", () => ({
-  login: jest.fn(),
   getMe: jest.fn(),
 }));
 
@@ -33,18 +32,12 @@ import { render, waitFor, fireEvent, act } from "@testing-library/react-native";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
-import {
-  ApiError,
-  setAuthToken,
-  setBaseUrl,
-  setCustomHeaders,
-} from "@/lib/api/client";
-import { getMe, login } from "@/lib/api/auth";
+import { setAuthToken, setBaseUrl, setCustomHeaders } from "@/lib/api/client";
+import { getMe } from "@/lib/api/auth";
 import { TrackPlayer } from "react-native-nitro-player";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
-const mockLogin = login as jest.Mock;
 const mockGetMe = getMe as jest.Mock;
 
 // Interactive consumer that exposes context state and actions
@@ -581,139 +574,6 @@ describe("AuthProvider — clearAuth", () => {
     expect(getByTestId("serverUrl").props.children).toBe(
       "https://my-server.com",
     );
-  });
-});
-
-describe("AuthProvider — proactive expiry timer", () => {
-  it("triggers sessionExpired when token expires and no remember", async () => {
-    const expiresIn = 120_000; // 2 minutes from now
-    const expiresAt = String(Date.now() + expiresIn);
-
-    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "my-token";
-      if (key === "user_json")
-        return '{"id":1,"username":"alice","role":"user"}';
-      if (key === "token_expires_at") return expiresAt;
-      if (key === "remember_credentials") return null;
-      return null;
-    });
-
-    const { getByTestId } = await renderWithProvider();
-
-    await waitFor(() => {
-      expect(getByTestId("token").props.children).toBe("my-token");
-      expect(getByTestId("sessionExpired").props.children).toBe("false");
-    });
-
-    // Timer fires 60s before expiry, so at expiresIn - 60000 = 60000ms
-    await act(async () => {
-      jest.advanceTimersByTime(expiresIn);
-    });
-
-    await waitFor(() => {
-      expect(getByTestId("sessionExpired").props.children).toBe("true");
-    });
-  });
-
-  it("silently re-auths when token expires and remember is on", async () => {
-    // Use real timers for this test since the timer callback has async/await
-    jest.useRealTimers();
-
-    // 61s from now — timer fires at expiresIn - 60s = 1s
-    const expiresIn = 61_000;
-    const expiresAt = String(Date.now() + expiresIn);
-    const newExpiresAt = Date.now() + expiresIn + 86400000;
-
-    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "my-token";
-      if (key === "user_json")
-        return '{"id":1,"username":"alice","role":"user"}';
-      if (key === "token_expires_at") return expiresAt;
-      if (key === "remember_credentials") return "true";
-      if (key === "saved_username") return "alice";
-      if (key === "saved_password") return "pass123";
-      return null;
-    });
-
-    mockLogin.mockResolvedValue({
-      token: "renewed-token",
-      expiresAt: newExpiresAt,
-      user: { id: 1, username: "alice", role: "user" },
-    });
-
-    const { getByTestId } = await renderWithProvider();
-
-    await waitFor(() => {
-      expect(getByTestId("token").props.children).toBe("my-token");
-    });
-
-    // Timer fires at ~1s (61s - 60s buffer). Wait for re-auth to complete.
-    await waitFor(
-      () => {
-        expect(getByTestId("sessionExpired").props.children).toBe("false");
-        expect(getByTestId("token").props.children).toBe("renewed-token");
-      },
-      { timeout: 5000 },
-    );
-
-    jest.useFakeTimers();
-  });
-
-  it("reports a suspension when the silent renewal is refused", async () => {
-    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "expired-token";
-      if (key === "user_json")
-        return '{"id":1,"username":"alice","role":"user"}';
-      if (key === "token_expires_at") return String(Date.now() - 60_000);
-      if (key === "remember_credentials") return "true";
-      if (key === "saved_username") return "alice";
-      if (key === "saved_password") return "pass123";
-      return null;
-    });
-    mockLogin.mockRejectedValue(
-      new ApiError(403, "This account has been suspended or disabled"),
-    );
-
-    const { getByTestId } = await renderWithProvider();
-
-    await act(async () => {
-      await jest.runOnlyPendingTimersAsync();
-    });
-    await waitFor(() => {
-      expect(getByTestId("accountSuspended").props.children).toBe("true");
-    });
-    expect(getByTestId("sessionExpired").props.children).toBe("false");
-  });
-
-  it("fires immediately when token is already expired on restore", async () => {
-    const expiredAt = String(Date.now() - 60_000); // expired 1 minute ago
-
-    mockAsyncStorage.getItem.mockResolvedValue("https://my-server.com");
-    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
-      if (key === "auth_token") return "expired-token";
-      if (key === "user_json")
-        return '{"id":1,"username":"alice","role":"user"}';
-      if (key === "token_expires_at") return expiredAt;
-      if (key === "remember_credentials") return null;
-      return null;
-    });
-
-    const { getByTestId } = await renderWithProvider();
-
-    await waitFor(() => {
-      expect(getByTestId("token").props.children).toBe("expired-token");
-    });
-
-    await act(async () => {
-      jest.advanceTimersByTime(0);
-    });
-
-    await waitFor(() => {
-      expect(getByTestId("sessionExpired").props.children).toBe("true");
-    });
   });
 });
 

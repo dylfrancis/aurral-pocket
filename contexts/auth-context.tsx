@@ -1,6 +1,5 @@
-import { getMe, login } from "@/lib/api/auth";
+import { getMe } from "@/lib/api/auth";
 import {
-  ApiError,
   notifyReAuthResult,
   setAuthToken,
   setBaseUrl,
@@ -122,7 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accountSuspended, setAccountSuspended] = useState(false);
   const [userRecoveryAttempted, setUserRecoveryAttempted] = useState(false);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
-  const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Restore persisted state on mount
   useEffect(() => {
@@ -267,47 +265,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Proactive session renewal — fires ~60s before token expires
+  // Aurral moves a session's expiry forward as it's used, so the expiry saved
+  // at sign-in falls behind. A minute before it, or at once on a launch
+  // after it, the server says whether the session still stands. An answer
+  // brings the new expiry. A refused session reaches the client's 401
+  // handling, which signs in again silently or opens Session Expired.
   useEffect(() => {
-    if (expiryTimer.current) clearTimeout(expiryTimer.current);
     if (!expiresAt || !token) return;
-
-    const msUntilExpiry = expiresAt - Date.now();
-    // Fire 60s before expiry, or immediately if already past
-    const delay = Math.max(0, msUntilExpiry - 60_000);
-
-    expiryTimer.current = setTimeout(async () => {
-      // Try silent re-auth if remember is on
-      const remember = await SecureStorage.getRememberCredentials();
-      if (remember) {
-        const creds = await SecureStorage.getCredentials();
-        if (creds) {
-          try {
-            const data = await login(creds);
-            setToken(data.token);
-            setUser(data.user);
-            setAuthToken(data.token);
-            setExpiresAt(data.expiresAt);
-            await Promise.all([
-              SecureStorage.setToken(data.token),
-              SecureStorage.setUser(JSON.stringify(data.user)),
-              SecureStorage.setExpiresAt(data.expiresAt),
-            ]);
-            return;
-          } catch (error) {
-            if (error instanceof ApiError && error.isAccountSuspended) {
-              setAccountSuspended(true);
-              return;
-            }
-          }
-        }
+    let cancelled = false;
+    const delay = Math.max(0, expiresAt - Date.now() - 60_000);
+    const timer = setTimeout(async () => {
+      try {
+        const me = await getMe();
+        if (cancelled || !me.expiresAt) return;
+        setExpiresAt(me.expiresAt);
+        await SecureStorage.setExpiresAt(me.expiresAt);
+      } catch {
+        // Anything else, such as no connection, says nothing about the
+        // session, so the next request finds out.
       }
-      // Silent re-auth unavailable or failed
-      setSessionExpiredState(true);
     }, delay);
-
     return () => {
-      if (expiryTimer.current) clearTimeout(expiryTimer.current);
+      cancelled = true;
+      clearTimeout(timer);
     };
   }, [expiresAt, token]);
 

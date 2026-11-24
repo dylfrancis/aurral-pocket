@@ -92,5 +92,6 @@ export type OidcSession = LoginResponse;
 
 export type MeResponse = {
   user: User;
-  expiresAt: number;
+  /** Null for a request with no session behind it. */
+  expiresAt: number | null;
 };
