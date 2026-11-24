@@ -76,7 +76,8 @@ jest.mock("expo-router", () => {
   // The native menu renders nothing under Jest, so each action renders as a
   // pressable labelled by its title, and a hidden action renders nothing. A
   // checkable action reads as selected while it's on.
-  const MenuAction = ({ children, hidden, isOn, onPress }: any) =>
+  const { isMenuActionOn } = require("@/test-support/menu-action");
+  const MenuAction = ({ children, hidden, isOn, icon, onPress }: any) =>
     hidden
       ? null
       : React.createElement(
@@ -85,8 +86,7 @@ jest.mock("expo-router", () => {
             onPress,
             accessibilityLabel:
               typeof children === "string" ? children : undefined,
-            accessibilityState:
-              isOn === undefined ? undefined : { selected: isOn },
+            accessibilityState: { selected: isMenuActionOn({ isOn, icon }) },
           },
           React.createElement(Text, null, children),
         );

@@ -200,16 +200,6 @@ jest.mock("@/hooks/auth/use-has-permission", () => ({
   useHasPermission: () => () => true,
 }));
 
-// The community slider ships no Jest mock; a plain View exposes the same
-// callback props to fireEvent.
-jest.mock("@react-native-community/slider", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  return function MockSlider(props: any) {
-    return React.createElement(View, { ...props, testID: "scrubber-slider" });
-  };
-});
-
 import React from "react";
 import { Alert, AppState, type AppStateStatus } from "react-native";
 import { act, fireEvent, render } from "@testing-library/react-native";
@@ -689,22 +679,30 @@ describe("NowPlayingScreen", () => {
   });
 
   it("seeks when the scrubber is released", async () => {
-    const { getByTestId } = await renderPlaying();
+    const { getByLabelText } = await renderPlaying();
     await act(async () => {
       engine.progress(30, 240, false);
     });
 
-    await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 120);
+    await fireEvent(
+      getByLabelText("Seek within the track"),
+      "slidingComplete",
+      120,
+    );
 
     expect(player.seek).toHaveBeenCalledWith(120);
   });
 
   it("drops the seek target when the track changes", async () => {
-    const { getByTestId, getByText } = await renderPlaying();
+    const { getByLabelText, getByText } = await renderPlaying();
     await act(async () => {
       engine.progress(30, 240, false);
     });
-    await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 120);
+    await fireEvent(
+      getByLabelText("Seek within the track"),
+      "slidingComplete",
+      120,
+    );
     expect(getByText("2:00")).toBeTruthy();
 
     await act(async () => {
@@ -727,20 +725,24 @@ describe("NowPlayingScreen", () => {
   });
 
   it("lets the ticks take over again when a seek fails", async () => {
-    const { getByTestId, getByText } = await renderPlaying();
+    const { getByLabelText, getByText } = await renderPlaying();
     await act(async () => {
       engine.progress(30, 240, false);
     });
     player.seek.mockRejectedValueOnce(new Error("engine gone"));
 
-    await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 120);
+    await fireEvent(
+      getByLabelText("Seek within the track"),
+      "slidingComplete",
+      120,
+    );
     await act(async () => {});
 
     expect(getByText("0:30")).toBeTruthy();
   });
 
   it("keeps a newer seek target when an older seek fails late", async () => {
-    const { getByTestId, getByText } = await renderPlaying();
+    const { getByLabelText, getByText } = await renderPlaying();
     await act(async () => {
       engine.progress(30, 240, false);
     });
@@ -753,8 +755,16 @@ describe("NowPlayingScreen", () => {
         }),
     );
 
-    await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 120);
-    await fireEvent(getByTestId("scrubber-slider"), "slidingComplete", 200);
+    await fireEvent(
+      getByLabelText("Seek within the track"),
+      "slidingComplete",
+      120,
+    );
+    await fireEvent(
+      getByLabelText("Seek within the track"),
+      "slidingComplete",
+      200,
+    );
     await act(async () => {
       rejectFirstSeek(new Error("engine gone"));
     });

@@ -45,6 +45,7 @@ const mockIsFocused = jest.fn(() => true);
 jest.mock("expo-router", () => {
   const React = require("react");
   const { View, Pressable, Text } = require("react-native");
+  const { isMenuActionOn } = require("@/test-support/menu-action");
   // Rendered rather than stubbed to null, so tests can assert which options
   // the filter menu offers and what choosing one does.
   const Toolbar = Object.assign(
@@ -52,12 +53,12 @@ jest.mock("expo-router", () => {
     {
       Menu: ({ children, title }: any) =>
         React.createElement(View, { testID: `menu-${title}` }, children),
-      MenuAction: ({ children, isOn, onPress }: any) =>
+      MenuAction: ({ children, isOn, icon, onPress }: any) =>
         React.createElement(
           Pressable,
           {
             accessibilityLabel: `option-${children}`,
-            accessibilityState: { selected: !!isOn },
+            accessibilityState: { selected: isMenuActionOn({ isOn, icon }) },
             onPress,
           },
           React.createElement(Text, null, children),

@@ -67,6 +67,7 @@ import {
 } from "expo-router/testing-library";
 import * as Burnt from "burnt";
 import { IS_IOS } from "@/constants/platform";
+import { showsMenuCheck } from "@/test-support/menu-action";
 import LibraryLayout from "@/app/(app)/(tabs)/(library)/_layout";
 import LibraryFavoritesScreen, {
   ErrorBoundary,
@@ -221,7 +222,7 @@ function headerMenuItems(): HeaderMenuItem[] {
     return androidMenuNodes().map((item) => ({
       title: item.queryAll((node) => typeof node.props.text === "string")[0]
         .props.text,
-      isOn: item.props.selected === true,
+      isOn: showsMenuCheck(item),
       press: () => item.props.onItemPressed({ nativeEvent: {} }),
     }));
   }

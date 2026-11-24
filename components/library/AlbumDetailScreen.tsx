@@ -89,6 +89,7 @@ import { libraryKeys } from "@/lib/query-keys";
 import type { PlayerAlbumContext } from "@/lib/player/track-item";
 import { Colors, Fonts } from "@/constants/theme";
 import { IS_ANDROID, IS_IOS } from "@/constants/platform";
+import { checkableMenuItem } from "@/components/ui/MenuOptions";
 import type { DownloadStatusValue, Track } from "@/lib/types/library";
 import { releaseYear } from "@/lib/date-time";
 import { useOpenArtist } from "@/hooks/use-open-artist";
@@ -510,7 +511,7 @@ export function AlbumDetailScreen() {
                 return (
                   <Stack.Toolbar.MenuAction
                     key={edition.id}
-                    isOn={edition.id === editions.viewing?.id}
+                    {...checkableMenuItem(edition.id === editions.viewing?.id)}
                     // Android menus drop subtitles, and names repeat, so the
                     // year and length go in the title there.
                     subtitle={IS_IOS ? detail : undefined}

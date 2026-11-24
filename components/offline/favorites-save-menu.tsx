@@ -3,6 +3,7 @@ import AlbumIcon from "@expo/material-symbols/album.xml";
 import ArrowCircleDown from "@expo/material-symbols/arrow_circle_down.xml";
 import FileDownloadOff from "@expo/material-symbols/file_download_off.xml";
 import Refresh from "@expo/material-symbols/refresh.xml";
+import { checkableMenuItem } from "@/components/ui/MenuOptions";
 import { IS_IOS } from "@/constants/platform";
 import { SAVE_OFFLINE_ICONS } from "@/hooks/offline/use-save-offline";
 import type { FavoritesSaveMode, SaveState } from "@/lib/offline/saved-library";
@@ -62,15 +63,13 @@ export function favoritesSaveMenu({
     <Stack.Toolbar.Menu icon={icon} accessibilityLabel={label}>
       <Stack.Toolbar.Menu inline title="Keep on This Phone">
         <Stack.Toolbar.MenuAction
-          icon={songsIcon}
-          isOn={mode === "songs"}
+          {...checkableMenuItem(mode === "songs", songsIcon)}
           onPress={() => onChoose("songs")}
         >
           Songs
         </Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction
-          icon={albumsIcon}
-          isOn={mode === "songs-and-albums"}
+          {...checkableMenuItem(mode === "songs-and-albums", albumsIcon)}
           onPress={() => onChoose("songs-and-albums")}
         >
           Songs and Albums

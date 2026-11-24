@@ -1,10 +1,8 @@
 import { StyleSheet, View } from "react-native";
-import { Picker } from "@react-native-picker/picker";
 import { getCalendars } from "expo-localization";
+import { MenuPicker } from "@/components/ui/MenuPicker";
 import { Text } from "@/components/ui/Text";
 import { Fonts } from "@/constants/theme";
-import { IS_ANDROID, IS_IOS } from "@/constants/platform";
-import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   value: string;
@@ -36,49 +34,39 @@ function toHourString(hour: number): string {
 }
 
 export function ScheduleHourPicker({ value, onChange }: Props) {
-  const colors = useColors();
-  const selectedHour = parseHour(value);
   const h24 = uses24HourClock();
+  const options = HOURS.map((hour) => ({
+    value: toHourString(hour),
+    label: formatHour(hour, h24),
+  }));
 
   return (
-    <View style={styles.wrap}>
-      <Text variant="body" style={[styles.label, { ...Fonts.medium }]}>
+    <View style={styles.row}>
+      <Text variant="body" style={styles.label}>
         Refresh hour
       </Text>
-      <View style={styles.pickerWrap}>
-        <Picker
-          selectedValue={selectedHour}
-          onValueChange={(next) => onChange(toHourString(Number(next)))}
-          itemStyle={[styles.item, { color: colors.text }]}
-          accessibilityLabel="Refresh hour"
-        >
-          {HOURS.map((hour) => (
-            <Picker.Item
-              key={hour}
-              label={formatHour(hour, h24)}
-              value={hour}
-              color={IS_ANDROID ? colors.text : undefined}
-            />
-          ))}
-        </Picker>
-      </View>
+      <MenuPicker
+        accessibilityLabel="Refresh hour"
+        // A saved time off the hour, such as "07:30", shows as its hour.
+        value={toHourString(parseHour(value))}
+        options={options}
+        onChange={onChange}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    gap: 4,
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    minHeight: 44,
   },
   label: {
+    ...Fonts.medium,
     fontSize: 14,
-  },
-  pickerWrap: {
-    height: IS_IOS ? 140 : 50,
-    justifyContent: "center",
-  },
-  item: {
-    ...Fonts.regular,
-    fontSize: 18,
+    flexShrink: 1,
   },
 });

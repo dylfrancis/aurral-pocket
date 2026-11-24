@@ -83,13 +83,16 @@ jest.mock("expo-router", () => {
   const { Pressable, Text, View } = require("react-native");
   // The native menu renders nothing under Jest, so each action renders as a
   // pressable labelled by its title, inside a group named like the menu.
-  const MenuAction = ({ children, onPress, isOn, disabled }: any) =>
+  const { isMenuActionOn } = require("@/test-support/menu-action");
+  const MenuAction = ({ children, onPress, isOn, icon, disabled }: any) =>
     React.createElement(
       Pressable,
       {
-        // A checkable action reads as a checkbox.
-        accessibilityRole: isOn === undefined ? "menuitem" : "checkbox",
-        accessibilityState: { checked: !!isOn, disabled: !!disabled },
+        accessibilityRole: "menuitem",
+        accessibilityState: {
+          checked: isMenuActionOn({ isOn, icon }),
+          disabled: !!disabled,
+        },
         onPress: disabled ? undefined : onPress,
       },
       React.createElement(Text, null, children),
@@ -932,22 +935,21 @@ describe("saving a playlist offline", () => {
 
     await saveFromToolbar("Save Offline and Keep Updated");
 
-    const menu = () => within(screen.getByLabelText("Saved offline"));
-    expect(
-      menu().getByRole("checkbox", { name: "Keep Updated" }),
-    ).toBeChecked();
+    const keepUpdated = () =>
+      within(screen.getByLabelText("Saved offline")).getByRole("menuitem", {
+        name: "Keep Updated",
+      });
+    expect(keepUpdated().props.accessibilityState.checked).toBe(true);
     const keepsUpdated = async () =>
       JSON.parse((await AsyncStorage.getItem("saved_offline")) ?? "{}").items[0]
         .keepUpdated;
     expect(await keepsUpdated()).toBe(true);
 
     await act(async () => {
-      fireEvent.press(menu().getByRole("checkbox", { name: "Keep Updated" }));
+      fireEvent.press(keepUpdated());
       await settle();
     });
-    expect(
-      menu().getByRole("checkbox", { name: "Keep Updated" }),
-    ).not.toBeChecked();
+    expect(keepUpdated().props.accessibilityState.checked).toBe(false);
     expect(await keepsUpdated()).toBeUndefined();
   });
 

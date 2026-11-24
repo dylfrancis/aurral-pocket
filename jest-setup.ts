@@ -276,6 +276,23 @@ jest.mock("@/components/artist/ArtistSongsFilter", () => {
   };
 });
 
+// Jest's asset stub makes every Material Symbol the same 1, so the ✓ that
+// marks an Android menu item on gets a value of its own for tests to find.
+jest.mock("@expo/material-symbols/check.xml", () => ({ uri: "check.xml" }));
+
+// The slider is SwiftUI or Compose as well. It stands in as a plain view
+// carrying its props, so fireEvent can drive "valueChange", "slidingStart" and
+// "slidingComplete" on it. NativeSlider-test unmocks it to drive the real one.
+jest.mock("@/components/ui/NativeSlider", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require("react");
+  const { View } = require("react-native");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return {
+    NativeSlider: (props: any) => React.createElement(View, props),
+  };
+});
+
 jest.mock("@/components/ui/NumberStepper", () => {
   /* eslint-disable @typescript-eslint/no-require-imports */
   const React = require("react");

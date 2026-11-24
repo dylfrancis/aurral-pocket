@@ -5,15 +5,18 @@
 // picked, and a menu as a group named by its accessibility label.
 import type { ReactNode } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
+import { isMenuActionOn } from "./menu-action";
 
 function MenuAction({
   children,
   isOn,
+  icon,
   disabled,
   onPress,
 }: {
   children: string;
   isOn?: boolean;
+  icon?: unknown;
   disabled?: boolean;
   onPress?: () => void;
 }) {
@@ -21,7 +24,10 @@ function MenuAction({
     <Pressable
       accessibilityRole="menuitem"
       accessibilityLabel={children}
-      accessibilityState={{ checked: !!isOn, disabled: !!disabled }}
+      accessibilityState={{
+        checked: isMenuActionOn({ isOn, icon }),
+        disabled: !!disabled,
+      }}
       onPress={disabled ? undefined : onPress}
     >
       <Text>{children}</Text>

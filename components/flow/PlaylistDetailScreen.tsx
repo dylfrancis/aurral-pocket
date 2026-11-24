@@ -52,6 +52,7 @@ import {
 } from "@/components/library/TrackActionsSheet";
 import type { TrackMenuActionId } from "@/components/player/track-menu-types";
 import { IS_IOS } from "@/constants/platform";
+import { checkableMenuItem } from "@/components/ui/MenuOptions";
 import type { FlowJob, PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
 import { useColors } from "@/hooks/use-colors";
 
@@ -269,8 +270,10 @@ function PlaylistPage({
         : [
             <Stack.Toolbar.MenuAction
               key="keep-updated"
-              icon={IS_IOS ? "arrow.triangle.2.circlepath" : Sync}
-              isOn={keepUpdated}
+              {...checkableMenuItem(
+                keepUpdated,
+                IS_IOS ? "arrow.triangle.2.circlepath" : Sync,
+              )}
               onPress={() => setKeepUpdated(playlist.id, !keepUpdated)}
             >
               Keep Updated

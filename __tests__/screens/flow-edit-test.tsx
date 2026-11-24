@@ -58,26 +58,15 @@ jest.mock("expo-router/react-navigation", () => ({
   useIsFocused: jest.fn(() => true),
 }));
 
-// The native wheel is replaced with a prop-transparent View so tests can read
-// selectedValue and drive onValueChange directly.
-jest.mock("@react-native-picker/picker", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  const Picker = function MockPicker({ children, ...props }: any) {
-    return React.createElement(
-      View,
-      { ...props, testID: "hour-picker" },
-      children,
-    );
-  };
-  Picker.Item = function MockPickerItem() {
-    return null;
-  };
-  return { Picker };
-});
-
 import React from "react";
-import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { createFlow, updateFlow } from "@/lib/api/flow";
@@ -88,6 +77,12 @@ import FlowEditScreen from "@/app/(app)/(tabs)/(flow)/flow-edit";
 const mockUseLocalSearchParams = useLocalSearchParams as jest.Mock;
 const mockUpdateFlow = updateFlow as jest.Mock;
 const mockCreateFlow = createFlow as jest.Mock;
+
+// The hour menu stands in as a group of buttons, one per hour (jest-setup).
+// The clock is mocked to 24 hours, so each is named like "09:00".
+function hourOption(label: string) {
+  return within(screen.getByLabelText("Refresh hour")).getByLabelText(label);
+}
 
 const flow: Flow = {
   id: "flow-1",
@@ -144,19 +139,17 @@ beforeEach(() => {
 
 describe("FlowEditScreen (editing)", () => {
   it("hydrates the form from the cached flow", async () => {
-    const { getByTestId, getByDisplayValue } = await renderScreen();
+    const { getByDisplayValue } = await renderScreen();
 
-    expect(getByTestId("hour-picker").props.selectedValue).toBe(9);
+    expect(hourOption("09:00")).toBeSelected();
     expect(getByDisplayValue("Morning Mix")).toBeTruthy();
   });
 
   it("keeps the draft when fresh status data lands in the cache (#138)", async () => {
-    const { client, getByTestId, getByDisplayValue } = await renderScreen();
+    const { client, getByDisplayValue } = await renderScreen();
 
-    await act(() => {
-      getByTestId("hour-picker").props.onValueChange(14);
-    });
-    expect(getByTestId("hour-picker").props.selectedValue).toBe(14);
+    await fireEvent.press(hourOption("14:00"));
+    expect(hourOption("14:00")).toBeSelected();
 
     // Simulate a 3s status poll delivering server-side changes mid-edit.
     await act(() => {
@@ -166,17 +159,15 @@ describe("FlowEditScreen (editing)", () => {
       });
     });
 
-    expect(getByTestId("hour-picker").props.selectedValue).toBe(14);
+    expect(hourOption("14:00")).toBeSelected();
     expect(getByDisplayValue("Morning Mix")).toBeTruthy();
   });
 
   it("saves the edited schedule time", async () => {
     mockUpdateFlow.mockResolvedValue({ ...flow, scheduleTime: "14:00" });
-    const { getByTestId, getByText } = await renderScreen();
+    const { getByText } = await renderScreen();
 
-    await act(() => {
-      getByTestId("hour-picker").props.onValueChange(14);
-    });
+    await fireEvent.press(hourOption("14:00"));
     await fireEvent.press(getByText("Save Changes"));
 
     await waitFor(() =>
@@ -200,15 +191,13 @@ describe("FlowEditScreen (editing)", () => {
       flows: [{ ...flow, recordHistory: true }],
     });
     mockUpdateFlow.mockResolvedValue({ ...flow, recordHistory: true });
-    const { getByTestId, getByText } = await render(
+    const { getByText } = await render(
       <QueryClientProvider client={client}>
         <FlowEditScreen />
       </QueryClientProvider>,
     );
 
-    await act(() => {
-      getByTestId("hour-picker").props.onValueChange(14);
-    });
+    await fireEvent.press(hourOption("14:00"));
     await fireEvent.press(getByText("Save Changes"));
 
     await waitFor(() =>
@@ -259,13 +248,11 @@ describe("FlowEditScreen (editing)", () => {
 
   it("keeps a flow's downloads turned off through an unrelated edit", async () => {
     mockUpdateFlow.mockResolvedValue(flow);
-    const { getByTestId, getByText } = await renderScreen({
+    const { getByText } = await renderScreen({
       autoDownload: false,
     });
 
-    await act(() => {
-      getByTestId("hour-picker").props.onValueChange(14);
-    });
+    await fireEvent.press(hourOption("14:00"));
     await fireEvent.press(getByText("Save Changes"));
 
     await waitFor(() =>
@@ -299,14 +286,12 @@ describe("FlowEditScreen (editing)", () => {
   // null and wipe a range set on another client (#207).
   it("resends the stored year range when an unrelated field changes", async () => {
     mockUpdateFlow.mockResolvedValue(flow);
-    const { getByTestId, getByText } = await renderScreen({
+    const { getByText } = await renderScreen({
       yearFrom: 1990,
       yearTo: 1999,
     });
 
-    await act(() => {
-      getByTestId("hour-picker").props.onValueChange(14);
-    });
+    await fireEvent.press(hourOption("14:00"));
     await fireEvent.press(getByText("Save Changes"));
 
     await waitFor(() =>
@@ -418,15 +403,13 @@ describe("FlowEditScreen (editing)", () => {
       focus: 30,
       newReleases: 30,
     };
-    const { getByTestId, getByText } = await renderScreen({
+    const { getByText } = await renderScreen({
       mix,
       recentListening: true,
       excludeTags: ["christmas"],
     });
 
-    await act(() => {
-      getByTestId("hour-picker").props.onValueChange(14);
-    });
+    await fireEvent.press(hourOption("14:00"));
     await fireEvent.press(getByText("Save Changes"));
 
     await waitFor(() =>

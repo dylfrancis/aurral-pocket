@@ -80,12 +80,13 @@ jest.mock("expo-router", () => {
   const { Pressable, Text } = require("react-native");
   // The native menu renders nothing under Jest, so each action renders as a
   // pressable labelled by its title.
-  const MenuAction = ({ children, disabled, isOn, onPress }: any) =>
+  const { isMenuActionOn } = require("@/test-support/menu-action");
+  const MenuAction = ({ children, disabled, isOn, icon, onPress }: any) =>
     React.createElement(
       Pressable,
       {
         accessibilityLabel: children,
-        accessibilityState: isOn === undefined ? undefined : { checked: isOn },
+        accessibilityState: { checked: isMenuActionOn({ isOn, icon }) },
         disabled,
         onPress,
       },

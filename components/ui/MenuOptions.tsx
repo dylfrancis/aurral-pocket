@@ -1,6 +1,16 @@
 import { Stack } from "expo-router";
+import Check from "@expo/material-symbols/check.xml";
 import FilterList from "@expo/material-symbols/filter_list.xml";
 import { IS_IOS } from "@/constants/platform";
+
+/**
+ * A menu item's on state, with the `icon` it shows on this platform. Android
+ * draws a checked item in Material You's colors, not the brand's, so there a ✓
+ * takes the icon's place while it's on.
+ */
+export function checkableMenuItem<Icon>(isOn: boolean, icon?: Icon) {
+  return IS_IOS ? { isOn, icon } : { icon: isOn ? Check : icon };
+}
 
 export type MenuOption<K extends string> = {
   key: K;
@@ -29,8 +39,10 @@ export function menuOptionActions<K extends string>(
   return options.map((option) => (
     <Stack.Toolbar.MenuAction
       key={option.key}
-      icon={IS_IOS ? (option.iosIcon as any) : option.androidIcon}
-      isOn={selected === option.key}
+      {...checkableMenuItem(
+        selected === option.key,
+        IS_IOS ? (option.iosIcon as any) : option.androidIcon,
+      )}
       disabled={option.disabled}
       onPress={() => onSelect(option.key)}
     >

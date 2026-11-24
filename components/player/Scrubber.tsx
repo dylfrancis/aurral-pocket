@@ -1,7 +1,7 @@
-import Slider from "@react-native-community/slider";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { usePlayerColors } from "@/components/player/player-colors";
+import { NativeSlider } from "@/components/ui/NativeSlider";
 import { Text } from "@/components/ui/Text";
 import { seekTo, useCurrentTrack, useProgress } from "@/lib/player/player";
 
@@ -49,9 +49,9 @@ export function Scrubber() {
 
   return (
     <View>
-      <Slider
-        minimumValue={0}
-        maximumValue={hasDuration ? duration : 1}
+      <NativeSlider
+        min={0}
+        max={hasDuration ? duration : 1}
         value={Math.min(shown, hasDuration ? duration : 1)}
         disabled={!hasDuration}
         onSlidingStart={() => setDragValue(position)}
@@ -66,9 +66,9 @@ export function Scrubber() {
             setSeekTarget((current) => (current === value ? null : current)),
           );
         }}
-        minimumTrackTintColor={colors.brand}
-        maximumTrackTintColor={colors.separator}
-        thumbTintColor={colors.text}
+        filledTrackColor={colors.brand}
+        unfilledTrackColor={colors.separator}
+        thumbColor={colors.text}
         accessibilityLabel="Seek within the track"
       />
       <View style={styles.times}>

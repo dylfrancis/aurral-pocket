@@ -49,6 +49,7 @@ import type {
   TrackMenuActionId,
 } from "@/components/player/track-menu-types";
 import { IS_IOS } from "@/constants/platform";
+import { checkableMenuItem } from "@/components/ui/MenuOptions";
 import { scheduleLabel } from "@/lib/flow-schedule";
 import { flowKeys } from "@/lib/query-keys";
 import type {
@@ -361,7 +362,7 @@ function FlowPage({
             Convert to Static
           </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.MenuAction
-            isOn={flow.autoDownload}
+            {...checkableMenuItem(flow.autoDownload)}
             onPress={handleToggleAutoDownload}
           >
             Download Automatically
