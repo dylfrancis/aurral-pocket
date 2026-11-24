@@ -3,6 +3,7 @@ import type { SharedPlaylistTrack } from "@/lib/types/flow";
 import type {
   LibraryAlbumsParams,
   LibraryArtistsParams,
+  ArtistSongListParams,
   LibraryListParams,
   LibrarySort,
 } from "@/lib/types/library";
@@ -61,11 +62,17 @@ export const libraryKeys = {
   // The prefix of every songs view, for invalidation.
   songViews: () => ["library", "songs"] as const,
   songs: (params: LibraryListParams) => ["library", "songs", params] as const,
+  // Among the Songs lists, so what rereads those rereads these.
+  artistSongList: (params: ArtistSongListParams) =>
+    ["library", "songs", params] as const,
   genres: () => ["library", "genres"] as const,
   favorites: () => ["library", "favorites"] as const,
   // Under `favorites`, so a favorite change rereads the Favorites screen too.
-  favoriteLists: (order: Pick<LibraryListParams, "sort" | "direction">) =>
-    ["library", "favorites", "lists", order] as const,
+  // An artist id narrows them to that artist's albums and songs.
+  favoriteLists: (
+    order: Pick<LibraryListParams, "sort" | "direction">,
+    artistId?: string,
+  ) => ["library", "favorites", "lists", order, artistId ?? null] as const,
   tracks: (albumId: string) => ["library", "tracks", albumId] as const,
   // The prefix of every album's track list, for invalidation.
   trackLists: () => ["library", "tracks"] as const,

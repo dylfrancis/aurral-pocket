@@ -72,8 +72,13 @@ import LibraryFavoritesScreen, {
   ErrorBoundary,
 } from "@/app/(app)/(tabs)/(library)/favorites";
 import LibraryHome from "@/app/(app)/(tabs)/(library)/index";
+import ArtistFavoritesScreen from "@/app/(app)/(tabs)/(library)/artist/favorites";
 import { api, setAuthToken, setBaseUrl } from "@/lib/api/client";
-import { playAlbumFromTrack, playQueueFrom } from "@/lib/player/player";
+import {
+  playAlbumFromTrack,
+  playQueueFrom,
+  setShuffle,
+} from "@/lib/player/player";
 import {
   applyFavorites,
   forgetSavedLibrary,
@@ -242,6 +247,21 @@ function headerMenuItems(): HeaderMenuItem[] {
   );
 }
 
+type MenuData = { title?: string; items?: MenuData[]; menu?: MenuData };
+const menuTitles = (items: MenuData[] = []): string[] =>
+  items.flatMap((item) => [
+    ...(item.title ? [item.title] : []),
+    ...menuTitles(item.menu?.items ?? item.items),
+  ]);
+
+// Every header menu's titles: headerMenuItems reads only the first on iOS.
+function allHeaderMenuTitles(): string[] {
+  if (!IS_IOS) return headerMenuItems().map((item) => item.title);
+  return nativeElements("RNSScreenStackHeaderConfig").flatMap((header) =>
+    menuTitles(header.props.headerRightBarButtonItems),
+  );
+}
+
 async function chooseSort(title: string) {
   const { press } = headerMenuItems().find((item) => item.title === title)!;
   await act(async () => press());
@@ -279,6 +299,7 @@ async function openFavorites(initialUrl = "/favorites", client = makeClient()) {
       offline: OtherRoute,
       playlists: OtherRoute,
       "playlist-edit": OtherRoute,
+      "artist/favorites": ArtistFavoritesScreen,
       "artist/albums": OtherRoute,
       "artist/releases": OtherRoute,
       "release/[mbid]": OtherRoute,
@@ -383,6 +404,67 @@ describe("favorites screen", () => {
     await fireEvent.press(await screen.findByText("Favorites"));
 
     expect(await screen.findByText("Second Album")).toBeTruthy();
+  });
+
+  it("narrows to one artist's albums and tracks from its artist page", async () => {
+    await openFavorites("/artist/favorites?artistId=3");
+    await screen.findByText("First Song");
+
+    expect(
+      favoriteReads().map(({ kind, artistId }) => ({ kind, artistId })),
+    ).toEqual([
+      { kind: "albums", artistId: "3" },
+      { kind: "tracks", artistId: "3" },
+    ]);
+    expect(screen.queryByText("Artists")).toBeNull();
+    expect(screen.getByText("Second Album")).toBeTruthy();
+    // Saving keeps every favorite, not one artist's.
+    expect(allHeaderMenuTitles()).not.toContain("Save Songs");
+  });
+
+  it("plays every song on the favorite albums when no song is a favorite", async () => {
+    setBaseUrl("https://music.example");
+    setAuthToken("token");
+    answerFavorites({ tracks: [libraryPage("tracks")] });
+    const answerFavoriteReads = mockGet.getMockImplementation()!;
+    const albumSong = (id: number, title: string, trackNumber: number) => ({
+      id,
+      title,
+      artistName: "Test Artist",
+      identityKey: `recording:${title.toLowerCase()}`,
+      albums: [{ albumId: 8, trackNumber }],
+      files: [{ id, albumId: 8, available: true }],
+    });
+    mockGet.mockImplementation((url: string, config?: { params?: Params }) =>
+      config?.params?.albumId === "8"
+        ? Promise.resolve({
+            data: libraryPage("tracks", {
+              tracks: [albumSong(82, "Closer", 2), albumSong(81, "Opener", 1)],
+              albums: [SECOND_ALBUM],
+            }),
+          })
+        : answerFavoriteReads(url, config),
+    );
+    await openFavorites("/artist/favorites?artistId=3");
+    await screen.findByText("Second Album");
+
+    await fireEvent.press(screen.getByLabelText("Shuffle Favorites"));
+
+    const [queue, , context] = (playQueueFrom as jest.Mock).mock.calls[0];
+    expect(queue.map((item: { title: string }) => item.title)).toEqual([
+      "Opener",
+      "Closer",
+    ]);
+    expect(queue[0].album).toBe("Second Album");
+    expect(context).toMatchObject({ albumTitle: "Favorites" });
+    expect(setShuffle).toHaveBeenCalledWith(true);
+  });
+
+  it("offers saving every favorite to the phone", async () => {
+    await openFavorites();
+    await screen.findByText("First Song");
+
+    expect(allHeaderMenuTitles()).toContain("Save Songs");
   });
 
   it("lists artists, then albums, then tracks, each under its header", async () => {

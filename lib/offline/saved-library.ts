@@ -1171,6 +1171,16 @@ export function useIsTrackSaved(trackId: string): boolean {
   return useSyncExternalStore(subscribe, getSaved, getSaved);
 }
 
+const getSavedTrackIds = () => savedTrackIds;
+
+/**
+ * The signed-in account's tracks with a file on the phone, for a Saved
+ * Offline filter over songs.
+ */
+export function useSavedTrackIds(): ReadonlySet<string> {
+  return useSyncExternalStore(subscribe, getSavedTrackIds, getSavedTrackIds);
+}
+
 /** canPlayNow as a hook: it follows the connection, the saves and the cache. */
 export function useCanPlayNow(trackId: string): boolean {
   const offline = useIsOffline();

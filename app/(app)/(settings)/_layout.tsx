@@ -58,6 +58,10 @@ export default function SettingsLayout() {
         options={{ title: "Appearance" }}
       />
       <Stack.Screen name="settings/discover" options={{ title: "Discover" }} />
+      <Stack.Screen
+        name="settings/artist-page"
+        options={{ title: "Artist Page" }}
+      />
       <Stack.Screen name="settings/flows" options={{ title: "Flows" }} />
       <Stack.Screen name="settings/server" options={{ title: "Server" }} />
       <Stack.Screen name="settings/about" options={{ title: "About" }} />

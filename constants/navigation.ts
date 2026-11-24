@@ -54,6 +54,7 @@ export const SEARCH_PLACEHOLDERS = {
   blocklist: "Search for an artist",
   artistAlbums: "Search albums",
   artistReleases: "Search releases",
+  artistSongs: "Search songs",
 } as const;
 
 type SearchBarShape = {
@@ -126,6 +127,26 @@ export const TOP_TRACKS_SCREEN_OPTIONS = {
   headerLargeTitleEnabled: true,
   headerBackButtonDisplayMode: "minimal",
 } as const;
+
+/** An artist's Library songs, opened from Show All on the artist page. */
+export function artistSongsScreenOptions(colors: ThemeColors) {
+  return {
+    title: "Songs",
+    headerLargeTitleEnabled: true,
+    headerBackButtonDisplayMode: "minimal" as const,
+    ...layoutSearchBar(SEARCH_PLACEHOLDERS.artistSongs, colors),
+  };
+}
+
+/** One artist's favorite albums and songs, opened from its Favorites row. */
+export function artistFavoritesScreenOptions(colors: ThemeColors) {
+  return {
+    title: "Favorites",
+    headerLargeTitleEnabled: true,
+    headerBackButtonDisplayMode: "minimal" as const,
+    ...layoutSearchBar(SEARCH_PLACEHOLDERS.favorites, colors),
+  };
+}
 
 /**
  * An artist's Albums or Releases list, titled by the category it was opened

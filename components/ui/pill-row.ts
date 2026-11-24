@@ -15,6 +15,8 @@ export type PillRowProps<Id extends string = string> = {
   /** A list makes the pills toggles: a tap on a selected one reaches `onSelect` too. */
   selected: Id | readonly Id[];
   onSelect: (id: Id) => void;
+  /** Small for a row inside a page's section rather than at its top. */
+  size?: "regular" | "small";
 };
 
 export function isPillSelected<Id extends string>(

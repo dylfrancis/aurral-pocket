@@ -1,4 +1,5 @@
 import { ArtistBioSection } from "@/components/artist/ArtistBioSection";
+import { ArtistFavoritesRow } from "@/components/artist/ArtistFavoritesRow";
 import { ArtistLibraryControl } from "@/components/artist/ArtistLibraryControl";
 import { LibraryAlbumsSection } from "@/components/artist/LibraryAlbumsSection";
 import {
@@ -7,7 +8,8 @@ import {
 } from "@/components/artist/MatchArtistSheet";
 import { ReleaseGroupsSection } from "@/components/artist/ReleaseGroupsSection";
 import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
-import { TopTracksSection } from "@/components/artist/TopTracksSection";
+import { ArtistSongsFilter } from "@/components/artist/ArtistSongsFilter";
+import { ArtistSongsSection } from "@/components/artist/ArtistSongsSection";
 import { ArtistHero } from "@/components/library/ArtistHero";
 import { ArtistTags } from "@/components/library/ArtistTags";
 import { TrackActionsSheet } from "@/components/library/TrackActionsSheet";
@@ -24,7 +26,12 @@ import { useAlbumsWithTypes } from "@/hooks/library/use-albums-with-types";
 import { useArtistDetails } from "@/hooks/library/use-artist-details";
 import { useArtistSongs } from "@/hooks/library/use-artist-queue";
 import { useArtistTopTracks } from "@/hooks/library/use-artist-top-tracks";
-import { useTopTracksPlayback } from "@/hooks/library/use-top-tracks-playback";
+import {
+  DEFAULT_ARTIST_PAGE_SECTIONS,
+  useArtistPageLayout,
+  type ArtistPageSectionId,
+} from "@/hooks/library/use-artist-page-layout";
+import { useArtistSongViews } from "@/hooks/library/use-artist-song-views";
 import { useDownloadStatuses } from "@/hooks/library/use-download-statuses";
 import { useLibraryAlbums } from "@/hooks/library/use-library-albums";
 import {
@@ -37,7 +44,10 @@ import {
   useCanonicalArtist,
   useLibraryArtist,
 } from "@/hooks/library/use-library-artist";
-import { useToggleFavorite } from "@/hooks/library/use-library-favorites";
+import {
+  useArtistFavoriteCounts,
+  useToggleFavorite,
+} from "@/hooks/library/use-library-favorites";
 import { useLibraryScan } from "@/hooks/library/use-library-scan";
 import { useResearchMissingAlbums } from "@/hooks/library/use-research-missing-albums";
 import { useHasPermission } from "@/hooks/auth/use-has-permission";
@@ -80,7 +90,15 @@ import CheckCircle from "@expo/material-symbols/check_circle.xml";
 import Sensors from "@expo/material-symbols/sensors.xml";
 import LinkIcon from "@expo/material-symbols/link.xml";
 import RefreshIcon from "@expo/material-symbols/refresh.xml";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Alert,
   Dimensions,
@@ -184,9 +202,11 @@ export function ArtistDetailLayout({
     isLoading: topTracksLoading,
     artistQueue,
   } = useArtistTopTracks(mbid, artistName, inLibrary);
-  const { data: artistSongs, refetch: refetchArtistSongs } = useArtistSongs(
-    mbid ? undefined : artistRef,
-  );
+  const {
+    data: artistSongs,
+    isLoading: artistSongsLoading,
+    refetch: refetchArtistSongs,
+  } = useArtistSongs(mbid ? undefined : artistRef);
   const { data: details, isPending: detailsLoading } = useArtistDetails(mbid);
   const { data: similarArtists } = useSimilarArtists(mbid);
 
@@ -434,14 +454,29 @@ export function ArtistDetailLayout({
     [artistQueue, artistSongs, artistName, mbid, queryClient, startQueue],
   );
 
-  const topTracksPlayback = useTopTracksPlayback(topTracks, artistName, mbid);
-  const openTopTracks = useCallback(() => {
-    if (!mbid) return;
-    router.push({
-      pathname: "/artist/top-tracks",
-      params: { mbid, artistName },
-    });
-  }, [router, mbid, artistName]);
+  const pageLayout = useArtistPageLayout();
+  // An artist outside the Library keeps every section, so a hidden one can't
+  // take away the way to add its albums.
+  const pageSectionOrder =
+    inLibrary || libraryStatusLoading
+      ? pageLayout.sections
+      : DEFAULT_ARTIST_PAGE_SECTIONS;
+  // The Library's paged reads match only the canonical id.
+  const canonicalId = canonicalArtist?.id ?? (mbid ? undefined : artistRef);
+  const favoriteCounts = useArtistFavoriteCounts(
+    inLibrary ? canonicalId : undefined,
+  );
+  const songs = useArtistSongViews({
+    mbid,
+    libraryArtistId: canonicalId,
+    artistName,
+    inLibrary,
+    topTracks,
+    topTracksLoading,
+    // Top Tracks' own loading covers the artist queue.
+    libraryLoading: inLibrary && (canonicalArtistLoading || artistSongsLoading),
+    hasSongs: !!playableCount,
+  });
 
   const startRadio = useStartRadio();
   // The MBID finds the Library artist. A name could also match another artist
@@ -472,6 +507,97 @@ export function ArtistDetailLayout({
       scrollY.value = event.contentOffset.y + heroBleed;
     },
   });
+
+  // The page's sections, drawn in the order Settings › Artist Page keeps.
+  const pageSections: Record<ArtistPageSectionId, ReactNode> = {
+    tags: mbid ? <ArtistTags mbid={mbid} /> : null,
+    favorites:
+      canonicalId && favoriteCounts.albums + favoriteCounts.songs > 0 ? (
+        <ArtistFavoritesRow
+          artistName={artistName}
+          mbid={mbid ?? ""}
+          coverUrl={canonicalArtist?.coverUrl || coverUrl}
+          albumCount={favoriteCounts.albums}
+          songCount={favoriteCounts.songs}
+          onPress={() =>
+            router.push({
+              pathname: "/artist/favorites",
+              params: { artistId: canonicalId },
+            })
+          }
+        />
+      ) : null,
+    songs: (
+      <ArtistSongsSection
+        title={songs.title}
+        pills={songs.pills}
+        selected={songs.selected}
+        onSelect={songs.select}
+        songs={songs.songs}
+        isLoading={songs.isLoading}
+        itemIds={songs.itemIds}
+        currentId={songs.currentId}
+        isPlaying={songs.isPlaying}
+        onPlayFrom={songs.playFrom}
+        onOpenActions={songs.openActions}
+        onShowAll={songs.showAll}
+        filter={
+          songs.show ? (
+            <ArtistSongsFilter value={songs.show} onChange={songs.setShow} />
+          ) : null
+        }
+        emptyMessage={songs.emptyMessage}
+      />
+    ),
+    library: inLibrary && (
+      <LibraryAlbumsSection
+        grouped={groupedLibraryAlbums}
+        isLoading={albumsLoading || isLoadingTypes}
+        error={albumsError}
+        downloadStatuses={downloadStatuses}
+        onAlbumPress={openAlbum}
+        onAlbumLongPress={(album) =>
+          openAlbumActions(
+            libraryAlbumTarget(album, { name: artistName, mbid }),
+          )
+        }
+        onNavigate={onNavigateToAlbums}
+        onRetry={() => refetchAlbums()}
+      />
+    ),
+    releases: (
+      <ReleaseGroupsSection
+        grouped={groupedReleases}
+        isLoading={!inLibrary && detailsLoading}
+        onPress={openReleaseGroup}
+        onLongPress={(rg) =>
+          openAlbumActions({
+            mbid: rg.id,
+            title: rg.title,
+            artistName,
+            artistMbid: mbid,
+            artistId: libraryArtist?.id,
+            releaseDate: rg["first-release-date"],
+            showArtist: false,
+          })
+        }
+        onNavigate={onNavigateToReleases}
+      />
+    ),
+    similar: (
+      <SimilarArtistsSection
+        artists={similarArtists ?? []}
+        onPress={onSimilarArtistPress}
+      />
+    ),
+    about: mbid ? (
+      <ArtistBioSection
+        bio={details?.bio}
+        artistName={artistName}
+        mbid={mbid}
+      />
+    ) : null,
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -602,69 +728,11 @@ export function ArtistDetailLayout({
           />
         </View>
 
-        {mbid ? <ArtistTags mbid={mbid} /> : null}
-
-        {mbid ? (
-          <TopTracksSection
-            topTracks={topTracks}
-            isLoading={topTracksLoading}
-            itemIds={topTracksPlayback.itemIds}
-            currentId={topTracksPlayback.currentId}
-            isPlaying={topTracksPlayback.isPlaying}
-            onPlayFrom={topTracksPlayback.playFrom}
-            onPlayAll={topTracksPlayback.playAll}
-            onOpenActions={topTracksPlayback.openActions}
-            onShowAll={openTopTracks}
-          />
-        ) : null}
-
-        {inLibrary && (
-          <LibraryAlbumsSection
-            grouped={groupedLibraryAlbums}
-            isLoading={albumsLoading || isLoadingTypes}
-            error={albumsError}
-            downloadStatuses={downloadStatuses}
-            onAlbumPress={openAlbum}
-            onAlbumLongPress={(album) =>
-              openAlbumActions(
-                libraryAlbumTarget(album, { name: artistName, mbid }),
-              )
-            }
-            onNavigate={onNavigateToAlbums}
-            onRetry={() => refetchAlbums()}
-          />
+        {pageSectionOrder.map((section) =>
+          section.enabled ? (
+            <Fragment key={section.id}>{pageSections[section.id]}</Fragment>
+          ) : null,
         )}
-
-        <ReleaseGroupsSection
-          grouped={groupedReleases}
-          isLoading={!inLibrary && detailsLoading}
-          onPress={openReleaseGroup}
-          onLongPress={(rg) =>
-            openAlbumActions({
-              mbid: rg.id,
-              title: rg.title,
-              artistName,
-              artistMbid: mbid,
-              artistId: libraryArtist?.id,
-              releaseDate: rg["first-release-date"],
-              showArtist: false,
-            })
-          }
-          onNavigate={onNavigateToReleases}
-        />
-
-        <SimilarArtistsSection
-          artists={similarArtists ?? []}
-          onPress={onSimilarArtistPress}
-        />
-
-        {mbid ? (
-          <ArtistBioSection
-            bio={details?.bio}
-            artistName={artistName}
-            mbid={mbid}
-          />
-        ) : null}
       </Animated.ScrollView>
 
       {/* Kept once the artist is in, so the sheet can finish closing. */}
@@ -692,8 +760,8 @@ export function ArtistDetailLayout({
       ) : null}
 
       <TrackActionsSheet
-        target={topTracksPlayback.actions.target}
-        onClose={topTracksPlayback.actions.close}
+        target={songs.actions.target}
+        onClose={songs.actions.close}
       />
     </View>
   );

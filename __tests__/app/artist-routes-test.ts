@@ -8,6 +8,9 @@ const TABS = join(__dirname, "../../app/(app)/(tabs)");
 const ARTIST_PAGE_TARGETS = [
   "artist/albums.tsx",
   "artist/releases.tsx",
+  "artist/top-tracks.tsx",
+  "artist/songs.tsx",
+  "artist/favorites.tsx",
   "album/[ref].tsx",
   "release/[mbid].tsx",
 ];

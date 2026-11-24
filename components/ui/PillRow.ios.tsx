@@ -22,13 +22,17 @@ export function PillRow<Id extends string>({
   items,
   selected,
   onSelect,
+  size = "regular",
 }: PillRowProps<Id>) {
   const scheme = useColorScheme();
   const colors = Colors[scheme];
 
   return (
+    // Inside a scroll view the row passes under the header, and a host that
+    // kept the bars' safe area would hold its pills below them instead.
     <Host
       matchContents={{ vertical: true }}
+      ignoreSafeArea="all"
       colorScheme={scheme}
       style={styles.host}
     >
@@ -54,7 +58,7 @@ export function PillRow<Id extends string>({
             const modifiers = [
               buttonStyle(variant),
               buttonBorderShape("capsule"),
-              controlSize("regular"),
+              controlSize(size),
               ...(isSelected
                 ? [
                     tint(colors.brand),

@@ -134,6 +134,46 @@ export function useLibraryView<Sort extends string>(
   return { view, setSort, setShow, setStatus };
 }
 
+/**
+ * A value of any shape kept beside the list views under `listKey`. Only the
+ * key reloads it, so define `parse` outside the component.
+ */
+export function useRememberedListValue<T>(
+  listKey: string,
+  parse: (stored: unknown) => T,
+) {
+  const [value, setValue] = useState<T>(() => parse(cache?.[listKey]));
+  const changedByUser = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadViews().then((stored) => {
+      // A change made before the read finished is newer than what's stored.
+      if (cancelled || changedByUser.current) return;
+      if (stored[listKey] === undefined) return;
+      setValue(parse(stored[listKey]));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey]);
+
+  const update = useCallback(
+    (next: T) => {
+      changedByUser.current = true;
+      setValue(next);
+      void loadViews().then((stored) => {
+        stored[listKey] = next;
+        void AppStorage.setLibraryViews(stored);
+      });
+    },
+    [listKey],
+  );
+
+  return [value, update] as const;
+}
+
 /** A list's sorts for what it shows: Recently Favorited only on favorites. */
 export function sortsFor<Option extends { key: string }>(
   options: readonly Option[],

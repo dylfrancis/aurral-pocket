@@ -8,11 +8,45 @@ import { Text } from "@/components/ui/Text";
 import { Fonts } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import type { TopTrack } from "@/lib/top-tracks";
+import type { AlbumTrack } from "@/lib/types/library";
 
 const COVER_SIZE = 44;
 
-type TopTrackRowProps = {
-  topTrack: TopTrack;
+/** What a numbered row on an artist's song lists shows. */
+export type ArtistSong = {
+  key: string;
+  title: string;
+  album: string | null;
+  coverUrl: string | null | undefined;
+  albumMbid: string;
+  /** A clip, not a Library file. */
+  isPreview: boolean;
+};
+
+export function topTrackSong({ preview, library }: TopTrack): ArtistSong {
+  return {
+    key: preview.id,
+    title: library?.title ?? preview.title,
+    album: library?.album || preview.album,
+    coverUrl: library?.artworkUrl ?? preview.artworkUrl,
+    albumMbid: library?.albumMbid ?? "",
+    isPreview: !library,
+  };
+}
+
+export function librarySong(track: AlbumTrack): ArtistSong {
+  return {
+    key: track.id,
+    title: track.trackName,
+    album: track.album?.albumName ?? null,
+    coverUrl: track.album?.coverUrl,
+    albumMbid: track.album?.mbid ?? "",
+    isPreview: false,
+  };
+}
+
+type ArtistSongRowProps = {
+  song: ArtistSong;
   number: number;
   isCurrent: boolean;
   isPlaying: boolean;
@@ -20,23 +54,22 @@ type TopTrackRowProps = {
   onOpenActions: () => void;
 };
 
-export const TopTrackRow = React.memo(function TopTrackRow({
-  topTrack,
+export const ArtistSongRow = React.memo(function ArtistSongRow({
+  song,
   number,
   isCurrent,
   isPlaying,
   onPress,
   onOpenActions,
-}: TopTrackRowProps) {
+}: ArtistSongRowProps) {
   const colors = useColors();
-  const { preview, library } = topTrack;
-  const title = library?.title ?? preview.title;
-  const album = library?.album || preview.album;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={library ? title : `${title}, preview`}
+      accessibilityLabel={
+        song.isPreview ? `${song.title}, preview` : song.title
+      }
       onPress={onPress}
       onLongPress={onOpenActions}
       style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
@@ -48,8 +81,8 @@ export const TopTrackRow = React.memo(function TopTrackRow({
       />
       <CoverArtImage
         type="album"
-        mbid={library?.albumMbid ?? ""}
-        coverUrl={library?.artworkUrl ?? preview.artworkUrl}
+        mbid={song.albumMbid}
+        coverUrl={song.coverUrl}
         size={COVER_SIZE}
         borderRadius={4}
       />
@@ -63,17 +96,17 @@ export const TopTrackRow = React.memo(function TopTrackRow({
               { color: isCurrent ? colors.brandStrong : colors.text },
             ]}
           >
-            {title}
+            {song.title}
           </Text>
-          {library ? null : <PreviewTag />}
+          {song.isPreview ? <PreviewTag /> : null}
         </View>
-        {album ? (
+        {song.album ? (
           <Text variant="caption" numberOfLines={1}>
-            {album}
+            {song.album}
           </Text>
         ) : null}
       </View>
-      <TrackMenuButton trackName={title} onPress={onOpenActions} />
+      <TrackMenuButton trackName={song.title} onPress={onOpenActions} />
     </Pressable>
   );
 });

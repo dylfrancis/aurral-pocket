@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import * as Burnt from "burnt";
 import { albumTrackContext } from "@/hooks/library/album-track-context";
 import { songsOfPages } from "@/hooks/library/use-song-list";
@@ -7,13 +7,20 @@ import {
   useStartQueue,
   type StartQueueOptions,
 } from "@/hooks/player/use-start-queue";
-import { getCanonicalLibraryPage } from "@/lib/api/library";
+import { sortByDisc } from "@/lib/album-discs";
+import {
+  getCanonicalAlbumTracks,
+  getCanonicalLibraryPage,
+} from "@/lib/api/library";
+import { libraryTracksRef } from "@/lib/library-read";
 import {
   toPlayerTrack,
   type PlayerAlbumContext,
   type PlayerTrack,
 } from "@/lib/player/track-item";
+import { libraryKeys } from "@/lib/query-keys";
 import type {
+  Album,
   AlbumTrack,
   CanonicalPage,
   LibrarySort,
@@ -92,7 +99,7 @@ export async function readFirstSongs(
   return songsOfPages(pages);
 }
 
-function compareAlbumOrder(a: AlbumTrack, b: AlbumTrack) {
+export function compareAlbumOrder(a: AlbumTrack, b: AlbumTrack) {
   return (
     (a.album?.releaseDate ?? "").localeCompare(b.album?.releaseDate ?? "") ||
     (a.album?.albumName ?? "").localeCompare(b.album?.albumName ?? "") ||
@@ -115,6 +122,32 @@ export async function readArtistSongs(
     if (!result.hasMore || page * PAGE_SIZE >= result.total) break;
   }
   return songsOfPages(pages).sort(compareAlbumOrder);
+}
+
+/**
+ * Every song on `albums`, an album at a time in disc order, from the reads
+ * the album page shares.
+ */
+export async function readAlbumsSongs(
+  albums: readonly Album[],
+  queryClient: QueryClient,
+): Promise<AlbumTrack[]> {
+  const lists = await Promise.all(
+    albums.map(async (album) => {
+      const ref = libraryTracksRef({
+        albumId: album.id,
+        albumMbid: album.mbid,
+        libraryAlbumId: album.canonicalId,
+      });
+      if (!ref) return [];
+      const tracks = await queryClient.fetchQuery({
+        queryKey: libraryKeys.tracks(ref),
+        queryFn: () => getCanonicalAlbumTracks(ref),
+      });
+      return sortByDisc(tracks).map((track) => ({ ...track, album }));
+    }),
+  );
+  return lists.flat();
 }
 
 /** `isLoading` is true while a read is on its way; a second tap meanwhile does nothing. */

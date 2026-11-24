@@ -243,6 +243,39 @@ jest.mock("@/components/ui/MenuPicker", () => {
   };
 });
 
+// The artist songs filter is a native menu too, standing in as a group named
+// like its button, holding a button per option.
+jest.mock("@/components/artist/ArtistSongsFilter", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const React = require("react");
+  const { Pressable, Text, View } = require("react-native");
+  const {
+    ARTIST_SONGS_SHOW_OPTIONS,
+    artistSongsFilterLabel,
+  } = require("@/components/artist/artist-songs-filter-types");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return {
+    ArtistSongsFilter: ({ value, onChange }: any) =>
+      React.createElement(
+        View,
+        { accessibilityLabel: artistSongsFilterLabel(value) },
+        ARTIST_SONGS_SHOW_OPTIONS.map((option: any) =>
+          React.createElement(
+            Pressable,
+            {
+              key: option.value,
+              accessibilityRole: "menuitem",
+              accessibilityLabel: option.label,
+              accessibilityState: { checked: option.value === value },
+              onPress: () => onChange(option.value),
+            },
+            React.createElement(Text, null, option.label),
+          ),
+        ),
+      ),
+  };
+});
+
 jest.mock("@/components/ui/NumberStepper", () => {
   /* eslint-disable @typescript-eslint/no-require-imports */
   const React = require("react");
