@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.17.1...v0.18.0) (2026-11-25)
+
+
+### Features
+
+* **auth:** rotate the Get Started headline's verb ([#477](https://github.com/dylfrancis/aurral-pocket/issues/477)) ([c3430e0](https://github.com/dylfrancis/aurral-pocket/commit/c3430e08de4f4131f3e5fdad83568069ad9a4d34))
+* **car:** browse and play the Library in CarPlay and Android Auto ([#410](https://github.com/dylfrancis/aurral-pocket/issues/410)) ([#417](https://github.com/dylfrancis/aurral-pocket/issues/417)) ([00e1194](https://github.com/dylfrancis/aurral-pocket/commit/00e1194808773d09d34b8bf23472c5f7477280ec))
+
 ## [0.17.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.17.0...v0.17.1) (2026-11-25)
 
 
