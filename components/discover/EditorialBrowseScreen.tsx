@@ -1,6 +1,6 @@
 import { useItemActions } from "@/components/actions/item-actions-context";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, StyleSheet, useWindowDimensions, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { AlbumCategorySkeleton } from "@/components/artist/AlbumCategorySkeleton";
 import { EmptyState } from "@/components/library/EmptyState";
@@ -10,6 +10,7 @@ import {
   useOpenEditorialPlaylist,
 } from "@/hooks/discover/use-editorial-playlists";
 import { useColors } from "@/hooks/use-colors";
+import { useContentWidth } from "@/hooks/use-side-insets";
 import { useGridColumns } from "@/hooks/use-grid-columns";
 import { categoriesInGroup, isEditorialGroup } from "@/lib/discover/browse";
 import { formatTrackCount } from "@/lib/discover/format";
@@ -33,7 +34,7 @@ export function EditorialBrowseScreen() {
   const params = useLocalSearchParams<RouteParams>();
   const navigation = useNavigation();
   const colors = useColors();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const columns = useGridColumns(EDGE_PADDING * 2);
   const cardSize = Math.floor(
     (width - EDGE_PADDING * 2 - CARD_GAP * (columns - 1)) / columns,

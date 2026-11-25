@@ -5,13 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import {
-  ActivityIndicator,
-  Dimensions,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
@@ -49,9 +43,7 @@ import type { AlbumStatus } from "@/lib/types/search";
 import { releaseYear } from "@/lib/date-time";
 import { useOpenArtist } from "@/hooks/use-open-artist";
 import { useColors } from "@/hooks/use-colors";
-
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
+import { useHeroCoverSize } from "@/hooks/use-hero-cover-size";
 
 const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
   "searching",
@@ -95,6 +87,7 @@ function formatDuration(ms: number | null) {
  */
 export function ReleaseDetailScreen() {
   const colors = useColors();
+  const coverSize = useHeroCoverSize();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const heroPaddingTop = (IS_IOS ? headerHeight : 0) + 24;
@@ -223,7 +216,7 @@ export function ReleaseDetailScreen() {
           <CoverArtImage
             type="album"
             mbid={mbid}
-            size={COVER_SIZE}
+            size={coverSize}
             borderRadius={12}
           />
           <Text variant="title" style={styles.albumName}>

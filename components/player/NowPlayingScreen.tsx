@@ -159,6 +159,14 @@ type QueueRow =
 export function NowPlayingScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  // The sheet and its tint run under the side rail; everything on them stays
+  // beside it.
+  const contentWidth = width - insets.left - insets.right;
+  const sideGutters = {
+    paddingLeft: GUTTER + insets.left,
+    paddingRight: GUTTER + insets.right,
+  };
+  const sideMargins = { marginLeft: insets.left, marginRight: insets.right };
   const router = useRouter();
   // So the art can travel from and back to the mini player. Reduce Motion
   // keeps the route's fade.
@@ -216,7 +224,12 @@ export function NowPlayingScreen() {
   // Two drag areas, so the list between them can scroll.
   const topPan = usePanGesture(drag.panConfig);
   const controlsPan = usePanGesture(drag.panConfig);
-  const art = useArtFrame(swipe.offset, drag, miniCover, width - GUTTER * 2);
+  const art = useArtFrame(
+    swipe.offset,
+    drag,
+    miniCover,
+    contentWidth - GUTTER * 2,
+  );
 
   // The art has to be placed, in its slot or the header, before it can
   // grow there.
@@ -452,8 +465,8 @@ export function NowPlayingScreen() {
           <GestureDetector gesture={topPan}>
             <View
               style={[
-                styles.top,
                 (!track || !compact) && styles.topFill,
+                sideGutters,
                 { paddingTop: insets.top },
               ]}
             >
@@ -484,7 +497,10 @@ export function NowPlayingScreen() {
                       slot's frame in the top area. */}
                   <View style={styles.artSpacer} />
                   <View
-                    style={[styles.artSlot, { height: width - GUTTER * 2 }]}
+                    style={[
+                      styles.artSlot,
+                      { height: contentWidth - GUTTER * 2 },
+                    ]}
                     onLayout={art.onArtSlotLayout}
                   >
                     {/* Inside the slot: a detector around it shifts the
@@ -508,7 +524,10 @@ export function NowPlayingScreen() {
           </GestureDetector>
 
           {track && showQueue && (
-            <Animated.View entering={SWAP_FADE} style={styles.queue}>
+            <Animated.View
+              entering={SWAP_FADE}
+              style={[styles.queue, sideMargins]}
+            >
               <Text
                 variant="subtitle"
                 style={[styles.queueHeading, { color: colors.text }]}
@@ -529,7 +548,10 @@ export function NowPlayingScreen() {
           )}
 
           {track && showLyrics && (
-            <Animated.View entering={SWAP_FADE} style={styles.lyrics}>
+            <Animated.View
+              entering={SWAP_FADE}
+              style={[styles.lyrics, sideMargins]}
+            >
               <LyricsView
                 // Each track measures and scrolls its own lines.
                 key={track.id}
@@ -542,7 +564,11 @@ export function NowPlayingScreen() {
           {track && (
             <GestureDetector gesture={controlsPan}>
               <View
-                style={[styles.controls, { paddingBottom: insets.bottom + 8 }]}
+                style={[
+                  styles.controls,
+                  sideGutters,
+                  { paddingBottom: insets.bottom + 8 },
+                ]}
               >
                 <View style={styles.actionRow}>
                   <View style={[styles.actionSlot, styles.actionSlotStart]}>
@@ -1130,9 +1156,6 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: "hidden",
   },
-  top: {
-    paddingHorizontal: GUTTER,
-  },
   topFill: {
     flex: 1,
   },
@@ -1263,7 +1286,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   controls: {
-    paddingHorizontal: GUTTER,
     paddingTop: 16,
     gap: 12,
   },

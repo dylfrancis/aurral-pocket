@@ -8,10 +8,10 @@ import {
 } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Linking,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -102,14 +102,13 @@ import { checkableMenuItem } from "@/components/ui/MenuOptions";
 import type { DownloadStatusValue, Track } from "@/lib/types/library";
 import { releaseYear } from "@/lib/date-time";
 import { useOpenArtist } from "@/hooks/use-open-artist";
+import { useHeroCoverSize } from "@/hooks/use-hero-cover-size";
+import { useSidePadding } from "@/hooks/use-side-insets";
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
 const COVER_RADIUS = 12;
-/** Covers the iOS header above the hero, and the room a pull-down opens. */
-const TINT_BLEED = Dimensions.get("window").height;
 /** The play row sits below the fade, on the plain background the brand green is made for. */
 const HERO_FADE_STOPS = [0.35, 1] as const;
+const HERO_GUTTER = 24;
 
 type AlbumRouteParams = {
   ref: string;
@@ -142,6 +141,11 @@ export function AlbumDetailScreen() {
   const colors = Colors[scheme];
   const heroColors = PlayerColors[scheme];
   const insets = useSafeAreaInsets();
+  // The tint runs under the side rail; the cover, text and rows stay beside it.
+  const sidePadding = useSidePadding();
+  const coverSize = useHeroCoverSize();
+  // Covers the iOS header above the hero, and the room a pull-down opens.
+  const tintBleed = useWindowDimensions().height;
   // iOS insets the scroll view below its translucent header. Content that
   // starts under the bar gets the header's edge dimming even at rest, which
   // darkened the tint there. The offset then starts at minus the header's
@@ -636,20 +640,28 @@ export function AlbumDetailScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-        <View style={styles.hero}>
+        <View
+          style={[
+            styles.hero,
+            {
+              paddingLeft: HERO_GUTTER + sidePadding.paddingLeft,
+              paddingRight: HERO_GUTTER + sidePadding.paddingRight,
+            },
+          ]}
+        >
           <CoverTintBackdrop
             tint={tint}
             fadeStops={HERO_FADE_STOPS}
-            bleed={TINT_BLEED}
+            bleed={tintBleed}
             // Android's header can't ease, so the hero switches with it.
             animated={IS_IOS}
           />
-          <View style={styles.cover}>
+          <View style={[styles.cover, { width: coverSize, height: coverSize }]}>
             <CoverArtImage
               type="album"
               mbid={albumMbid}
               coverUrl={coverUrl}
-              size={COVER_SIZE}
+              size={coverSize}
               borderRadius={0}
             />
           </View>
@@ -730,90 +742,92 @@ export function AlbumDetailScreen() {
           )}
         </View>
 
-        <PlayRow
-          title={title}
-          disabled={listTracks.length === 0}
-          onPlay={() => void playAlbum(listTracks, playContext)}
-          onShuffle={() => void shuffleAlbum(listTracks, playContext)}
-        >
-          {/* Shows while the album loads, so the heart doesn't pop in. The
-              spacer keeps Play centered when the album can't be favorited. */}
-          {albumLoading || album?.identityKey ? (
-            <CircleButton
-              icon={isFavorite ? "heart" : "heart-outline"}
-              size={PLAY_ROW_HEIGHT}
-              accessibilityLabel={
-                isFavorite
-                  ? `Remove ${title} from favorites`
-                  : `Add ${title} to favorites`
-              }
-              onPress={handleToggleFavorite}
-            />
-          ) : (
-            <View style={styles.circleSpacer} />
-          )}
-        </PlayRow>
+        <View style={sidePadding}>
+          <PlayRow
+            title={title}
+            disabled={listTracks.length === 0}
+            onPlay={() => void playAlbum(listTracks, playContext)}
+            onShuffle={() => void shuffleAlbum(listTracks, playContext)}
+          >
+            {/* Shows while the album loads, so the heart doesn't pop in. The
+                spacer keeps Play centered when the album can't be favorited. */}
+            {albumLoading || album?.identityKey ? (
+              <CircleButton
+                icon={isFavorite ? "heart" : "heart-outline"}
+                size={PLAY_ROW_HEIGHT}
+                accessibilityLabel={
+                  isFavorite
+                    ? `Remove ${title} from favorites`
+                    : `Add ${title} to favorites`
+                }
+                onPress={handleToggleFavorite}
+              />
+            ) : (
+              <View style={styles.circleSpacer} />
+            )}
+          </PlayRow>
 
-        {showTracksLoading || (previewRelease && editionTracksLoading) ? (
-          <ActivityIndicator style={styles.loader} color={colors.brand} />
-        ) : previewRelease && editionTracksFailed ? (
-          <Text variant="caption" style={styles.emptyText}>
-            Couldn&apos;t load this edition&apos;s tracks
-          </Text>
-        ) : preview ? (
-          <>
-            {preview.rows.map((row, index) => (
+          {showTracksLoading || (previewRelease && editionTracksLoading) ? (
+            <ActivityIndicator style={styles.loader} color={colors.brand} />
+          ) : previewRelease && editionTracksFailed ? (
+            <Text variant="caption" style={styles.emptyText}>
+              Couldn&apos;t load this edition&apos;s tracks
+            </Text>
+          ) : preview ? (
+            <>
+              {preview.rows.map((row, index) => (
+                <Fragment key={row.key}>
+                  <DiscHeading
+                    title={previewHeadings[index]}
+                    first={index === 0}
+                  />
+                  {row.libraryTrack?.streamPath ? (
+                    renderTrack(
+                      row.libraryTrack,
+                      row.editionTrack.trackNumber,
+                      row.editionTrack.popular,
+                    )
+                  ) : (
+                    <EditionClipRow
+                      track={row.editionTrack}
+                      artistName={artistName}
+                      albumTitle={title}
+                      artwork={artworkUrl}
+                    />
+                  )}
+                </Fragment>
+              ))}
+              {preview.extras.length > 0 ? (
+                <SectionLabel style={styles.extrasLabel}>
+                  From Other Editions
+                </SectionLabel>
+              ) : null}
+              {preview.extras.map((track) => renderTrack(track))}
+            </>
+          ) : albumRows.length > 0 ? (
+            albumRows.map((row, index) => (
               <Fragment key={row.key}>
-                <DiscHeading
-                  title={previewHeadings[index]}
-                  first={index === 0}
-                />
-                {row.libraryTrack?.streamPath ? (
-                  renderTrack(
-                    row.libraryTrack,
-                    row.editionTrack.trackNumber,
-                    row.editionTrack.popular,
-                  )
+                <DiscHeading title={albumHeadings[index]} first={index === 0} />
+                {row.track ? (
+                  renderTrack(row.track)
                 ) : (
                   <EditionClipRow
-                    track={row.editionTrack}
+                    track={
+                      clipTrackByRecording.get(row.missing.id) ?? row.missing
+                    }
                     artistName={artistName}
                     albumTitle={title}
                     artwork={artworkUrl}
                   />
                 )}
               </Fragment>
-            ))}
-            {preview.extras.length > 0 ? (
-              <SectionLabel style={styles.extrasLabel}>
-                From Other Editions
-              </SectionLabel>
-            ) : null}
-            {preview.extras.map((track) => renderTrack(track))}
-          </>
-        ) : albumRows.length > 0 ? (
-          albumRows.map((row, index) => (
-            <Fragment key={row.key}>
-              <DiscHeading title={albumHeadings[index]} first={index === 0} />
-              {row.track ? (
-                renderTrack(row.track)
-              ) : (
-                <EditionClipRow
-                  track={
-                    clipTrackByRecording.get(row.missing.id) ?? row.missing
-                  }
-                  artistName={artistName}
-                  albumTitle={title}
-                  artwork={artworkUrl}
-                />
-              )}
-            </Fragment>
-          ))
-        ) : (
-          <Text variant="caption" style={styles.emptyText}>
-            No tracks available
-          </Text>
-        )}
+            ))
+          ) : (
+            <Text variant="caption" style={styles.emptyText}>
+              No tracks available
+            </Text>
+          )}
+        </View>
       </Animated.ScrollView>
 
       <TrackActionsSheet
@@ -828,13 +842,10 @@ export function AlbumDetailScreen() {
 const styles = StyleSheet.create({
   hero: {
     alignItems: "center",
-    paddingHorizontal: 24,
     paddingTop: 24,
     gap: 8,
   },
   cover: {
-    width: COVER_SIZE,
-    height: COVER_SIZE,
     borderRadius: COVER_RADIUS,
     overflow: "hidden",
     boxShadow: ARTWORK_SHADOW,

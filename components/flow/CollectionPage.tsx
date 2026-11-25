@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   StyleSheet,
   View,
   type NativeSyntheticEvent,
@@ -28,9 +27,6 @@ import { IS_IOS } from "@/constants/platform";
 import { isPlayableJob } from "@/lib/player/track-item";
 import type { FlowJob, PlaylistStats } from "@/lib/types/flow";
 import { useColors } from "@/hooks/use-colors";
-
-const SCREEN_WIDTH = Dimensions.get("window").width;
-export const COVER_SIZE = Math.min(SCREEN_WIDTH - 120, 260);
 
 type TrackRowItem = { job: FlowJob; position: number };
 

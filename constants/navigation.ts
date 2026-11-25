@@ -107,11 +107,19 @@ export function layoutSearchBar(
 
 type ThemeColors = { background: string; text: string; subtle: string };
 
-/** The screen options every tab's stack starts from. */
-export function stackScreenOptions(colors: ThemeColors) {
+/**
+ * The screen options every tab's stack starts from. React Native's scroll
+ * views only inset the top and bottom safe areas, so `sidePadding` (from
+ * `useSidePadding`) keeps rows out from under the iPhone Duo's side rail.
+ */
+export function stackScreenOptions(
+  colors: ThemeColors,
+  sidePadding: { paddingLeft: number; paddingRight: number },
+) {
   return {
     headerStyle: { backgroundColor: colors.background },
     headerTintColor: colors.text,
+    contentStyle: sidePadding,
     ...TRANSPARENT_HEADER,
   };
 }
@@ -120,6 +128,15 @@ export function stackScreenOptions(colors: ThemeColors) {
 export const DETAIL_SCREEN_OPTIONS = {
   headerTitle: "",
   headerBackButtonDisplayMode: "minimal",
+} as const;
+
+/**
+ * A detail page whose art runs under the side rail, as the album's cover tint
+ * and the artist's photo do. It pads its own content with `useSidePadding`.
+ */
+export const FULL_BLEED_SCREEN_OPTIONS = {
+  ...DETAIL_SCREEN_OPTIONS,
+  contentStyle: {},
 } as const;
 
 export const TOP_TRACKS_SCREEN_OPTIONS = {

@@ -101,9 +101,9 @@ import {
 } from "react";
 import {
   Alert,
-  Dimensions,
   RefreshControl,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -119,6 +119,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useColors } from "@/hooks/use-colors";
+import { useSidePadding } from "@/hooks/use-side-insets";
 
 function sortByDate(albums: Album[]): Album[] {
   return albums.slice().sort((a, b) => {
@@ -151,6 +152,8 @@ export function ArtistDetailLayout({
 }: ArtistDetailLayoutProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  // The hero photo runs under the side rail; the sections stay beside it.
+  const sidePadding = useSidePadding();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -728,11 +731,13 @@ export function ArtistDetailLayout({
           />
         </View>
 
-        {pageSectionOrder.map((section) =>
-          section.enabled ? (
-            <Fragment key={section.id}>{pageSections[section.id]}</Fragment>
-          ) : null,
-        )}
+        <View style={sidePadding}>
+          {pageSectionOrder.map((section) =>
+            section.enabled ? (
+              <Fragment key={section.id}>{pageSections[section.id]}</Fragment>
+            ) : null,
+          )}
+        </View>
       </Animated.ScrollView>
 
       {/* Kept once the artist is in, so the sheet can finish closing. */}
@@ -799,8 +804,7 @@ export function ScrollHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
 }
 
 /** The scroll offsets over which the header title comes in. */
-function headerTitleRange() {
-  const screenWidth = Dimensions.get("window").width;
+function headerTitleRange(screenWidth: number) {
   // Hero artist name sits at roughly screenWidth - 92px from top of scrollview.
   // Account for nav bar (~94px) so we trigger when it scrolls under the bar,
   // with extra vertical buffer so the hero title is clearly gone first.
@@ -816,7 +820,7 @@ function headerTitleRange() {
  */
 function NativeScrollHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
   const colors = useColors();
-  const { end } = headerTitleRange();
+  const { end } = headerTitleRange(useWindowDimensions().width);
   const [shown, setShown] = useState(false);
 
   useAnimatedReaction(
@@ -839,7 +843,7 @@ function NativeScrollHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
 /** The nav-bar title that fades in as the hero name scrolls under it. */
 function FadingHeaderTitle({ name, scrollY }: ScrollHeaderTitleProps) {
   const colors = useColors();
-  const { start, end } = headerTitleRange();
+  const { start, end } = headerTitleRange(useWindowDimensions().width);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(

@@ -5,7 +5,6 @@ import {
   ScrollView,
   SectionList,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { Stack, type ErrorBoundaryProps } from "expo-router";
@@ -45,6 +44,7 @@ import {
   menuOptionSection,
 } from "@/components/ui/MenuOptions";
 import { useColors } from "@/hooks/use-colors";
+import { useContentWidth } from "@/hooks/use-side-insets";
 
 type MonthSection = { title: string; data: ConcertEvent[] };
 
@@ -322,8 +322,7 @@ function StatePanel({
 }
 
 function FeedSkeleton() {
-  const { width } = useWindowDimensions();
-  const artWidth = width - 32;
+  const artWidth = useContentWidth() - 32;
   return (
     <View style={[styles.gutter, styles.skeleton]} testID="shows-skeleton">
       <Skeleton width="100%" height={(artWidth * 9) / 16} borderRadius={12} />

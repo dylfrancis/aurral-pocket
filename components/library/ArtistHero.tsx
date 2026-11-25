@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -23,8 +23,8 @@ import { IS_IOS } from "@/constants/platform";
 import { formatCompactCount } from "@/lib/discover/trending-format";
 import type { Artist } from "@/lib/types/library";
 import { useColors } from "@/hooks/use-colors";
+import { useSidePadding } from "@/hooks/use-side-insets";
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
 const CAPSULE_PLACEHOLDER = { width: 196, height: 28 };
 
 type ArtistHeroProps = {
@@ -55,24 +55,28 @@ export function ArtistHero({
   favorite,
 }: ArtistHeroProps) {
   const colors = useColors();
+  // The photo spans the window, under the side rail; the name and buttons
+  // stay beside it.
+  const { width } = useWindowDimensions();
+  const sidePadding = useSidePadding();
 
   const backgroundStyle = useAnimatedStyle(() => {
     const offset = scrollY?.value ?? 0;
     if (offset >= 0) return {};
-    const scale = 1 + Math.abs(offset) / SCREEN_WIDTH;
+    const scale = 1 + Math.abs(offset) / width;
     return {
       transform: [{ scale }, { translateY: offset / 2 }],
     };
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width, minHeight: width }]}>
       <Animated.View style={[styles.background, backgroundStyle]}>
         <CoverArtImage
           type="artist"
           mbid={artist.mbid}
           coverUrl={artist.coverUrl}
-          size={SCREEN_WIDTH}
+          size={width}
           borderRadius={0}
           blurRadius={25}
         />
@@ -84,15 +88,16 @@ export function ArtistHero({
       )}
       <LinearGradient
         colors={["transparent", colors.background]}
-        style={styles.gradient}
+        style={[styles.gradient, { height: width }]}
       />
       <View
         style={[
           styles.foreground,
           inLibrary !== false && styles.foregroundPlay,
+          sidePadding,
         ]}
       >
-        <View style={IS_IOS ? styles.spacer : styles.spacerAndroid} />
+        <View style={IS_IOS ? { height: width - 300 } : styles.spacerAndroid} />
         <CoverArtImage
           type="artist"
           mbid={artist.mbid}
@@ -178,8 +183,6 @@ export function ArtistHero({
 
 const styles = StyleSheet.create({
   container: {
-    width: SCREEN_WIDTH,
-    minHeight: SCREEN_WIDTH,
     position: "relative",
   },
   background: {
@@ -192,7 +195,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: SCREEN_WIDTH,
   },
   foreground: {
     alignItems: "center",
@@ -206,9 +208,6 @@ const styles = StyleSheet.create({
   circleSpacer: {
     width: PLAY_ROW_HEIGHT,
     height: PLAY_ROW_HEIGHT,
-  },
-  spacer: {
-    height: SCREEN_WIDTH - 300,
   },
   spacerAndroid: {
     height: 16,

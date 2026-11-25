@@ -1,6 +1,7 @@
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import {
   DETAIL_SCREEN_OPTIONS,
+  FULL_BLEED_SCREEN_OPTIONS,
   SEARCH_PLACEHOLDERS,
   artistListScreenOptions,
   TOP_TRACKS_SCREEN_OPTIONS,
@@ -11,13 +12,15 @@ import {
 } from "@/constants/navigation";
 import { Stack } from "expo-router";
 import { useColors } from "@/hooks/use-colors";
+import { useSidePadding } from "@/hooks/use-side-insets";
 
 export default function LibraryLayout() {
   const colors = useColors();
+  const sidePadding = useSidePadding();
 
   return (
     <MiniPlayerHost>
-      <Stack screenOptions={stackScreenOptions(colors)}>
+      <Stack screenOptions={stackScreenOptions(colors, sidePadding)}>
         <Stack.Screen
           name="index"
           options={{
@@ -108,8 +111,11 @@ export default function LibraryLayout() {
             presentation: "card",
           }}
         />
-        <Stack.Screen name="artist/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
-        <Stack.Screen name="album/[ref]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen
+          name="artist/[mbid]"
+          options={FULL_BLEED_SCREEN_OPTIONS}
+        />
+        <Stack.Screen name="album/[ref]" options={FULL_BLEED_SCREEN_OPTIONS} />
         <Stack.Screen name="release/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen
           name="artist/albums"
