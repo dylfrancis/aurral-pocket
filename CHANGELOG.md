@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.17.1](https://github.com/dylfrancis/aurral-pocket/compare/v0.17.0...v0.17.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **album:** list the songs an album is missing and count them ([#482](https://github.com/dylfrancis/aurral-pocket/issues/482)) ([3cf94c5](https://github.com/dylfrancis/aurral-pocket/commit/3cf94c59cc254a433849975f62568b8cca7280f1))
+* **android:** mark Wi-Fi and a portrait screen as optional hardware ([#469](https://github.com/dylfrancis/aurral-pocket/issues/469)) ([8e9f796](https://github.com/dylfrancis/aurral-pocket/commit/8e9f7964960a1f761673b07936706620b440ba7e))
+* **android:** trust user-installed CAs ([#473](https://github.com/dylfrancis/aurral-pocket/issues/473)) ([cf49610](https://github.com/dylfrancis/aurral-pocket/commit/cf496109d36d891d1fab92ea659dfc69b507d1ba))
+* **ios:** set the status bar style on the root stack screens ([#476](https://github.com/dylfrancis/aurral-pocket/issues/476)) ([3008c33](https://github.com/dylfrancis/aurral-pocket/commit/3008c33a7bf8fc8c08af8918c3f6efe0e9907332))
+* **layout:** keep screens clear of the iPhone Duo side rail ([#462](https://github.com/dylfrancis/aurral-pocket/issues/462)) ([#485](https://github.com/dylfrancis/aurral-pocket/issues/485)) ([814001f](https://github.com/dylfrancis/aurral-pocket/commit/814001ffb27e141e05c92b5933484e36b9ae95c0))
+* **player:** turn shuffle off from Play buttons ([#483](https://github.com/dylfrancis/aurral-pocket/issues/483)) ([137c3a4](https://github.com/dylfrancis/aurral-pocket/commit/137c3a453ae85073c5ddca0c01e31655483fdabc))
+* **shazam:** bump Retrofit to 2.11.0 for Android release builds ([#475](https://github.com/dylfrancis/aurral-pocket/issues/475)) ([#478](https://github.com/dylfrancis/aurral-pocket/issues/478)) ([12f7627](https://github.com/dylfrancis/aurral-pocket/commit/12f7627956ed9e4206423408346dfb1117ad72fd))
+* **shazam:** pause playback while listening ([#474](https://github.com/dylfrancis/aurral-pocket/issues/474)) ([#480](https://github.com/dylfrancis/aurral-pocket/issues/480)) ([82dfe87](https://github.com/dylfrancis/aurral-pocket/commit/82dfe87f4cdf657d6a910acbbeba4d375dd3c99a))
+
 ## [0.17.0](https://github.com/dylfrancis/aurral-pocket/compare/v0.16.0...v0.17.0) (2026-11-24)
 
 
