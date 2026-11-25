@@ -67,15 +67,13 @@ describe("ConnectSheet", () => {
     expect(getByText("Enter the URL of your Aurral server")).toBeTruthy();
   });
 
-  it("renders GitHub link and opens URL on press", async () => {
+  it("opens the Aurral docs from the server link", async () => {
     const openURLSpy = jest.spyOn(Linking, "openURL").mockResolvedValue();
     const { getByText } = await render(<OpenConnectSheet />);
     const link = getByText("How can I get my own Aurral server?");
     expect(link).toBeTruthy();
     await fireEvent.press(link);
-    expect(openURLSpy).toHaveBeenCalledWith(
-      "https://github.com/lklynet/aurral#readme",
-    );
+    expect(openURLSpy).toHaveBeenCalledWith("https://docs.aurral.org/");
     openURLSpy.mockRestore();
   });
 
