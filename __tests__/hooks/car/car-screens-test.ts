@@ -1,0 +1,406 @@
+jest.mock("@/hooks/car/car-library", () => ({
+  ...jest.requireActual("@/hooks/car/car-library"),
+  forgetCarLists: jest.fn(),
+  loadCarList: jest.fn(),
+  onCarListGrew: jest.fn(),
+  searchCar: jest.fn(),
+}));
+
+jest.mock("@/lib/headless-session", () => ({
+  headlessSession: jest.fn(),
+  onSessionChanged: jest.fn(),
+}));
+
+jest.mock("@/lib/player/player", () => ({
+  preparePlayer: jest.fn(async () => {}),
+  restoreSavedQueue: jest.fn(async () => true),
+  shelveForCar: jest.fn(),
+}));
+
+import {
+  loadCarList,
+  onCarListGrew,
+  type CarList,
+  type CarListGrowth,
+} from "@/hooks/car/car-library";
+import { registerCar } from "@/hooks/car/car-screens";
+import { headlessSession, onSessionChanged } from "@/lib/headless-session";
+import { restoreSavedQueue, shelveForCar } from "@/lib/player/player";
+import {
+  AndroidAutoMediaLibraryHelper,
+  CarPlayHelper,
+} from "react-native-nitro-player";
+
+const carPlay = CarPlayHelper as jest.Mocked<typeof CarPlayHelper>;
+const androidAuto = AndroidAutoMediaLibraryHelper as jest.Mocked<
+  typeof AndroidAutoMediaLibraryHelper
+>;
+
+const albumRow = {
+  id: "album:12",
+  kind: "list" as const,
+  title: "Kid A",
+  subtitle: "Radiohead",
+  image: "https://test.example/cover",
+};
+
+function songList(play: CarList["play"] = jest.fn()): CarList {
+  return {
+    title: "Kid A",
+    rows: [{ id: "77", kind: "song", title: "Idioteque", image: null }],
+    songs: [
+      {
+        id: "77",
+        title: "Idioteque",
+        artist: "Radiohead",
+        album: "Kid A",
+        duration: 0,
+        url: "https://test.example/library/stream/12/77",
+        artwork: null,
+        streamPath: "/library/stream/12/77",
+        coverPath: null,
+        trackMbid: null,
+        artistMbid: null,
+        albumMbid: null,
+        favorite: null,
+      },
+    ],
+    play,
+  };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
+/** Tell the car more rows of a list landed. */
+const grow = (growth: CarListGrowth) =>
+  (onCarListGrew as jest.Mock).mock.calls[0][0](growth);
+
+describe("CarPlay", () => {
+  beforeEach(() => {
+    carPlay.isAvailable.mockReturnValue(true);
+    androidAuto.isAvailable.mockReturnValue(false);
+    registerCar();
+  });
+
+  const loader = () => carPlay.setTemplateLoader.mock.calls[0][0];
+  const onSelect = () => carPlay.onSelect.mock.calls[0][0];
+
+  it("opens a row's list through the loader, and leaves a song for pocket's player to play", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Library",
+      rows: [
+        albumRow,
+        { id: "77", kind: "song", title: "Idioteque", image: null },
+      ],
+    });
+
+    const template = await loader()("library");
+
+    expect(template).toMatchObject({
+      type: "list",
+      id: "library",
+      title: "Library",
+      sections: [
+        {
+          items: [
+            {
+              id: "album:12",
+              title: "Kid A",
+              subtitle: "Radiohead",
+              image: "https://test.example/cover",
+              loadTemplate: true,
+            },
+            // No playlistId: the engine would play the song itself.
+            { id: "77", title: "Idioteque", trackId: "77" },
+          ],
+        },
+      ],
+    });
+  });
+
+  /** Tell the car the stored session changed. */
+  const sessionChange = (change: string) =>
+    (onSessionChanged as jest.Mock).mock.calls[0][0](change);
+
+  it.each(["signedIn", "signedOut"])(
+    "goes back to its tabs and reads them again once the phone has %s",
+    (change) => {
+      sessionChange(change);
+
+      // A screen pushed from a row isn't read again, so it would keep the
+      // last account's rows.
+      expect(carPlay.popToRoot).toHaveBeenCalled();
+      expect(carPlay.reload).toHaveBeenCalled();
+    },
+  );
+
+  it("stays where it is for a renewed token, reading its tabs again for new covers", () => {
+    sessionChange("renewed");
+
+    expect(carPlay.popToRoot).not.toHaveBeenCalled();
+    expect(carPlay.reload).toHaveBeenCalled();
+  });
+
+  it.each([
+    [true, 1],
+    [false, 0],
+  ])(
+    "plays a picked song from its list, opening Now Playing once it starts (%s)",
+    async (started, nowPlayingCalls) => {
+      const play = jest.fn(async () => started);
+      (loadCarList as jest.Mock).mockResolvedValue(songList(play));
+      await loader()("album:12");
+
+      onSelect()("77", "album:12");
+      await new Promise(process.nextTick);
+
+      expect(play).toHaveBeenCalledWith("77");
+      expect(carPlay.showNowPlaying).toHaveBeenCalledTimes(nowPlayingCalls);
+    },
+  );
+
+  it("shuffles the list from a Shuffle row at its top, then opens Now Playing", async () => {
+    const shuffle = jest.fn(async () => true);
+    (loadCarList as jest.Mock).mockResolvedValue({ ...songList(), shuffle });
+
+    const template = await loader()("album:12");
+    const [first] =
+      template?.type === "list" ? template.sections![0].items : [];
+    onSelect()(first.id, "album:12");
+    await new Promise(process.nextTick);
+
+    expect(first).toMatchObject({ title: "Shuffle" });
+    expect(shuffle).toHaveBeenCalled();
+    expect(carPlay.showNowPlaying).toHaveBeenCalled();
+  });
+
+  it("splits an alphabetical list into the letters its rows are filed under, for CarPlay's side index", async () => {
+    const artist = (title: string, letter: string) => ({
+      id: `artist:${title}`,
+      kind: "list" as const,
+      title,
+      image: null,
+      letter,
+    });
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Artists",
+      alphabetical: true,
+      rows: [
+        artist("ABBA", "A"),
+        // Filed by sort name, "Bowie, David".
+        artist("David Bowie", "B"),
+        artist("Björk", "B"),
+        artist("2Pac", "#"),
+      ],
+    });
+
+    const template = await loader()("artists");
+    const sections = template?.type === "list" ? template.sections : [];
+
+    expect(
+      sections?.map(({ header, indexTitle, items }) => [
+        header,
+        indexTitle,
+        items.map((item) => ("title" in item ? item.title : "")),
+      ]),
+    ).toEqual([
+      ["A", "A", ["ABBA"]],
+      ["B", "B", ["David Bowie", "Björk"]],
+      ["#", "#", ["2Pac"]],
+    ]);
+  });
+
+  it("ends a list with a row saying more are loading, which does nothing when tapped", async () => {
+    const play = jest.fn(async () => true);
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Albums",
+      alphabetical: true,
+      rows: [{ ...albumRow, letter: "K" }],
+      play,
+      loadingMore: true,
+    });
+
+    const template = await loader()("albums");
+    const sections = template?.type === "list" ? template.sections! : [];
+    const loading = sections.at(-1)!.items[0];
+    onSelect()(loading.id, "albums");
+    await new Promise(process.nextTick);
+
+    expect(loading).toMatchObject({ title: "Loading more…" });
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  it("redraws the list and its letters on screen as more rows land", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({ title: "", rows: [] });
+    await loader()("albums");
+    await loader()("albums:B");
+    await loader()("album:12");
+
+    grow({ listId: "albums", finished: false, promisedMore: true });
+    await new Promise(process.nextTick);
+
+    expect(
+      carPlay.update.mock.calls.map(([template]) => template.id).sort(),
+    ).toEqual(["albums", "albums:B"]);
+  });
+
+  it("leaves Shuffle out of an empty list, so it shows its empty title", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Kid A",
+      rows: [],
+      shuffle: jest.fn(),
+      emptyTitle: "No songs to play",
+    });
+
+    const template = await loader()("album:12");
+
+    expect(template).toMatchObject({
+      sections: [{ items: [] }],
+      emptyTitle: "No songs to play",
+    });
+  });
+});
+
+describe("Android Auto", () => {
+  beforeEach(() => {
+    carPlay.isAvailable.mockReturnValue(false);
+    androidAuto.isAvailable.mockReturnValue(true);
+    registerCar();
+  });
+
+  const childrenLoader = () => androidAuto.setChildrenLoader.mock.calls[0][0];
+
+  /** The function a pick on the last shelf calls. */
+  const shelfPick = () =>
+    (shelveForCar as jest.Mock).mock.calls.at(-1)[2] as (
+      trackId: string,
+    ) => Promise<boolean>;
+
+  it("lists a song by the shelf id it's picked by, and plays it from its list", async () => {
+    const play = jest.fn(async () => true);
+    const list = songList(play);
+    (loadCarList as jest.Mock).mockResolvedValue(list);
+    (shelveForCar as jest.Mock).mockResolvedValue(["shelf-1:car1~77"]);
+
+    await expect(childrenLoader()("album:12")).resolves.toEqual([
+      {
+        id: "shelf-1:car1~77",
+        title: "Idioteque",
+        isPlayable: true,
+        mediaType: "audio",
+      },
+    ]);
+    // Each list keeps one shelf, replaced when the list is read again.
+    expect(shelveForCar).toHaveBeenCalledWith(
+      "album:12",
+      list.songs,
+      expect.any(Function),
+    );
+    await shelfPick()("77");
+    expect(play).toHaveBeenCalledWith("77");
+  });
+
+  it("puts Shuffle first as a stand-in song, whose pick shuffles the list", async () => {
+    const shuffle = jest.fn(async () => true);
+    (loadCarList as jest.Mock).mockResolvedValue({ ...songList(), shuffle });
+    (shelveForCar as jest.Mock).mockResolvedValue([
+      "shelf-1:car1~shuffle",
+      "shelf-1:car1~77",
+    ]);
+
+    const items = await childrenLoader()("album:12");
+    await shelfPick()((shelveForCar as jest.Mock).mock.calls.at(-1)[1][0].id);
+
+    expect(items?.map(({ id, title }) => [id, title])).toEqual([
+      ["shelf-1:car1~shuffle", "Shuffle"],
+      ["shelf-1:car1~77", "Idioteque"],
+    ]);
+    expect(shuffle).toHaveBeenCalled();
+  });
+
+  it("lists a row that opens a list as a folder the car reads when opened", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Recently Played",
+      rows: [albumRow],
+    });
+
+    await expect(childrenLoader()("recently-played")).resolves.toEqual([
+      expect.objectContaining({
+        id: "album:12",
+        isPlayable: false,
+        mediaType: "folder",
+        children: [],
+      }),
+    ]);
+  });
+
+  it("shows a row asking to sign in, since Android Auto shows no text for an empty list", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "",
+      rows: [],
+      signedOut: true,
+      emptyTitle: "Sign in to Aurral on your phone",
+    });
+
+    await expect(childrenLoader()("library")).resolves.toEqual([
+      expect.objectContaining({ title: "Sign in to Aurral on your phone" }),
+    ]);
+  });
+
+  it("ends a folder with a row saying more are loading, which opens the list again", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Albums",
+      rows: [albumRow],
+      loadingMore: true,
+    });
+
+    const items = await childrenLoader()("albums");
+    await childrenLoader()(items!.at(-1)!.id);
+
+    expect(items?.at(-1)).toMatchObject({ title: "Loading more…" });
+    expect(loadCarList).toHaveBeenLastCalledWith("albums");
+  });
+
+  it.each([
+    [true, true, 1],
+    [true, false, 0],
+    [false, true, 0],
+  ])(
+    "rereads its open folders once the last rows land, if it said more were coming (finished %s, promised %s)",
+    (finished, promisedMore, publishes) => {
+      androidAuto.set.mockClear();
+
+      grow({ listId: "albums", finished, promisedMore });
+
+      expect(androidAuto.set).toHaveBeenCalledTimes(publishes);
+    },
+  );
+
+  it("opens the Library from the row that asks to sign in", async () => {
+    (loadCarList as jest.Mock).mockResolvedValue({
+      title: "Library",
+      rows: [],
+    });
+
+    await childrenLoader()("signed-out");
+
+    expect(loadCarList).toHaveBeenCalledWith("library");
+  });
+
+  it.each([
+    [{ userId: 1 }, 1],
+    [null, 0],
+  ])(
+    "brings back the last queue for the car only with an account (%p)",
+    async (account, restores) => {
+      (headlessSession as jest.Mock).mockResolvedValue(account);
+
+      androidAuto.onPlaybackResumption.mock.calls[0][0]();
+      await new Promise(process.nextTick);
+
+      expect(restoreSavedQueue).toHaveBeenCalledTimes(restores);
+    },
+  );
+});

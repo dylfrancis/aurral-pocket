@@ -33,8 +33,13 @@ const engineTrack: TrackItem = {
 function starConfigs() {
   return player.configure.mock.calls
     .map(([config]) => config)
-    .filter((config) => config.notificationButtons);
+    .filter((config) => config.notificationButtons?.ios?.lockScreen);
 }
+
+const carPlay = [
+  { id: "car-shuffle", type: "shuffle" },
+  { id: "car-repeat", type: "repeat" },
+];
 
 it("shows the star once, sets each track's state on it, and hides it", async () => {
   setLockScreenFavorite({ trackId: "77", isFavorite: true });
@@ -52,14 +57,18 @@ it("shows the star once, sets each track's state on it, and hides it", async () 
                 lockScreen: [
                   { id: "favorite", command: "like", title: "Favorite" },
                 ],
+                carPlay,
               },
             },
           },
-          { notificationButtons: { ios: { lockScreen: [] } } },
+          { notificationButtons: { ios: { lockScreen: [], carPlay } } },
         ]
       : [],
   );
-  expect(player.setNotificationButtonState.mock.calls).toEqual(
+  const starStates = player.setNotificationButtonState.mock.calls.filter(
+    ([state]) => state.buttonId === "favorite",
+  );
+  expect(starStates).toEqual(
     IS_IOS
       ? [
           [{ buttonId: "favorite", trackIds: ["77"], isActive: true }],
@@ -72,7 +81,8 @@ it("shows the star once, sets each track's state on it, and hides it", async () 
 it("passes on taps of the star alone, with the state they gave it", () => {
   const heard = jest.fn();
   const stop = onLockScreenFavoritePress(heard);
-  const press = manager.subscribeToNotificationButtonPress.mock.calls[0][0];
+  // CarPlay's buttons listen too, so take the star's own subscription.
+  const [press] = manager.subscribeToNotificationButtonPress.mock.lastCall!;
 
   press("favorite", engineTrack, { isActive: true });
   press("shuffle", engineTrack, { isActive: true });

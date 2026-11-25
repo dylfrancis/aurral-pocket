@@ -92,6 +92,45 @@ index c9b7df3..48527b7 100644
  
          val affectedPlaylists: Map<String, Int> = playlistManager.updateTracks(safeTracks)
  
+diff --git a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/MediaBrowserService.kt b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/MediaBrowserService.kt
+index 5d99a13..b189be0 100644
+--- a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/MediaBrowserService.kt
++++ b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/MediaBrowserService.kt
+@@ -5,10 +5,12 @@ package com.margelo.nitro.nitroplayer.media
+ import android.content.Context
+ import android.net.Uri
+ import android.os.Bundle
++import android.os.Process
+ import android.support.v4.media.MediaBrowserCompat
+ import android.support.v4.media.MediaDescriptionCompat
+ import android.support.v4.media.session.MediaSessionCompat
+ import androidx.media.MediaBrowserServiceCompat
++import androidx.media.MediaSessionManager
+ import androidx.media.utils.MediaConstants
+ import com.margelo.nitro.nitroplayer.TrackItem
+ import com.margelo.nitro.nitroplayer.core.NitroPlayerLogger
+@@ -94,9 +96,20 @@ class NitroPlayerMediaBrowserService : MediaBrowserServiceCompat() {
+         clientPackageName: String,
+         clientUid: Int,
+         rootHints: Bundle?,
+-    ): BrowserRoot {
++    ): BrowserRoot? {
+         NitroPlayerLogger.log("MediaBrowserService", "📂 NitroPlayerMediaBrowserService: onGetRoot called from $clientPackageName")
+ 
++        // Browse items hold the library and authenticated artwork URLs, so only callers Android trusts with media control
++        // (the system, MEDIA_CONTENT_CONTROL holders, enabled notification listeners such as Android Auto) get a root
++        val trusted =
++            clientUid == Process.myUid() ||
++                clientUid == Process.SYSTEM_UID ||
++                MediaSessionManager.getSessionManager(this).isTrustedForMediaControl(currentBrowserInfo)
++        if (!trusted) {
++            NitroPlayerLogger.log("MediaBrowserService", "🚫 NitroPlayerMediaBrowserService: refused $clientPackageName")
++            return null
++        }
++
+         if (clientPackageName == ANDROID_AUTO_PACKAGE) core.onAndroidAutoBrowserConnected()
+ 
+         // Always the real root: enabling later only has to refresh it, not reconnect the car
 diff --git a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt b/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt
 index 6202379..c00cf83 100644
 --- a/node_modules/react-native-nitro-player/android/src/main/java/com/margelo/nitro/nitroplayer/media/PlaybackService.kt

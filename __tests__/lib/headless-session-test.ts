@@ -30,7 +30,11 @@ import {
 } from "@/lib/api/client";
 import { setSavedLibraryUser } from "@/lib/offline/saved-library";
 import { startPlayHistory } from "@/lib/player/play-history";
-import { siriSession } from "@/lib/siri/session";
+import {
+  headlessSession,
+  onSessionChanged,
+  sessionChanged,
+} from "@/lib/headless-session";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
@@ -66,12 +70,13 @@ beforeEach(() => {
 
 afterEach(() => jest.restoreAllMocks());
 
-describe("siriSession", () => {
-  // Siri woke the app: no window opened, so the auth provider never mounted.
+describe("headlessSession", () => {
+  // Siri or a car woke the app: no window opened, so the auth provider never
+  // mounted.
   it("restores the session when no screen has", async () => {
     store();
 
-    await expect(siriSession()).resolves.toEqual({ userId: 7 });
+    await expect(headlessSession()).resolves.toEqual({ userId: 7 });
 
     expect(getServerUrl()).toBe("https://aurral.test");
     expect(buildAuthenticatedUrl("/stream/1")).toBe(
@@ -89,7 +94,7 @@ describe("siriSession", () => {
     setBaseUrl("https://aurral.test");
     setAuthToken("screen-token");
 
-    await expect(siriSession()).resolves.toEqual({ userId: 7 });
+    await expect(headlessSession()).resolves.toEqual({ userId: 7 });
 
     expect(buildAuthenticatedUrl("/stream/1")).toContain("token=screen-token");
     // The app layout already reports plays.
@@ -108,9 +113,26 @@ describe("siriSession", () => {
   ])("has no session when %s", async (_, stored) => {
     store(stored);
 
-    await expect(siriSession()).resolves.toBeNull();
+    await expect(headlessSession()).resolves.toBeNull();
 
     expect(getServerUrl()).toBe("");
     expect(startPlayHistory).not.toHaveBeenCalled();
+  });
+});
+
+describe("sessionChanged", () => {
+  it("tells every listener, even after one throws, without failing the caller", () => {
+    const failing = jest.fn(() => {
+      throw new Error("CarPlay went away");
+    });
+    const listening = jest.fn();
+    const stops = [onSessionChanged(failing), onSessionChanged(listening)];
+
+    try {
+      expect(() => sessionChanged("signedOut")).not.toThrow();
+      expect(listening).toHaveBeenCalledWith("signedOut");
+    } finally {
+      stops.forEach((stop) => stop());
+    }
   });
 });

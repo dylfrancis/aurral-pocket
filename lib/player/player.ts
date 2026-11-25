@@ -84,6 +84,9 @@ import {
   PlayerQueue,
   TrackPlayer,
   useNowPlaying,
+  type CarPlayButton,
+  type NotificationButtonEvent,
+  type RepeatMode as EngineRepeatMode,
   type TrackItem,
 } from "react-native-nitro-player";
 // The engine's native callbacks hold a single listener each — registering
@@ -94,13 +97,16 @@ import {
 import { callbackManager } from "react-native-nitro-player/src/hooks/callbackManager";
 
 /**
- * The player facade — the only module in the app that imports the audio
- * engine. Every sound goes through here: owned tracks and preview clips.
+ * The player facade — the only module in the app that plays through the audio
+ * engine; the car screens use it only to draw. Every sound goes through here:
+ * owned tracks and preview clips.
  * One engine holds one thing, so starting either replaces the other; no
  * coordination between them is needed.
  *
- * The facade keeps exactly one playlist — the queue — and rebuilds it per
- * play. Transport (next, previous, shuffle, repeat) operates on that queue.
+ * The facade keeps one playlist — the queue — and rebuilds it per play.
+ * Transport (next, previous, shuffle, repeat) operates on that queue. The
+ * only others are Android Auto's shelves (see shelveForCar), whose songs play
+ * once a pick hands them to the queue.
  */
 
 /** The name the engine shows for the current playlist. */
@@ -152,17 +158,221 @@ function configureEngine(): Promise<void> {
   configureOnce ??= TrackPlayer.configure({
     // The notification is what drives the lock screen and headset buttons.
     showInNotification: true,
-    androidAutoEnabled: false,
-    carPlayEnabled: false,
+    // The engine keeps this across launches. Off, Android Auto finds nothing
+    // to browse. CarPlay has no switch here.
+    androidAutoEnabled: true,
     // Pocket's cache already fetches the upcoming tracks the listener chose.
     // Ask for a missing source only once it becomes the current track.
     lookaheadCount: 0,
+    notificationButtons: {
+      ios: { carPlay: CARPLAY_BUTTONS },
+      // Android Auto and the media notification share these.
+      android: [
+        {
+          id: SHUFFLE_BUTTON,
+          title: "Shuffle",
+          icon: "shuffle_off",
+          activeIcon: "shuffle_on",
+        },
+        {
+          id: REPEAT_BUTTON,
+          title: "Repeat",
+          icon: "repeat_off",
+          activeIcon: "repeat_all",
+        },
+      ],
+    },
   }).then(() => {
+    callbackManager.subscribeToNotificationButtonPress(handleCarButton);
+    // Set once for every track, so a press flips it for every track.
+    showModesOnButtons();
     TrackPlayer.onTracksNeedUpdate((tracks) => {
+      const picked = tracks.find(({ id }) => CAR_TRACK_ID.test(id));
+      if (picked) {
+        // The engine asks again while a pick waits, such as on a second tap.
+        if (!carPicksInFlight.has(picked.id)) void handOffCarPick(picked.id);
+        return;
+      }
       void resolveEngineTracks(tracks).catch(() => {});
     });
   });
   return configureOnce;
+}
+
+/**
+ * Ready the engine for a car that opened the app with no screen, and delete
+ * leftover playlists the car could still play while nothing is queued.
+ */
+export function preparePlayer(): Promise<void> {
+  const run = lastPlay.then(async () => {
+    await configureEngine();
+    if (queueOrder.length === 0) await deleteEnginePlaylists();
+  });
+  lastPlay = run.catch(() => {});
+  return run;
+}
+
+/**
+ * Android Auto plays only engine playlists, so each list it opens is one. Its
+ * songs have no URL: a pick asks for one, and the facade plays the list.
+ */
+type CarShelf = {
+  listId: string;
+  playlistId: string;
+  play: (trackId: string) => Promise<boolean>;
+};
+
+/**
+ * Enough for the lists a car's back stack and their neighbours hold. A list
+ * opened again replaces its own shelf, so only other lists count.
+ */
+const MAX_CAR_SHELVES = 30;
+const CAR_SHELF_NAME = "Aurral in the car";
+/**
+ * Shelf songs carry the run and shelf they're on. The engine loads an earlier
+ * run's playlists back, and their shelf numbers start over.
+ */
+const CAR_RUN = Math.random().toString(36).slice(2, 8);
+const CAR_TRACK_ID = /^car-([a-z0-9]+)-(\d+)~(.+)$/;
+/** By shelf number, oldest first. */
+const carShelves = new Map<number, CarShelf>();
+let carShelfCount = 0;
+/** Shelves still being built, which the playlist sweep waits for. */
+const carShelfBuilds = new Set<Promise<unknown>>();
+/** Moves on at sign-out, so a shelf built across it is thrown away. */
+let carShelfAccount = 0;
+/** Engine track ids of picks being handed to the queue. */
+const carPicksInFlight = new Set<string>();
+/** Where the queue was when a car pick took the engine off it. */
+let carPickFrom: {
+  trackId: string;
+  position: number;
+  playing: boolean;
+} | null = null;
+
+/**
+ * Shelve a list's songs for Android Auto, in place of the list's last shelf.
+ * A pick calls `play`, which resolves true once playback starts. Returns each
+ * song's Android Auto media id, in order, or none after a sign-out.
+ */
+export function shelveForCar(
+  listId: string,
+  items: PlayerTrack[],
+  play: (trackId: string) => Promise<boolean>,
+): Promise<string[]> {
+  const build = buildCarShelf(listId, items, play);
+  const settled = build.catch(() => {});
+  carShelfBuilds.add(settled);
+  void settled.then(() => carShelfBuilds.delete(settled));
+  return build;
+}
+
+async function buildCarShelf(
+  listId: string,
+  items: PlayerTrack[],
+  play: (trackId: string) => Promise<boolean>,
+): Promise<string[]> {
+  const account = carShelfAccount;
+  await configureEngine();
+  const shelfNumber = ++carShelfCount;
+  const playlistId = await PlayerQueue.createPlaylist(CAR_SHELF_NAME);
+  const tracks = items.map((item) => ({
+    ...engineTrackWithUrl(item, ""),
+    id: `car-${CAR_RUN}-${shelfNumber}~${item.id}`,
+  }));
+  try {
+    await PlayerQueue.addTracksToPlaylist(playlistId, tracks);
+  } catch (error) {
+    void PlayerQueue.deletePlaylist(playlistId).catch(() => {});
+    throw error;
+  }
+  if (account !== carShelfAccount) {
+    void PlayerQueue.deletePlaylist(playlistId).catch(() => {});
+    return [];
+  }
+  for (const [oldNumber, shelf] of carShelves) {
+    if (shelf.listId === listId) dropCarShelf(oldNumber);
+  }
+  carShelves.set(shelfNumber, { listId, playlistId, play });
+  for (const oldNumber of carShelves.keys()) {
+    if (carShelves.size <= MAX_CAR_SHELVES) break;
+    dropCarShelf(oldNumber);
+  }
+  return tracks.map(({ id }) => `${playlistId}:${id}`);
+}
+
+function dropCarShelf(shelfNumber: number): void {
+  const shelf = carShelves.get(shelfNumber);
+  carShelves.delete(shelfNumber);
+  if (shelf) void PlayerQueue.deletePlaylist(shelf.playlistId).catch(() => {});
+}
+
+/** Remember where the queue was, at the first sign of a pick. */
+function noteCarPick(): void {
+  if (carPickFrom || !displayedTrack) return;
+  carPickFrom = {
+    trackId: displayedTrack.id,
+    position: currentPosition(),
+    playing: isPlaybackActive(),
+  };
+}
+
+/**
+ * Plays a car pick as the queue. A pick that can't play, or whose shelf is
+ * gone, returns the engine to the queue; left alone, it would wait for a URL.
+ */
+async function handOffCarPick(engineTrackId: string): Promise<void> {
+  carPicksInFlight.add(engineTrackId);
+  noteCarPick();
+  try {
+    const [, run, shelfNumber, trackId] =
+      CAR_TRACK_ID.exec(engineTrackId) ?? [];
+    const play =
+      run === CAR_RUN ? carShelves.get(Number(shelfNumber))?.play : null;
+    const started = await (play?.(trackId) ?? Promise.resolve(false)).catch(
+      () => false,
+    );
+    if (!started) await returnFromCarPick(engineTrackId);
+  } finally {
+    carPicksInFlight.delete(engineTrackId);
+    if (carPicksInFlight.size === 0) carPickFrom = null;
+  }
+}
+
+/**
+ * Put the engine back on the queue where the pick took it from, playing if it
+ * was. Does nothing once something else has replaced the pick.
+ */
+function returnFromCarPick(engineTrackId: string): Promise<void> {
+  const from = carPickFrom;
+  const run = lastPlay.then(async () => {
+    const state = await TrackPlayer.getState();
+    if (state.currentTrack?.id !== engineTrackId) return;
+    const shown = displayedTrack;
+    const shownIndex = queueOrder.findIndex(({ id }) => id === shown?.id);
+    if (!currentPlaylistId || !shown || shownIndex < 0) {
+      await TrackPlayer.pause();
+      return;
+    }
+    const resume = from?.trackId === shown.id ? from : null;
+    const position = resume?.position ?? 0;
+    restoringQueue = true;
+    try {
+      pendingRestoreSeek = {
+        trackId: shown.id,
+        position,
+        duration: progressSnapshot.duration,
+        ...(resume?.playing ? { resumesPlaying: true } : {}),
+      };
+      await PlayerQueue.loadPlaylist(currentPlaylistId, shownIndex);
+      if (position > 0) await TrackPlayer.seek(position);
+      if (resume?.playing) await TrackPlayer.play();
+    } finally {
+      restoringQueue = false;
+    }
+  });
+  lastPlay = run.catch(() => {});
+  return run.catch(() => {});
 }
 
 /**
@@ -178,10 +388,16 @@ function configureEngine(): Promise<void> {
  * failure here must not stop the restore or the sign-out that asked for it.
  */
 async function deleteEnginePlaylists(): Promise<void> {
+  // This run's car shelves are no leftovers: the car may still pick from them.
+  // One still being built would read as one, so the sweep waits for it.
+  await Promise.all(carShelfBuilds);
+  const shelfPlaylistIds = new Set(
+    [...carShelves.values()].map(({ playlistId }) => playlistId),
+  );
   try {
-    const deletes = PlayerQueue.getAllPlaylists().map((playlist) =>
-      PlayerQueue.deletePlaylist(playlist.id),
-    );
+    const deletes = PlayerQueue.getAllPlaylists()
+      .filter((playlist) => !shelfPlaylistIds.has(playlist.id))
+      .map((playlist) => PlayerQueue.deletePlaylist(playlist.id));
     await Promise.allSettled(deletes);
   } catch {}
 }
@@ -1125,6 +1341,7 @@ function refreshQueueSnapshot(): void {
 function notifyModesChanged(): void {
   modesSnapshot = { shuffle: shuffleOn, repeat: repeatMode };
   modesChangedListeners.forEach((listener) => listener());
+  if (configureOnce) showModesOnButtons();
   persistQueue();
   updatePrefetchWindow();
   askQueueLoudness();
@@ -1452,9 +1669,8 @@ async function loadQueueAt(queue: QueueToLoad): Promise<void> {
     );
     // loadPlaylist readies the track without playing it.
     await PlayerQueue.loadPlaylist(playlistId, items.indexOf(current));
-    if (repeatMode !== "off") {
-      await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[repeatMode]);
-    }
+    // The engine keeps its mode from the last queue, which may differ.
+    await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[repeatMode]);
     if (position > 0) {
       await TrackPlayer.seek(position);
     }
@@ -1658,6 +1874,7 @@ export function forgetQueue(): Promise<void> {
   cancelTranscodes();
   forgetLoudness();
   queueClaims++;
+  carShelfAccount++;
   const run = lastPlay.then(async () => {
     clearQueueState();
     shuffleOn = false;
@@ -1673,6 +1890,11 @@ export function forgetQueue(): Promise<void> {
     try {
       await TrackPlayer.pause();
     } catch {}
+    try {
+      await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE.off);
+    } catch {}
+    // The car's shelves hold the account's songs, so they go too.
+    carShelves.clear();
     await deleteEnginePlaylists();
     currentPlaylistId = null;
 
@@ -1747,6 +1969,12 @@ function wireEngineEvents(): void {
 
   callbackManager.subscribeToTrackChange(
     function handleTrackChange(engineTrack): void {
+      // A car pick is about to become the queue; until then the old one stays.
+      if (CAR_TRACK_ID.test(engineTrack.id)) {
+        noteCarPick();
+        return;
+      }
+      if (carPicksInFlight.size === 0) carPickFrom = null;
       // Offline, a track that would only fail is passed over for the nearest
       // saved one, the way the player was going: "previous" moves one back.
       // A restored track is left where it is, paused, for a tap on play.
@@ -1984,7 +2212,7 @@ export function setLockScreenFavorite(star: FavoriteStar | null): void {
   favoriteStarShown = shown;
   // After the engine's first configure, and one at a time, so the last call
   // decides. The other settings stay as they were, but the buttons are
-  // replaced whole, so any CarPlay buttons would have to be sent here too.
+  // replaced whole, so CarPlay's are sent again with the star.
   favoriteStarChange = favoriteStarChange
     .then(configureEngine)
     .then(() =>
@@ -1994,6 +2222,7 @@ export function setLockScreenFavorite(star: FavoriteStar | null): void {
             lockScreen: shown
               ? [{ id: FAVORITE_STAR_ID, command: "like", title: "Favorite" }]
               : [],
+            carPlay: CARPLAY_BUTTONS,
           },
         },
       }),
@@ -2121,12 +2350,61 @@ const ENGINE_REPEAT_MODE = {
   one: "track",
 } as const;
 
+const APP_REPEAT_MODE: Record<EngineRepeatMode, RepeatMode> = {
+  off: "off",
+  Playlist: "all",
+  track: "one",
+};
+
 export async function setRepeatMode(mode: RepeatMode): Promise<void> {
+  followRepeatMode(mode);
+  await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[mode]);
+}
+
+function followRepeatMode(mode: RepeatMode): void {
   repeatMode = mode;
   notifyModesChanged();
-  await TrackPlayer.setRepeatMode(ENGINE_REPEAT_MODE[mode]);
   // Repeat kept the queue going; without it a queue near its end needs more.
   if (mode === "off") topUpQueue();
+}
+
+/** Shuffle and repeat in CarPlay, Android Auto and Android's notification. */
+const SHUFFLE_BUTTON = "car-shuffle";
+const REPEAT_BUTTON = "car-repeat";
+/** CarPlay draws these itself. */
+const CARPLAY_BUTTONS: CarPlayButton[] = [
+  { id: SHUFFLE_BUTTON, type: "shuffle" },
+  { id: REPEAT_BUTTON, type: "repeat" },
+];
+
+/**
+ * CarPlay's repeat button has already switched the engine's mode, so the
+ * facade follows it. Android's is a toggle: on is repeat all.
+ */
+function handleCarButton(
+  buttonId: string,
+  _track: TrackItem,
+  { isActive, repeatMode: engineMode }: NotificationButtonEvent,
+): void {
+  if (buttonId === SHUFFLE_BUTTON && isActive !== undefined) {
+    if (isActive !== shuffleOn) void setShuffle(isActive);
+  } else if (buttonId === REPEAT_BUTTON && engineMode) {
+    followRepeatMode(APP_REPEAT_MODE[engineMode]);
+  } else if (buttonId === REPEAT_BUTTON && isActive !== undefined) {
+    void setRepeatMode(isActive ? "all" : "off");
+  }
+}
+
+/** CarPlay draws its repeat button from the engine's mode and ignores this. */
+function showModesOnButtons(): void {
+  TrackPlayer.setNotificationButtonState({
+    buttonId: SHUFFLE_BUTTON,
+    isActive: shuffleOn,
+  });
+  TrackPlayer.setNotificationButtonState({
+    buttonId: REPEAT_BUTTON,
+    isActive: repeatMode !== "off",
+  });
 }
 
 export async function previous(): Promise<void> {
