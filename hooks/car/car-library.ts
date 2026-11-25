@@ -1,6 +1,7 @@
 import { flowStatusQueryOptions } from "@/hooks/flow/use-flow-status";
 import { albumTrackContext } from "@/hooks/library/album-track-context";
 import {
+  readArtistSongs,
   readShuffleSongs,
   songListContext,
 } from "@/hooks/library/use-play-library-songs";
@@ -310,27 +311,42 @@ async function artistList(id: string, artistRef: string): Promise<CarList> {
     seenArtists.get(id) ?? getCanonicalArtist(artistRef),
   ]);
   const albums = allAlbums.filter((album) => album.available !== false);
+  const title = titleOf(id) || (artist?.artistName ?? "");
+  const name = artist?.artistName || title;
+  const mbid = artist?.mbid || null;
   return {
-    title: titleOf(id) || (artist?.artistName ?? ""),
+    title,
     rows: albums.flatMap(albumRow),
-    // The artist queue is read by MBID, which some artists don't have.
-    ...(artist?.mbid ? { shuffle: () => shuffleArtist(artist) } : {}),
+    shuffle: () => shuffleArtist(artistRef, name, mbid),
     emptyTitle: "No albums",
   };
 }
 
-/** The artist page's Shuffle: every Library song by the artist. */
-async function shuffleArtist(artist: Artist): Promise<boolean> {
-  const songs = (await getArtistQueue(artist.mbid))
-    .map((track) => queueTrackToPlayerTrack(track, null))
-    .filter(isTrack);
+/**
+ * The artist page's Shuffle: every Library song by the artist. The artist
+ * queue is read by MBID, so an artist without one is read by Library id.
+ */
+async function shuffleArtist(
+  libraryArtistId: string,
+  name: string,
+  mbid: string | null,
+): Promise<boolean> {
+  const songs = (
+    mbid
+      ? (await getArtistQueue(mbid)).map((track) =>
+          queueTrackToPlayerTrack(track, null),
+        )
+      : (await readArtistSongs(libraryArtistId)).map((song) =>
+          toPlayerTrack(song, albumTrackContext(song, queryClient)),
+        )
+  ).filter(isTrack);
   const context: PlayerAlbumContext = {
-    albumTitle: artist.artistName,
-    artistName: artist.artistName,
+    albumTitle: name,
+    artistName: name,
     coverPath: null,
     artworkUrl: null,
     albumMbid: null,
-    artistMbid: artist.mbid,
+    artistMbid: mbid,
   };
   return play(songs, context, { shuffled: true });
 }
