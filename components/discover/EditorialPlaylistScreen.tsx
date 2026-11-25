@@ -12,7 +12,7 @@ import DownloadIcon from "@expo/material-symbols/download.xml";
 import MoreVert from "@expo/material-symbols/more_vert.xml";
 
 import { ScrollHeaderTitle } from "@/components/artist/ArtistDetailLayout";
-import { CollectionHero, COVER_SIZE } from "@/components/flow/CollectionPage";
+import { CollectionHero } from "@/components/flow/CollectionPage";
 import { EmptyState } from "@/components/library/EmptyState";
 import {
   TrackActionsSheet,
@@ -47,6 +47,7 @@ import { BrowseTrackRow } from "./BrowseTrackRow";
 import { EditorialArtwork } from "./EditorialArtwork";
 import type { EditorialTrackItem } from "./EditorialTrackRow";
 import { useColors } from "@/hooks/use-colors";
+import { useHeroCoverSize } from "@/hooks/use-hero-cover-size";
 
 const GONE_MESSAGE: Record<BrowseProvider, string> = {
   deezer: "Deezer no longer has this playlist",
@@ -65,6 +66,7 @@ type RouteParams = {
 /** Laid out like an album: Play takes the Library's songs; the rest are grayed. */
 export function EditorialPlaylistScreen() {
   const colors = useColors();
+  const coverSize = useHeroCoverSize();
   const insets = useSafeAreaInsets();
   // Only iOS scrolls under its translucent header.
   const headerHeight = useHeaderHeight();
@@ -252,7 +254,7 @@ export function EditorialPlaylistScreen() {
                 <EditorialArtwork
                   name={name}
                   coverUrl={playlist?.artworkUrl ?? params.artworkUrl ?? null}
-                  size={COVER_SIZE}
+                  size={coverSize}
                   radius={12}
                 />
               }

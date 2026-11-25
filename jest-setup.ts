@@ -26,6 +26,14 @@ jest.mock("expo/fetch", () => ({
   fetch: jest.fn(),
 }));
 
+// Jest has no native window to measure safe areas. The library's own mock
+// answers zero insets outside a SafeAreaProvider.
+jest.mock(
+  "react-native-safe-area-context",
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  () => require("react-native-safe-area-context/jest/mock").default,
+);
+
 // Jest has no SwiftUI or Compose to present a sheet in, so the sheet renders
 // its React Native content in place while presented.
 jest.mock("@expo/ui", () => {

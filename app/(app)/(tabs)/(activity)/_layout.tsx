@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { MiniPlayerHost } from "@/components/player/MiniPlayerHost";
 import {
   DETAIL_SCREEN_OPTIONS,
+  FULL_BLEED_SCREEN_OPTIONS,
   artistListScreenOptions,
   TOP_TRACKS_SCREEN_OPTIONS,
   artistFavoritesScreenOptions,
@@ -9,6 +10,7 @@ import {
   stackScreenOptions,
 } from "@/constants/navigation";
 import { useColors } from "@/hooks/use-colors";
+import { useSidePadding } from "@/hooks/use-side-insets";
 
 // Queue is the tab's landing route.
 export const unstable_settings = {
@@ -17,6 +19,7 @@ export const unstable_settings = {
 
 export default function ActivityLayout() {
   const colors = useColors();
+  const sidePadding = useSidePadding();
 
   // The three views are siblings in *this* Stack rather than screens of a
   // nested navigator. iOS only collapses a large title when it can reach the
@@ -32,12 +35,15 @@ export default function ActivityLayout() {
 
   return (
     <MiniPlayerHost>
-      <Stack screenOptions={stackScreenOptions(colors)}>
+      <Stack screenOptions={stackScreenOptions(colors, sidePadding)}>
         <Stack.Screen name="queue" options={feedOptions} />
         <Stack.Screen name="review" options={feedOptions} />
         <Stack.Screen name="history" options={feedOptions} />
-        <Stack.Screen name="artist/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
-        <Stack.Screen name="album/[ref]" options={DETAIL_SCREEN_OPTIONS} />
+        <Stack.Screen
+          name="artist/[mbid]"
+          options={FULL_BLEED_SCREEN_OPTIONS}
+        />
+        <Stack.Screen name="album/[ref]" options={FULL_BLEED_SCREEN_OPTIONS} />
         <Stack.Screen name="release/[mbid]" options={DETAIL_SCREEN_OPTIONS} />
         <Stack.Screen
           name="artist/albums"

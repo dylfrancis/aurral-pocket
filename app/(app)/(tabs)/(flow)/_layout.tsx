@@ -5,13 +5,15 @@ import {
   stackScreenOptions,
 } from "@/constants/navigation";
 import { useColors } from "@/hooks/use-colors";
+import { useSidePadding } from "@/hooks/use-side-insets";
 
 export default function FlowLayout() {
   const colors = useColors();
+  const sidePadding = useSidePadding();
 
   return (
     <MiniPlayerHost>
-      <Stack screenOptions={stackScreenOptions(colors)}>
+      <Stack screenOptions={stackScreenOptions(colors, sidePadding)}>
         <Stack.Screen
           name="index"
           options={{

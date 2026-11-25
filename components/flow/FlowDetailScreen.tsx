@@ -19,12 +19,7 @@ import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
 import { AddToPlaylistSheet, useAddToPlaylist } from "./AddToPlaylistSheet";
 import { CollectionArtwork } from "./CollectionArtwork";
-import {
-  COVER_SIZE,
-  CollectionHero,
-  CollectionPage,
-  summaryLine,
-} from "./CollectionPage";
+import { CollectionHero, CollectionPage, summaryLine } from "./CollectionPage";
 import { FlowAccessGate } from "./FlowAccessGate";
 import { MixPills } from "./MixPills";
 import { ProgressBar } from "./ProgressBar";
@@ -62,6 +57,7 @@ import type {
   StatusHintPhase,
 } from "@/lib/types/flow";
 import { useColors } from "@/hooks/use-colors";
+import { useHeroCoverSize } from "@/hooks/use-hero-cover-size";
 
 const NO_JOBS: FlowJob[] = [];
 
@@ -143,6 +139,7 @@ function FlowPage({
   workerHint?: string;
 }) {
   const colors = useColors();
+  const coverSize = useHeroCoverSize();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -419,7 +416,7 @@ function FlowPage({
                   collection={flow}
                   kind="flow"
                   stats={stats}
-                  size={COVER_SIZE}
+                  size={coverSize}
                   radius={12}
                 />
               }

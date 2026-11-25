@@ -7,6 +7,7 @@ import {
 import { stackScreenOptions } from "@/constants/navigation";
 import { IS_IOS } from "@/constants/platform";
 import { useColors } from "@/hooks/use-colors";
+import { useSidePadding } from "@/hooks/use-side-insets";
 
 export const unstable_settings = {
   anchor: "settings/index",
@@ -14,11 +15,12 @@ export const unstable_settings = {
 
 export default function SettingsLayout() {
   const colors = useColors();
+  const sidePadding = useSidePadding();
 
   const stack = (
     <Stack
       screenOptions={{
-        ...stackScreenOptions(colors),
+        ...stackScreenOptions(colors, sidePadding),
         headerBackButtonDisplayMode: "minimal",
       }}
     >

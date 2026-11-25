@@ -17,12 +17,7 @@ import { PLAY_ROW_HEIGHT, PlayRow } from "@/components/ui/PlayRow";
 import { ScreenCenter } from "@/components/ui/ScreenCenter";
 import { Text } from "@/components/ui/Text";
 import { CollectionArtwork } from "./CollectionArtwork";
-import {
-  COVER_SIZE,
-  CollectionHero,
-  CollectionPage,
-  summaryLine,
-} from "./CollectionPage";
+import { CollectionHero, CollectionPage, summaryLine } from "./CollectionPage";
 import { FlowAccessGate } from "./FlowAccessGate";
 import {
   useDeleteSharedPlaylist,
@@ -55,6 +50,7 @@ import { IS_IOS } from "@/constants/platform";
 import { checkableMenuItem } from "@/components/ui/MenuOptions";
 import type { FlowJob, PlaylistStats, SharedPlaylist } from "@/lib/types/flow";
 import { useColors } from "@/hooks/use-colors";
+import { useHeroCoverSize } from "@/hooks/use-hero-cover-size";
 
 const NO_JOBS: FlowJob[] = [];
 
@@ -104,6 +100,7 @@ function PlaylistPage({
   stats?: PlaylistStats;
 }) {
   const colors = useColors();
+  const coverSize = useHeroCoverSize();
   const router = useRouter();
 
   // Failed tracks stay listed, as an album's missing tracks do. The count above
@@ -366,7 +363,7 @@ function PlaylistPage({
                   collection={playlist}
                   kind="playlist"
                   stats={stats}
-                  size={COVER_SIZE}
+                  size={coverSize}
                   radius={12}
                 />
               }
