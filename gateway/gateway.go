@@ -35,8 +35,7 @@ type Config struct {
 	Upstream string
 	// Port is the loopback port to try first. URLs the app already handed the
 	// player stay valid while it doesn't change.
-	Port      int
-	Ephemeral bool
+	Port int
 	// Verbose adds tsnet's backend logs, which are long.
 	Verbose bool
 }
@@ -113,7 +112,6 @@ func Start(config *Config) (int, error) {
 		Hostname:   config.Hostname,
 		ControlURL: config.ControlURL,
 		AuthKey:    config.AuthKey,
-		Ephemeral:  config.Ephemeral,
 		UserLogf:   logf,
 	}
 	if config.Verbose {

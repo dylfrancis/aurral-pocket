@@ -75,37 +75,6 @@ export function setBaseUrl(url: string) {
 }
 
 /**
- * The server's tailnet address and the Tailscale gateway standing in for it, so
- * an absolute URL to the server loads through the gateway.
- */
-let serverAlias: { origin: string; basePath: string; gateway: string } | null =
-  null;
-
-export function setServerAlias(serverUrl: string | null, gatewayUrl?: string) {
-  if (!serverUrl || !gatewayUrl) {
-    serverAlias = null;
-    return;
-  }
-  const origin = originOf(serverUrl);
-  serverAlias = {
-    origin,
-    basePath: serverUrl.trim().slice(origin.length).replace(/\/+$/, ""),
-    gateway: gatewayUrl.replace(/\/+$/, ""),
-  };
-}
-
-/** The gateway's URL for one of the server's own, or null for any other. */
-function throughGateway(url: string): string | null {
-  if (!serverAlias || originOf(url) !== serverAlias.origin) return null;
-  let rest = url.trim().slice(serverAlias.origin.length);
-  const { basePath } = serverAlias;
-  if (basePath && (rest === basePath || rest.startsWith(`${basePath}/`))) {
-    rest = rest.slice(basePath.length);
-  }
-  return `${serverAlias.gateway}${rest}`;
-}
-
-/**
  * The Tailscale gateway marks the 502 it sends when it can't reach the server
  * over the tailnet (gateway/proxy.go): what a direct connection meets as a
  * network error, not an answer from Aurral.
@@ -145,8 +114,7 @@ function toImageSource(
  * cover from the MBID lookup.
  */
 export function imageSource(uri: string): ServerImageSource {
-  const resolved = throughGateway(uri) ?? uri;
-  return toImageSource(resolved, customHeadersFor(resolved));
+  return toImageSource(uri, customHeadersFor(uri));
 }
 
 function absolutizeServerPath(urlOrPath: string): string {
@@ -159,7 +127,7 @@ export function absolutizeImageUrl(
 ): string | null {
   if (!raw) return null;
   if (raw.startsWith("/")) return absolutizeServerPath(raw);
-  return throughGateway(raw) ?? raw.replace(/^http:\/\//, "https://");
+  return raw.replace(/^http:\/\//, "https://");
 }
 
 export type ServerImageSource = {

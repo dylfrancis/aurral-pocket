@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 import { AppState } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 
-import { setBaseUrl, setServerAlias } from "@/lib/api/client";
+import { setBaseUrl } from "@/lib/api/client";
 import type { TailscaleSettings } from "@/lib/types/tailscale";
 import {
   addTailscaleStatusListener,
@@ -70,7 +70,6 @@ function onStatus(next: TailscaleStatus) {
   if (runningGateway && next.port && next.port !== runningGateway.port) {
     setRunningGateway({ ...runningGateway, port: next.port });
     setBaseUrl(loopbackUrl(next.port));
-    setServerAlias(runningGateway.serverUrl, loopbackUrl(next.port));
   }
   setStatus(next);
 }
@@ -153,7 +152,6 @@ async function start(
   lastControlURL = settings.controlURL;
   setRunningGateway({ serverUrl, port });
   const gateway = loopbackUrl(port);
-  setServerAlias(serverUrl, gateway);
   setStatus(getTailscaleStatus());
   return gateway;
 }
@@ -166,7 +164,6 @@ export function stopGateway(): Promise<void> {
 async function stopRunning(): Promise<void> {
   if (!runningGateway) return;
   setRunningGateway(null);
-  setServerAlias(null);
   try {
     await stopTailscale();
   } finally {
@@ -183,7 +180,6 @@ export function forgetGateway(
 ): Promise<void> {
   return serially(async () => {
     setRunningGateway(null);
-    setServerAlias(null);
     try {
       await forgetTailscale(settings?.controlURL ?? lastControlURL);
     } catch {

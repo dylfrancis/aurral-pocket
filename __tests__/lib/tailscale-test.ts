@@ -166,16 +166,13 @@ describe("waitForTailnet", () => {
 });
 
 describe("the gateway", () => {
-  it("moves the API client and the server's own URLs to a new port", async () => {
+  it("moves the API client to a new port", async () => {
     const { tailscale, client } = load();
     client.setBaseUrl(await tailscale.startGateway(SERVER, {}));
 
     push({ state: "Running", port: 50123 });
 
     expect(client.getServerUrl()).toBe("http://127.0.0.1:50123");
-    expect(client.absolutizeImageUrl(`${SERVER}/api/covers/1.jpg`)).toBe(
-      "http://127.0.0.1:50123/api/covers/1.jpg",
-    );
   });
 
   it("starts only after an earlier forget has finished", async () => {
