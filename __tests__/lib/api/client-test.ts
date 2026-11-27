@@ -16,6 +16,7 @@ jest.mock("expo/fetch", () => ({
 
 import {
   ApiError,
+  absolutizeImageUrl,
   api,
   authenticatedClipUrl,
   authenticatedImageUrl,
@@ -29,6 +30,7 @@ import {
   setOnAccountSuspended,
   setOnAuthRefreshed,
   setOnSessionExpired,
+  setServerAlias,
 } from "@/lib/api/client";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -84,6 +86,7 @@ beforeEach(() => {
   setOnAuthRefreshed(null);
   setBaseUrl("https://test.example");
   setCustomHeaders({});
+  setServerAlias(null);
 });
 
 describe("ApiError", () => {
@@ -302,6 +305,58 @@ describe("serverImageSource", () => {
     expect(
       serverImageSource("https://coverartarchive.org/release-group/1/front"),
     ).toEqual({ uri: "https://coverartarchive.org/release-group/1/front" });
+  });
+});
+
+describe("through the Tailscale gateway", () => {
+  const gateway = "http://127.0.0.1:47862";
+
+  it("loads the server's own absolute URLs from the gateway", () => {
+    setBaseUrl(gateway);
+    setServerAlias("http://aurral-host:3002", gateway);
+
+    expect(
+      absolutizeImageUrl("http://Aurral-Host:3002/api/image-proxy/ab.jpg"),
+    ).toBe(`${gateway}/api/image-proxy/ab.jpg`);
+    expect(imageSource("http://aurral-host:3002/api/cover/1.jpg")).toEqual({
+      uri: `${gateway}/api/cover/1.jpg`,
+    });
+    // Any other host is still loaded directly, over HTTPS.
+    expect(absolutizeImageUrl("http://coverartarchive.org/release/1")).toBe(
+      "https://coverartarchive.org/release/1",
+    );
+  });
+
+  it("drops the server's base path, which the gateway serves at its root", () => {
+    setServerAlias("https://host.example.ts.net/aurral", gateway);
+
+    expect(
+      absolutizeImageUrl("https://host.example.ts.net/aurral/api/cover/1.jpg"),
+    ).toBe(`${gateway}/api/cover/1.jpg`);
+  });
+
+  it("reads the gateway's own 502 as the phone being offline", async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({
+        ok: false,
+        status: 502,
+        statusText: "Bad Gateway",
+        body: "",
+        headers: { "X-Pocket-Gateway": "unreachable" },
+      }),
+    );
+    await expect(api.get("/health/live")).rejects.toMatchObject({
+      isNetworkError: true,
+    });
+
+    // A 502 from a reverse proxy is still the server's answer.
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({ ok: false, status: 502, statusText: "Bad Gateway" }),
+    );
+    await expect(api.get("/health/live")).rejects.toMatchObject({
+      status: 502,
+      isNetworkError: false,
+    });
   });
 });
 

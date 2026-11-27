@@ -9,6 +9,12 @@ jest.mock("@/lib/api/health", () => ({
   SUPPORTED_API_VERSION: 2,
 }));
 
+jest.mock("@/lib/tailscale", () => ({
+  startGateway: jest.fn(() => Promise.resolve("http://127.0.0.1:47862")),
+  stopGateway: jest.fn(() => Promise.resolve()),
+  waitForTailnet: jest.fn(() => Promise.resolve()),
+}));
+
 jest.mock("@tanstack/react-query", () => ({
   useMutation: jest.fn((config: any) => {
     return {
@@ -22,6 +28,7 @@ import { useMutation } from "@tanstack/react-query";
 import { setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import { checkServerLive, getServerHealth } from "@/lib/api/health";
 import { useServerConnect } from "@/hooks/auth/use-server-connect";
+import { startGateway, stopGateway, waitForTailnet } from "@/lib/tailscale";
 
 const mockSetBaseUrl = setBaseUrl as jest.Mock;
 const mockSetCustomHeaders = setCustomHeaders as jest.Mock;
@@ -54,7 +61,59 @@ describe("useServerConnect", () => {
       url: "https://example.com",
       health: { authRequired: true },
       headers: {},
+      tailscale: null,
     });
+  });
+
+  it("joins the tailnet, then checks the server through the gateway", async () => {
+    mockCheckServerLive.mockResolvedValue(undefined);
+    mockGetServerHealth.mockResolvedValue({ authRequired: true });
+
+    useServerConnect();
+    const { config } = mockUseMutation.mock.results[0].value;
+    const signal = new AbortController().signal;
+    const result = await config.mutationFn({
+      url: "http://aurral-host:3002/",
+      headers: {},
+      tailscale: { authKey: "tskey-auth-1", controlURL: "https://hs.example" },
+      signal,
+    });
+
+    expect(startGateway).toHaveBeenCalledWith(
+      "http://aurral-host:3002",
+      { controlURL: "https://hs.example" },
+      "tskey-auth-1",
+    );
+    expect(mockSetBaseUrl).toHaveBeenCalledWith("http://127.0.0.1:47862");
+    expect(waitForTailnet).toHaveBeenCalledWith({ signal, usingAuthKey: true });
+    expect(
+      (waitForTailnet as jest.Mock).mock.invocationCallOrder[0],
+    ).toBeLessThan(mockCheckServerLive.mock.invocationCallOrder[0]);
+    // The key isn't saved: the node keeps its own credentials.
+    expect(result).toEqual({
+      url: "http://aurral-host:3002",
+      health: { authRequired: true },
+      headers: {},
+      tailscale: { controlURL: "https://hs.example" },
+    });
+  });
+
+  it("checks no server when the tailnet can't be joined", async () => {
+    (waitForTailnet as jest.Mock).mockRejectedValueOnce(
+      new Error("Tailscale sign-in wasn't finished."),
+    );
+
+    useServerConnect();
+    const { config } = mockUseMutation.mock.results[0].value;
+
+    await expect(
+      config.mutationFn({
+        url: "http://aurral-host:3002",
+        headers: {},
+        tailscale: {},
+      }),
+    ).rejects.toThrow("Tailscale sign-in wasn't finished.");
+    expect(mockCheckServerLive).not.toHaveBeenCalled();
   });
 
   it("calls checkServerLive then getServerHealth", async () => {
@@ -118,7 +177,7 @@ describe("useServerConnect", () => {
     );
   });
 
-  it("forgets the server and its headers on error", () => {
+  it("forgets the server, its headers and the gateway on error", () => {
     useServerConnect();
     const { config } = mockUseMutation.mock.results[0].value;
 
@@ -126,5 +185,6 @@ describe("useServerConnect", () => {
 
     expect(mockSetBaseUrl).toHaveBeenCalledWith("");
     expect(mockSetCustomHeaders).toHaveBeenCalledWith({});
+    expect(stopGateway).toHaveBeenCalled();
   });
 });

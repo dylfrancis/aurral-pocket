@@ -46,6 +46,7 @@ Each release targets one Aurral version, pinned in [`.aurral-version`](./.aurral
 - **Listening:** plays go to Aurral, ListenBrainz or Koito
 - **Shazam:** identify a song playing nearby, then play it or open its album or artists
 - **Sign-in:** password or OIDC, biometric re-auth, and custom headers for reverse proxies such as Cloudflare Access
+- **Tailscale:** reach a server on your tailnet through the app's own Tailscale connection, without the Tailscale app or a VPN
 
 ## Development
 

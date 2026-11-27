@@ -17,7 +17,15 @@ import { forgetAccount as forgetSiriAccount } from "@/modules/siri";
 import { forgetAudioCache } from "@/lib/offline/audio-cache";
 import { forgetSavedLibrary } from "@/lib/offline/saved-library";
 import { AppStorage, INACTIVITY_RESET_MS, SecureStorage } from "@/lib/storage";
+import {
+  forgetGateway,
+  gatewayUrlFor,
+  isTailscaleAvailable,
+  signInWhenAsked,
+  startGateway,
+} from "@/lib/tailscale";
 import type { HealthResponse, User } from "@/lib/types/auth";
+import type { TailscaleSettings } from "@/lib/types/tailscale";
 import React, {
   createContext,
   useCallback,
@@ -35,6 +43,8 @@ type ServerHealth = Pick<
 
 type AuthContextValue = {
   serverUrl: string | null;
+  /** Set when the app reaches the server through its own Tailscale node. */
+  tailscale: TailscaleSettings | null;
   customHeaders: Record<string, string>;
   token: string | null;
   user: User | null;
@@ -66,6 +76,7 @@ type AuthContextValue = {
     url: string,
     health: HealthResponse,
     customHeaders: Record<string, string>,
+    tailscale: TailscaleSettings | null,
   ) => Promise<void>;
   saveCustomHeaders: (headers: Record<string, string>) => Promise<void>;
   setAuth: (token: string, user: User, expiresAt?: number) => Promise<void>;
@@ -103,6 +114,9 @@ function forgetPlayback(): Promise<void> {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [serverUrl, setServerUrl] = useState<string | null>(null);
+  const [tailscale, setTailscaleState] = useState<TailscaleSettings | null>(
+    null,
+  );
   const [customHeaders, setCustomHeadersState] = useState<
     Record<string, string>
   >({});
@@ -136,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           lastActive,
           oidcSession,
           storedHeaders,
+          storedTailscale,
         ] = await Promise.all([
           AppStorage.getServerUrl(),
           SecureStorage.getToken(),
@@ -147,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           SecureStorage.getLastActiveAt(),
           AppStorage.getOidcSession(),
           SecureStorage.getCustomHeaders(),
+          AppStorage.getTailscale(),
         ]);
 
         // Render the first frame with the server's format instead of the
@@ -156,8 +172,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Hard expire after 30 days of inactivity with full reset to login screen
         if (lastActive && Date.now() - lastActive > INACTIVITY_RESET_MS) {
           forgetSiriAccount();
+          // Not awaited: it can take a while offline, and a later connect
+          // waits for it anyway.
+          if (storedTailscale) void forgetGateway(storedTailscale);
           await Promise.all([
             AppStorage.deleteServerUrl(),
+            AppStorage.deleteTailscale(),
             SecureStorage.deleteToken(),
             SecureStorage.deleteUser(),
             SecureStorage.deleteCredentials(),
@@ -178,8 +198,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (storedUrl) {
+          let baseUrl = storedUrl;
+          if (storedTailscale && isTailscaleAvailable) {
+            try {
+              baseUrl = await startGateway(storedUrl, storedTailscale);
+              // A node removed from the tailnet has to sign in again.
+              signInWhenAsked();
+            } catch {
+              // Straight to the server, which works only on the tailnet.
+            }
+          }
           setServerUrl(storedUrl);
-          setBaseUrl(storedUrl);
+          setTailscaleState(storedTailscale);
+          setBaseUrl(baseUrl);
           setCustomHeaders(storedHeaders);
           setCustomHeadersState(storedHeaders);
         }
@@ -321,9 +352,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       url: string,
       health: HealthResponse,
       headers: Record<string, string>,
+      tailscaleSettings: TailscaleSettings | null,
     ) => {
       setServerUrl(url);
-      setBaseUrl(url);
+      setTailscaleState(tailscaleSettings);
+      // Connecting opened the gateway already.
+      setBaseUrl(tailscaleSettings ? (gatewayUrlFor(url) ?? url) : url);
       setCustomHeaders(headers);
       setCustomHeadersState(headers);
       setServerHealth({
@@ -335,7 +369,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await Promise.all([
         AppStorage.setServerUrl(url),
         SecureStorage.setCustomHeaders(headers),
+        tailscaleSettings
+          ? AppStorage.setTailscale(tailscaleSettings)
+          : AppStorage.deleteTailscale(),
       ]);
+      // A node an earlier, unfinished Tailscale connect left on the phone.
+      if (!tailscaleSettings) void forgetGateway(null);
     },
     [],
   );
@@ -415,6 +454,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearAll = useCallback(async () => {
     setServerUrl(null);
+    setTailscaleState(null);
     setToken(null);
     setUser(null);
     setServerHealth(null);
@@ -426,8 +466,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setBiometrics(false);
     setIsOidcSession(false);
     try {
+      const storedTailscale = await AppStorage.getTailscale();
+      // Not awaited: it can take a while offline, and a later connect waits
+      // for it anyway.
+      void forgetGateway(storedTailscale);
       await Promise.all([
         AppStorage.deleteServerUrl(),
+        AppStorage.deleteTailscale(),
         AppStorage.deleteOidcSession(),
         forgetPlayback(),
         forgetPlayHistory(),
@@ -515,6 +560,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       serverUrl,
+      tailscale,
       customHeaders,
       token,
       user,
@@ -547,6 +593,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       serverUrl,
+      tailscale,
       customHeaders,
       token,
       user,

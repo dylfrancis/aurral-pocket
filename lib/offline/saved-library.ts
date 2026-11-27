@@ -25,6 +25,7 @@ import {
 } from "@/lib/player/saved-queue";
 import type { PlayerTrack } from "@/lib/player/track-item";
 import { AppStorage } from "@/lib/storage";
+import { isGatewayRunning } from "@/lib/tailscale";
 import type { FlowJob, SharedPlaylist } from "@/lib/types/flow";
 import type { Album, AlbumTrack, Track } from "@/lib/types/library";
 
@@ -964,6 +965,9 @@ async function saveFile(trackId: string, file: SavedFile): Promise<void> {
   deleteQuietly(destination);
   const task = File.createDownloadTask(url, destination, {
     headers: customHeadersFor(url),
+    // The system's background session runs outside the app, where the
+    // Tailscale gateway's loopback port can't be reached.
+    ...(isGatewayRunning() ? { sessionType: "foreground" as const } : {}),
   });
   const download = { trackId, cancel: () => task.cancel(), cancelled: false };
   inFlight = download;

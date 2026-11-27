@@ -11,6 +11,7 @@ jest.mock("expo-haptics", () => ({
 
 const mockAuth = {
   serverUrl: "https://aurral.example.com",
+  tailscale: null as { controlURL?: string } | null,
   customHeaders: { "CF-Access-Client-Id": "client-id" } as Record<
     string,
     string
@@ -18,6 +19,13 @@ const mockAuth = {
 };
 jest.mock("@/contexts/auth-context", () => ({
   useAuth: () => mockAuth,
+}));
+
+let mockTailscaleStatus: Record<string, unknown> = { state: "Off" };
+const mockOpenSignIn = jest.fn();
+jest.mock("@/lib/tailscale", () => ({
+  useTailscaleStatus: () => mockTailscaleStatus,
+  openTailscaleSignIn: () => mockOpenSignIn(),
 }));
 
 const mockSave = jest.fn();
@@ -68,10 +76,48 @@ function pressAlertButton(text: string) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockAuth.tailscale = null;
+  mockTailscaleStatus = { state: "Off" };
   jest.spyOn(Alert, "alert").mockImplementation(() => {});
 });
 
 describe("ServerScreen", () => {
+  describe("for a server reached through Tailscale", () => {
+    beforeEach(() => {
+      mockAuth.tailscale = {};
+    });
+
+    it("shows the node's status and tailnet address", async () => {
+      mockTailscaleStatus = {
+        state: "Running",
+        tailnetIPs: ["100.64.0.7", "fd7a:115c:a1e0::7"],
+      };
+      const utils = await render(<ServerScreen />);
+
+      expect(utils.getByText("Connected")).toBeTruthy();
+      expect(utils.getByText("100.64.0.7")).toBeTruthy();
+      expect(utils.queryByText("Sign In to Tailscale")).toBeNull();
+    });
+
+    it("signs the node in again when Tailscale asks", async () => {
+      mockTailscaleStatus = {
+        state: "NeedsLogin",
+        loginURL: "https://login.tailscale.com/a/1",
+      };
+      const utils = await render(<ServerScreen />);
+
+      expect(utils.getByText("Needs Sign-In")).toBeTruthy();
+      await fireEvent.press(utils.getByText("Sign In to Tailscale"));
+      expect(mockOpenSignIn).toHaveBeenCalled();
+    });
+  });
+
+  it("shows no Tailscale section for a server reached directly", async () => {
+    const utils = await render(<ServerScreen />);
+    expect(utils.queryByText("Tailscale")).toBeNull();
+    expect(utils.queryByText("Status")).toBeNull();
+  });
+
   it("adds a header to the saved ones without showing their values", async () => {
     const utils = await render(<ServerScreen />);
     expect(utils.queryByText("client-id")).toBeNull();

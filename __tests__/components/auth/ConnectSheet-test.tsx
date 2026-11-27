@@ -17,6 +17,14 @@ jest.mock("@/hooks/auth/use-server-connect", () => ({
   useServerConnect: jest.fn(),
 }));
 
+let mockTailscaleAvailable = false;
+jest.mock("@/lib/tailscale", () => ({
+  get isTailscaleAvailable() {
+    return mockTailscaleAvailable;
+  },
+  useTailscaleStatus: () => ({ state: "Off" }),
+}));
+
 jest.mock("@/lib/api/client", () => ({
   ApiError: class ApiError extends Error {
     status: number;
@@ -53,6 +61,7 @@ const unansweredCheck = () => jest.fn(() => new Promise<never>(() => {}));
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockTailscaleAvailable = false;
   mockUseServerConnect.mockReturnValue({
     mutateAsync: unansweredCheck(),
     isPending: false,
@@ -110,6 +119,8 @@ describe("ConnectSheet", () => {
       expect(mutateAsync).toHaveBeenCalledWith({
         url: "https://my-server.com",
         headers: {},
+        tailscale: null,
+        signal: expect.any(AbortSignal),
       });
     });
   });
@@ -142,7 +153,116 @@ describe("ConnectSheet", () => {
       expect(mutateAsync).toHaveBeenCalledWith({
         url: "https://my-server.com",
         headers: { "CF-Access-Client-Id": "id.access" },
+        tailscale: null,
+        signal: expect.any(AbortSignal),
       });
+    });
+  });
+
+  describe("through Tailscale", () => {
+    beforeEach(() => {
+      mockTailscaleAvailable = true;
+    });
+
+    it("connects with the auth key and control server from Advanced", async () => {
+      const mutateAsync = unansweredCheck();
+      mockUseServerConnect.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+        error: null,
+      });
+
+      const screen = await render(<OpenConnectSheet />);
+      await fireEvent.changeText(
+        screen.getByPlaceholderText("https://your-server.example.com"),
+        "http://aurral-host:3002",
+      );
+      await fireEvent(
+        screen.getByLabelText("Connect through Tailscale"),
+        "valueChange",
+        true,
+      );
+      await fireEvent.press(screen.getByText("Advanced"));
+      await fireEvent.changeText(
+        screen.getByLabelText("Tailscale auth key"),
+        " tskey-auth-1 ",
+      );
+      await fireEvent.changeText(
+        screen.getByLabelText("Tailscale control server"),
+        "https://hs.example",
+      );
+      await fireEvent.press(screen.getByText("Connect"));
+
+      await waitFor(() => {
+        expect(mutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            url: "http://aurral-host:3002",
+            tailscale: {
+              authKey: "tskey-auth-1",
+              controlURL: "https://hs.example",
+            },
+          }),
+        );
+      });
+    });
+
+    it("says the tailnet was joined when the server doesn't answer", async () => {
+      const { ApiError } = jest.requireMock("@/lib/api/client");
+      mockUseServerConnect.mockReturnValue({
+        mutateAsync: unansweredCheck(),
+        isPending: false,
+        error: new ApiError(0, "Unable to reach server over Tailscale."),
+        variables: { tailscale: {} },
+      });
+
+      const screen = await render(<OpenConnectSheet />);
+
+      expect(
+        screen.getByText(
+          "Tailscale is connected, but the server didn't answer. Check the URL, and that the server is on your tailnet.",
+        ),
+      ).toBeTruthy();
+    });
+
+    it("ignores a control server left typed after Tailscale is turned off", async () => {
+      const mutateAsync = unansweredCheck();
+      mockUseServerConnect.mockReturnValue({
+        mutateAsync,
+        isPending: false,
+        error: null,
+      });
+
+      const screen = await render(<OpenConnectSheet />);
+      await fireEvent.changeText(
+        screen.getByPlaceholderText("https://your-server.example.com"),
+        "https://my-server.com",
+      );
+      const tailscaleSwitch = screen.getByLabelText(
+        "Connect through Tailscale",
+      );
+      await fireEvent(tailscaleSwitch, "valueChange", true);
+      await fireEvent.press(screen.getByText("Advanced"));
+      await fireEvent.changeText(
+        screen.getByLabelText("Tailscale control server"),
+        "headscale.example.com",
+      );
+      await fireEvent(tailscaleSwitch, "valueChange", false);
+      await fireEvent.press(screen.getByText("Connect"));
+
+      await waitFor(() => {
+        expect(mutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            url: "https://my-server.com",
+            tailscale: null,
+          }),
+        );
+      });
+    });
+
+    it("offers no switch in a build without the gateway", async () => {
+      mockTailscaleAvailable = false;
+      const screen = await render(<OpenConnectSheet />);
+      expect(screen.queryByLabelText("Connect through Tailscale")).toBeNull();
     });
   });
 
@@ -248,6 +368,7 @@ describe("ConnectSheet", () => {
       url: "https://my-server.com",
       health: { authRequired: true },
       headers: { "CF-Access-Client-Id": "id.access" },
+      tailscale: null,
     };
     let answer: (value: typeof server) => void;
 
@@ -281,6 +402,7 @@ describe("ConnectSheet", () => {
         server.url,
         server.health,
         server.headers,
+        null,
       );
     });
 
@@ -295,6 +417,7 @@ describe("ConnectSheet", () => {
         server.url,
         server.health,
         server.headers,
+        null,
       );
     });
   });

@@ -32,6 +32,7 @@ const LOGIN_PATH = "/api/auth/oidc/login";
 const EXCHANGE_PATH = "/api/auth/oidc/exchange";
 
 const COMPLETE_PATH = "/sso/complete";
+const CALLBACK_PATH = "/sso/callback";
 
 /** The one app redirect Aurral accepts for pocket. */
 export const OIDC_APP_REDIRECT = "aurralpocket://sso";
@@ -104,6 +105,24 @@ export function isOidcCompleteUrl(serverUrl: string, url: string): boolean {
   if (!serverUrl || !url) return false;
   if (originOf(url) !== originOf(serverUrl)) return false;
   return pathOf(url).replace(/\/+$/, "").endsWith(COMPLETE_PATH);
+}
+
+/**
+ * The gateway's copy of the provider's redirect back to Aurral, or null for any
+ * other URL. The sign-in cookie lives on the gateway's origin, whose root
+ * serves the server's base path.
+ */
+export function gatewayCallbackUrl(
+  gatewayUrl: string,
+  url: string,
+): string | null {
+  if (!gatewayUrl || !url) return null;
+  if (originOf(url) === originOf(gatewayUrl)) return null;
+  if (!pathOf(url).replace(/\/+$/, "").endsWith(CALLBACK_PATH)) return null;
+  const trimmed = url.trim();
+  const restAt = trimmed.search(/[?#]/);
+  const rest = restAt === -1 ? "" : trimmed.slice(restAt);
+  return `${gatewayUrl.replace(/\/+$/, "")}${CALLBACK_PATH}${rest}`;
 }
 
 /** Aurral puts the outcome in the fragment; read the query too, for forks. */

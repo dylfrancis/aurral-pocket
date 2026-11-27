@@ -18,6 +18,11 @@ jest.mock("@/lib/player/play-history", () => ({
   startPlayHistory: jest.fn(() => () => {}),
 }));
 
+jest.mock("@/lib/tailscale", () => ({
+  isTailscaleAvailable: true,
+  startGateway: jest.fn(() => Promise.resolve("http://127.0.0.1:47862")),
+}));
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import {
@@ -30,6 +35,7 @@ import {
 } from "@/lib/api/client";
 import { setSavedLibraryUser } from "@/lib/offline/saved-library";
 import { startPlayHistory } from "@/lib/player/play-history";
+import { startGateway } from "@/lib/tailscale";
 import {
   headlessSession,
   onSessionChanged,
@@ -47,10 +53,13 @@ function store({
   token = "siri-token" as string | null,
   user = '{"id":7,"username":"alice"}' as string | null,
   lastActive = (NOW - DAY_MS) as number | null,
+  tailscale = null as string | null,
 } = {}) {
-  mockAsyncStorage.getItem.mockImplementation(async (key) =>
-    key === "server_url" ? serverUrl : null,
-  );
+  mockAsyncStorage.getItem.mockImplementation(async (key) => {
+    if (key === "server_url") return serverUrl;
+    if (key === "tailscale") return tailscale;
+    return null;
+  });
   mockSecureStore.getItemAsync.mockImplementation(async (key) => {
     if (key === "auth_token") return token;
     if (key === "user_json") return user;
@@ -71,6 +80,17 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 describe("headlessSession", () => {
+  // CarPlay, Android Auto or Siri starting the app reaches a Tailscale server
+  // the same way a screen does.
+  it("opens the Tailscale gateway for a server reached through it", async () => {
+    store({ serverUrl: "http://aurral-host:3002", tailscale: "{}" });
+
+    await expect(headlessSession()).resolves.toEqual({ userId: 7 });
+
+    expect(startGateway).toHaveBeenCalledWith("http://aurral-host:3002", {});
+    expect(getServerUrl()).toBe("http://127.0.0.1:47862");
+  });
+
   // Siri or a car woke the app: no window opened, so the auth provider never
   // mounted.
   it("restores the session when no screen has", async () => {
