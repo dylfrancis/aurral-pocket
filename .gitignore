@@ -54,3 +54,8 @@ modules/*/android/.cxx/
 
 .idea
 .claude
+
+# Tailscale gateway: gomobile output and its pinned tools
+gateway/.bin/
+modules/tailscale/ios/Gateway.xcframework/
+modules/tailscale/android/libs/

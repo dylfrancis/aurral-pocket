@@ -1,0 +1,42 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'expo.modules.tailscale'
+version = '0.1.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useDefaultAndroidSdkVersions()
+useExpoPublishing()
+
+// Built from gateway/ by scripts/build-tailscale-gateway.sh, and git-ignored.
+// Without it the module compiles a stub that reports Tailscale unavailable.
+def gatewayAar = file("libs/gateway.aar")
+
+android {
+  namespace "expo.modules.tailscale"
+  defaultConfig {
+    minSdkVersion 24
+  }
+  sourceSets {
+    main {
+      java.srcDirs += gatewayAar.exists() ? "src/gateway/java" : "src/stub/java"
+    }
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+repositories {
+  mavenCentral()
+  google()
+}
+
+dependencies {
+  if (gatewayAar.exists()) {
+    implementation files(gatewayAar)
+  }
+}
