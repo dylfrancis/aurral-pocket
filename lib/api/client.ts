@@ -74,6 +74,13 @@ export function setBaseUrl(url: string) {
   baseURL = url ? `${url}/api` : "";
 }
 
+/**
+ * The Tailscale gateway marks the 502 it sends when it can't reach the server
+ * over the tailnet (gateway/proxy.go): what a direct connection meets as a
+ * network error, not an answer from Aurral.
+ */
+const GATEWAY_HEADER = "X-Pocket-Gateway";
+
 export function getServerUrl(): string {
   return baseURL.replace(/\/api\/?$/, "");
 }
@@ -364,6 +371,13 @@ async function request<T>(
     throw new ApiError(0, "Unable to reach server. Check your connection.");
   }
   clearTimeout(timeoutId);
+
+  if (response.status === 502 && response.headers.get(GATEWAY_HEADER)) {
+    throw new ApiError(
+      0,
+      "Unable to reach server over Tailscale. Check your connection.",
+    );
+  }
 
   const text = await response.text();
   let parsed: unknown = undefined;

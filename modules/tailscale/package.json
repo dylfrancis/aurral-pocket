@@ -1,0 +1,9 @@
+{
+  "name": "tailscale",
+  "version": "0.1.0",
+  "description": "Local Expo module that joins a tailnet in the app and serves a loopback proxy to one server on it.",
+  "main": "index.ts",
+  "author": "Dylan Francis",
+  "license": "MIT",
+  "homepage": "https://github.com/dylfrancis/aurral-pocket"
+}

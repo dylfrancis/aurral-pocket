@@ -5,6 +5,11 @@ import type { PlayerTrack } from "@/lib/player/track-item";
 import type { FlowJob, SharedPlaylist } from "@/lib/types/flow";
 import type { Track } from "@/lib/types/library";
 
+let mockGatewayRunning = false;
+jest.mock("@/lib/tailscale", () => ({
+  isGatewayRunning: () => mockGatewayRunning,
+}));
+
 // The saved library and the fake disk both keep module state. Each test loads
 // fresh copies, as a cold start would, after seeding what a restart finds.
 let lib: typeof SavedLibrary;
@@ -15,6 +20,7 @@ let cleanup: typeof Testing.cleanup | null = null;
 
 afterEach(async () => {
   await cleanup?.();
+  mockGatewayRunning = false;
 });
 let fs: typeof FakeFileSystem;
 let storage: {
@@ -150,6 +156,24 @@ describe("saving an album", () => {
     // A track with no file on the server is never asked for.
     expect(fs.downloads).toHaveLength(2);
   });
+
+  // The system's background session runs outside the app, where the Tailscale
+  // gateway's loopback port can't be reached.
+  it.each([
+    [false, "background"],
+    [true, "foreground"],
+  ])(
+    "with the Tailscale gateway running %s, downloads in a %s session",
+    async (running, session) => {
+      mockGatewayRunning = running;
+      start();
+      lib.setSavedLibraryUser(1);
+      lib.saveAlbum({ ref: "12", route, tracks: [track("71")] });
+      await settle();
+
+      expect(fs.downloads[0].sessionType).toBe(session);
+    },
+  );
 
   it("writes no session token to the phone", async () => {
     start();

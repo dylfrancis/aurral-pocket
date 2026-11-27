@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ThemePreference } from "@/lib/types/theme";
 import { DATE_TIME_FORMATS } from "@/lib/types/date-time";
 import type { DateTimeFormat } from "@/lib/types/date-time";
+import type { TailscaleSettings } from "@/lib/types/tailscale";
 
 const THEME_PREFERENCES: readonly ThemePreference[] = [
   "system",
@@ -56,6 +57,7 @@ const KEYS = {
   PLAYBACK_SETTINGS: "playback_settings",
   DATE_TIME_FORMAT: "date_time_format",
   CUSTOM_HEADERS: "custom_headers",
+  TAILSCALE: "tailscale",
 } as const;
 
 export const SecureStorage = {
@@ -317,6 +319,32 @@ export const AppStorage = {
   async deleteServerUrl(): Promise<void> {
     try {
       await AsyncStorage.removeItem(KEYS.SERVER_URL);
+    } catch {}
+  },
+
+  /** Null when the server is reached directly. */
+  async getTailscale(): Promise<TailscaleSettings | null> {
+    try {
+      const raw = await AsyncStorage.getItem(KEYS.TAILSCALE);
+      if (!raw) return null;
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed !== "object" || parsed === null) return null;
+      const { controlURL } = parsed as { controlURL?: unknown };
+      return typeof controlURL === "string" && controlURL ? { controlURL } : {};
+    } catch {
+      return null;
+    }
+  },
+
+  async setTailscale(settings: TailscaleSettings): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.TAILSCALE, JSON.stringify(settings));
+    } catch {}
+  },
+
+  async deleteTailscale(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.TAILSCALE);
     } catch {}
   },
 

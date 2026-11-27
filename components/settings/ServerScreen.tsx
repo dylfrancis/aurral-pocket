@@ -15,24 +15,42 @@ import { useLibraryScan } from "@/hooks/library/use-library-scan";
 import { useSaveCustomHeaders } from "@/hooks/auth/use-save-custom-headers";
 import { ApiError } from "@/lib/api/client";
 import { headerRowsSchema, newHeaderRow } from "@/lib/custom-headers";
+import { openTailscaleSignIn, useTailscaleStatus } from "@/lib/tailscale";
+import type { TailscaleState } from "@/modules/tailscale";
 
 const SCAN_NOTE =
   "A quick scan reads new and changed files. A full scan reads every file again, which takes longer. Either one also tries to match artists whose files have no MusicBrainz tags.";
+
+const TAILSCALE_NOTE =
+  "Aurral Pocket reaches this server over its own Tailscale connection, without the Tailscale app. Change Server removes this phone from your tailnet.";
+
+const TAILSCALE_STATES: Record<TailscaleState, string> = {
+  Running: "Connected",
+  Starting: "Connecting…",
+  NoState: "Connecting…",
+  NeedsLogin: "Needs Sign-In",
+  NeedsMachineAuth: "Waiting for Approval",
+  Stopped: "Not Connected",
+  Off: "Not Connected",
+};
 
 const HEADERS_NOTE =
   "Sent with every request, for a reverse proxy in front of your server. The server has to answer with a change before it’s kept.";
 
 export function ServerScreen() {
   const row = useSettingsRow();
-  const { serverUrl } = useAuth();
+  const { serverUrl, tailscale } = useAuth();
   const changeServer = useChangeServer();
   const headersSections = useHeadersSections();
+  const tailscaleSection = useTailscaleSection();
   const libraryScan = useLibraryScan();
 
   const confirmChangeServer = () =>
     Alert.alert(
       "Change server?",
-      "You’ll be signed out, and Aurral Pocket forgets this server, your saved sign-in and your custom headers.",
+      tailscale
+        ? "You’ll be signed out, and Aurral Pocket forgets this server, your saved sign-in and your custom headers, and removes this phone from your tailnet."
+        : "You’ll be signed out, and Aurral Pocket forgets this server, your saved sign-in and your custom headers.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -49,6 +67,7 @@ export function ServerScreen() {
         <FieldGroup.Section>
           {row({ label: "URL", value: serverUrl })}
         </FieldGroup.Section>
+        {tailscaleSection}
         <FieldGroup.Section title="Library">
           {row({
             label: "Scan Library",
@@ -101,6 +120,49 @@ export function ServerScreen() {
         </FieldGroup.Section>
       </FieldGroup>
     </Host>
+  );
+}
+
+/**
+ * How the app's own Tailscale node is doing, for a server reached through it.
+ * Returns the section element itself, or null: Android wraps any FieldGroup
+ * child that isn't a Section in a section of its own.
+ */
+function useTailscaleSection() {
+  const row = useSettingsRow();
+  const { tailscale } = useAuth();
+  const status = useTailscaleStatus();
+  if (!tailscale) return null;
+
+  const address =
+    status.state === "Running"
+      ? (status.tailnetIPs?.find((ip) => ip.includes(".")) ?? null)
+      : null;
+  const needsSignIn = status.state === "NeedsLogin" && !!status.loginURL;
+  const problem =
+    status.state === "NeedsMachineAuth"
+      ? "An admin has to approve this phone in the Tailscale admin console."
+      : status.state !== "Running" && status.error
+        ? status.error
+        : null;
+
+  return (
+    <FieldGroup.Section key="tailscale" title="Tailscale">
+      {row({ label: "Status", value: TAILSCALE_STATES[status.state] })}
+      {address ? row({ label: "Address", value: address }) : null}
+      {needsSignIn
+        ? row({
+            label: "Sign In to Tailscale",
+            action: true,
+            onPress: () => void openTailscaleSignIn(),
+          })
+        : null}
+      <FieldGroup.SectionFooter>
+        <SettingsNote tone={problem ? "warning" : undefined}>
+          {problem ? `${problem} ${TAILSCALE_NOTE}` : TAILSCALE_NOTE}
+        </SettingsNote>
+      </FieldGroup.SectionFooter>
+    </FieldGroup.Section>
   );
 }
 

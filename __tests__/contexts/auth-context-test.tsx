@@ -27,6 +27,14 @@ jest.mock("@/lib/api/auth", () => ({
   getMe: jest.fn(),
 }));
 
+jest.mock("@/lib/tailscale", () => ({
+  isTailscaleAvailable: true,
+  startGateway: jest.fn(() => Promise.resolve("http://127.0.0.1:47862")),
+  forgetGateway: jest.fn(() => Promise.resolve()),
+  gatewayUrlFor: jest.fn(() => "http://127.0.0.1:47862"),
+  signInWhenAsked: jest.fn(() => () => {}),
+}));
+
 import React, { useCallback } from "react";
 import { Text, Pressable } from "react-native";
 import { render, waitFor, fireEvent, act } from "@testing-library/react-native";
@@ -36,6 +44,7 @@ import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { setAuthToken, setBaseUrl, setCustomHeaders } from "@/lib/api/client";
 import { getMe } from "@/lib/api/auth";
 import { onSessionChanged } from "@/lib/headless-session";
+import { forgetGateway, signInWhenAsked, startGateway } from "@/lib/tailscale";
 import { TrackPlayer } from "react-native-nitro-player";
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
@@ -236,6 +245,73 @@ describe("AuthProvider — restore on mount", () => {
       expect(getByTestId("token").props.children).toBe("null");
       expect(getByTestId("serverUrl").props.children).toBe("null");
     });
+  });
+});
+
+describe("AuthProvider — a server reached through Tailscale", () => {
+  const TAILNET = "http://aurral-host:3002";
+
+  function storeTailscaleServer(extra: Record<string, string> = {}) {
+    mockAsyncStorage.getItem.mockImplementation(async (key) => {
+      if (key === "server_url") return TAILNET;
+      if (key === "tailscale") return '{"controlURL":"https://hs.example"}';
+      return null;
+    });
+    mockSecureStore.getItemAsync.mockImplementation(
+      async (key) => extra[key] ?? null,
+    );
+  }
+
+  it("opens the gateway at launch and sends every request through it", async () => {
+    storeTailscaleServer({ auth_token: "my-token" });
+
+    const { getByTestId } = await renderWithProvider();
+    await waitFor(() => {
+      expect(getByTestId("serverUrl").props.children).toBe(TAILNET);
+    });
+
+    expect(startGateway).toHaveBeenCalledWith(TAILNET, {
+      controlURL: "https://hs.example",
+    });
+    expect(setBaseUrl).toHaveBeenCalledWith("http://127.0.0.1:47862");
+    expect(setBaseUrl).not.toHaveBeenCalledWith(TAILNET);
+    // A node removed from the tailnet gets Tailscale's sign-in page.
+    expect(signInWhenAsked).toHaveBeenCalled();
+  });
+
+  it("removes the phone from the tailnet when the server is forgotten", async () => {
+    storeTailscaleServer({ auth_token: "my-token" });
+    const { getByTestId } = await renderWithProvider();
+    await waitFor(() => {
+      expect(getByTestId("serverUrl").props.children).toBe(TAILNET);
+    });
+
+    await act(async () => {
+      await fireEvent.press(getByTestId("clearAll"));
+    });
+
+    expect(forgetGateway).toHaveBeenCalledWith({
+      controlURL: "https://hs.example",
+    });
+    expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("tailscale");
+  });
+
+  it("removes it too when 30 days without use reset the app", async () => {
+    storeTailscaleServer({
+      auth_token: "old-token",
+      last_active_at: String(Date.now() - 31 * 24 * 60 * 60 * 1000),
+    });
+
+    const { getByTestId } = await renderWithProvider();
+    await waitFor(() => {
+      expect(getByTestId("serverUrl").props.children).toBe("null");
+    });
+
+    expect(forgetGateway).toHaveBeenCalledWith({
+      controlURL: "https://hs.example",
+    });
+    expect(mockAsyncStorage.removeItem).toHaveBeenCalledWith("tailscale");
+    expect(startGateway).not.toHaveBeenCalled();
   });
 });
 

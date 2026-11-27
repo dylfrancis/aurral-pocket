@@ -40,6 +40,7 @@ import {
   buildOidcExchangePageUrl,
   buildOidcExchangeScript,
   buildOidcLoginUrl,
+  gatewayCallbackUrl,
   isOidcCompleteUrl,
   isServerOrigin,
   parseOidcMessage,
@@ -47,6 +48,7 @@ import {
   readOidcCompletion,
 } from "@/lib/oidc";
 import { createPkcePair } from "@/lib/pkce";
+import { useGatewayUrl } from "@/lib/tailscale";
 import type { OidcSession } from "@/lib/types/auth";
 import { useColors } from "@/hooks/use-colors";
 
@@ -64,9 +66,16 @@ type Props = {
 /**
  * Runs the Aurral OIDC flow and reports the session back: in the system auth
  * browser, where a provider's passkeys work, or in a WebView for a server
- * behind a proxy that wants custom headers. `lib/oidc.ts` has the flow.
+ * behind a proxy that wants custom headers or reached over the app's own
+ * Tailscale node. `lib/oidc.ts` has the flow.
  */
 export function OidcSignInModal(props: Props) {
+  // The app can't steer the auth browser's redirects: only the WebView can send
+  // the provider's redirect back to Aurral through the Tailscale gateway.
+  const gateway = useGatewayUrl(props.serverUrl);
+  if (gateway) {
+    return <OidcWebViewSignIn {...props} serverUrl={gateway} throughGateway />;
+  }
   // The auth browser sends a proxy's headers on no request, so the provider's
   // redirect back to the server would be refused.
   const needsHeaders =
@@ -195,13 +204,19 @@ function OidcBrowserSession({
  * provider session every expiry would mean typing provider credentials again.
  * `OidcLogoutWebView` ends that provider session at sign-out.
  */
+type WebViewProps = Props & {
+  /** serverUrl is the Tailscale gateway standing in for the server. */
+  throughGateway?: boolean;
+};
+
 function OidcWebViewSignIn({
   visible,
   serverUrl,
+  throughGateway = false,
   onClose,
   onSession,
   onAccountSuspended,
-}: Props) {
+}: WebViewProps) {
   return (
     <Modal
       visible={visible}
@@ -214,6 +229,7 @@ function OidcWebViewSignIn({
       {visible ? (
         <OidcSignInFlow
           serverUrl={serverUrl}
+          throughGateway={throughGateway}
           onClose={onClose}
           onSession={onSession}
           onAccountSuspended={onAccountSuspended}
@@ -225,10 +241,11 @@ function OidcWebViewSignIn({
 
 function OidcSignInFlow({
   serverUrl,
+  throughGateway,
   onClose,
   onSession,
   onAccountSuspended,
-}: Omit<Props, "visible">) {
+}: Omit<WebViewProps, "visible">) {
   const colors = useColors();
   // WebView 14 defaults its props generic to `undefined`, which turns every
   // prop into `never` once a ref pins it. `object` leaves the props intact.
@@ -305,10 +322,45 @@ function OidcSignInFlow({
     [phase, uri],
   );
 
+  /**
+   * The provider sends the WebView to the callback Aurral is configured with,
+   * but the sign-in cookie lives on the gateway's origin, so it goes there.
+   */
+  const gatewayCopy = useCallback(
+    (url: string): string | null =>
+      throughGateway && phase === "authorizing"
+        ? gatewayCallbackUrl(serverUrl, url)
+        : null,
+    [throughGateway, phase, serverUrl],
+  );
+
   const handleShouldStartLoad = useCallback(
-    (request: ShouldStartLoadRequest) =>
-      !consumeCompletion(request.url) && !reloadWithHeaders(request),
-    [consumeCompletion, reloadWithHeaders],
+    (request: ShouldStartLoadRequest) => {
+      if (consumeCompletion(request.url)) return false;
+      const rerouted =
+        request.isTopFrame === false ? null : gatewayCopy(request.url);
+      if (rerouted) {
+        setReloadedUri(rerouted);
+        return false;
+      }
+      return !reloadWithHeaders(request);
+    },
+    [consumeCompletion, gatewayCopy, reloadWithHeaders],
+  );
+
+  // Backstop for a platform that skips `onShouldStartLoadWithRequest` on the
+  // provider's redirect: loading the registered address fails, so go to the
+  // gateway's copy instead of showing the error.
+  const handleError = useCallback(
+    (event: WebViewErrorEvent) => {
+      const rerouted = gatewayCopy(event.nativeEvent.url);
+      if (rerouted) {
+        setReloadedUri(rerouted);
+        return;
+      }
+      setError("Unable to reach the sign-in page. Check the server.");
+    },
+    [gatewayCopy],
   );
 
   // Backstop for a platform that skips `onShouldStartLoadWithRequest` on a
@@ -416,9 +468,7 @@ function OidcSignInFlow({
             onNavigationStateChange={handleNavigationStateChange}
             onLoadEnd={handleLoadEnd}
             onMessage={handleMessage}
-            onError={() =>
-              setError("Unable to reach the sign-in page. Check the server.")
-            }
+            onError={handleError}
             style={styles.webView}
             testID="oidc-webview"
           />

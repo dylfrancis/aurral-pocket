@@ -14,7 +14,8 @@
     "prepare": "husky",
     "postinstall": "patch-package",
     "shazam:aar": "node scripts/setup-shazam-aar.mjs",
-    "eas-build-pre-install": "node scripts/setup-shazam-aar.mjs"
+    "gateway:build": "bash scripts/build-tailscale-gateway.sh",
+    "eas-build-pre-install": "node scripts/setup-shazam-aar.mjs && bash scripts/eas-build-gateway.sh"
   },
   "jest": {
     "preset": "jest-expo",

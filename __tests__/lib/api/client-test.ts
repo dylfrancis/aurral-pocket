@@ -305,6 +305,32 @@ describe("serverImageSource", () => {
   });
 });
 
+describe("through the Tailscale gateway", () => {
+  it("reads the gateway's own 502 as the phone being offline", async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({
+        ok: false,
+        status: 502,
+        statusText: "Bad Gateway",
+        body: "",
+        headers: { "X-Pocket-Gateway": "unreachable" },
+      }),
+    );
+    await expect(api.get("/health/live")).rejects.toMatchObject({
+      isNetworkError: true,
+    });
+
+    // A 502 from a reverse proxy is still the server's answer.
+    mockFetch.mockResolvedValueOnce(
+      mockResponse({ ok: false, status: 502, statusText: "Bad Gateway" }),
+    );
+    await expect(api.get("/health/live")).rejects.toMatchObject({
+      status: 502,
+      isNetworkError: false,
+    });
+  });
+});
+
 describe("query params", () => {
   it("serializes params onto the URL", async () => {
     mockFetch.mockResolvedValueOnce(mockResponse({ body: [] }));

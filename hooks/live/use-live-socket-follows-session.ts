@@ -8,6 +8,7 @@ import {
   openLiveSocket,
   resumeLiveSocket,
 } from "@/lib/api/live-socket";
+import { useGatewayUrl } from "@/lib/tailscale";
 
 /**
  * Keeps one socket open for the signed-in session while the app is in the
@@ -16,11 +17,18 @@ import {
 export function useLiveSocketFollowsSession() {
   const { serverUrl, token, customHeaders } = useAuth();
   const foreground = useIsForeground();
+  // Set when the app reaches the server through its own Tailscale node, and
+  // follows the gateway to a new port.
+  const gateway = useGatewayUrl(serverUrl);
 
   useEffect(() => {
     if (!serverUrl || !token || !foreground) return;
-    return openLiveSocket({ serverUrl, token, customHeaders });
-  }, [serverUrl, token, customHeaders, foreground]);
+    return openLiveSocket({
+      serverUrl: gateway ?? serverUrl,
+      token,
+      customHeaders,
+    });
+  }, [serverUrl, gateway, token, customHeaders, foreground]);
 
   // A refused socket means the session may be gone. Asking the server starts
   // the usual re-auth when it is, and its new token reopens the socket. Any

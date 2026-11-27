@@ -6,6 +6,11 @@ jest.mock("@/lib/api/auth", () => ({
   getMe: jest.fn(),
 }));
 
+let mockGateway: string | null = null;
+jest.mock("@/lib/tailscale", () => ({
+  useGatewayUrl: () => mockGateway,
+}));
+
 import { act, renderHook } from "@testing-library/react-native";
 import { AppState } from "react-native";
 import type { AppStateStatus } from "react-native";
@@ -136,6 +141,20 @@ afterEach(() => {
 });
 
 describe("live socket", () => {
+  it("connects through the Tailscale gateway when the server is reached through it", async () => {
+    mockUseAuth.mockReturnValue({
+      ...SESSION,
+      serverUrl: "http://aurral-host:3002",
+    });
+    mockGateway = "http://127.0.0.1:47862";
+    try {
+      await renderLive();
+      expect(latest().url).toBe("ws://127.0.0.1:47862/ws?token=session-token");
+    } finally {
+      mockGateway = null;
+    }
+  });
+
   it("connects as the session with its headers and passes on its channels' messages", async () => {
     const { result, onPlugins, onQueue } = await renderLive();
     const socket = latest();

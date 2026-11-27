@@ -2,6 +2,7 @@ import {
   buildOidcExchangePageUrl,
   buildOidcExchangeScript,
   buildOidcLoginUrl,
+  gatewayCallbackUrl,
   isHttpUrl,
   isOidcCompleteUrl,
   isServerOrigin,
@@ -63,6 +64,44 @@ describe("isOidcCompleteUrl", () => {
     expect(isOidcCompleteUrl(SERVER, `${SERVER}/sso/callback?code=x`)).toBe(
       false,
     );
+  });
+});
+
+describe("gatewayCallbackUrl", () => {
+  const GATEWAY = "http://127.0.0.1:47862";
+
+  it.each([
+    [
+      "the tailnet address Aurral registered",
+      "http://aurral-host:3002/sso/callback?code=c&state=s",
+      `${GATEWAY}/sso/callback?code=c&state=s`,
+    ],
+    [
+      "a public address Aurral registered",
+      "https://aurral.example.com/sso/callback?code=c&state=s",
+      `${GATEWAY}/sso/callback?code=c&state=s`,
+    ],
+    [
+      "a server under a base path",
+      "https://host.example.ts.net/aurral/sso/callback/?code=c#x",
+      `${GATEWAY}/sso/callback?code=c#x`,
+    ],
+  ])(
+    "sends the provider's redirect to %s through the gateway",
+    (_, url, want) => {
+      expect(gatewayCallbackUrl(GATEWAY, url)).toBe(want);
+    },
+  );
+
+  it.each([
+    ["the gateway's own callback", `${GATEWAY}/sso/callback?code=c`],
+    ["another page", "https://idp.example.com/authorize?state=s"],
+    [
+      "a provider page that only ends alike",
+      "https://idp.example.com/sso/callbacks",
+    ],
+  ])("leaves %s alone", (_, url) => {
+    expect(gatewayCallbackUrl(GATEWAY, url)).toBeNull();
   });
 });
 

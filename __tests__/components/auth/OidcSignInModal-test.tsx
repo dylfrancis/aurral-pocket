@@ -22,7 +22,7 @@ type WebViewProps = {
   onNavigationStateChange: (navigation: { url: string }) => void;
   onLoadEnd: (event: { nativeEvent: { url: string } }) => void;
   onMessage: (event: { nativeEvent: { url: string; data: string } }) => void;
-  onError: () => void;
+  onError: (event: { nativeEvent: { url: string } }) => void;
 };
 
 let mockWebViewProps: WebViewProps | null = null;
@@ -44,6 +44,11 @@ jest.mock("react-native-webview", () => {
 });
 
 jest.mock("expo-web-browser", () => ({ openAuthSessionAsync: jest.fn() }));
+
+let mockGateway: string | null = null;
+jest.mock("@/lib/tailscale", () => ({
+  useGatewayUrl: () => mockGateway,
+}));
 
 import React from "react";
 import { createHash } from "node:crypto";
@@ -88,6 +93,7 @@ async function renderModal(
 }
 
 beforeEach(() => {
+  mockGateway = null;
   mockWebViewProps = null;
   mockInjectJavaScript.mockClear();
   mockOpenAuthSession.mockReset();
@@ -206,6 +212,78 @@ describe("OidcSignInModal in the auth browser", () => {
     expect(buttons.map((b) => b.text)).toEqual(["OK"]);
     buttons[0].onPress?.();
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe("OidcSignInModal through the Tailscale gateway", () => {
+  const TAILNET = "http://aurral-host:3002";
+  const GATEWAY = "http://127.0.0.1:47862";
+  const navigate = (url: string) =>
+    mockWebViewProps?.onShouldStartLoadWithRequest({ url });
+
+  beforeEach(() => {
+    mockGateway = GATEWAY;
+    setBaseUrl(GATEWAY);
+  });
+
+  it("signs in in the WebView, taking the provider's redirect through the gateway", async () => {
+    const { onSession } = await renderModal({ serverUrl: TAILNET });
+    // The auth browser can't send the provider's redirect through the gateway.
+    expect(mockOpenAuthSession).not.toHaveBeenCalled();
+    expect(mockWebViewProps?.source.uri).toBe(`${GATEWAY}/api/auth/oidc/login`);
+
+    let allowed: boolean | undefined;
+    await act(async () => {
+      allowed = navigate("https://idp.example.com/authorize");
+    });
+    expect(allowed).toBe(true);
+
+    await act(async () => {
+      allowed = navigate(`${TAILNET}/sso/callback?code=abc&state=xyz`);
+    });
+    expect(allowed).toBe(false);
+    expect(mockWebViewProps?.source.uri).toBe(
+      `${GATEWAY}/sso/callback?code=abc&state=xyz`,
+    );
+
+    await act(async () => {
+      allowed = navigate(`${GATEWAY}/sso/complete#code=code-123`);
+    });
+    expect(allowed).toBe(false);
+    expect(mockWebViewProps?.source.uri).toBe(`${GATEWAY}/sso/complete`);
+
+    await act(async () => {
+      mockWebViewProps?.onLoadEnd({
+        nativeEvent: { url: `${GATEWAY}/sso/complete` },
+      });
+    });
+    expect(mockInjectJavaScript).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      mockWebViewProps?.onMessage({
+        nativeEvent: {
+          url: `${GATEWAY}/sso/complete`,
+          data: JSON.stringify({ type: "session", session: SESSION }),
+        },
+      });
+    });
+    expect(onSession).toHaveBeenCalledWith(SESSION);
+  });
+
+  it("goes to the gateway when the redirect it wasn't offered fails to load", async () => {
+    const screen = await renderModal({ serverUrl: TAILNET });
+
+    await act(async () => {
+      mockWebViewProps?.onError({
+        nativeEvent: { url: `${TAILNET}/sso/callback?code=abc&state=xyz` },
+      });
+    });
+
+    expect(mockWebViewProps?.source.uri).toBe(
+      `${GATEWAY}/sso/callback?code=abc&state=xyz`,
+    );
+    expect(
+      screen.queryByText("Unable to reach the sign-in page. Check the server."),
+    ).toBeNull();
   });
 });
 

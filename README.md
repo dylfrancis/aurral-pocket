@@ -46,6 +46,7 @@ Each release targets one Aurral version, pinned in [`.aurral-version`](./.aurral
 - **Listening:** plays go to Aurral, ListenBrainz or Koito
 - **Shazam:** identify a song playing nearby, then play it or open its album or artists
 - **Sign-in:** password or OIDC, biometric re-auth, and custom headers for reverse proxies such as Cloudflare Access
+- **Tailscale:** reach a server on your tailnet through the app's own Tailscale connection, without the Tailscale app or a VPN
 
 ## Development
 
@@ -70,6 +71,17 @@ npm run shazam:aar -- ~/Downloads/ShazamKitAndroid2.1.1.zip
 
 Song matching on Android also needs a developer token. Set `SHAZAM_KEY_ID`, `SHAZAM_TEAM_ID` and `SHAZAM_PRIVATE_KEY_PATH` in `.env.local`. [`modules/shazam/android/libs/README.md`](./modules/shazam/android/libs/README.md) has the details.
 
+### Tailscale gateway
+
+The in-app Tailscale connection is a Go library in [`gateway/`](./gateway), built with gomobile into `modules/tailscale`. Building it needs the Go version in `gateway/go.mod`, plus Xcode for iOS, and the Android SDK, NDK and JDK 17 for Android:
+
+```bash
+npm run gateway:build          # both platforms
+npm run gateway:build -- ios   # or android
+```
+
+Run it again after changing anything in `gateway/`, then rebuild the app. Without it a local build still works, with the Tailscale switch hidden. EAS builds it in `eas-build-pre-install`, and a failure there fails the EAS build, so no release ships without Tailscale.
+
 ### Scripts
 
 | Script               | Purpose                                                     |
@@ -83,8 +95,9 @@ Song matching on Android also needs a developer token. Set `SHAZAM_KEY_ID`, `SHA
 | `test:android`       | Run the Jest suite with the Android preset                  |
 | `check:api-contract` | Check every endpoint pocket calls against pinned Aurral     |
 | `shazam:aar`         | Install the ShazamKit for Android `.aar` from a zip or file |
+| `gateway:build`      | Build the Tailscale gateway for iOS, Android or both        |
 
-CI runs both `npm test` and `npm run test:android`, so run both before pushing.
+CI runs both `npm test` and `npm run test:android`, so run both before pushing. It also runs the gateway's Go tests (`go test ./...` in `gateway/`).
 
 ### API contract check
 
@@ -119,9 +132,11 @@ contexts/         Auth and theme providers
 hooks/            Hooks, grouped by feature
 lib/              API client, player, offline saves, and domain logic
 modules/shazam/   Local Expo module wrapping ShazamKit on iOS and Android
+modules/tailscale/ Local Expo module wrapping the Tailscale gateway
+gateway/          Go: the in-app Tailscale node and its loopback proxy
 plugins/          Expo config plugins (background audio)
 patches/          patch-package fixes for dependencies
-scripts/          API contract check and Shazam setup
+scripts/          API contract check, Shazam setup and the gateway build
 docs/             Privacy policy and the Docker test stack
 assets/           Images and fonts
 __tests__/        Jest tests
