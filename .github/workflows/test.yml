@@ -18,3 +18,17 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run test:android
+
+  gateway:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: gateway/go.mod
+          cache-dependency-path: gateway/go.sum
+      - run: go vet ./...
+      - run: go test -race ./...
